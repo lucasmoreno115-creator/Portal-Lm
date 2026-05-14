@@ -20,6 +20,8 @@ details{border:1px solid var(--border);border-radius:10px;padding:10px;backgroun
 .command-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px;margin-bottom:16px}
 .metric-card h2,.action-card h2{margin-bottom:14px}
 .action-card{border-color:#4a3e17;box-shadow:0 0 0 1px rgba(212,175,55,.12) inset}
+.mfit-card{border-color:#4a3e17;background:linear-gradient(160deg,#151515 0%,#111111 75%,#181307 100%)}
+.mfit-card p{margin:0 0 10px}
 .badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;border:1px solid #3a3a3a;font-size:.84rem;background:#1a1a1a;color:#d7d7d7}
 .badge-ok{background:rgba(80,170,95,.12);border-color:rgba(80,170,95,.45);color:#9be0a8}
 .badge-warning{background:rgba(212,175,55,.12);border-color:rgba(212,175,55,.45);color:#f0d47a}
