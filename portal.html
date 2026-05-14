@@ -31,7 +31,7 @@
         <ul class='status-list'>
           <li><span>Check-in</span><span id='checkStatus' class='badge badge-warning'>Pendente</span></li>
           <li><span>Execução da semana</span><strong>Em acompanhamento</strong></li>
-          <li><span>Foco da semana</span><strong>Consistência antes de ajuste</strong></li>
+          <li><span>Foco da semana</span><strong id='weeklyFocus'>Consistência antes de ajuste</strong></li>
           <li><span>Prazo do check-in</span><strong>Até sábado</strong></li>
         </ul>
         <p id='weeklyInsight' class='muted'>Sua semana começa com clareza. Envie seu check-in para liberar a análise estratégica.</p>
@@ -46,7 +46,7 @@
 
     <section class='card metric-card'>
       <h2>Missão da semana</h2>
-      <ul class='mission-list'>
+      <ul class='mission-list' id='weeklyMission'>
         <li><strong>Treino:</strong> executar o que está prescrito no MFIT.</li>
         <li><strong>Cardio:</strong> cumprir a orientação combinada.</li>
         <li><strong>Nutrição:</strong> manter adesão ao plano alimentar.</li>
@@ -92,12 +92,33 @@
       const checkStatusEl = document.querySelector('#checkStatus');
       const nextMsgEl = document.querySelector('#nextMsg');
       const nextBtnEl = document.querySelector('#nextBtn');
+      const weeklyFocusEl = document.querySelector('#weeklyFocus');
       const weeklyInsightEl = document.querySelector('#weeklyInsight');
+      const weeklyMissionEl = document.querySelector('#weeklyMission');
       const consistencyBadgeEl = document.querySelector('#consistencyBadge');
 
       try {
-        const response = await api('/portal/checkins');
-        const hasCheckin = Array.isArray(response?.data) && response.data.length > 0;
+        const [checkinResponse, weeklyPlanResponse] = await Promise.all([
+          api('/portal/checkins'),
+          api('/portal/weekly-plan')
+        ]);
+
+        const hasCheckin = Array.isArray(checkinResponse?.data) && checkinResponse.data.length > 0;
+        const weeklyPlan = weeklyPlanResponse?.data || null;
+
+        if (weeklyPlan) {
+          weeklyFocusEl.textContent = weeklyPlan.nutrition_focus || weeklyPlan.training_focus || 'Consistência antes de ajuste';
+
+          const missionItems = [
+            `<li><strong>Treino:</strong> ${weeklyPlan.training_focus || 'executar o que está prescrito no MFIT.'}</li>`,
+            `<li><strong>Cardio:</strong> ${weeklyPlan.cardio_target || 'cumprir a orientação combinada.'}</li>`,
+            `<li><strong>Risco principal:</strong> ${weeklyPlan.main_risk || 'manter foco na rotina planejada.'}</li>`,
+            `<li><strong>Observação:</strong> ${weeklyPlan.coach_message || 'consistência e execução com qualidade na semana.'}</li>`
+          ];
+          weeklyMissionEl.innerHTML = missionItems.join('');
+
+          weeklyInsightEl.textContent = weeklyPlan.coach_message || 'Semana com direção estratégica definida. Priorize execução com consistência.';
+        }
 
         if (hasCheckin) {
           checkStatusEl.textContent = 'Enviado';
@@ -108,7 +129,6 @@
           nextBtnEl.textContent = 'Ver histórico de check-ins';
           nextBtnEl.href = 'portal-checkin.html';
 
-          weeklyInsightEl.textContent = 'Ótimo ritmo. Sua semana está ativa e já pode receber ajustes com base no seu feedback.';
           consistencyBadgeEl.textContent = 'Base inicial recebida';
         }
       } catch (error) {
