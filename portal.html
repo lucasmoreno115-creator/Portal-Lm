@@ -1,4 +1,111 @@
-<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>LM Portal</title><link rel='stylesheet' href='portal.css'></head><body><div class='container'><div id='nav'></div><div class='card'><h1 id='hello'>Olá</h1><p class='muted'>Seu painel da semana.</p></div><div class='card'><h2>Sua semana</h2><ul><li>Treinos planejados: 4x</li><li>Cardio: conforme plano</li><li id='checkStatus'>Check-in: pendente</li><li>Prioridade da semana: executar com consistência</li></ul></div><div class='card'><h2>Próximo passo</h2><p id='nextMsg'>Seu check-in semanal está pendente</p><a id='nextBtn' href='portal-checkin.html'>Fazer meu check-in</a></div><div class='card'><h2>Atalhos</h2><div class='grid'><a href='portal-checkin.html'>Check-in semanal</a><a href='portal-progressao.html'>Calculadora de progressão</a><a href='portal-biblioteca.html'>Biblioteca LM</a><a target='_blank' href='https://wa.me/5500000000000'>Falar com Lucas (WhatsApp)</a></div></div></div><script src='portal-shared.js'></script><script>
-requireAuth();document.getElementById('nav').innerHTML=nav();document.getElementById('hello').textContent=`Olá, ${localStorage.getItem('lm_student_name')||'Aluno'}`;
-(async()=>{try{const r=await api('/portal/checkins'); const week=(new Date()).toISOString().slice(0,10); const has=r.data?.[0]; if(has){checkStatus.textContent='Check-in: enviado'; nextMsg.textContent='Check-in enviado nesta semana'; nextBtn.textContent='Ver histórico';} }catch(e){}})();
-</script></body></html>
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>LM Portal</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <div id='nav'></div>
+
+    <section class='card hero'>
+      <p class='eyebrow'>Consultoria LM</p>
+      <h1 id='hello'>Olá, Aluno</h1>
+      <p class='hero-title'>Seu painel estratégico da semana</p>
+      <p class='muted'>Aqui está o que precisa de atenção agora para manter sua evolução.</p>
+    </section>
+
+    <div class='command-grid'>
+      <section class='card metric-card'>
+        <h2>Status da semana</h2>
+        <ul class='status-list'>
+          <li><span>Check-in</span><span id='checkStatus' class='badge badge-warning'>Pendente</span></li>
+          <li><span>Execução da semana</span><strong>Em acompanhamento</strong></li>
+          <li><span>Foco da semana</span><strong>Consistência antes de ajuste</strong></li>
+          <li><span>Prazo do check-in</span><strong>Até sábado</strong></li>
+        </ul>
+        <p id='weeklyInsight' class='muted'>Sua semana começa com clareza. Envie seu check-in para liberar a análise estratégica.</p>
+      </section>
+
+      <section class='card action-card'>
+        <h2>Sua próxima ação</h2>
+        <p id='nextMsg'>Envie seu check-in para liberar a análise da semana.</p>
+        <a id='nextBtn' class='primary-cta' href='portal-checkin.html'>Fazer check-in agora</a>
+      </section>
+    </div>
+
+    <section class='card metric-card'>
+      <h2>Missão da semana</h2>
+      <ul class='mission-list'>
+        <li><strong>Musculação:</strong> seguir frequência prescrita.</li>
+        <li><strong>Cardio:</strong> cumprir volume combinado.</li>
+        <li><strong>Nutrição:</strong> manter plano alimentar com adesão mínima.</li>
+        <li><strong>Feedback:</strong> enviar check-in semanal.</li>
+      </ul>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Consistência atual</h2>
+      <p><span id='consistencyBadge' class='badge'>Em análise</span></p>
+      <p class='muted'>Após alguns check-ins, o portal passa a identificar padrões de adesão, risco de queda e pontos que precisam de ajuste.</p>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Acesso rápido</h2>
+      <div class='grid'>
+        <a class='secondary-link' href='portal-checkin.html'>Check-in semanal</a>
+        <a class='secondary-link' href='portal-progressao.html'>Progressão de carga</a>
+        <a class='secondary-link' href='portal-biblioteca.html'>Biblioteca LM</a>
+      </div>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Biblioteca recomendada</h2>
+      <p>Conteúdo recomendado para esta fase</p>
+      <ul class='mission-list'>
+        <li>Como manter adesão no final de semana</li>
+        <li>Por que o check-in define seus ajustes</li>
+        <li>Como progredir carga sem perder execução</li>
+      </ul>
+      <a class='secondary-link' href='portal-biblioteca.html'>Ir para a Biblioteca LM</a>
+    </section>
+  </div>
+
+  <script src='portal-shared.js'></script>
+  <script>
+    requireAuth();
+    document.getElementById('nav').innerHTML = nav();
+    document.getElementById('hello').textContent = `Olá, ${localStorage.getItem('lm_student_name') || 'Aluno'}`;
+
+    (async () => {
+      const checkStatusEl = document.querySelector('#checkStatus');
+      const nextMsgEl = document.querySelector('#nextMsg');
+      const nextBtnEl = document.querySelector('#nextBtn');
+      const weeklyInsightEl = document.querySelector('#weeklyInsight');
+      const consistencyBadgeEl = document.querySelector('#consistencyBadge');
+
+      try {
+        const response = await api('/portal/checkins');
+        const hasCheckin = Array.isArray(response?.data) && response.data.length > 0;
+
+        if (hasCheckin) {
+          checkStatusEl.textContent = 'Enviado';
+          checkStatusEl.classList.remove('badge-warning');
+          checkStatusEl.classList.add('badge-ok');
+
+          nextMsgEl.textContent = 'Check-in recebido. Agora sua semana entra em fase de acompanhamento.';
+          nextBtnEl.textContent = 'Ver histórico de check-ins';
+          nextBtnEl.href = 'portal-checkin.html';
+
+          weeklyInsightEl.textContent = 'Ótimo ritmo. Sua semana está ativa e já pode receber ajustes com base no seu feedback.';
+          consistencyBadgeEl.textContent = 'Base inicial recebida';
+        }
+      } catch (error) {
+        // Erro silencioso para não quebrar a experiência da home.
+      }
+    })();
+  </script>
+</body>
+</html>
