@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Alertas Operacionais LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <section class='card hero'>
+      <p class='eyebrow'>Consultoria LM • Painel interno</p>
+      <h1>Alertas Operacionais LM</h1>
+      <p class='hero-title'>Acompanhe os alunos que precisam de atenção antes da perda de adesão.</p>
+    </section>
+
+    <section class='card'>
+      <label>
+        Token admin
+        <input id='adminToken' type='password' autocomplete='off'>
+      </label>
+      <button id='loadBtn' type='button'>Carregar alertas</button>
+      <p id='statusBox' class='status muted'>Informe o token admin para carregar os alertas operacionais.</p>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Sem plano semanal</h2>
+      <ul id='missingWeeklyPlanList' class='mission-list'></ul>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Sem check-in da semana</h2>
+      <ul id='missingCheckinList' class='mission-list'></ul>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Risco de abandono</h2>
+      <ul id='riskStudentsList' class='mission-list'></ul>
+    </section>
+
+    <a class='secondary-link' href='index.html'>Voltar</a>
+  </div>
+
+  <script>
+    const tokenInput = document.getElementById('adminToken');
+    const loadBtn = document.getElementById('loadBtn');
+    const statusBox = document.getElementById('statusBox');
+    const missingWeeklyPlanList = document.getElementById('missingWeeklyPlanList');
+    const missingCheckinList = document.getElementById('missingCheckinList');
+    const riskStudentsList = document.getElementById('riskStudentsList');
+
+    function setStatus(message, type) {
+      statusBox.textContent = message;
+      statusBox.className = 'status';
+      statusBox.classList.add(type || 'muted');
+    }
+
+    function renderEmpty(listEl) {
+      listEl.innerHTML = '<li>Nenhum alerta nesta categoria</li>';
+    }
+
+    function renderList(listEl, rows, mapper) {
+      if (!Array.isArray(rows) || rows.length === 0) {
+        renderEmpty(listEl);
+        return;
+      }
+      listEl.innerHTML = rows.map(mapper).join('');
+    }
+
+    loadBtn.addEventListener('click', async () => {
+      const token = tokenInput.value.trim();
+      if (!token) {
+        setStatus('Preencha o token admin para consultar os alertas.', 'error');
+        return;
+      }
+
+      loadBtn.disabled = true;
+      loadBtn.textContent = 'Carregando...';
+      setStatus('Carregando alertas operacionais...', 'muted');
+
+      try {
+        const response = await fetch('/api/admin/portal-alerts', {
+          method: 'GET',
+          headers: { 'x-admin-token': token }
+        });
+
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) {
+          throw new Error(payload?.error || 'Falha ao carregar');
+        }
+
+        const alerts = payload.data || {};
+
+        renderList(missingWeeklyPlanList, alerts.missingWeeklyPlan, (student) =>
+          `<li><strong>${student.name || 'Aluno'}</strong> — ${student.email || '-'} <span class='muted'>(Plano: ${student.planType || 'N/A'})</span></li>`
+        );
+
+        renderList(missingCheckinList, alerts.missingCheckin, (student) =>
+          `<li><strong>${student.name || 'Aluno'}</strong> — ${student.email || '-'} <span class='muted'>(Último check-in: ${student.lastCheckin || 'Nunca enviou'})</span></li>`
+        );
+
+        renderList(riskStudentsList, alerts.riskStudents, (student) =>
+          `<li><strong>${student.name || 'Aluno'}</strong> — ${student.email || '-'} <span class='muted'>(${student.reason || 'Risco identificado'})</span></li>`
+        );
+
+        setStatus('Alertas carregados com sucesso.', 'ok');
+      } catch (error) {
+        renderEmpty(missingWeeklyPlanList);
+        renderEmpty(missingCheckinList);
+        renderEmpty(riskStudentsList);
+        setStatus('Não foi possível carregar os alertas. Verifique o token admin.', 'error');
+      } finally {
+        loadBtn.disabled = false;
+        loadBtn.textContent = 'Carregar alertas';
+      }
+    });
+
+    renderEmpty(missingWeeklyPlanList);
+    renderEmpty(missingCheckinList);
+    renderEmpty(riskStudentsList);
+  </script>
+</body>
+</html>
