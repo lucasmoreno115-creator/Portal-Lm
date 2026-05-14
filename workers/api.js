@@ -1,0 +1,227 @@
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const method = request.method;
+
+    if (method === 'OPTIONS') return corsResponse();
+
+    try {
+      await ensureSchema(env.DB);
+
+      if (url.pathname === '/api/health' && method === 'GET') {
+        return json({ ok: true, status: 'healthy' });
+      }
+
+      if (url.pathname === '/api/diagnostic/evaluate' && method === 'POST') {
+        const body = await safeJson(request);
+        return json({ ok: true, data: { score: 0, received: body || {} } });
+      }
+
+      if (url.pathname === '/api/portal/login' && method === 'POST') {
+        const body = await safeJson(request);
+        const email = String(body?.email || '').trim().toLowerCase();
+        const token = String(body?.token || '').trim();
+        if (!email || !token) return json({ ok: false, error: 'Email e token são obrigatórios.' }, 400);
+
+        const student = await env.DB.prepare(
+          `SELECT name, email, plan_type FROM student_access WHERE lower(email)=? AND access_token=? AND status='ACTIVE'`
+        ).bind(email, token).first();
+
+        if (!student) return json({ ok: false, error: 'Credenciais inválidas.' }, 401);
+
+        return json({ ok: true, data: { name: student.name, email: student.email, planType: student.plan_type || 'START' } });
+      }
+
+      if (url.pathname.startsWith('/api/portal/')) {
+        const auth = await validateStudent(request, env.DB);
+        if (!auth.ok) return json({ ok: false, error: auth.error }, 401);
+        const studentEmail = auth.student.email;
+
+        if (url.pathname === '/api/portal/me' && method === 'GET') {
+          return json({ ok: true, data: auth.student });
+        }
+
+        if (url.pathname === '/api/portal/checkin' && method === 'POST') {
+          const body = await safeJson(request);
+          const now = new Date().toISOString();
+          const weekRef = getWeekRef(new Date());
+          const id = crypto.randomUUID();
+          await env.DB.prepare(`INSERT INTO student_checkins (
+            id, student_email, week_ref, training_adherence, nutrition_adherence, cardio_adherence,
+            free_meals, hunger_level, binge_or_snacking, sleep_quality, energy_level, stress_level,
+            weekly_weight, waist, strength_status, main_difficulty, routine_context, weekly_score,
+            support_needed, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+          .bind(
+            id, studentEmail, weekRef,
+            body?.trainingAdherence || null,
+            body?.nutritionAdherence || null,
+            body?.cardioAdherence || null,
+            body?.freeMeals || null,
+            body?.hungerLevel || null,
+            body?.bingeOrSnacking || null,
+            body?.sleepQuality || null,
+            body?.energyLevel || null,
+            body?.stressLevel || null,
+            body?.weeklyWeight || null,
+            body?.waist || null,
+            body?.strengthStatus || null,
+            body?.mainDifficulty || null,
+            body?.routineContext || null,
+            body?.weeklyScore || null,
+            body?.supportNeeded || null,
+            now
+          ).run();
+
+          return json({ ok: true, data: { id, weekRef, createdAt: now } });
+        }
+
+        if (url.pathname === '/api/portal/checkins' && method === 'GET') {
+          const { results } = await env.DB.prepare(
+            `SELECT * FROM student_checkins WHERE student_email=? ORDER BY created_at DESC LIMIT 20`
+          ).bind(studentEmail).all();
+          return json({ ok: true, data: results || [] });
+        }
+
+        if (url.pathname === '/api/portal/progression' && method === 'POST') {
+          const body = await safeJson(request);
+          const id = crypto.randomUUID();
+          const now = new Date().toISOString();
+          await env.DB.prepare(
+            `INSERT INTO progression_logs (id, student_email, exercise, target_zone, load_used, reps_done, rir, decision, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(
+            id,
+            studentEmail,
+            body?.exercise || 'Exercício',
+            body?.targetZone || '8–10',
+            Number(body?.loadUsed || 0),
+            Number(body?.repsDone || 0),
+            body?.rir || 'Não sei',
+            body?.decision || 'Manter carga',
+            now
+          ).run();
+          return json({ ok: true, data: { id, createdAt: now } });
+        }
+
+        if (url.pathname === '/api/portal/progression' && method === 'GET') {
+          const { results } = await env.DB.prepare(
+            `SELECT * FROM progression_logs WHERE student_email=? ORDER BY created_at DESC LIMIT 30`
+          ).bind(studentEmail).all();
+          return json({ ok: true, data: results || [] });
+        }
+      }
+
+      if (url.pathname.startsWith('/api/admin/')) {
+        if (!isAdminAuthorized(request, env)) return json({ ok: false, error: 'Unauthorized' }, 401);
+        if (url.pathname === '/api/admin/leads' && method === 'GET') return json({ ok: true, data: [] });
+        if (url.pathname === '/api/admin/metrics' && method === 'GET') return json({ ok: true, data: {} });
+        if (url.pathname === '/api/admin/alerts' && method === 'GET') return json({ ok: true, data: [] });
+        if (url.pathname === '/api/admin/alerts/send' && method === 'POST') return json({ ok: true });
+        if (/\/api\/admin\/leads\/[^/]+\/(status|commercial)$/.test(url.pathname) && method === 'PATCH') return json({ ok: true });
+      }
+
+      return json({ ok: false, error: 'Not found' }, 404);
+    } catch (err) {
+      return json({ ok: false, error: 'Internal error', detail: String(err?.message || err) }, 500);
+    }
+  }
+};
+
+async function ensureSchema(db) {
+  await db.prepare(`CREATE TABLE IF NOT EXISTS leads (id TEXT PRIMARY KEY, created_at TEXT)`).run();
+  await db.prepare(`CREATE TABLE IF NOT EXISTS diagnostic_results (id TEXT PRIMARY KEY, created_at TEXT)`).run();
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS student_access (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    access_token TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    plan_type TEXT,
+    created_at TEXT NOT NULL
+  )`).run();
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS student_checkins (
+    id TEXT PRIMARY KEY,
+    student_email TEXT NOT NULL,
+    week_ref TEXT NOT NULL,
+    training_adherence TEXT,
+    nutrition_adherence TEXT,
+    cardio_adherence TEXT,
+    free_meals TEXT,
+    hunger_level TEXT,
+    binge_or_snacking TEXT,
+    sleep_quality TEXT,
+    energy_level TEXT,
+    stress_level TEXT,
+    weekly_weight TEXT,
+    waist TEXT,
+    strength_status TEXT,
+    main_difficulty TEXT,
+    routine_context TEXT,
+    weekly_score TEXT,
+    support_needed TEXT,
+    created_at TEXT NOT NULL
+  )`).run();
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS progression_logs (
+    id TEXT PRIMARY KEY,
+    student_email TEXT NOT NULL,
+    exercise TEXT NOT NULL,
+    target_zone TEXT NOT NULL,
+    load_used REAL,
+    reps_done INTEGER,
+    rir TEXT,
+    decision TEXT,
+    created_at TEXT NOT NULL
+  )`).run();
+}
+
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type,x-admin-token,x-student-email,x-student-token'
+  };
+}
+
+function corsResponse() {
+  return new Response(null, { status: 204, headers: corsHeaders() });
+}
+
+function json(payload, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders() }
+  });
+}
+
+async function safeJson(request) {
+  try { return await request.json(); } catch { return null; }
+}
+
+function getWeekRef(date) {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNum = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+}
+
+function isAdminAuthorized(request, env) {
+  const token = request.headers.get('x-admin-token');
+  return !!token && token === env.ADMIN_TOKEN;
+}
+
+async function validateStudent(request, db) {
+  const email = String(request.headers.get('x-student-email') || '').trim().toLowerCase();
+  const token = String(request.headers.get('x-student-token') || '').trim();
+  if (!email || !token) return { ok: false, error: 'Credenciais do aluno ausentes.' };
+  const student = await db.prepare(
+    `SELECT name, email, plan_type FROM student_access WHERE lower(email)=? AND access_token=? AND status='ACTIVE'`
+  ).bind(email, token).first();
+  if (!student) return { ok: false, error: 'Acesso inválido.' };
+  return { ok: true, student: { name: student.name, email: student.email, planType: student.plan_type || 'START' } };
+}
