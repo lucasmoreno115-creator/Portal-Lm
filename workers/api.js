@@ -41,6 +41,18 @@ export default {
           return json({ ok: true, data: auth.student });
         }
 
+        if (url.pathname === '/api/portal/weekly-plan' && method === 'GET') {
+          const weeklyPlan = await env.DB.prepare(
+            `SELECT training_focus, cardio_target, nutrition_focus, main_risk, coach_message
+             FROM weekly_plans
+             WHERE student_email=? AND status='ACTIVE'
+             ORDER BY created_at DESC
+             LIMIT 1`
+          ).bind(studentEmail).first();
+
+          return json({ ok: true, data: weeklyPlan || null });
+        }
+
         if (url.pathname === '/api/portal/checkin' && method === 'POST') {
           const body = await safeJson(request);
           const now = new Date().toISOString();
@@ -114,6 +126,50 @@ export default {
 
       if (url.pathname.startsWith('/api/admin/')) {
         if (!isAdminAuthorized(request, env)) return json({ ok: false, error: 'Unauthorized' }, 401);
+
+        if (url.pathname === '/api/admin/weekly-plan' && method === 'POST') {
+          const body = await safeJson(request);
+          const studentEmail = String(body?.student_email || '').trim().toLowerCase();
+          const weekRef = String(body?.week_ref || '').trim();
+          if (!studentEmail || !weekRef) {
+            return json({ ok: false, error: 'student_email e week_ref são obrigatórios.' }, 400);
+          }
+
+          const now = new Date().toISOString();
+          const existing = await env.DB.prepare(
+            `SELECT id FROM weekly_plans WHERE student_email=? AND week_ref=? LIMIT 1`
+          ).bind(studentEmail, weekRef).first();
+
+          const trainingFocus = body?.training_focus || null;
+          const cardioTarget = body?.cardio_target || null;
+          const nutritionFocus = body?.nutrition_focus || null;
+          const mainRisk = body?.main_risk || null;
+          const coachMessage = body?.coach_message || null;
+
+          let id = existing?.id || crypto.randomUUID();
+
+          if (existing) {
+            await env.DB.prepare(
+              `UPDATE weekly_plans
+               SET training_focus=?, cardio_target=?, nutrition_focus=?, main_risk=?, coach_message=?, status='ACTIVE', updated_at=?
+               WHERE id=?`
+            ).bind(trainingFocus, cardioTarget, nutritionFocus, mainRisk, coachMessage, now, id).run();
+          } else {
+            await env.DB.prepare(
+              `INSERT INTO weekly_plans (
+                id, student_email, week_ref, training_focus, cardio_target, nutrition_focus, main_risk, coach_message, status, created_at, updated_at
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)`
+            ).bind(id, studentEmail, weekRef, trainingFocus, cardioTarget, nutritionFocus, mainRisk, coachMessage, now, now).run();
+          }
+
+          const saved = await env.DB.prepare(
+            `SELECT id, student_email, week_ref, training_focus, cardio_target, nutrition_focus, main_risk, coach_message, status, created_at, updated_at
+             FROM weekly_plans WHERE id=?`
+          ).bind(id).first();
+
+          return json({ ok: true, data: saved });
+        }
+
         if (url.pathname === '/api/admin/leads' && method === 'GET') return json({ ok: true, data: [] });
         if (url.pathname === '/api/admin/metrics' && method === 'GET') return json({ ok: true, data: {} });
         if (url.pathname === '/api/admin/alerts' && method === 'GET') return json({ ok: true, data: [] });
@@ -176,6 +232,22 @@ async function ensureSchema(db) {
     decision TEXT,
     created_at TEXT NOT NULL
   )`).run();
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS weekly_plans (
+    id TEXT PRIMARY KEY,
+    student_email TEXT NOT NULL,
+    week_ref TEXT NOT NULL,
+    training_focus TEXT,
+    cardio_target TEXT,
+    nutrition_focus TEXT,
+    main_risk TEXT,
+    coach_message TEXT,
+    status TEXT DEFAULT 'ACTIVE',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_weekly_plans_student_email ON weekly_plans(student_email)`).run();
 }
 
 function corsHeaders() {
