@@ -282,6 +282,33 @@ function getWeekRef(date) {
   return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 }
 
+
+function weekRefDiff(olderWeekRef, newerWeekRef) {
+  const old = parseWeekRef(olderWeekRef);
+  const newer = parseWeekRef(newerWeekRef);
+  if (!old || !newer) return 0;
+
+  const oldDate = isoWeekStartDate(old.year, old.week);
+  const newDate = isoWeekStartDate(newer.year, newer.week);
+  return Math.floor((newDate - oldDate) / (7 * 24 * 60 * 60 * 1000));
+}
+
+function parseWeekRef(weekRef) {
+  const match = String(weekRef || '').match(/^(\d{4})-W(\d{2})$/);
+  if (!match) return null;
+  return { year: Number(match[1]), week: Number(match[2]) };
+}
+
+function isoWeekStartDate(year, week) {
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const week1Monday = new Date(jan4);
+  week1Monday.setUTCDate(jan4.getUTCDate() - jan4Day + 1);
+  const target = new Date(week1Monday);
+  target.setUTCDate(week1Monday.getUTCDate() + (week - 1) * 7);
+  return target;
+}
+
 function isAdminAuthorized(request, env) {
   const token = request.headers.get('x-admin-token');
   return !!token && token === env.ADMIN_TOKEN;
