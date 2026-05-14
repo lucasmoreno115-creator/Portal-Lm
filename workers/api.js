@@ -311,7 +311,8 @@ function isoWeekStartDate(year, week) {
 
 function isAdminAuthorized(request, env) {
   const token = request.headers.get('x-admin-token');
-  return !!token && token === env.ADMIN_TOKEN;
+  const portalToken = env.PORTAL_ADMIN_TOKEN || env.ADMIN_TOKEN;
+  return !!token && token === portalToken;
 }
 
 async function validateStudent(request, db) {
