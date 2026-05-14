@@ -127,55 +127,7 @@ export default {
       if (url.pathname.startsWith('/api/admin/')) {
         if (!isAdminAuthorized(request, env)) return json({ ok: false, error: 'Unauthorized' }, 401);
 
-        
-        if (url.pathname === '/api/admin/student-access' && method === 'POST') {
-          const body = await safeJson(request);
-          const name = String(body?.name || '').trim();
-          const email = String(body?.email || '').trim().toLowerCase();
-          const accessToken = String(body?.access_token || '').trim();
-          const planType = String(body?.plan_type || 'PREMIUM').trim() || 'PREMIUM';
-          const status = String(body?.status || 'ACTIVE').trim() || 'ACTIVE';
-
-          if (!name || !email || !accessToken) {
-            return json({ ok: false, error: 'name, email e access_token são obrigatórios.' }, 400);
-          }
-
-          const now = new Date().toISOString();
-          const existing = await env.DB.prepare(
-            `SELECT id FROM student_access WHERE lower(email)=? LIMIT 1`
-          ).bind(email).first();
-
-          let id = existing?.id || crypto.randomUUID();
-
-          if (existing) {
-            await env.DB.prepare(
-              `UPDATE student_access
-               SET name=?, access_token=?, plan_type=?, status=?
-               WHERE id=?`
-            ).bind(name, accessToken, planType, status, id).run();
-          } else {
-            await env.DB.prepare(
-              `INSERT INTO student_access (id, name, email, access_token, status, plan_type, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)`
-            ).bind(id, name, email, accessToken, status, planType, now).run();
-          }
-
-          const saved = await env.DB.prepare(
-            `SELECT name, email, plan_type, status FROM student_access WHERE id=?`
-          ).bind(id).first();
-
-          return json({
-            ok: true,
-            data: {
-              name: saved?.name || name,
-              email: saved?.email || email,
-              planType: saved?.plan_type || planType,
-              status: saved?.status || status
-            }
-          });
-        }
-
-if (url.pathname === '/api/admin/weekly-plan' && method === 'POST') {
+        if (url.pathname === '/api/admin/weekly-plan' && method === 'POST') {
           const body = await safeJson(request);
           const studentEmail = String(body?.student_email || '').trim().toLowerCase();
           const weekRef = String(body?.week_ref || '').trim();
@@ -216,80 +168,6 @@ if (url.pathname === '/api/admin/weekly-plan' && method === 'POST') {
           ).bind(id).first();
 
           return json({ ok: true, data: saved });
-        }
-
-        
-        if (url.pathname === '/api/admin/portal-alerts' && method === 'GET') {
-          const currentWeekRef = getWeekRef(new Date());
-
-          const activeStudentsResult = await env.DB.prepare(
-            `SELECT name, email, plan_type FROM student_access WHERE status='ACTIVE' ORDER BY name ASC`
-          ).all();
-          const activeStudents = activeStudentsResult?.results || [];
-
-          const { results: missingWeeklyPlan = [] } = await env.DB.prepare(
-            `SELECT sa.email, sa.name, sa.plan_type AS planType
-             FROM student_access sa
-             LEFT JOIN weekly_plans wp
-               ON lower(wp.student_email)=lower(sa.email)
-               AND wp.week_ref=?
-               AND wp.status='ACTIVE'
-             WHERE sa.status='ACTIVE' AND wp.id IS NULL
-             ORDER BY sa.name ASC`
-          ).bind(currentWeekRef).all();
-
-          const { results: missingCheckin = [] } = await env.DB.prepare(
-            `SELECT sa.email, sa.name,
-                    (SELECT MAX(sc.created_at) FROM student_checkins sc WHERE lower(sc.student_email)=lower(sa.email)) AS lastCheckin
-             FROM student_access sa
-             WHERE sa.status='ACTIVE'
-               AND NOT EXISTS (
-                 SELECT 1 FROM student_checkins scw
-                 WHERE lower(scw.student_email)=lower(sa.email)
-                   AND scw.week_ref=?
-               )
-             ORDER BY sa.name ASC`
-          ).bind(currentWeekRef).all();
-
-          const missingWeeklyPlanSet = new Set(missingWeeklyPlan.map((student) => String(student.email || '').toLowerCase()));
-          const checkinByEmail = new Map();
-          for (const student of activeStudents) {
-            const email = String(student.email || '').toLowerCase();
-            if (!email) continue;
-            const lastWeek = await env.DB.prepare(
-              `SELECT week_ref FROM student_checkins WHERE lower(student_email)=? ORDER BY created_at DESC LIMIT 1`
-            ).bind(email).first();
-            checkinByEmail.set(email, lastWeek?.week_ref || null);
-          }
-
-          const riskStudents = [];
-          for (const student of activeStudents) {
-            const email = String(student.email || '').toLowerCase();
-            const name = student.name;
-            const hasNoWeeklyPlan = missingWeeklyPlanSet.has(email);
-            const lastCheckinWeek = checkinByEmail.get(email);
-
-            if (!lastCheckinWeek && hasNoWeeklyPlan) {
-              riskStudents.push({ email: student.email, name, reason: 'Sem plano semanal e sem check-in' });
-              continue;
-            }
-
-            if (lastCheckinWeek) {
-              const weeksDiff = weekRefDiff(lastCheckinWeek, currentWeekRef);
-              if (weeksDiff >= 2) {
-                riskStudents.push({ email: student.email, name, reason: `${weeksDiff} semanas sem check-in` });
-              }
-            }
-          }
-
-          return json({
-            ok: true,
-            data: {
-              missingWeeklyPlan,
-              missingCheckin,
-              riskStudents
-            }
-          });
         }
 
         if (url.pathname === '/api/admin/leads' && method === 'GET') return json({ ok: true, data: [] });
