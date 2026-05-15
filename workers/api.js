@@ -1104,10 +1104,14 @@ function isoWeekStartDate(year, week) {
 }
 
 function isAdminAuthorized(request, env) {
-  const token = request.headers.get('x-admin-token');
-  const portalToken = env.PORTAL_ADMIN_TOKEN || env.ADMIN_TOKEN;
+  const token = String(request.headers.get('x-admin-token') || '').trim();
+  const adminToken = String(env.ADMIN_TOKEN || '').trim();
+  const portalToken = String(env.PORTAL_ADMIN_TOKEN || '').trim();
 
-  return !!token && token === portalToken;
+  return !!token && (
+    (!!portalToken && token === portalToken) ||
+    (!!adminToken && token === adminToken)
+  );
 }
 
 async function validateStudent(request, db) {
