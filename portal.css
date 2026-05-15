@@ -33,13 +33,35 @@ details{border:1px solid var(--border);border-radius:10px;padding:10px;backgroun
 .secondary-link{display:inline-flex;align-items:center;justify-content:center;padding:12px 14px;background:#181818;border:1px solid #373737;border-radius:10px;color:#f1f1f1;text-decoration:none}
 .secondary-link:hover,.primary-cta:hover{filter:brightness(1.05)}
 
+
+
+.hero{padding:36px;background:linear-gradient(155deg,#171717 0%,#101010 62%,#1d180a 100%);border-color:#443814;box-shadow:0 12px 30px rgba(0,0,0,.35),inset 0 0 0 1px rgba(212,175,55,.08)}
+.hero h1{font-size:clamp(1.6rem,2.8vw,2.3rem);margin-bottom:12px}
+.hero-title{font-size:1.1rem;font-weight:600;margin:0 0 10px;max-width:760px}
+.hero-subtext{margin:0;max-width:760px;color:#c3c3c3}
+
+.admin-hub-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.admin-card{display:flex;flex-direction:column;align-items:flex-start;gap:10px;text-decoration:none;background:#161616;border:1px solid #323232;border-radius:14px;padding:18px;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;min-height:190px;grid-column:span 4}
+.admin-card:hover{transform:translateY(-3px);box-shadow:0 10px 18px rgba(0,0,0,.28);border-color:#4c4c4c}
+.admin-card-featured{grid-column:span 12;min-height:210px;justify-content:center;border-color:rgba(212,175,55,.6);background:linear-gradient(160deg,#181818 0%,#121212 70%,#1c170a 100%);box-shadow:inset 0 0 0 1px rgba(212,175,55,.15)}
+.admin-card-icon{font-size:.95rem;opacity:.9;line-height:1;padding:4px 7px;border-radius:999px;border:1px solid rgba(212,175,55,.35);background:rgba(212,175,55,.09)}
+.admin-card-title{font-size:1.14rem;line-height:1.3;color:#f7f7f7}
+.admin-card-description{font-size:.95rem;color:#c2c2c2;line-height:1.5;flex:1}
+.admin-card-cta{font-size:.9rem;color:#f0d47a;font-weight:600;letter-spacing:.01em}
+
+.admin-guide h2{margin-bottom:10px}
+.admin-guide ol{margin:0;padding-left:18px;color:#c8c8c8;display:grid;gap:6px}
+
 @media (max-width:860px){
   .command-grid{grid-template-columns:1fr}
+  .admin-card{grid-column:span 6}
 }
 @media (max-width:640px){
   .container{padding:16px}
   .card{padding:16px}
   .status-list li{flex-direction:column;align-items:flex-start}
+  .hero{padding:24px}
+  .admin-card,.admin-card-featured{grid-column:span 12;min-height:auto}
 }
 
 .followup-item{list-style:none;padding:12px;border:1px solid var(--border);border-radius:10px;background:#101010}
