@@ -33,6 +33,11 @@
     </section>
 
     <section class='card metric-card'>
+      <h2>Risco financeiro / Anti-cancelamento</h2>
+      <ul id='financialRiskList' class='mission-list'></ul>
+    </section>
+
+    <section class='card metric-card'>
       <h2>Alta prioridade</h2>
       <ul id='highList' class='mission-list'></ul>
     </section>
@@ -47,6 +52,11 @@
       <ul id='logsList' class='mission-list'></ul>
     </section>
 
+    <section class='card metric-card'>
+      <h2>Últimas ações de retenção</h2>
+      <ul id='retentionHistoryList' class='mission-list'></ul>
+    </section>
+
     <a class='secondary-link' href='index.html'>Voltar</a>
   </div>
 
@@ -56,9 +66,27 @@
     const statusBox = document.getElementById('statusBox');
     const cancellationRiskList = document.getElementById('cancellationRiskList');
     const criticalList = document.getElementById('criticalList');
+    const financialRiskList = document.getElementById('financialRiskList');
     const highList = document.getElementById('highList');
     const missingList = document.getElementById('missingList');
     const logsList = document.getElementById('logsList');
+    const retentionHistoryList = document.getElementById('retentionHistoryList');
+
+    const RETENTION_ACTION_OPTIONS = [
+      { value: 'PLANO_START_TEMPORARIO', label: 'Plano Start temporário' },
+      { value: 'PAUSA_ESTRATEGICA_15_30_DIAS', label: 'Pausa estratégica de 15–30 dias' },
+      { value: 'REDUCAO_ACOMPANHAMENTO', label: 'Redução temporária de acompanhamento' },
+      { value: 'AJUSTE_TEMPORARIO_INVESTIMENTO', label: 'Ajuste temporário de investimento' },
+      { value: 'RETORNO_AGENDADO', label: 'Preservar vínculo e agendar retorno' },
+      { value: 'OUTRO', label: 'Outro' }
+    ];
+    const RETENTION_STATUS_OPTIONS = [
+      { value: 'OFFERED', label: 'OFFERED' },
+      { value: 'ACCEPTED', label: 'ACCEPTED' },
+      { value: 'DECLINED', label: 'DECLINED' },
+      { value: 'CANCELLED_ANYWAY', label: 'CANCELLED_ANYWAY' },
+      { value: 'PENDING', label: 'PENDING' }
+    ];
 
     const OUTCOME_OPTIONS = [
       { value: 'RETOMOU_ROTINA', label: 'Retomou rotina' },
@@ -90,6 +118,111 @@
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#039;');
+    }
+
+    function renderFinancialList(rows) {
+      financialRiskList.innerHTML = '';
+      if (!Array.isArray(rows) || rows.length === 0) {
+        financialRiskList.innerHTML = '<li>Nenhum aluno com risco financeiro no momento.</li>';
+        return;
+      }
+
+      rows.forEach((student) => {
+        const item = document.createElement('li');
+        item.className = 'followup-item financial-risk-item';
+        const suggestions = (student.suggestedRetentionActions || []).map((row) => row.label).join(' • ');
+        const whatsappAction = student.whatsappUrl
+          ? `<a class='secondary-link' href='${escapeHtml(student.whatsappUrl)}' target='_blank' rel='noopener noreferrer'>Abrir WhatsApp</a>`
+          : `<span class='muted'>WhatsApp não cadastrado</span>`;
+
+        item.innerHTML = `
+          <strong>${escapeHtml(student.name || 'Aluno')}</strong> — ${escapeHtml(student.email || '-')}
+          <div class='muted'>Plano: ${escapeHtml(student.planType || 'N/A')}</div>
+          <div>Risco: <span class='badge badge-financial'>${escapeHtml(student.riskLevel || 'FINANCEIRO')}</span></div>
+          <div class='muted'>Último follow-up: ${escapeHtml(student.lastFollowupAt || '-')}</div>
+          <div class='muted'>Motivo: ${escapeHtml(student.reason || '-')}</div>
+          <pre>${escapeHtml(student.message || '')}</pre>
+          <div class='muted retention-actions'>Sugestões: ${escapeHtml(suggestions || '-')}</div>
+          <div class='followup-form'>
+            <label>Proposta aplicada
+              <select class='retention-action-input'>${selectOptions(RETENTION_ACTION_OPTIONS)}</select>
+            </label>
+            <label>Status
+              <select class='retention-status-input'>${selectOptions(RETENTION_STATUS_OPTIONS)}</select>
+            </label>
+            <label>Nota (opcional)
+              <input class='retention-note-input' type='text' placeholder='Ex: ajuste temporário por 30 dias'>
+            </label>
+          </div>
+          <div class='followup-actions'>
+            <button type='button' class='copy-btn'>Copiar mensagem</button>
+            ${whatsappAction}
+            <button type='button' class='retention-btn'>Registrar proposta de retenção</button>
+          </div>
+        `;
+
+        item.querySelector('.copy-btn').addEventListener('click', () => copyMessage(student.message));
+        item.querySelector('.retention-btn').addEventListener('click', () => registerRetention(student, item));
+        financialRiskList.appendChild(item);
+      });
+    }
+
+    async function registerRetention(student, wrapper) {
+      const token = tokenInput.value.trim();
+      const proposedAction = wrapper.querySelector('.retention-action-input')?.value || null;
+      const acceptedStatus = wrapper.querySelector('.retention-status-input')?.value || 'OFFERED';
+      const note = wrapper.querySelector('.retention-note-input')?.value || null;
+
+      if (!token) return setStatus('Preencha o token admin para registrar retenção.', 'error');
+      if (!proposedAction) return setStatus('Selecione a proposta aplicada.', 'error');
+
+      try {
+        const response = await fetch('/api/admin/retention-action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+          body: JSON.stringify({
+            student_email: student.email,
+            financial_reason: student.reason,
+            proposed_action: proposedAction,
+            accepted_status: acceptedStatus,
+            note
+          })
+        });
+
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao registrar retenção');
+        setStatus('Ação de retenção registrada.', 'ok');
+        await loadFollowups(token);
+      } catch (error) {
+        setStatus('Não foi possível registrar a retenção.', 'error');
+      }
+    }
+
+    async function loadRetentionHistory(token) {
+      const response = await fetch('/api/admin/retention-actions', { method: 'GET', headers: { 'x-admin-token': token } });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao carregar histórico de retenção');
+
+      const rows = Array.isArray(payload.data) ? payload.data : [];
+      retentionHistoryList.innerHTML = '';
+      if (!rows.length) {
+        retentionHistoryList.innerHTML = '<li>Nenhuma ação de retenção registrada ainda.</li>';
+        return;
+      }
+
+      rows.forEach((row) => {
+        const item = document.createElement('li');
+        item.className = 'followup-item';
+        item.innerHTML = `
+          <strong>${escapeHtml(row.student_email || '-')}</strong>
+          <div class='muted'>Proposta: ${escapeHtml(row.proposed_action || '-')}</div>
+          <div class='muted'>Status: ${escapeHtml(row.accepted_status || '-')}</div>
+          <div class='muted'>Motivo financeiro: ${escapeHtml(row.financial_reason || '-')}</div>
+          <div class='muted'>Nota: ${escapeHtml(row.note || '-')}</div>
+          <div class='muted'>Data: ${escapeHtml(row.created_at || '-')}</div>
+        `;
+        retentionHistoryList.appendChild(item);
+      });
     }
 
     function setStatus(message, type) {
@@ -298,10 +431,12 @@
 
       const data = payload.data || {};
       renderCancellationList(cancellationRiskList, data.cancellationRiskStudents || []);
+      renderFinancialList(data.financialRiskStudents || []);
       renderList(criticalList, data.criticalRiskStudents || []);
       renderList(highList, data.highRiskStudents || []);
       renderList(missingList, data.missingCheckins || []);
       await loadLogs(token);
+      await loadRetentionHistory(token);
     }
 
     function renderList(listEl, rows) {
@@ -330,9 +465,11 @@
       } catch (error) {
         renderEmpty(cancellationRiskList);
         renderEmpty(criticalList);
+        renderEmpty(financialRiskList);
         renderEmpty(highList);
         renderEmpty(missingList);
         renderEmpty(logsList);
+        renderEmpty(retentionHistoryList);
         setStatus('Não foi possível carregar. Verifique o token admin.', 'error');
       } finally {
         loadBtn.disabled = false;
@@ -342,9 +479,11 @@
 
     renderEmpty(cancellationRiskList);
     renderEmpty(criticalList);
+    renderEmpty(financialRiskList);
     renderEmpty(highList);
     renderEmpty(missingList);
     renderEmpty(logsList);
+    renderEmpty(retentionHistoryList);
   </script>
 </body>
 </html>
