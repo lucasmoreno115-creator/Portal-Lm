@@ -158,6 +158,7 @@ export default {
           const accessToken = String(body?.access_token || '').trim();
           const planType = String(body?.plan_type || 'PREMIUM').trim();
           const status = String(body?.status || 'ACTIVE').trim();
+          const whatsapp = normalizeWhatsapp(body?.whatsapp);
 
           if (!name || !email || !accessToken) {
             return json({
@@ -173,20 +174,21 @@ export default {
           if (existing) {
             await env.DB.prepare(
               `UPDATE student_access
-               SET name=?, access_token=?, plan_type=?, status=?
+               SET name=?, access_token=?, plan_type=?, status=?, whatsapp=?
                WHERE id=?`
             ).bind(
               name,
               accessToken,
               planType,
               status,
+              whatsapp,
               existing.id
             ).run();
           } else {
             await env.DB.prepare(
               `INSERT INTO student_access (
-                id, name, email, access_token, plan_type, status, created_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+                id, name, email, access_token, plan_type, status, whatsapp, created_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
             ).bind(
               crypto.randomUUID(),
               name,
@@ -194,6 +196,7 @@ export default {
               accessToken,
               planType,
               status,
+              whatsapp,
               new Date().toISOString()
             ).run();
           }
@@ -204,9 +207,53 @@ export default {
               name,
               email,
               planType,
-              status
+              status,
+              whatsapp
             }
           });
+        }
+
+        if (url.pathname === '/api/admin/followup-log' && method === 'POST') {
+          const body = await safeJson(request);
+          const studentEmail = String(body?.student_email || '').trim().toLowerCase();
+          const contactType = String(body?.contact_type || 'WHATSAPP').trim() || 'WHATSAPP';
+          const reason = body?.reason == null ? null : String(body.reason).trim() || null;
+          const note = body?.note == null ? null : String(body.note).trim() || null;
+
+          if (!studentEmail) {
+            return json({ ok: false, error: 'student_email é obrigatório.' }, 400);
+          }
+
+          const id = crypto.randomUUID();
+          const createdAt = new Date().toISOString();
+
+          await env.DB.prepare(
+            `INSERT INTO followup_logs (id, student_email, contact_type, reason, note, created_at)
+             VALUES (?, ?, ?, ?, ?, ?)`
+          ).bind(id, studentEmail, contactType, reason, note, createdAt).run();
+
+          return json({
+            ok: true,
+            data: {
+              id,
+              student_email: studentEmail,
+              contact_type: contactType,
+              reason,
+              note,
+              created_at: createdAt
+            }
+          });
+        }
+
+        if (url.pathname === '/api/admin/followup-logs' && method === 'GET') {
+          const { results = [] } = await env.DB.prepare(
+            `SELECT student_email, contact_type, reason, note, created_at
+             FROM followup_logs
+             ORDER BY created_at DESC
+             LIMIT 30`
+          ).all();
+
+          return json({ ok: true, data: results });
         }
 
         if (url.pathname === '/api/admin/weekly-plan' && method === 'POST') {
@@ -282,7 +329,7 @@ export default {
           const currentWeekRef = getWeekRef(new Date());
 
           const { results: activeStudents = [] } = await env.DB.prepare(
-            `SELECT name, email, plan_type
+            `SELECT name, email, plan_type, whatsapp
              FROM student_access
              WHERE status='ACTIVE'
              ORDER BY name ASC`
@@ -319,7 +366,17 @@ export default {
                LIMIT 1`
             ).bind(normalizedEmail, currentWeekRef).first();
 
-            const whatsappUrl = null;
+            const recentFollowup = await env.DB.prepare(
+              `SELECT created_at
+               FROM followup_logs
+               WHERE lower(student_email)=?
+                 AND datetime(created_at) >= datetime('now', '-5 days')
+               ORDER BY created_at DESC
+               LIMIT 1`
+            ).bind(normalizedEmail).first();
+
+            const lastFollowupAt = recentFollowup?.created_at || null;
+            const recentlyContacted = Boolean(lastFollowupAt);
 
             followupStudents.push({
               name: student.name || 'Aluno',
@@ -329,7 +386,9 @@ export default {
               lastCheckinWeek: lastCheckinMeta?.week_ref || null,
               hasCurrentWeekCheckin: Boolean(currentWeekCheckin),
               hasCurrentWeekPlan: Boolean(currentWeekPlan),
-              whatsappUrl
+              whatsapp: normalizeWhatsapp(student.whatsapp),
+              recentlyContacted,
+              lastFollowupAt
             });
           }
 
@@ -358,6 +417,16 @@ Me responde aqui para ajustarmos o foco da semana.`;
           const criticalRiskStudents = [];
 
           for (const student of followupStudents) {
+            const missingWhatsappUrl = student.whatsapp
+              ? `https://wa.me/${student.whatsapp}?text=${encodeURIComponent(missingMessage)}`
+              : null;
+            const highRiskWhatsappUrl = student.whatsapp
+              ? `https://wa.me/${student.whatsapp}?text=${encodeURIComponent(highRiskMessage)}`
+              : null;
+            const criticalWhatsappUrl = student.whatsapp
+              ? `https://wa.me/${student.whatsapp}?text=${encodeURIComponent(criticalMessage)}`
+              : null;
+
             if (!student.hasCurrentWeekCheckin) {
               missingCheckins.push({
                 name: student.name,
@@ -366,8 +435,10 @@ Me responde aqui para ajustarmos o foco da semana.`;
                 lastCheckin: student.lastCheckin,
                 priority: 'MEDIUM',
                 reason: 'Check-in semanal pendente',
-                whatsappUrl: student.whatsappUrl,
-                message: missingMessage
+                whatsappUrl: missingWhatsappUrl,
+                message: missingMessage,
+                recentlyContacted: student.recentlyContacted,
+                lastFollowupAt: student.lastFollowupAt
               });
             }
 
@@ -384,8 +455,10 @@ Me responde aqui para ajustarmos o foco da semana.`;
                 weeksWithoutCheckin,
                 priority: 'HIGH',
                 reason: '2 semanas ou mais sem check-in',
-                whatsappUrl: student.whatsappUrl,
-                message: highRiskMessage
+                whatsappUrl: highRiskWhatsappUrl,
+                message: highRiskMessage,
+                recentlyContacted: student.recentlyContacted,
+                lastFollowupAt: student.lastFollowupAt
               });
             }
 
@@ -397,8 +470,10 @@ Me responde aqui para ajustarmos o foco da semana.`;
                 lastCheckin: student.lastCheckin,
                 priority: 'CRITICAL',
                 reason: 'Sem check-in e sem plano semanal',
-                whatsappUrl: student.whatsappUrl,
-                message: criticalMessage
+                whatsappUrl: criticalWhatsappUrl,
+                message: criticalMessage,
+                recentlyContacted: student.recentlyContacted,
+                lastFollowupAt: student.lastFollowupAt
               });
             }
           }
@@ -559,6 +634,18 @@ async function ensureSchema(db) {
     access_token TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'ACTIVE',
     plan_type TEXT,
+    whatsapp TEXT,
+    created_at TEXT NOT NULL
+  )`).run();
+
+  await ensureColumn(db, 'student_access', 'whatsapp', 'TEXT');
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS followup_logs (
+    id TEXT PRIMARY KEY,
+    student_email TEXT NOT NULL,
+    contact_type TEXT NOT NULL DEFAULT 'WHATSAPP',
+    reason TEXT,
+    note TEXT,
     created_at TEXT NOT NULL
   )`).run();
 
@@ -622,6 +709,30 @@ async function ensureSchema(db) {
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_student_access_email ON student_access(email)`
   ).run();
+
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_followup_logs_student_email ON followup_logs(student_email)`
+  ).run();
+
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_followup_logs_created_at ON followup_logs(created_at)`
+  ).run();
+}
+
+async function ensureColumn(db, tableName, columnName, sqlType) {
+  const columns = await db.prepare(`PRAGMA table_info(${tableName})`).all();
+  const exists = (columns?.results || []).some((col) => col.name === columnName);
+  if (!exists) {
+    await db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${sqlType}`).run();
+  }
+}
+
+function normalizeWhatsapp(rawValue) {
+  const digits = String(rawValue || '').replace(/\D+/g, '');
+  if (!digits) return null;
+  if (digits.startsWith('55')) return digits;
+  if (digits.length === 10 || digits.length === 11) return `55${digits}`;
+  return digits;
 }
 
 function corsHeaders() {
