@@ -264,6 +264,60 @@ export default {
           return json({ ok: true, data: results });
         }
 
+        if (url.pathname === '/api/admin/retention-action' && method === 'POST') {
+          const body = await safeJson(request);
+          const studentEmail = String(body?.student_email || '').trim().toLowerCase();
+          const financialReason = body?.financial_reason == null ? null : String(body.financial_reason).trim() || null;
+          const proposedAction = String(body?.proposed_action || '').trim().toUpperCase();
+          const acceptedStatus = String(body?.accepted_status || 'OFFERED').trim().toUpperCase() || 'OFFERED';
+          const note = body?.note == null ? null : String(body.note).trim() || null;
+
+          if (!studentEmail || !proposedAction) {
+            return json({ ok: false, error: 'student_email e proposed_action são obrigatórios.' }, 400);
+          }
+
+          if (!RETENTION_PROPOSED_ACTIONS.includes(proposedAction)) {
+            return json({ ok: false, error: 'proposed_action inválido.' }, 400);
+          }
+
+          if (!RETENTION_ACCEPTED_STATUS.includes(acceptedStatus)) {
+            return json({ ok: false, error: 'accepted_status inválido.' }, 400);
+          }
+
+          const id = crypto.randomUUID();
+          const createdAt = new Date().toISOString();
+
+          await env.DB.prepare(
+            `INSERT INTO retention_actions (
+              id, student_email, financial_reason, proposed_action, accepted_status, note, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+          ).bind(id, studentEmail, financialReason, proposedAction, acceptedStatus, note, createdAt).run();
+
+          return json({
+            ok: true,
+            data: {
+              id,
+              student_email: studentEmail,
+              financial_reason: financialReason,
+              proposed_action: proposedAction,
+              accepted_status: acceptedStatus,
+              note,
+              created_at: createdAt
+            }
+          });
+        }
+
+        if (url.pathname === '/api/admin/retention-actions' && method === 'GET') {
+          const { results = [] } = await env.DB.prepare(
+            `SELECT student_email, financial_reason, proposed_action, accepted_status, note, created_at
+             FROM retention_actions
+             ORDER BY created_at DESC
+             LIMIT 30`
+          ).all();
+
+          return json({ ok: true, data: results });
+        }
+
         if (url.pathname === '/api/admin/weekly-plan' && method === 'POST') {
           const body = await safeJson(request);
 
@@ -436,6 +490,7 @@ Me responde aqui para ajustarmos o foco da semana.`;
           const highRiskStudents = [];
           const criticalRiskStudents = [];
           const cancellationRiskStudents = [];
+          const financialRiskStudents = [];
 
           const cancellationHighMessage = `Quero alinhar sua semana para evitar que a rotina perca força.
 
@@ -445,6 +500,12 @@ Me responde rapidamente o que mais está dificultando sua execução agora.`;
 Percebi um ponto importante no seu acompanhamento e prefiro ajustar antes que isso vire cancelamento.
 
 Me responde assim que puder.`;
+
+          const financialMessage = `Entendo totalmente seu ponto sobre o momento financeiro.
+
+Antes de cancelar direto, quero te propor uma alternativa para mantermos sua evolução sem perder completamente o acompanhamento.
+
+Me responde aqui para eu te explicar as opções.`;
 
           for (const student of followupStudents) {
             const missingWhatsappUrl = student.whatsapp
@@ -514,6 +575,26 @@ Me responde assim que puder.`;
               });
             }
 
+            if (isFinancialRiskFollowup(student)) {
+              const financialWhatsappUrl = student.whatsapp
+                ? `https://wa.me/${student.whatsapp}?text=${encodeURIComponent(financialMessage)}`
+                : null;
+
+              financialRiskStudents.push({
+                name: student.name,
+                email: student.email,
+                planType: student.planType,
+                lastFollowupAt: student.lastFollowupAt,
+                outcome: student.latestOutcome,
+                riskLevel: student.latestRiskLevel,
+                nextAction: student.latestNextAction,
+                reason: student.latestReason || 'Risco financeiro identificado no follow-up',
+                suggestedRetentionActions: RETENTION_ACTION_SUGGESTIONS,
+                whatsappUrl: financialWhatsappUrl,
+                message: financialMessage
+              });
+            }
+
             if (!student.hasCurrentWeekCheckin && !student.hasCurrentWeekPlan) {
               criticalRiskStudents.push({
                 name: student.name,
@@ -539,6 +620,14 @@ Me responde assim que puder.`;
               cancellationRiskStudents: cancellationRiskStudents.sort((a, b) => {
                 const order = { CRITICAL: 0, HIGH: 1 };
                 const riskDelta = (order[a.riskLevel] ?? 99) - (order[b.riskLevel] ?? 99);
+                if (riskDelta !== 0) return riskDelta;
+                const aTime = Date.parse(a.lastFollowupAt || '') || 0;
+                const bTime = Date.parse(b.lastFollowupAt || '') || 0;
+                return bTime - aTime;
+              }),
+              financialRiskStudents: financialRiskStudents.sort((a, b) => {
+                const order = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+                const riskDelta = (order[String(a.riskLevel || '').toUpperCase()] ?? 99) - (order[String(b.riskLevel || '').toUpperCase()] ?? 99);
                 if (riskDelta !== 0) return riskDelta;
                 const aTime = Date.parse(a.lastFollowupAt || '') || 0;
                 const bTime = Date.parse(b.lastFollowupAt || '') || 0;
@@ -713,6 +802,16 @@ async function ensureSchema(db) {
   await ensureColumn(db, 'followup_logs', 'risk_level', 'TEXT');
   await ensureColumn(db, 'followup_logs', 'next_action', 'TEXT');
 
+  await db.prepare(`CREATE TABLE IF NOT EXISTS retention_actions (
+    id TEXT PRIMARY KEY,
+    student_email TEXT NOT NULL,
+    financial_reason TEXT,
+    proposed_action TEXT,
+    accepted_status TEXT,
+    note TEXT,
+    created_at TEXT NOT NULL
+  )`).run();
+
   await db.prepare(`CREATE TABLE IF NOT EXISTS student_checkins (
     id TEXT PRIMARY KEY,
     student_email TEXT NOT NULL,
@@ -781,6 +880,43 @@ async function ensureSchema(db) {
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_followup_logs_created_at ON followup_logs(created_at)`
   ).run();
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_retention_actions_student_email ON retention_actions(student_email)`
+  ).run();
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_retention_actions_created_at ON retention_actions(created_at)`
+  ).run();
+}
+
+const RETENTION_ACTION_SUGGESTIONS = [
+  { value: 'PLANO_START_TEMPORARIO', label: 'Plano Start temporário' },
+  { value: 'PAUSA_ESTRATEGICA_15_30_DIAS', label: 'Pausa estratégica de 15–30 dias' },
+  { value: 'REDUCAO_ACOMPANHAMENTO', label: 'Redução temporária de acompanhamento' },
+  { value: 'AJUSTE_TEMPORARIO_INVESTIMENTO', label: 'Ajuste temporário de investimento' },
+  { value: 'RETORNO_AGENDADO', label: 'Preservar vínculo e agendar retorno' }
+];
+
+const RETENTION_PROPOSED_ACTIONS = [
+  'PLANO_START_TEMPORARIO',
+  'PAUSA_ESTRATEGICA_15_30_DIAS',
+  'REDUCAO_ACOMPANHAMENTO',
+  'AJUSTE_TEMPORARIO_INVESTIMENTO',
+  'RETORNO_AGENDADO',
+  'OUTRO'
+];
+
+const RETENTION_ACCEPTED_STATUS = ['OFFERED', 'ACCEPTED', 'DECLINED', 'CANCELLED_ANYWAY', 'PENDING'];
+
+function isFinancialRiskFollowup(student) {
+  const outcome = String(student.latestOutcome || '').toUpperCase();
+  if (outcome === 'PROBLEMA_FINANCEIRO') return true;
+
+  const riskLevel = String(student.latestRiskLevel || '').toUpperCase();
+  if (riskLevel !== 'HIGH' && riskLevel !== 'CRITICAL') return false;
+
+  const reason = `${student.latestReason || ''}`.toLowerCase();
+  const terms = ['financeir', 'dinheiro', 'mensalidade', 'pagament', 'custo', 'investimento', 'valor'];
+  return terms.some((term) => reason.includes(term));
 }
 
 async function ensureColumn(db, tableName, columnName, sqlType) {
