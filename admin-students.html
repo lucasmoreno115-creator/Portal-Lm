@@ -30,6 +30,10 @@
           </label>
         </div>
 
+        <label>WhatsApp do aluno
+          <input id='studentWhatsapp' type='text' placeholder='5514999999999'>
+        </label>
+
         <label>Token/senha de acesso
           <input id='accessToken' type='text' required>
         </label>
@@ -67,6 +71,14 @@
     const statusBox = document.getElementById('statusBox');
     const shareBlock = document.getElementById('shareBlock');
 
+    function normalizeWhatsapp(value) {
+      const digits = String(value || '').replace(/\D+/g, '');
+      if (!digits) return null;
+      if (digits.startsWith('55')) return digits;
+      if (digits.length === 10 || digits.length === 11) return `55${digits}`;
+      return digits;
+    }
+
     function setStatus(message, type) {
       statusBox.textContent = message;
       statusBox.className = 'status';
@@ -82,6 +94,7 @@
       const accessToken = document.getElementById('accessToken').value.trim();
       const planType = document.getElementById('planType').value.trim();
       const status = document.getElementById('status').value.trim();
+      const whatsapp = normalizeWhatsapp(document.getElementById('studentWhatsapp').value);
 
       if (!adminToken || !name || !email || !accessToken) {
         setStatus('Preencha token admin, nome, email e token/senha de acesso.', 'error');
@@ -106,7 +119,8 @@
             email,
             access_token: accessToken,
             plan_type: planType,
-            status
+            status,
+            whatsapp
           })
         });
 

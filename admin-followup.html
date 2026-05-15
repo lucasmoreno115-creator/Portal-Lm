@@ -37,6 +37,11 @@
       <ul id='missingList' class='mission-list'></ul>
     </section>
 
+    <section class='card metric-card'>
+      <h2>Últimos follow-ups realizados</h2>
+      <ul id='logsList' class='mission-list'></ul>
+    </section>
+
     <a class='secondary-link' href='index.html'>Voltar</a>
   </div>
 
@@ -47,6 +52,7 @@
     const criticalList = document.getElementById('criticalList');
     const highList = document.getElementById('highList');
     const missingList = document.getElementById('missingList');
+    const logsList = document.getElementById('logsList');
 
     function escapeHtml(value) {
       return String(value || '')
@@ -86,18 +92,106 @@
 
       wrapper.innerHTML = `
         <strong>${escapeHtml(student.name || 'Aluno')}</strong> — ${escapeHtml(student.email || '-')}
+        ${student.recentlyContacted ? `<span class='badge-recent'>Contatado recentemente</span>` : ''}
         <div class='muted'>Plano: ${escapeHtml(student.planType || 'N/A')}</div>
         <div class='muted'>Motivo: ${escapeHtml(student.reason || '-')}</div>
         <div class='muted'>Último check-in: ${escapeHtml(student.lastCheckin || 'Sem histórico de check-in')}</div>
+        ${student.lastFollowupAt ? `<div class='muted'>Último follow-up: ${escapeHtml(student.lastFollowupAt)}</div>` : ''}
         <pre>${escapeHtml(student.message || '')}</pre>
         <div class='followup-actions'>
           <button type='button' class='copy-btn'>Copiar mensagem</button>
           ${whatsappAction}
+          <button type='button' class='mark-btn'>Marcar como contatado</button>
         </div>
       `;
 
       wrapper.querySelector('.copy-btn').addEventListener('click', () => copyMessage(student.message));
+      wrapper.querySelector('.mark-btn').addEventListener('click', () => markAsContacted(student));
       return wrapper;
+    }
+
+    async function markAsContacted(student) {
+      const token = tokenInput.value.trim();
+      if (!token) {
+        setStatus('Preencha o token admin para registrar o follow-up.', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/admin/followup-log', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-token': token
+          },
+          body: JSON.stringify({
+            student_email: student.email,
+            reason: student.reason,
+            note: 'Follow-up marcado pelo painel',
+            contact_type: 'WHATSAPP'
+          })
+        });
+
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) {
+          throw new Error(payload?.error || 'Falha ao registrar follow-up');
+        }
+
+        setStatus('Follow-up registrado.', 'ok');
+        await loadFollowups(token);
+      } catch (error) {
+        setStatus('Não foi possível registrar o follow-up.', 'error');
+      }
+    }
+
+    async function loadLogs(token) {
+      const response = await fetch('/api/admin/followup-logs', {
+        method: 'GET',
+        headers: { 'x-admin-token': token }
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || 'Falha ao carregar histórico');
+      }
+
+      const logs = Array.isArray(payload.data) ? payload.data : [];
+      logsList.innerHTML = '';
+      if (!logs.length) {
+        logsList.innerHTML = '<li>Nenhum follow-up registrado ainda.</li>';
+        return;
+      }
+
+      logs.forEach((log) => {
+        const item = document.createElement('li');
+        item.className = 'followup-item';
+        item.innerHTML = `
+          <strong>${escapeHtml(log.student_email)}</strong>
+          <div class='muted'>Canal: ${escapeHtml(log.contact_type || 'WHATSAPP')}</div>
+          <div class='muted'>Motivo: ${escapeHtml(log.reason || '-')}</div>
+          <div class='muted'>Nota: ${escapeHtml(log.note || '-')}</div>
+          <div class='muted'>Data: ${escapeHtml(log.created_at || '-')}</div>
+        `;
+        logsList.appendChild(item);
+      });
+    }
+
+    async function loadFollowups(token) {
+      const response = await fetch('/api/admin/followup-alerts', {
+        method: 'GET',
+        headers: { 'x-admin-token': token }
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || 'Falha ao carregar follow-ups');
+      }
+
+      const data = payload.data || {};
+      renderList(criticalList, data.criticalRiskStudents || []);
+      renderList(highList, data.highRiskStudents || []);
+      renderList(missingList, data.missingCheckins || []);
+      await loadLogs(token);
     }
 
     function renderList(listEl, rows) {
@@ -121,25 +215,13 @@
       setStatus('Carregando follow-ups...', 'muted');
 
       try {
-        const response = await fetch('/api/admin/followup-alerts', {
-          method: 'GET',
-          headers: { 'x-admin-token': token }
-        });
-
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || !payload?.ok) {
-          throw new Error(payload?.error || 'Falha ao carregar follow-ups');
-        }
-
-        const data = payload.data || {};
-        renderList(criticalList, data.criticalRiskStudents || []);
-        renderList(highList, data.highRiskStudents || []);
-        renderList(missingList, data.missingCheckins || []);
+        await loadFollowups(token);
         setStatus('Follow-ups carregados com sucesso.', 'ok');
       } catch (error) {
         renderEmpty(criticalList);
         renderEmpty(highList);
         renderEmpty(missingList);
+        renderEmpty(logsList);
         setStatus('Não foi possível carregar. Verifique o token admin.', 'error');
       } finally {
         loadBtn.disabled = false;
@@ -150,6 +232,7 @@
     renderEmpty(criticalList);
     renderEmpty(highList);
     renderEmpty(missingList);
+    renderEmpty(logsList);
   </script>
 </body>
 </html>
