@@ -274,7 +274,7 @@ export default {
           const body = await safeJson(request);
           const followupId = String(body?.id || '').trim();
           const studentEmail = String(body?.student_email || '').trim().toLowerCase();
-          const resolutionStatus = String(body?.resolution_status || 'DONE').trim().toUpperCase() || 'DONE';
+          const resolutionStatus = String(body?.resolution_status || 'RESOLVED').trim().toUpperCase() || 'RESOLVED';
 
           if (!followupId && !studentEmail) {
             return json({ ok: false, error: 'id ou student_email é obrigatório.' }, 400);
