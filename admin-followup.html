@@ -23,6 +23,16 @@
     </section>
 
     <section class='card metric-card'>
+      <h2>Follow-ups vencidos</h2>
+      <ul id='overdueList' class='mission-list'></ul>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Alunos em risco de cancelamento</h2>
+      <ul id='cancellationRiskList' class='mission-list'></ul>
+    </section>
+
+    <section class='card metric-card'>
       <h2>Crítico</h2>
       <ul id='criticalList' class='mission-list'></ul>
     </section>
@@ -49,10 +59,35 @@
     const tokenInput = document.getElementById('adminToken');
     const loadBtn = document.getElementById('loadBtn');
     const statusBox = document.getElementById('statusBox');
+    const overdueList = document.getElementById('overdueList');
+    const cancellationRiskList = document.getElementById('cancellationRiskList');
     const criticalList = document.getElementById('criticalList');
     const highList = document.getElementById('highList');
     const missingList = document.getElementById('missingList');
     const logsList = document.getElementById('logsList');
+
+    const OUTCOME_OPTIONS = [
+      { value: 'RETOMOU_ROTINA', label: 'Retomou rotina' },
+      { value: 'VAI_RESPONDER_CHECKIN', label: 'Vai responder check-in hoje' },
+      { value: 'SEMANA_ATIPICA_VIAGEM', label: 'Semana atípica / viagem' },
+      { value: 'DESMOTIVACAO', label: 'Desmotivação' },
+      { value: 'DOR_LIMITACAO', label: 'Dor / limitação física' },
+      { value: 'DIFICULDADE_ALIMENTAR', label: 'Dificuldade alimentar' },
+      { value: 'PROBLEMA_FINANCEIRO', label: 'Problema financeiro' },
+      { value: 'PEDIU_CANCELAMENTO', label: 'Pediu cancelamento' },
+      { value: 'SEM_RESPOSTA', label: 'Sem resposta' },
+      { value: 'OUTRO', label: 'Outro' }
+    ];
+
+    const NEXT_ACTION_OPTIONS = [
+      { value: 'REVISAR_PLANO', label: 'Revisar plano' },
+      { value: 'AJUSTAR_DIETA', label: 'Ajustar dieta' },
+      { value: 'CHAMADA_ESTRATEGICA', label: 'Chamada estratégica' },
+      { value: 'RETORNO_3_DIAS', label: 'Retorno em 3 dias' },
+      { value: 'RETORNO_7_DIAS', label: 'Retorno em 7 dias' },
+      { value: 'SEM_ACAO_NECESSARIA', label: 'Sem ação necessária' },
+      { value: 'OUTRO', label: 'Outro' }
+    ];
 
     function escapeHtml(value) {
       return String(value || '')
@@ -71,6 +106,30 @@
 
     function renderEmpty(listEl) {
       listEl.innerHTML = '<li>Nenhum aluno nesta categoria.</li>';
+    }
+
+    function selectOptions(options) {
+      const rows = ["<option value=''>Selecionar</option>"];
+      options.forEach((option) => rows.push(`<option value='${option.value}'>${option.label}</option>`));
+      return rows.join('');
+    }
+
+    function riskBadgeClass(level) {
+      const risk = String(level || '').toUpperCase();
+      if (risk === 'CRITICAL') return 'badge badge-risk-critical';
+      if (risk === 'HIGH') return 'badge badge-risk-high';
+      return 'badge';
+    }
+
+
+    function resolutionBadge(log) {
+      const status = String(log.resolution_status || '').toUpperCase();
+      const due = Date.parse(log.due_date || '') || 0;
+      const now = Date.now();
+      if (status === 'RESOLVED') return "<span class='badge badge-resolved'>Resolvido</span>";
+      if (status === 'NO_ACTION') return "<span class='badge'>Sem ação</span>";
+      if (status === 'OPEN' && due && due <= now) return "<span class='badge badge-overdue'>Vencido</span>";
+      return "<span class='badge badge-open'>Aberto</span>";
     }
 
     async function copyMessage(message) {
@@ -98,6 +157,26 @@
         <div class='muted'>Último check-in: ${escapeHtml(student.lastCheckin || 'Sem histórico de check-in')}</div>
         ${student.lastFollowupAt ? `<div class='muted'>Último follow-up: ${escapeHtml(student.lastFollowupAt)}</div>` : ''}
         <pre>${escapeHtml(student.message || '')}</pre>
+        <div class='followup-form'>
+          <label>Resultado do contato
+            <select class='outcome-input'>${selectOptions(OUTCOME_OPTIONS)}</select>
+          </label>
+          <label>Risco de cancelamento
+            <select class='risk-input'>
+              <option value=''>Automático</option>
+              <option value='LOW'>LOW</option>
+              <option value='MEDIUM'>MEDIUM</option>
+              <option value='HIGH'>HIGH</option>
+              <option value='CRITICAL'>CRITICAL</option>
+            </select>
+          </label>
+          <label>Próxima ação
+            <select class='next-action-input'>${selectOptions(NEXT_ACTION_OPTIONS)}</select>
+          </label>
+          <label>Nota (opcional)
+            <input class='note-input' type='text' placeholder='Ex: aluno pediu retorno em 3 dias'>
+          </label>
+        </div>
         <div class='followup-actions'>
           <button type='button' class='copy-btn'>Copiar mensagem</button>
           ${whatsappAction}
@@ -106,14 +185,29 @@
       `;
 
       wrapper.querySelector('.copy-btn').addEventListener('click', () => copyMessage(student.message));
-      wrapper.querySelector('.mark-btn').addEventListener('click', () => markAsContacted(student));
+      wrapper.querySelector('.mark-btn').addEventListener('click', () => markAsContacted(student, wrapper));
       return wrapper;
     }
 
-    async function markAsContacted(student) {
+    async function markAsContacted(student, wrapper) {
       const token = tokenInput.value.trim();
       if (!token) {
         setStatus('Preencha o token admin para registrar o follow-up.', 'error');
+        return;
+      }
+
+      const outcome = wrapper.querySelector('.outcome-input')?.value || null;
+      const riskLevel = wrapper.querySelector('.risk-input')?.value || null;
+      const nextAction = wrapper.querySelector('.next-action-input')?.value || null;
+      const noteInput = wrapper.querySelector('.note-input')?.value || null;
+
+      if (!outcome) {
+        setStatus('Selecione o resultado do contato antes de registrar.', 'error');
+        return;
+      }
+
+      if (!nextAction) {
+        setStatus('Selecione a próxima ação antes de registrar.', 'error');
         return;
       }
 
@@ -127,8 +221,11 @@
           body: JSON.stringify({
             student_email: student.email,
             reason: student.reason,
-            note: 'Follow-up marcado pelo painel',
-            contact_type: 'WHATSAPP'
+            note: noteInput,
+            contact_type: 'WHATSAPP',
+            outcome,
+            risk_level: riskLevel || null,
+            next_action: nextAction
           })
         });
 
@@ -137,11 +234,83 @@
           throw new Error(payload?.error || 'Falha ao registrar follow-up');
         }
 
-        setStatus('Follow-up registrado.', 'ok');
+        setStatus('Follow-up registrado com outcome.', 'ok');
         await loadFollowups(token);
       } catch (error) {
         setStatus('Não foi possível registrar o follow-up.', 'error');
       }
+    }
+
+
+    async function resolveFollowup(id) {
+      const token = tokenInput.value.trim();
+      if (!token) return;
+      const response = await fetch('/api/admin/followup-resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+        body: JSON.stringify({ id })
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao resolver');
+      setStatus('Follow-up resolvido.', 'ok');
+      await loadFollowups(token);
+    }
+
+    function renderOverdueList(listEl, rows) {
+      listEl.innerHTML = '';
+      if (!Array.isArray(rows) || rows.length === 0) return renderEmpty(listEl);
+      rows.forEach((row) => {
+        const item = document.createElement('li');
+        item.className = 'followup-item overdue-item';
+        const whatsappAction = row.whatsappUrl
+          ? `<a class='secondary-link' href='${escapeHtml(row.whatsappUrl)}' target='_blank' rel='noopener noreferrer'>Abrir WhatsApp</a>`
+          : `<span class='muted'>WhatsApp não cadastrado</span>`;
+        item.innerHTML = `
+          <strong>${escapeHtml(row.name || 'Aluno')}</strong> — ${escapeHtml(row.email || '-')}
+          <span class='badge badge-overdue'>VENCIDO</span>
+          <div class='muted'>Plano: ${escapeHtml(row.planType || 'N/A')}</div>
+          <div>Risco: <span class='${riskBadgeClass(row.riskLevel)}'>${escapeHtml(row.riskLevel || '-')}</span></div>
+          <div class='muted'>Outcome: ${escapeHtml(row.outcome || '-')}</div>
+          <div class='muted'>Próxima ação: ${escapeHtml(row.nextAction || '-')}</div>
+          <div class='muted'>Due date: ${escapeHtml(row.dueDate || '-')}</div>
+          <div class='muted'>Dias em atraso: ${escapeHtml(row.daysOverdue ?? 0)}</div>
+          <div class='muted'>Motivo: ${escapeHtml(row.reason || '-')}</div>
+          <pre>${escapeHtml(row.message || '')}</pre>
+          <div class='followup-actions'>
+            <button type='button' class='copy-btn'>Copiar mensagem</button>
+            ${whatsappAction}
+            <button type='button' class='resolve-btn'>Marcar como resolvido</button>
+          </div>
+        `;
+        item.querySelector('.copy-btn').addEventListener('click', () => copyMessage(row.message));
+        item.querySelector('.resolve-btn').addEventListener('click', async () => {
+          try { await resolveFollowup(row.id); } catch { setStatus('Não foi possível resolver follow-up.', 'error'); }
+        });
+        listEl.appendChild(item);
+      });
+    }
+
+    function renderCancellationList(listEl, rows) {
+      listEl.innerHTML = '';
+      if (!Array.isArray(rows) || rows.length === 0) {
+        renderEmpty(listEl);
+        return;
+      }
+
+      rows.forEach((student) => {
+        const item = document.createElement('li');
+        item.className = 'followup-item cancellation-item';
+        item.innerHTML = `
+          <strong>${escapeHtml(student.name || 'Aluno')}</strong> — ${escapeHtml(student.email || '-')}
+          <div class='muted'>Plano: ${escapeHtml(student.planType || 'N/A')}</div>
+          <div>Risco de cancelamento: <span class='${riskBadgeClass(student.riskLevel)}'>${escapeHtml(student.riskLevel || '-')}</span></div>
+          <div class='muted'>Outcome: ${escapeHtml(student.outcome || '-')}</div>
+          <div class='muted'>Próxima ação: ${escapeHtml(student.nextAction || '-')}</div>
+          <div class='muted'>Último follow-up: ${escapeHtml(student.lastFollowupAt || '-')}</div>
+          <div class='muted'>Motivo: ${escapeHtml(student.reason || '-')}</div>
+        `;
+        listEl.appendChild(item);
+      });
     }
 
     async function loadLogs(token) {
@@ -169,7 +338,13 @@
           <strong>${escapeHtml(log.student_email)}</strong>
           <div class='muted'>Canal: ${escapeHtml(log.contact_type || 'WHATSAPP')}</div>
           <div class='muted'>Motivo: ${escapeHtml(log.reason || '-')}</div>
+          <div class='muted'>Outcome: ${escapeHtml(log.outcome || '-')}</div>
+          <div class='muted'>Risco: ${escapeHtml(log.risk_level || '-')}</div>
+          <div class='muted'>Próxima ação: ${escapeHtml(log.next_action || '-')}</div>
           <div class='muted'>Nota: ${escapeHtml(log.note || '-')}</div>
+          <div class='muted'>Due date: ${escapeHtml(log.due_date || '-')}</div>
+          <div class='muted'>Status: ${escapeHtml(log.resolution_status || '-')} ${resolutionBadge(log)}</div>
+          <div class='muted'>Resolvido em: ${escapeHtml(log.resolved_at || '-')}</div>
           <div class='muted'>Data: ${escapeHtml(log.created_at || '-')}</div>
         `;
         logsList.appendChild(item);
@@ -188,6 +363,8 @@
       }
 
       const data = payload.data || {};
+      renderOverdueList(overdueList, data.overdueFollowups || []);
+      renderCancellationList(cancellationRiskList, data.cancellationRiskStudents || []);
       renderList(criticalList, data.criticalRiskStudents || []);
       renderList(highList, data.highRiskStudents || []);
       renderList(missingList, data.missingCheckins || []);
@@ -218,6 +395,8 @@
         await loadFollowups(token);
         setStatus('Follow-ups carregados com sucesso.', 'ok');
       } catch (error) {
+        renderEmpty(overdueList);
+        renderEmpty(cancellationRiskList);
         renderEmpty(criticalList);
         renderEmpty(highList);
         renderEmpty(missingList);
@@ -229,6 +408,8 @@
       }
     });
 
+    renderEmpty(overdueList);
+    renderEmpty(cancellationRiskList);
     renderEmpty(criticalList);
     renderEmpty(highList);
     renderEmpty(missingList);

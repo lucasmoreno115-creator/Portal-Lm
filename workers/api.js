@@ -216,9 +216,13 @@ export default {
         if (url.pathname === '/api/admin/followup-log' && method === 'POST') {
           const body = await safeJson(request);
           const studentEmail = String(body?.student_email || '').trim().toLowerCase();
-          const contactType = String(body?.contact_type || 'WHATSAPP').trim() || 'WHATSAPP';
+          const contactType = String(body?.contact_type || 'WHATSAPP').trim().toUpperCase() || 'WHATSAPP';
           const reason = body?.reason == null ? null : String(body.reason).trim() || null;
           const note = body?.note == null ? null : String(body.note).trim() || null;
+          const outcome = body?.outcome == null ? null : String(body.outcome).trim().toUpperCase() || null;
+          const incomingRiskLevel = body?.risk_level == null ? null : String(body.risk_level).trim().toUpperCase() || null;
+          const nextAction = body?.next_action == null ? null : String(body.next_action).trim().toUpperCase() || null;
+          const riskLevel = incomingRiskLevel || inferRiskLevelFromOutcome(outcome);
 
           if (!studentEmail) {
             return json({ ok: false, error: 'student_email é obrigatório.' }, 400);
@@ -226,11 +230,14 @@ export default {
 
           const id = crypto.randomUUID();
           const createdAt = new Date().toISOString();
+          const dueDate = resolveDueDate(nextAction, createdAt);
+          const resolutionStatus = resolveResolutionStatus(nextAction, dueDate);
 
           await env.DB.prepare(
-            `INSERT INTO followup_logs (id, student_email, contact_type, reason, note, created_at)
-             VALUES (?, ?, ?, ?, ?, ?)`
-          ).bind(id, studentEmail, contactType, reason, note, createdAt).run();
+            `INSERT INTO followup_logs (
+              id, student_email, contact_type, reason, note, outcome, risk_level, next_action, due_date, resolved_at, resolution_status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(id, studentEmail, contactType, reason, note, outcome, riskLevel, nextAction, dueDate, null, resolutionStatus, createdAt).run();
 
           return json({
             ok: true,
@@ -240,6 +247,11 @@ export default {
               contact_type: contactType,
               reason,
               note,
+              outcome,
+              risk_level: riskLevel,
+              next_action: nextAction,
+              due_date: dueDate,
+              resolution_status: resolutionStatus,
               created_at: createdAt
             }
           });
@@ -247,13 +259,47 @@ export default {
 
         if (url.pathname === '/api/admin/followup-logs' && method === 'GET') {
           const { results = [] } = await env.DB.prepare(
-            `SELECT student_email, contact_type, reason, note, created_at
+            `SELECT id, student_email, contact_type, reason, note, outcome, risk_level, next_action, due_date, resolved_at, resolution_status, created_at
              FROM followup_logs
              ORDER BY created_at DESC
              LIMIT 30`
           ).all();
 
           return json({ ok: true, data: results });
+        }
+
+        if (url.pathname === '/api/admin/followup-resolve' && method === 'POST') {
+          const body = await safeJson(request);
+          const id = String(body?.id || '').trim();
+
+          if (!id) {
+            return json({ ok: false, error: 'id é obrigatório.' }, 400);
+          }
+
+          const existing = await env.DB.prepare(
+            `SELECT id FROM followup_logs WHERE id=? LIMIT 1`
+          ).bind(id).first();
+
+          if (!existing) {
+            return json({ ok: false, error: 'Follow-up não encontrado.' }, 404);
+          }
+
+          const resolvedAt = new Date().toISOString();
+
+          await env.DB.prepare(
+            `UPDATE followup_logs
+             SET resolution_status='RESOLVED', resolved_at=?
+             WHERE id=?`
+          ).bind(resolvedAt, id).run();
+
+          return json({
+            ok: true,
+            data: {
+              id,
+              resolved_at: resolvedAt,
+              resolution_status: 'RESOLVED'
+            }
+          });
         }
 
         if (url.pathname === '/api/admin/weekly-plan' && method === 'POST') {
@@ -375,7 +421,15 @@ export default {
                LIMIT 1`
             ).bind(normalizedEmail).first();
 
-            const lastFollowupAt = recentFollowup?.created_at || null;
+            const latestFollowup = await env.DB.prepare(
+              `SELECT created_at, outcome, risk_level, next_action, reason
+               FROM followup_logs
+               WHERE lower(student_email)=?
+               ORDER BY created_at DESC
+               LIMIT 1`
+            ).bind(normalizedEmail).first();
+
+            const lastFollowupAt = recentFollowup?.created_at || latestFollowup?.created_at || null;
             const recentlyContacted = Boolean(lastFollowupAt);
 
             followupStudents.push({
@@ -388,7 +442,11 @@ export default {
               hasCurrentWeekPlan: Boolean(currentWeekPlan),
               whatsapp: normalizeWhatsapp(student.whatsapp),
               recentlyContacted,
-              lastFollowupAt
+              lastFollowupAt,
+              latestOutcome: latestFollowup?.outcome || null,
+              latestRiskLevel: latestFollowup?.risk_level || null,
+              latestNextAction: latestFollowup?.next_action || null,
+              latestReason: latestFollowup?.reason || null
             });
           }
 
@@ -415,6 +473,16 @@ Me responde aqui para ajustarmos o foco da semana.`;
           const missingCheckins = [];
           const highRiskStudents = [];
           const criticalRiskStudents = [];
+          const cancellationRiskStudents = [];
+
+          const cancellationHighMessage = `Quero alinhar sua semana para evitar que a rotina perca força.
+
+Me responde rapidamente o que mais está dificultando sua execução agora.`;
+          const cancellationCriticalMessage = `Quero falar com você rapidamente para alinharmos sua continuidade.
+
+Percebi um ponto importante no seu acompanhamento e prefiro ajustar antes que isso vire cancelamento.
+
+Me responde assim que puder.`;
 
           for (const student of followupStudents) {
             const missingWhatsappUrl = student.whatsapp
@@ -462,6 +530,28 @@ Me responde aqui para ajustarmos o foco da semana.`;
               });
             }
 
+            const riskLevel = String(student.latestRiskLevel || '').toUpperCase();
+            if (riskLevel === 'HIGH' || riskLevel === 'CRITICAL') {
+              const cancellationMessage = riskLevel === 'CRITICAL' ? cancellationCriticalMessage : cancellationHighMessage;
+              const cancellationWhatsappUrl = student.whatsapp
+                ? `https://wa.me/${student.whatsapp}?text=${encodeURIComponent(cancellationMessage)}`
+                : null;
+
+              cancellationRiskStudents.push({
+                name: student.name,
+                email: student.email,
+                planType: student.planType,
+                lastCheckin: student.lastCheckin,
+                lastFollowupAt: student.lastFollowupAt,
+                outcome: student.latestOutcome,
+                riskLevel,
+                nextAction: student.latestNextAction,
+                reason: student.latestReason || 'Follow-up recente com risco de cancelamento',
+                whatsappUrl: cancellationWhatsappUrl,
+                message: cancellationMessage
+              });
+            }
+
             if (!student.hasCurrentWeekCheckin && !student.hasCurrentWeekPlan) {
               criticalRiskStudents.push({
                 name: student.name,
@@ -478,12 +568,80 @@ Me responde aqui para ajustarmos o foco da semana.`;
             }
           }
 
+
+          const overdueMessage = `Seu retorno estava previsto para hoje e quero alinhar rapidamente sua continuidade.
+
+Me responde aqui para ajustarmos o próximo passo e evitar que sua semana fique sem direção.`;
+          const overdueFollowups = [];
+
+          const { results: openFollowups = [] } = await env.DB.prepare(
+            `SELECT id, student_email, reason, outcome, risk_level, next_action, due_date, created_at
+             FROM followup_logs
+             WHERE resolution_status='OPEN'
+               AND due_date IS NOT NULL
+               AND datetime(due_date) <= datetime('now')`
+          ).all();
+
+          const studentLookup = new Map(followupStudents.map((student) => [String(student.email || '').toLowerCase(), student]));
+
+          for (const followup of openFollowups) {
+            const email = String(followup.student_email || '').toLowerCase();
+            const student = studentLookup.get(email);
+            if (!student) continue;
+
+            const followupTime = Date.parse(followup.created_at || '') || 0;
+            const lastCheckinTime = Date.parse(student.lastCheckin || '') || 0;
+            let computedRiskLevel = String(followup.risk_level || '').toUpperCase() || 'MEDIUM';
+            if (computedRiskLevel === 'HIGH' && (!lastCheckinTime || lastCheckinTime <= followupTime)) {
+              computedRiskLevel = 'CRITICAL';
+            }
+
+            const dueTime = Date.parse(followup.due_date || '') || 0;
+            const nowTime = Date.now();
+            const daysOverdue = Math.max(0, Math.floor((nowTime - dueTime) / 86400000));
+            const whatsappUrl = student.whatsapp
+              ? `https://wa.me/${student.whatsapp}?text=${encodeURIComponent(overdueMessage)}`
+              : null;
+
+            overdueFollowups.push({
+              id: followup.id,
+              name: student.name,
+              email: student.email,
+              planType: student.planType,
+              whatsappUrl,
+              message: overdueMessage,
+              reason: followup.reason || null,
+              outcome: followup.outcome || null,
+              riskLevel: computedRiskLevel,
+              nextAction: followup.next_action || null,
+              dueDate: followup.due_date || null,
+              createdAt: followup.created_at || null,
+              daysOverdue
+            });
+          }
+
+          overdueFollowups.sort((a, b) => {
+            if (b.daysOverdue !== a.daysOverdue) return b.daysOverdue - a.daysOverdue;
+            const order = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+            const riskDelta = (order[a.riskLevel] ?? 99) - (order[b.riskLevel] ?? 99);
+            if (riskDelta !== 0) return riskDelta;
+            return (Date.parse(b.createdAt || '') || 0) - (Date.parse(a.createdAt || '') || 0);
+          });
           return json({
             ok: true,
             data: {
+              overdueFollowups,
               missingCheckins,
               highRiskStudents,
-              criticalRiskStudents
+              criticalRiskStudents,
+              cancellationRiskStudents: cancellationRiskStudents.sort((a, b) => {
+                const order = { CRITICAL: 0, HIGH: 1 };
+                const riskDelta = (order[a.riskLevel] ?? 99) - (order[b.riskLevel] ?? 99);
+                if (riskDelta !== 0) return riskDelta;
+                const aTime = Date.parse(a.lastFollowupAt || '') || 0;
+                const bTime = Date.parse(b.lastFollowupAt || '') || 0;
+                return bTime - aTime;
+              })
             }
           });
         }
@@ -649,6 +807,13 @@ async function ensureSchema(db) {
     created_at TEXT NOT NULL
   )`).run();
 
+  await ensureColumn(db, 'followup_logs', 'outcome', 'TEXT');
+  await ensureColumn(db, 'followup_logs', 'risk_level', 'TEXT');
+  await ensureColumn(db, 'followup_logs', 'next_action', 'TEXT');
+  await ensureColumn(db, 'followup_logs', 'due_date', 'TEXT');
+  await ensureColumn(db, 'followup_logs', 'resolved_at', 'TEXT');
+  await ensureColumn(db, 'followup_logs', 'resolution_status', 'TEXT');
+
   await db.prepare(`CREATE TABLE IF NOT EXISTS student_checkins (
     id TEXT PRIMARY KEY,
     student_email TEXT NOT NULL,
@@ -724,6 +889,46 @@ async function ensureColumn(db, tableName, columnName, sqlType) {
   const exists = (columns?.results || []).some((col) => col.name === columnName);
   if (!exists) {
     await db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${sqlType}`).run();
+  }
+}
+
+function resolveDueDate(nextAction, createdAt) {
+  const action = String(nextAction || '').toUpperCase();
+  const baseTime = Date.parse(createdAt || '');
+  if (!baseTime || !action) return null;
+
+  if (action === 'SEM_ACAO_NECESSARIA') return null;
+  if (action === 'REVISAR_PLANO' || action === 'AJUSTAR_DIETA' || action === 'CHAMADA_ESTRATEGICA') return new Date(baseTime).toISOString();
+  if (action === 'RETORNO_7_DIAS') return new Date(baseTime + 7 * 86400000).toISOString();
+  if (action === 'RETORNO_3_DIAS' || action === 'OUTRO') return new Date(baseTime + 3 * 86400000).toISOString();
+  return null;
+}
+
+function resolveResolutionStatus(nextAction, dueDate) {
+  const action = String(nextAction || '').toUpperCase();
+  if (action === 'SEM_ACAO_NECESSARIA') return 'NO_ACTION';
+  if (dueDate) return 'OPEN';
+  return 'OPEN';
+}
+
+function inferRiskLevelFromOutcome(outcome) {
+  switch (String(outcome || '').toUpperCase()) {
+    case 'PEDIU_CANCELAMENTO':
+      return 'CRITICAL';
+    case 'PROBLEMA_FINANCEIRO':
+    case 'SEM_RESPOSTA':
+    case 'DESMOTIVACAO':
+      return 'HIGH';
+    case 'SEMANA_ATIPICA_VIAGEM':
+    case 'DOR_LIMITACAO':
+    case 'DIFICULDADE_ALIMENTAR':
+    case 'OUTRO':
+      return 'MEDIUM';
+    case 'RETOMOU_ROTINA':
+    case 'VAI_RESPONDER_CHECKIN':
+      return 'LOW';
+    default:
+      return null;
   }
 }
 
