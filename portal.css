@@ -51,7 +51,3 @@ details{border:1px solid var(--border);border-radius:10px;padding:10px;backgroun
 .badge-risk-high{background:rgba(230,145,56,.18);border-color:rgba(230,145,56,.6);color:#ffbf78}
 .badge-risk-critical{background:rgba(220,64,64,.2);border-color:rgba(220,64,64,.7);color:#ff9393}
 .cancellation-item{border-color:#5f2929;box-shadow:0 0 0 1px rgba(220,64,64,.12) inset}
-.badge-overdue{background:rgba(214,58,58,.22);border-color:rgba(255,92,92,.75);color:#ff9f9f}
-.badge-resolved{background:rgba(80,170,95,.16);border-color:rgba(80,170,95,.55);color:#9be0a8}
-.badge-open{background:rgba(212,175,55,.15);border-color:rgba(212,175,55,.55);color:#f0d47a}
-.overdue-item{border-color:#7a2b2b;box-shadow:0 0 0 1px rgba(255,92,92,.16) inset}

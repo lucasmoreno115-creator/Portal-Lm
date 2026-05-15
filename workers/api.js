@@ -235,9 +235,9 @@ export default {
 
           await env.DB.prepare(
             `INSERT INTO followup_logs (
-              id, student_email, contact_type, reason, note, outcome, risk_level, next_action, due_date, resolved_at, resolution_status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          ).bind(id, studentEmail, contactType, reason, note, outcome, riskLevel, nextAction, dueDate, null, resolutionStatus, createdAt).run();
+              id, student_email, contact_type, reason, note, outcome, risk_level, next_action, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(id, studentEmail, contactType, reason, note, outcome, riskLevel, nextAction, createdAt).run();
 
           return json({
             ok: true,
@@ -250,8 +250,6 @@ export default {
               outcome,
               risk_level: riskLevel,
               next_action: nextAction,
-              due_date: dueDate,
-              resolution_status: resolutionStatus,
               created_at: createdAt
             }
           });
@@ -259,7 +257,7 @@ export default {
 
         if (url.pathname === '/api/admin/followup-logs' && method === 'GET') {
           const { results = [] } = await env.DB.prepare(
-            `SELECT id, student_email, contact_type, reason, note, outcome, risk_level, next_action, due_date, resolved_at, resolution_status, created_at
+            `SELECT student_email, contact_type, reason, note, outcome, risk_level, next_action, created_at
              FROM followup_logs
              ORDER BY created_at DESC
              LIMIT 30`
@@ -810,9 +808,6 @@ async function ensureSchema(db) {
   await ensureColumn(db, 'followup_logs', 'outcome', 'TEXT');
   await ensureColumn(db, 'followup_logs', 'risk_level', 'TEXT');
   await ensureColumn(db, 'followup_logs', 'next_action', 'TEXT');
-  await ensureColumn(db, 'followup_logs', 'due_date', 'TEXT');
-  await ensureColumn(db, 'followup_logs', 'resolved_at', 'TEXT');
-  await ensureColumn(db, 'followup_logs', 'resolution_status', 'TEXT');
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS student_checkins (
     id TEXT PRIMARY KEY,
@@ -890,25 +885,6 @@ async function ensureColumn(db, tableName, columnName, sqlType) {
   if (!exists) {
     await db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${sqlType}`).run();
   }
-}
-
-function resolveDueDate(nextAction, createdAt) {
-  const action = String(nextAction || '').toUpperCase();
-  const baseTime = Date.parse(createdAt || '');
-  if (!baseTime || !action) return null;
-
-  if (action === 'SEM_ACAO_NECESSARIA') return null;
-  if (action === 'REVISAR_PLANO' || action === 'AJUSTAR_DIETA' || action === 'CHAMADA_ESTRATEGICA') return new Date(baseTime).toISOString();
-  if (action === 'RETORNO_7_DIAS') return new Date(baseTime + 7 * 86400000).toISOString();
-  if (action === 'RETORNO_3_DIAS' || action === 'OUTRO') return new Date(baseTime + 3 * 86400000).toISOString();
-  return null;
-}
-
-function resolveResolutionStatus(nextAction, dueDate) {
-  const action = String(nextAction || '').toUpperCase();
-  if (action === 'SEM_ACAO_NECESSARIA') return 'NO_ACTION';
-  if (dueDate) return 'OPEN';
-  return 'OPEN';
 }
 
 function inferRiskLevelFromOutcome(outcome) {

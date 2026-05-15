@@ -23,11 +23,6 @@
     </section>
 
     <section class='card metric-card'>
-      <h2>Follow-ups vencidos</h2>
-      <ul id='overdueList' class='mission-list'></ul>
-    </section>
-
-    <section class='card metric-card'>
       <h2>Alunos em risco de cancelamento</h2>
       <ul id='cancellationRiskList' class='mission-list'></ul>
     </section>
@@ -59,7 +54,6 @@
     const tokenInput = document.getElementById('adminToken');
     const loadBtn = document.getElementById('loadBtn');
     const statusBox = document.getElementById('statusBox');
-    const overdueList = document.getElementById('overdueList');
     const cancellationRiskList = document.getElementById('cancellationRiskList');
     const criticalList = document.getElementById('criticalList');
     const highList = document.getElementById('highList');
@@ -119,17 +113,6 @@
       if (risk === 'CRITICAL') return 'badge badge-risk-critical';
       if (risk === 'HIGH') return 'badge badge-risk-high';
       return 'badge';
-    }
-
-
-    function resolutionBadge(log) {
-      const status = String(log.resolution_status || '').toUpperCase();
-      const due = Date.parse(log.due_date || '') || 0;
-      const now = Date.now();
-      if (status === 'RESOLVED') return "<span class='badge badge-resolved'>Resolvido</span>";
-      if (status === 'NO_ACTION') return "<span class='badge'>Sem ação</span>";
-      if (status === 'OPEN' && due && due <= now) return "<span class='badge badge-overdue'>Vencido</span>";
-      return "<span class='badge badge-open'>Aberto</span>";
     }
 
     async function copyMessage(message) {
@@ -241,55 +224,6 @@
       }
     }
 
-
-    async function resolveFollowup(id) {
-      const token = tokenInput.value.trim();
-      if (!token) return;
-      const response = await fetch('/api/admin/followup-resolve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
-        body: JSON.stringify({ id })
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao resolver');
-      setStatus('Follow-up resolvido.', 'ok');
-      await loadFollowups(token);
-    }
-
-    function renderOverdueList(listEl, rows) {
-      listEl.innerHTML = '';
-      if (!Array.isArray(rows) || rows.length === 0) return renderEmpty(listEl);
-      rows.forEach((row) => {
-        const item = document.createElement('li');
-        item.className = 'followup-item overdue-item';
-        const whatsappAction = row.whatsappUrl
-          ? `<a class='secondary-link' href='${escapeHtml(row.whatsappUrl)}' target='_blank' rel='noopener noreferrer'>Abrir WhatsApp</a>`
-          : `<span class='muted'>WhatsApp não cadastrado</span>`;
-        item.innerHTML = `
-          <strong>${escapeHtml(row.name || 'Aluno')}</strong> — ${escapeHtml(row.email || '-')}
-          <span class='badge badge-overdue'>VENCIDO</span>
-          <div class='muted'>Plano: ${escapeHtml(row.planType || 'N/A')}</div>
-          <div>Risco: <span class='${riskBadgeClass(row.riskLevel)}'>${escapeHtml(row.riskLevel || '-')}</span></div>
-          <div class='muted'>Outcome: ${escapeHtml(row.outcome || '-')}</div>
-          <div class='muted'>Próxima ação: ${escapeHtml(row.nextAction || '-')}</div>
-          <div class='muted'>Due date: ${escapeHtml(row.dueDate || '-')}</div>
-          <div class='muted'>Dias em atraso: ${escapeHtml(row.daysOverdue ?? 0)}</div>
-          <div class='muted'>Motivo: ${escapeHtml(row.reason || '-')}</div>
-          <pre>${escapeHtml(row.message || '')}</pre>
-          <div class='followup-actions'>
-            <button type='button' class='copy-btn'>Copiar mensagem</button>
-            ${whatsappAction}
-            <button type='button' class='resolve-btn'>Marcar como resolvido</button>
-          </div>
-        `;
-        item.querySelector('.copy-btn').addEventListener('click', () => copyMessage(row.message));
-        item.querySelector('.resolve-btn').addEventListener('click', async () => {
-          try { await resolveFollowup(row.id); } catch { setStatus('Não foi possível resolver follow-up.', 'error'); }
-        });
-        listEl.appendChild(item);
-      });
-    }
-
     function renderCancellationList(listEl, rows) {
       listEl.innerHTML = '';
       if (!Array.isArray(rows) || rows.length === 0) {
@@ -363,7 +297,6 @@
       }
 
       const data = payload.data || {};
-      renderOverdueList(overdueList, data.overdueFollowups || []);
       renderCancellationList(cancellationRiskList, data.cancellationRiskStudents || []);
       renderList(criticalList, data.criticalRiskStudents || []);
       renderList(highList, data.highRiskStudents || []);
@@ -395,7 +328,6 @@
         await loadFollowups(token);
         setStatus('Follow-ups carregados com sucesso.', 'ok');
       } catch (error) {
-        renderEmpty(overdueList);
         renderEmpty(cancellationRiskList);
         renderEmpty(criticalList);
         renderEmpty(highList);
@@ -408,7 +340,6 @@
       }
     });
 
-    renderEmpty(overdueList);
     renderEmpty(cancellationRiskList);
     renderEmpty(criticalList);
     renderEmpty(highList);
