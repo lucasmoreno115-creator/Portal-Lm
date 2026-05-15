@@ -409,6 +409,9 @@
           <div class='muted'>Risco: ${escapeHtml(log.risk_level || '-')}</div>
           <div class='muted'>Próxima ação: ${escapeHtml(log.next_action || '-')}</div>
           <div class='muted'>Nota: ${escapeHtml(log.note || '-')}</div>
+          <div class='muted'>Due date: ${escapeHtml(log.due_date || '-')}</div>
+          <div class='muted'>Status: ${escapeHtml(log.resolution_status || '-')} ${resolutionBadge(log)}</div>
+          <div class='muted'>Resolvido em: ${escapeHtml(log.resolved_at || '-')}</div>
           <div class='muted'>Data: ${escapeHtml(log.created_at || '-')}</div>
         `;
         logsList.appendChild(item);

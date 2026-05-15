@@ -230,6 +230,8 @@ export default {
 
           const id = crypto.randomUUID();
           const createdAt = new Date().toISOString();
+          const dueDate = resolveDueDate(nextAction, createdAt);
+          const resolutionStatus = resolveResolutionStatus(nextAction, dueDate);
 
           await env.DB.prepare(
             `INSERT INTO followup_logs (
@@ -611,9 +613,69 @@ Me responde aqui para eu te explicar as opções.`;
             }
           }
 
+
+          const overdueMessage = `Seu retorno estava previsto para hoje e quero alinhar rapidamente sua continuidade.
+
+Me responde aqui para ajustarmos o próximo passo e evitar que sua semana fique sem direção.`;
+          const overdueFollowups = [];
+
+          const { results: openFollowups = [] } = await env.DB.prepare(
+            `SELECT id, student_email, reason, outcome, risk_level, next_action, due_date, created_at
+             FROM followup_logs
+             WHERE resolution_status='OPEN'
+               AND due_date IS NOT NULL
+               AND datetime(due_date) <= datetime('now')`
+          ).all();
+
+          const studentLookup = new Map(followupStudents.map((student) => [String(student.email || '').toLowerCase(), student]));
+
+          for (const followup of openFollowups) {
+            const email = String(followup.student_email || '').toLowerCase();
+            const student = studentLookup.get(email);
+            if (!student) continue;
+
+            const followupTime = Date.parse(followup.created_at || '') || 0;
+            const lastCheckinTime = Date.parse(student.lastCheckin || '') || 0;
+            let computedRiskLevel = String(followup.risk_level || '').toUpperCase() || 'MEDIUM';
+            if (computedRiskLevel === 'HIGH' && (!lastCheckinTime || lastCheckinTime <= followupTime)) {
+              computedRiskLevel = 'CRITICAL';
+            }
+
+            const dueTime = Date.parse(followup.due_date || '') || 0;
+            const nowTime = Date.now();
+            const daysOverdue = Math.max(0, Math.floor((nowTime - dueTime) / 86400000));
+            const whatsappUrl = student.whatsapp
+              ? `https://wa.me/${student.whatsapp}?text=${encodeURIComponent(overdueMessage)}`
+              : null;
+
+            overdueFollowups.push({
+              id: followup.id,
+              name: student.name,
+              email: student.email,
+              planType: student.planType,
+              whatsappUrl,
+              message: overdueMessage,
+              reason: followup.reason || null,
+              outcome: followup.outcome || null,
+              riskLevel: computedRiskLevel,
+              nextAction: followup.next_action || null,
+              dueDate: followup.due_date || null,
+              createdAt: followup.created_at || null,
+              daysOverdue
+            });
+          }
+
+          overdueFollowups.sort((a, b) => {
+            if (b.daysOverdue !== a.daysOverdue) return b.daysOverdue - a.daysOverdue;
+            const order = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+            const riskDelta = (order[a.riskLevel] ?? 99) - (order[b.riskLevel] ?? 99);
+            if (riskDelta !== 0) return riskDelta;
+            return (Date.parse(b.createdAt || '') || 0) - (Date.parse(a.createdAt || '') || 0);
+          });
           return json({
             ok: true,
             data: {
+              overdueFollowups,
               missingCheckins,
               highRiskStudents,
               criticalRiskStudents,
