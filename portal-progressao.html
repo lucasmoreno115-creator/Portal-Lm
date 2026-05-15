@@ -1,13 +1,117 @@
-<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Progressão</title><link rel='stylesheet' href='portal.css'></head><body><div class='container'><div id='nav'></div><div class='card'><h1>Calculadora de Progressão LM</h1><div class='grid'><label>Exercício<input id='exercise'></label><label>Zona alvo<select id='zone'><option>6–8</option><option>8–10</option><option>10–12</option><option>12–15</option><option>15–20</option></select></label><label>Carga usada<input id='load' type='number' step='0.1'></label><label>Repetições realizadas<input id='reps' type='number'></label><label>RIR<select id='rir'><option>RIR 3+</option><option>RIR 2</option><option>RIR 1</option><option>Falha técnica</option><option>Não sei</option></select></label></div><button id='calc'>Calcular</button><div id='out' class='card' style='display:none'></div><button id='save' style='display:none'>Salvar progressão</button></div><div class='card'><h2>Histórico</h2><div id='hist'></div></div></div><script src='portal-shared.js'></script><script>
-requireAuth();navEl.innerHTML=nav(); let current=null;
-function decide(){const [min,max]=zone.value.split('–').map(Number);const r=Number(reps.value);const rr=rir.value;let decision='manter carga',message='Mantenha a carga até bater o topo da zona com boa execução.';
-if(rr==='Falha técnica'){decision='manter ou ajustar conforme execução';message='Falha técnica só é útil quando a execução permanece segura. Se perdeu técnica cedo, reduza carga.'}
-else if(r<min){decision='reduzir carga ou manter e buscar execução';message='A carga provavelmente está acima do ideal para a zona proposta. Priorize execução e controle.'}
-else if(r>=max && (rr==='RIR 2'||rr==='RIR 1')){decision='subir 2–5% na próxima sessão';message='Você atingiu o topo da zona com boa proximidade da falha. Pode subir levemente a carga.'}
-else if(r>max && rr==='RIR 3+'){decision='subir carga';message='A carga está leve para o alvo. Aumente de forma controlada.'}
-out.style.display='block';save.style.display='block';out.innerHTML=`<h3>Decisão: ${decision}</h3><p>${message}</p>`;current={exercise:exercise.value,targetZone:zone.value,loadUsed:load.value,repsDone:reps.value,rir:rr,decision};}
-calc.onclick=decide;
-save.onclick=async()=>{try{await api('/portal/progression',{method:'POST',body:JSON.stringify(current)});loadHist();}catch(e){alert(e.message)}}
-async function loadHist(){const r=await api('/portal/progression');hist.innerHTML=(r.data||[]).map(i=>`<div class='status'>${i.created_at} · ${i.exercise} · ${i.decision}</div>`).join('')||'Sem histórico';}
-const navEl=document.getElementById('nav'),zone=document.getElementById('zone'),reps=document.getElementById('reps'),rir=document.getElementById('rir'),calc=document.getElementById('calc'),out=document.getElementById('out'),save=document.getElementById('save'),exercise=document.getElementById('exercise'),load=document.getElementById('load'),hist=document.getElementById('hist');loadHist();
-</script></body></html>
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Progressão</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <div id='nav'></div>
+
+    <div class='card'>
+      <h1>Calculadora de Progressão LM</h1>
+      <div class='grid'>
+        <label>Exercício<input id='exercise' required></label>
+        <label>Faixa alvo de repetições
+          <select id='zone'><option>6–8</option><option>8–10</option><option>10–12</option><option>12–15</option><option>15–20</option></select>
+        </label>
+        <label>Carga usada<input id='load' type='number' step='0.1' required></label>
+        <label>Repetições realizadas<input id='reps' type='number' required></label>
+        <label>RIR percebido
+          <select id='rir'><option>RIR 3+</option><option>RIR 2</option><option>RIR 1</option><option>RIR 0</option><option>Não sei</option></select>
+        </label>
+        <label><input id='poorTechnique' type='checkbox'> Execução perdeu qualidade</label>
+      </div>
+      <button id='calc'>Calcular</button>
+      <div id='out' class='card' style='display:none'></div>
+      <button id='save' style='display:none'>Salvar progressão</button>
+    </div>
+
+    <div class='card'><h2>Histórico</h2><div id='hist'></div></div>
+  </div>
+
+  <script src='portal-shared.js'></script>
+  <script>
+    const navEl = document.getElementById('nav');
+    const zone = document.getElementById('zone');
+    const reps = document.getElementById('reps');
+    const rir = document.getElementById('rir');
+    const calc = document.getElementById('calc');
+    const out = document.getElementById('out');
+    const save = document.getElementById('save');
+    const exercise = document.getElementById('exercise');
+    const load = document.getElementById('load');
+    const hist = document.getElementById('hist');
+    const poorTechnique = document.getElementById('poorTechnique');
+
+    requireAuth();
+    navEl.innerHTML = nav();
+
+    let current = null;
+
+    function decide() {
+      if (!exercise.value || !load.value || !reps.value) {
+        alert('Preencha exercício, carga e repetições.');
+        return;
+      }
+
+      const [min, max] = zone.value.split('–').map(Number);
+      const repsDone = Number(reps.value);
+      const rr = rir.value;
+
+      let decision = 'Manter carga';
+      let message = 'Você ficou dentro da faixa alvo. Mantenha a carga e consolide a execução.';
+
+      if (poorTechnique.checked) {
+        decision = 'Priorizar técnica';
+        message = 'A execução perdeu qualidade. Priorize técnica antes de subir carga.';
+      } else if (repsDone >= max && (rr === 'RIR 2' || rr === 'RIR 3+')) {
+        decision = 'Aumentar carga';
+        message = 'Você atingiu o topo da faixa com boa reserva. Na próxima sessão, pode subir levemente a carga.';
+      } else if (repsDone >= max && (rr === 'RIR 0' || rr === 'RIR 1')) {
+        decision = 'Manter carga';
+        message = 'Você bateu o topo da faixa, mas com baixa reserva. Mantenha a carga e consolide antes de subir.';
+      } else if (repsDone >= min && repsDone <= max) {
+        decision = 'Manter carga';
+        message = 'Você ficou dentro da faixa alvo. Mantenha a carga.';
+      } else if (repsDone < min) {
+        decision = 'Reduzir carga';
+        message = 'Você ficou abaixo da faixa alvo. Reduza a carga ou mantenha com ajuste técnico.';
+      }
+
+      out.style.display = 'block';
+      save.style.display = 'block';
+      out.innerHTML = `<h3>Decisão: ${decision}</h3><p>${message}</p>`;
+
+      current = {
+        exercise: exercise.value,
+        targetZone: zone.value,
+        loadUsed: load.value,
+        repsDone: reps.value,
+        rir: poorTechnique.checked ? `${rr} | técnica prejudicada` : rr,
+        decision
+      };
+    }
+
+    calc.onclick = decide;
+
+    save.onclick = async () => {
+      try {
+        await api('/portal/progression', { method: 'POST', body: JSON.stringify(current) });
+        loadHist();
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+
+    async function loadHist() {
+      const r = await api('/portal/progression');
+      hist.innerHTML = (r.data || []).map(i => `<div class='status'>${i.created_at} · ${i.exercise} · ${i.decision}</div>`).join('') || 'Sem histórico';
+    }
+
+    loadHist();
+  </script>
+</body>
+</html>
