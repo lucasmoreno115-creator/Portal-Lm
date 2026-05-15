@@ -51,3 +51,6 @@ details{border:1px solid var(--border);border-radius:10px;padding:10px;backgroun
 .badge-risk-high{background:rgba(230,145,56,.18);border-color:rgba(230,145,56,.6);color:#ffbf78}
 .badge-risk-critical{background:rgba(220,64,64,.2);border-color:rgba(220,64,64,.7);color:#ff9393}
 .cancellation-item{border-color:#5f2929;box-shadow:0 0 0 1px rgba(220,64,64,.12) inset}
+.financial-risk-item{border-color:#5a4d22;box-shadow:0 0 0 1px rgba(212,175,55,.12) inset}
+.badge-financial{background:rgba(212,175,55,.14);border-color:rgba(212,175,55,.5);color:#f0d47a}
+.retention-actions{margin-top:8px}
