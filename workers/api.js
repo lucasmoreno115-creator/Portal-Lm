@@ -277,6 +277,142 @@ export default {
           return json({ ok: true, data: saved });
         }
 
+
+        if (url.pathname === '/api/admin/followup-alerts' && method === 'GET') {
+          const currentWeekRef = getWeekRef(new Date());
+
+          const { results: activeStudents = [] } = await env.DB.prepare(
+            `SELECT name, email, plan_type
+             FROM student_access
+             WHERE status='ACTIVE'
+             ORDER BY name ASC`
+          ).all();
+
+          const followupStudents = [];
+
+          for (const student of activeStudents) {
+            const normalizedEmail = String(student.email || '').toLowerCase();
+            if (!normalizedEmail) continue;
+
+            const lastCheckinMeta = await env.DB.prepare(
+              `SELECT created_at, week_ref
+               FROM student_checkins
+               WHERE lower(student_email)=?
+               ORDER BY created_at DESC
+               LIMIT 1`
+            ).bind(normalizedEmail).first();
+
+            const currentWeekCheckin = await env.DB.prepare(
+              `SELECT 1
+               FROM student_checkins
+               WHERE lower(student_email)=?
+                 AND week_ref=?
+               LIMIT 1`
+            ).bind(normalizedEmail, currentWeekRef).first();
+
+            const currentWeekPlan = await env.DB.prepare(
+              `SELECT 1
+               FROM weekly_plans
+               WHERE lower(student_email)=?
+                 AND week_ref=?
+                 AND status='ACTIVE'
+               LIMIT 1`
+            ).bind(normalizedEmail, currentWeekRef).first();
+
+            const whatsappUrl = null;
+
+            followupStudents.push({
+              name: student.name || 'Aluno',
+              email: student.email || '',
+              planType: student.plan_type || 'N/A',
+              lastCheckin: lastCheckinMeta?.created_at || null,
+              lastCheckinWeek: lastCheckinMeta?.week_ref || null,
+              hasCurrentWeekCheckin: Boolean(currentWeekCheckin),
+              hasCurrentWeekPlan: Boolean(currentWeekPlan),
+              whatsappUrl
+            });
+          }
+
+          const missingMessage = `Seu check-in da semana ainda não foi enviado.
+
+Ele é o que direciona seus próximos ajustes de treino, cardio e estratégia.
+
+Leva menos de 2 minutos e evita que a semana fique sem direção.
+
+Clique aqui para responder:
+https://portal.lucasmorenopersonal.com.br/portal-checkin.html`;
+          const highRiskMessage = `Percebi que você ficou algumas semanas sem enviar seu check-in.
+
+Isso normalmente é o primeiro sinal de queda de consistência, e prefiro agir antes disso virar abandono.
+
+Me responde aqui rapidamente:
+o que mais está dificultando sua rotina agora?`;
+          const criticalMessage = `Quero alinhar sua semana antes que a rotina perca direção.
+
+Seu check-in ainda não foi enviado e seu plano da semana precisa ser atualizado com base no seu momento atual.
+
+Me responde aqui para ajustarmos o foco da semana.`;
+
+          const missingCheckins = [];
+          const highRiskStudents = [];
+          const criticalRiskStudents = [];
+
+          for (const student of followupStudents) {
+            if (!student.hasCurrentWeekCheckin) {
+              missingCheckins.push({
+                name: student.name,
+                email: student.email,
+                planType: student.planType,
+                lastCheckin: student.lastCheckin,
+                priority: 'MEDIUM',
+                reason: 'Check-in semanal pendente',
+                whatsappUrl: student.whatsappUrl,
+                message: missingMessage
+              });
+            }
+
+            const weeksWithoutCheckin = student.lastCheckinWeek
+              ? weekRefDiff(student.lastCheckinWeek, currentWeekRef)
+              : null;
+
+            if (weeksWithoutCheckin === null || weeksWithoutCheckin >= 2) {
+              highRiskStudents.push({
+                name: student.name,
+                email: student.email,
+                planType: student.planType,
+                lastCheckin: student.lastCheckin,
+                weeksWithoutCheckin,
+                priority: 'HIGH',
+                reason: '2 semanas ou mais sem check-in',
+                whatsappUrl: student.whatsappUrl,
+                message: highRiskMessage
+              });
+            }
+
+            if (!student.hasCurrentWeekCheckin && !student.hasCurrentWeekPlan) {
+              criticalRiskStudents.push({
+                name: student.name,
+                email: student.email,
+                planType: student.planType,
+                lastCheckin: student.lastCheckin,
+                priority: 'CRITICAL',
+                reason: 'Sem check-in e sem plano semanal',
+                whatsappUrl: student.whatsappUrl,
+                message: criticalMessage
+              });
+            }
+          }
+
+          return json({
+            ok: true,
+            data: {
+              missingCheckins,
+              highRiskStudents,
+              criticalRiskStudents
+            }
+          });
+        }
+
         if (url.pathname === '/api/admin/portal-alerts' && method === 'GET') {
           const currentWeekRef = getWeekRef(new Date());
 

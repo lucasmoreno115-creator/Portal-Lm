@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Follow-up Inteligente LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <section class='card hero'>
+      <p class='eyebrow'>Consultoria LM • Painel interno</p>
+      <h1>Follow-up Inteligente LM</h1>
+      <p class='hero-title'>Identifique alunos sem check-in e aja antes da perda de adesão.</p>
+    </section>
+
+    <section class='card'>
+      <label>Token admin
+        <input id='adminToken' type='password' autocomplete='off'>
+      </label>
+      <button id='loadBtn' type='button'>Carregar follow-ups</button>
+      <p id='statusBox' class='status muted'>Informe o token admin para carregar os follow-ups.</p>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Crítico</h2>
+      <ul id='criticalList' class='mission-list'></ul>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Alta prioridade</h2>
+      <ul id='highList' class='mission-list'></ul>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Check-in pendente</h2>
+      <ul id='missingList' class='mission-list'></ul>
+    </section>
+
+    <a class='secondary-link' href='index.html'>Voltar</a>
+  </div>
+
+  <script>
+    const tokenInput = document.getElementById('adminToken');
+    const loadBtn = document.getElementById('loadBtn');
+    const statusBox = document.getElementById('statusBox');
+    const criticalList = document.getElementById('criticalList');
+    const highList = document.getElementById('highList');
+    const missingList = document.getElementById('missingList');
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function setStatus(message, type) {
+      statusBox.textContent = message;
+      statusBox.className = 'status';
+      statusBox.classList.add(type || 'muted');
+    }
+
+    function renderEmpty(listEl) {
+      listEl.innerHTML = '<li>Nenhum aluno nesta categoria.</li>';
+    }
+
+    async function copyMessage(message) {
+      try {
+        await navigator.clipboard.writeText(message || '');
+        setStatus('Mensagem copiada.', 'ok');
+      } catch (error) {
+        setStatus('Não foi possível copiar a mensagem.', 'error');
+      }
+    }
+
+    function renderStudent(student) {
+      const wrapper = document.createElement('li');
+      wrapper.className = 'followup-item';
+
+      const whatsappAction = student.whatsappUrl
+        ? `<a class='secondary-link' href='${escapeHtml(student.whatsappUrl)}' target='_blank' rel='noopener noreferrer'>Abrir WhatsApp</a>`
+        : `<span class='muted'>WhatsApp não cadastrado</span>`;
+
+      wrapper.innerHTML = `
+        <strong>${escapeHtml(student.name || 'Aluno')}</strong> — ${escapeHtml(student.email || '-')}
+        <div class='muted'>Plano: ${escapeHtml(student.planType || 'N/A')}</div>
+        <div class='muted'>Motivo: ${escapeHtml(student.reason || '-')}</div>
+        <div class='muted'>Último check-in: ${escapeHtml(student.lastCheckin || 'Sem histórico de check-in')}</div>
+        <pre>${escapeHtml(student.message || '')}</pre>
+        <div class='followup-actions'>
+          <button type='button' class='copy-btn'>Copiar mensagem</button>
+          ${whatsappAction}
+        </div>
+      `;
+
+      wrapper.querySelector('.copy-btn').addEventListener('click', () => copyMessage(student.message));
+      return wrapper;
+    }
+
+    function renderList(listEl, rows) {
+      listEl.innerHTML = '';
+      if (!Array.isArray(rows) || rows.length === 0) {
+        renderEmpty(listEl);
+        return;
+      }
+      rows.forEach((student) => listEl.appendChild(renderStudent(student)));
+    }
+
+    loadBtn.addEventListener('click', async () => {
+      const token = tokenInput.value.trim();
+      if (!token) {
+        setStatus('Preencha o token admin para carregar os follow-ups.', 'error');
+        return;
+      }
+
+      loadBtn.disabled = true;
+      loadBtn.textContent = 'Carregando...';
+      setStatus('Carregando follow-ups...', 'muted');
+
+      try {
+        const response = await fetch('/api/admin/followup-alerts', {
+          method: 'GET',
+          headers: { 'x-admin-token': token }
+        });
+
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) {
+          throw new Error(payload?.error || 'Falha ao carregar follow-ups');
+        }
+
+        const data = payload.data || {};
+        renderList(criticalList, data.criticalRiskStudents || []);
+        renderList(highList, data.highRiskStudents || []);
+        renderList(missingList, data.missingCheckins || []);
+        setStatus('Follow-ups carregados com sucesso.', 'ok');
+      } catch (error) {
+        renderEmpty(criticalList);
+        renderEmpty(highList);
+        renderEmpty(missingList);
+        setStatus('Não foi possível carregar. Verifique o token admin.', 'error');
+      } finally {
+        loadBtn.disabled = false;
+        loadBtn.textContent = 'Carregar follow-ups';
+      }
+    });
+
+    renderEmpty(criticalList);
+    renderEmpty(highList);
+    renderEmpty(missingList);
+  </script>
+</body>
+</html>
