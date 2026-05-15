@@ -235,9 +235,9 @@ export default {
 
           await env.DB.prepare(
             `INSERT INTO followup_logs (
-              id, student_email, contact_type, reason, note, outcome, risk_level, next_action, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          ).bind(id, studentEmail, contactType, reason, note, outcome, riskLevel, nextAction, createdAt).run();
+              id, student_email, contact_type, reason, note, outcome, risk_level, next_action, due_date, resolution_status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(id, studentEmail, contactType, reason, note, outcome, riskLevel, nextAction, dueDate, resolutionStatus, createdAt).run();
 
           return json({
             ok: true,
@@ -250,6 +250,8 @@ export default {
               outcome,
               risk_level: riskLevel,
               next_action: nextAction,
+              due_date: dueDate,
+              resolution_status: resolutionStatus,
               created_at: createdAt
             }
           });
@@ -257,13 +259,53 @@ export default {
 
         if (url.pathname === '/api/admin/followup-logs' && method === 'GET') {
           const { results = [] } = await env.DB.prepare(
-            `SELECT student_email, contact_type, reason, note, outcome, risk_level, next_action, created_at
+            `SELECT id, student_email, contact_type, reason, note, outcome, risk_level, next_action, due_date, resolved_at, resolution_status, created_at
              FROM followup_logs
              ORDER BY created_at DESC
              LIMIT 30`
           ).all();
 
           return json({ ok: true, data: results });
+        }
+
+
+
+        if (url.pathname === '/api/admin/followup-resolve' && method === 'POST') {
+          const body = await safeJson(request);
+          const followupId = String(body?.id || '').trim();
+          const studentEmail = String(body?.student_email || '').trim().toLowerCase();
+          const resolutionStatus = String(body?.resolution_status || 'DONE').trim().toUpperCase() || 'DONE';
+
+          if (!followupId && !studentEmail) {
+            return json({ ok: false, error: 'id ou student_email é obrigatório.' }, 400);
+          }
+
+          const now = new Date().toISOString();
+
+          if (followupId) {
+            await env.DB.prepare(
+              `UPDATE followup_logs
+               SET resolved_at=?, resolution_status=?
+               WHERE id=?`
+            ).bind(now, resolutionStatus, followupId).run();
+          } else {
+            await env.DB.prepare(
+              `UPDATE followup_logs
+               SET resolved_at=?, resolution_status=?
+               WHERE lower(student_email)=?
+                 AND (resolution_status IS NULL OR resolution_status='OPEN')`
+            ).bind(now, resolutionStatus, studentEmail).run();
+          }
+
+          return json({
+            ok: true,
+            data: {
+              id: followupId || null,
+              student_email: studentEmail || null,
+              resolved_at: now,
+              resolution_status: resolutionStatus
+            }
+          });
         }
 
         if (url.pathname === '/api/admin/retention-action' && method === 'POST') {
@@ -863,6 +905,9 @@ async function ensureSchema(db) {
   await ensureColumn(db, 'followup_logs', 'outcome', 'TEXT');
   await ensureColumn(db, 'followup_logs', 'risk_level', 'TEXT');
   await ensureColumn(db, 'followup_logs', 'next_action', 'TEXT');
+  await ensureColumn(db, 'followup_logs', 'due_date', 'TEXT');
+  await ensureColumn(db, 'followup_logs', 'resolved_at', 'TEXT');
+  await ensureColumn(db, 'followup_logs', 'resolution_status', "TEXT DEFAULT 'OPEN'");
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS retention_actions (
     id TEXT PRIMARY KEY,
@@ -943,6 +988,12 @@ async function ensureSchema(db) {
     `CREATE INDEX IF NOT EXISTS idx_followup_logs_created_at ON followup_logs(created_at)`
   ).run();
   await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_followup_logs_resolution_status_due_date ON followup_logs(resolution_status, due_date)`
+  ).run();
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_followup_logs_student_created ON followup_logs(student_email, created_at)`
+  ).run();
+  await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_retention_actions_student_email ON retention_actions(student_email)`
   ).run();
   await db.prepare(
@@ -987,6 +1038,46 @@ async function ensureColumn(db, tableName, columnName, sqlType) {
   if (!exists) {
     await db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${sqlType}`).run();
   }
+}
+
+
+function resolveDueDate(nextAction, baseDateIso) {
+  const base = new Date(baseDateIso || Date.now());
+  const action = String(nextAction || '').toUpperCase();
+
+  let daysToAdd = null;
+
+  if (
+    action === 'REVISAR_PLANO' ||
+    action === 'AJUSTAR_DIETA' ||
+    action === 'CHAMADA_ESTRATEGICA'
+  ) {
+    daysToAdd = 0;
+  } else if (action === 'RETORNO_3_DIAS') {
+    daysToAdd = 3;
+  } else if (action === 'RETORNO_7_DIAS') {
+    daysToAdd = 7;
+  } else if (action === 'OUTRO') {
+    daysToAdd = 3;
+  } else if (action === 'SEM_ACAO_NECESSARIA') {
+    return null;
+  }
+
+  if (daysToAdd === null) return null;
+
+  const due = new Date(base);
+  due.setUTCDate(due.getUTCDate() + daysToAdd);
+
+  return due.toISOString();
+}
+
+function resolveResolutionStatus(nextAction, dueDate) {
+  const action = String(nextAction || '').toUpperCase();
+
+  if (action === 'SEM_ACAO_NECESSARIA') return 'NO_ACTION';
+  if (dueDate) return 'OPEN';
+
+  return 'OPEN';
 }
 
 function inferRiskLevelFromOutcome(outcome) {
