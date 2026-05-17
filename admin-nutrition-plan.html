@@ -26,14 +26,17 @@
         <label>Objetivo<input id='goal' type='text' placeholder='Recomposição corporal'></label>
         <label>Estratégia<textarea id='strategy' rows='3'></textarea></label>
 
-        <label>Refeições (JSON)</label>
-        <textarea id='mealsJson' rows='8' placeholder='[{"name":"Café da manhã","items":["3 ovos","1 fruta"]}]'></textarea>
+        <label>Plano alimentar</label>
+        <small class='muted'>Escreva o plano como texto normal. Cada título vira uma refeição e cada linha com hífen vira um item.</small>
+        <textarea id='mealsText' rows='10' placeholder='☕ Café da manhã&#10;- 3 ovos&#10;- 1 fruta&#10;&#10;🍛 Almoço&#10;- 120 g arroz branco cozido&#10;- 150 g frango ou carne magra'></textarea>
 
-        <label>Substituições (JSON)</label>
-        <textarea id='subsJson' rows='6' placeholder='[{"title":"Se não tiver frango","items":["carne magra","ovos"]}]'></textarea>
+        <label>Substituições</label>
+        <small class='muted'>Cada título vira um bloco de substituição. Os itens devem ficar em linhas com hífen.</small>
+        <textarea id='subsText' rows='7' placeholder='Se não tiver frango&#10;- carne magra&#10;- ovos&#10;- peixe'></textarea>
 
-        <label>Regras de adesão (JSON)</label>
-        <textarea id='rulesJson' rows='5' placeholder='["80% bem feito é melhor que perfeição por poucos dias.","Se errar uma refeição, volte na próxima."]'></textarea>
+        <label>Regras de adesão</label>
+        <small class='muted'>Escreva uma regra por linha.</small>
+        <textarea id='rulesText' rows='5' placeholder='80% bem feito é melhor que perfeição por poucos dias.&#10;Se errar uma refeição, volte na próxima.'></textarea>
 
         <label>Observações<textarea id='notes' rows='3'></textarea></label>
         <label>Mensagem WhatsApp<textarea id='whatsappMessage' rows='2'></textarea></label>
@@ -60,21 +63,106 @@
       statusBox.classList.add(type || 'muted');
     }
 
-    function parseJsonField(fieldId, fallback) {
-      const raw = document.getElementById(fieldId).value.trim();
-      if (!raw) return fallback;
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) throw new Error(`${fieldId} precisa ser um array JSON.`);
-      return parsed;
+    function sanitizeText(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .trim();
+    }
+
+    function stripBulletPrefix(line) {
+      return line.replace(/^\s*[-•*]\s*/, '').trim();
+    }
+
+    function stripLeadingEmoji(line) {
+      return line.replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, '').trim();
+    }
+
+    function parseBlockText(rawText, fallbackTitle) {
+      const lines = String(rawText || '').split(/\r?\n/);
+      const blocks = [];
+      let current = null;
+
+      for (const rawLine of lines) {
+        const trimmed = rawLine.trim();
+        if (!trimmed) continue;
+
+        const isItem = /^[-•*]\s+/.test(trimmed);
+        if (isItem) {
+          if (!current) {
+            current = { title: fallbackTitle, items: [] };
+            blocks.push(current);
+          }
+          const item = sanitizeText(stripBulletPrefix(trimmed));
+          if (item) current.items.push(item);
+          continue;
+        }
+
+        const title = sanitizeText(stripLeadingEmoji(trimmed));
+        if (!title) continue;
+        current = { title, items: [] };
+        blocks.push(current);
+      }
+
+      return blocks.filter((block) => block.items.length > 0);
+    }
+
+    function parseMealsText() {
+      const meals = parseBlockText(document.getElementById('mealsText').value, 'Plano alimentar')
+        .map((block) => ({ name: block.title, items: block.items }));
+
+      if (!meals.length) {
+        throw new Error('Não foi possível interpretar o plano alimentar. Adicione ao menos uma refeição com itens em linhas com hífen.');
+      }
+      return meals;
+    }
+
+    function parseSubstitutionsText() {
+      const raw = document.getElementById('subsText').value.trim();
+      if (!raw) return [];
+
+      return parseBlockText(raw, 'Substituições')
+        .map((block) => ({ title: block.title, items: block.items }));
+    }
+
+    function parseRulesText() {
+      const raw = document.getElementById('rulesText').value.trim();
+      if (!raw) return [];
+
+      return raw
+        .split(/\r?\n/)
+        .map((line) => sanitizeText(stripBulletPrefix(line)))
+        .filter(Boolean);
+    }
+
+    function formatBlocksToText(blocks, titleKey) {
+      if (!Array.isArray(blocks) || !blocks.length) return '';
+
+      return blocks
+        .map((block) => {
+          const title = sanitizeText(block?.[titleKey] || '');
+          const items = Array.isArray(block?.items)
+            ? block.items.map((item) => `- ${sanitizeText(item)}`).filter((line) => line !== '- ')
+            : [];
+          if (!title && !items.length) return '';
+          return [title, ...items].filter(Boolean).join('\n');
+        })
+        .filter(Boolean)
+        .join('\n\n');
     }
 
     function fillForm(plan) {
       document.getElementById('title').value = plan?.title || '';
       document.getElementById('goal').value = plan?.goal || '';
       document.getElementById('strategy').value = plan?.strategy || '';
-      document.getElementById('mealsJson').value = JSON.stringify(plan?.meals || [], null, 2);
-      document.getElementById('subsJson').value = JSON.stringify(plan?.substitutions || [], null, 2);
-      document.getElementById('rulesJson').value = JSON.stringify(plan?.adherence_rules || [], null, 2);
+      document.getElementById('mealsText').value = formatBlocksToText(plan?.meals || [], 'name');
+      document.getElementById('subsText').value = formatBlocksToText(plan?.substitutions || [], 'title');
+      document.getElementById('rulesText').value = Array.isArray(plan?.adherence_rules)
+        ? plan.adherence_rules.map((rule) => sanitizeText(rule)).filter(Boolean).join('\n')
+        : '';
       document.getElementById('notes').value = plan?.notes || '';
       document.getElementById('whatsappMessage').value = plan?.whatsapp_message || '';
     }
@@ -127,14 +215,14 @@
       try {
         const body = {
           student_email: studentEmail,
-          title: document.getElementById('title').value.trim(),
-          goal: document.getElementById('goal').value.trim(),
-          strategy: document.getElementById('strategy').value.trim(),
-          meals: parseJsonField('mealsJson', []),
-          substitutions: parseJsonField('subsJson', []),
-          adherence_rules: parseJsonField('rulesJson', []),
-          notes: document.getElementById('notes').value.trim(),
-          whatsapp_message: document.getElementById('whatsappMessage').value.trim()
+          title: sanitizeText(document.getElementById('title').value),
+          goal: sanitizeText(document.getElementById('goal').value),
+          strategy: sanitizeText(document.getElementById('strategy').value),
+          meals: parseMealsText(),
+          substitutions: parseSubstitutionsText(),
+          adherence_rules: parseRulesText(),
+          notes: sanitizeText(document.getElementById('notes').value),
+          whatsapp_message: sanitizeText(document.getElementById('whatsappMessage').value)
         };
 
         await authedRequest('/api/admin/nutrition-plan', { method: 'POST', body: JSON.stringify(body) });
