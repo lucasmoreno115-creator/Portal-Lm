@@ -47,16 +47,40 @@
       return `<p style='white-space: pre-line;'>${escapeHtml(text)}</p>`;
     }
 
+    function normalizeLineItems(value) {
+      const stripMarker = (line) => line.replace(/^\s*(?:[-•*]\s+|\d+[.)]\s+)/, '').trim();
+      const splitLines = (text) => String(text || '').split(/\r?\n/).map((line) => stripMarker(line)).filter(Boolean);
+
+      if (Array.isArray(value)) {
+        return value.flatMap((item) => splitLines(item)).filter(Boolean);
+      }
+
+      return splitLines(value);
+    }
+
+    function renderTextOrList(value) {
+      const lines = normalizeLineItems(value);
+      if (!lines.length) return '';
+      return lines.length > 1 ? renderList(lines) : renderTextBlock(lines[0]);
+    }
+
     function sectionHtml(title, content) {
       if (!content) return '';
       return `<section class='card'><h2>${title}</h2>${content}</section>`;
     }
 
     function renderPlan(plan) {
-      const strategyItems = [
-        plan.goal ? `<strong>Objetivo atual:</strong> ${plan.goal}.` : '',
-        plan.strategy ? `<strong>Foco da fase:</strong> ${plan.strategy}` : ''
-      ].filter(Boolean);
+      const strategyGoalHtml = plan.goal
+        ? `<div><p class='eyebrow'>Objetivo atual</p>${renderTextBlock(plan.goal)}</div>`
+        : '';
+      const strategyFocusHtml = (() => {
+        const focusHtml = renderTextOrList(plan.strategy);
+        if (!focusHtml) return '';
+        return `<div><p class='eyebrow'>Foco da fase</p>${focusHtml}</div>`;
+      })();
+      const strategyHtml = strategyGoalHtml || strategyFocusHtml
+        ? `${strategyGoalHtml}${strategyFocusHtml}`
+        : '<p class="muted">Sem estratégia cadastrada.</p>';
 
       const mealsHtml = (plan.meals || []).map((meal) => `
         <article class='meal-card'>
@@ -72,17 +96,17 @@
         </article>
       `).join('');
 
-      const adherenceRules = Array.isArray(plan.adherence_rules) ? plan.adherence_rules : [];
+      const adherenceRulesHtml = renderTextOrList(plan.adherence_rules);
       const message = encodeURIComponent(plan.whatsapp_message || 'Olá, estou com dúvida sobre meu plano alimentar no Portal LM.');
 
       planContent.innerHTML = `
-        ${sectionHtml('Estratégia atual', strategyItems.length ? renderList(strategyItems) : '<p class="muted">Sem estratégia cadastrada.</p>')}
+        ${sectionHtml('Estratégia atual', strategyHtml)}
 
         ${sectionHtml('Refeições do plano', mealsHtml ? `<div class='grid'>${mealsHtml}</div>` : '<p class="muted">Sem refeições cadastradas.</p>')}
 
         ${sectionHtml('Substituições inteligentes', substitutionsHtml ? `<div class='grid'>${substitutionsHtml}</div>` : '<p class="muted">Sem substituições cadastradas.</p>')}
 
-        ${sectionHtml('Regras de adesão', adherenceRules.length ? renderList(adherenceRules) : '<p class="muted">Sem regras cadastradas.</p>')}
+        ${sectionHtml('Regras de adesão', adherenceRulesHtml || '<p class="muted">Sem regras cadastradas.</p>')}
 
         ${sectionHtml('Observações', plan.notes ? renderTextBlock(plan.notes) : '<p class="muted">Sem observações.</p>')}
 
