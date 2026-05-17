@@ -1,0 +1,8 @@
+name = "lm-system-api"
+main = "workers/api.js"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "lmsystemv2-db"
+database_id = "1de90532-157b-473e-8e7a-655ca9e0953d"
