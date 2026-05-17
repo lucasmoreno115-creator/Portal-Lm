@@ -30,8 +30,21 @@
     const statusText = document.getElementById('statusText');
     const planContent = document.getElementById('planContent');
 
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     function renderList(items) {
-      return `<ul class='mission-list'>${items.map((item) => `<li>${item}</li>`).join('')}</ul>`;
+      return `<ul class='mission-list'>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+    }
+
+    function renderTextBlock(text) {
+      return `<p style='white-space: pre-line;'>${escapeHtml(text)}</p>`;
     }
 
     function sectionHtml(title, content) {
@@ -47,15 +60,15 @@
 
       const mealsHtml = (plan.meals || []).map((meal) => `
         <article class='meal-card'>
-          <h3>${meal?.name || 'Refeição'}</h3>
-          ${renderList(Array.isArray(meal?.items) ? meal.items : [])}
+          <h3>${escapeHtml(meal?.name || 'Refeição')}</h3>
+          ${renderTextBlock(Array.isArray(meal?.items) ? String(meal.items[0] || '') : '')}
         </article>
       `).join('');
 
       const substitutionsHtml = (plan.substitutions || []).map((sub) => `
         <article class='meal-card'>
-          <h3>${sub?.title || 'Substituição'}</h3>
-          ${renderList(Array.isArray(sub?.items) ? sub.items : [])}
+          <h3>${escapeHtml(sub?.title || 'Substituição')}</h3>
+          ${renderTextBlock(Array.isArray(sub?.items) ? String(sub.items[0] || '') : '')}
         </article>
       `).join('');
 
@@ -71,7 +84,7 @@
 
         ${sectionHtml('Regras de adesão', adherenceRules.length ? renderList(adherenceRules) : '<p class="muted">Sem regras cadastradas.</p>')}
 
-        ${sectionHtml('Observações', plan.notes ? `<p>${plan.notes}</p>` : '<p class="muted">Sem observações.</p>')}
+        ${sectionHtml('Observações', plan.notes ? renderTextBlock(plan.notes) : '<p class="muted">Sem observações.</p>')}
 
         <section class='card support-card'>
           <h2>Suporte</h2>

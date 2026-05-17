@@ -26,16 +26,17 @@
         <label>Objetivo<input id='goal' type='text' placeholder='Recomposição corporal'></label>
         <label>Estratégia<textarea id='strategy' rows='3'></textarea></label>
 
-        <label>Plano alimentar</label>
-        <small class='muted'>Escreva o plano como texto normal. Cada título vira uma refeição e cada linha com hífen vira um item.</small>
-        <textarea id='mealsText' rows='10' placeholder='☕ Café da manhã&#10;- 3 ovos&#10;- 1 fruta&#10;&#10;🍛 Almoço&#10;- 120 g arroz branco cozido&#10;- 150 g frango ou carne magra'></textarea>
+        <label>Refeições do plano</label>
+        <small class='muted'>Adicione refeições livremente. Para cada uma, informe o título e o conteúdo em texto normal.</small>
+        <div id='mealsContainer' class='stack'></div>
+        <button id='addMealBtn' type='button'>+ Adicionar refeição</button>
 
         <label>Substituições</label>
-        <small class='muted'>Cada título vira um bloco de substituição. Os itens devem ficar em linhas com hífen.</small>
+        <small class='muted'>Texto livre. Nenhum parser automático será aplicado.</small>
         <textarea id='subsText' rows='7' placeholder='Se não tiver frango&#10;- carne magra&#10;- ovos&#10;- peixe'></textarea>
 
         <label>Regras de adesão</label>
-        <small class='muted'>Escreva uma regra por linha.</small>
+        <small class='muted'>Texto livre. Nenhum parser automático será aplicado.</small>
         <textarea id='rulesText' rows='5' placeholder='80% bem feito é melhor que perfeição por poucos dias.&#10;Se errar uma refeição, volte na próxima.'></textarea>
 
         <label>Observações<textarea id='notes' rows='3'></textarea></label>
@@ -55,6 +56,8 @@
     const form = document.getElementById('nutritionForm');
     const loadBtn = document.getElementById('loadBtn');
     const saveBtn = document.getElementById('saveBtn');
+    const addMealBtn = document.getElementById('addMealBtn');
+    const mealsContainer = document.getElementById('mealsContainer');
     const statusBox = document.getElementById('statusBox');
 
     function setStatus(message, type) {
@@ -73,100 +76,91 @@
         .trim();
     }
 
-    function stripBulletPrefix(line) {
-      return line.replace(/^\s*[-•*]\s*/, '').trim();
+    function createMealBlock(meal = {}) {
+      const wrapper = document.createElement('article');
+      wrapper.className = 'card';
+      wrapper.innerHTML = `
+        <label>Título da refeição
+          <input type='text' class='meal-title' placeholder='Ex: Pré-treino da manhã'>
+        </label>
+        <label>Conteúdo da refeição
+          <textarea class='meal-content' rows='5' placeholder='Ex: 1 YoPRO\n1 banana\n30g de aveia'></textarea>
+        </label>
+        <button type='button' class='removeMealBtn'>Remover refeição</button>
+      `;
+
+      wrapper.querySelector('.meal-title').value = meal.name || '';
+      const content = Array.isArray(meal.items) ? String(meal.items[0] || '') : '';
+      wrapper.querySelector('.meal-content').value = content;
+
+      wrapper.querySelector('.removeMealBtn').addEventListener('click', () => {
+        wrapper.remove();
+        if (!mealsContainer.children.length) {
+          addMealBlock();
+        }
+      });
+
+      mealsContainer.appendChild(wrapper);
     }
 
-    function stripLeadingEmoji(line) {
-      return line.replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, '').trim();
+    function addMealBlock(meal) {
+      createMealBlock(meal);
     }
 
-    function parseBlockText(rawText, fallbackTitle) {
-      const lines = String(rawText || '').split(/\r?\n/);
-      const blocks = [];
-      let current = null;
+    function clearMealBlocks() {
+      mealsContainer.innerHTML = '';
+    }
 
-      for (const rawLine of lines) {
-        const trimmed = rawLine.trim();
-        if (!trimmed) continue;
+    function collectMeals() {
+      const blocks = Array.from(mealsContainer.querySelectorAll('.card'));
+      if (!blocks.length) {
+        throw new Error('Adicione ao menos uma refeição válida.');
+      }
 
-        const isItem = /^[-•*]\s+/.test(trimmed);
-        if (isItem) {
-          if (!current) {
-            current = { title: fallbackTitle, items: [] };
-            blocks.push(current);
-          }
-          const item = sanitizeText(stripBulletPrefix(trimmed));
-          if (item) current.items.push(item);
-          continue;
+      const meals = [];
+      for (let index = 0; index < blocks.length; index += 1) {
+        const block = blocks[index];
+        const title = sanitizeText(block.querySelector('.meal-title')?.value || '');
+        const contentRaw = String(block.querySelector('.meal-content')?.value || '').trim();
+
+        if (!title || !contentRaw) {
+          throw new Error(`Preencha título e conteúdo da refeição ${index + 1} ou remova o bloco vazio.`);
         }
 
-        const title = sanitizeText(stripLeadingEmoji(trimmed));
-        if (!title) continue;
-        current = { title, items: [] };
-        blocks.push(current);
+        meals.push({
+          name: title,
+          items: [contentRaw]
+        });
       }
 
-      return blocks.filter((block) => block.items.length > 0);
-    }
-
-    function parseMealsText() {
-      const meals = parseBlockText(document.getElementById('mealsText').value, 'Plano alimentar')
-        .map((block) => ({ name: block.title, items: block.items }));
-
-      if (!meals.length) {
-        throw new Error('Não foi possível interpretar o plano alimentar. Adicione ao menos uma refeição com itens em linhas com hífen.');
-      }
       return meals;
-    }
-
-    function parseSubstitutionsText() {
-      const raw = document.getElementById('subsText').value.trim();
-      if (!raw) return [];
-
-      return parseBlockText(raw, 'Substituições')
-        .map((block) => ({ title: block.title, items: block.items }));
-    }
-
-    function parseRulesText() {
-      const raw = document.getElementById('rulesText').value.trim();
-      if (!raw) return [];
-
-      return raw
-        .split(/\r?\n/)
-        .map((line) => sanitizeText(stripBulletPrefix(line)))
-        .filter(Boolean);
-    }
-
-    function formatBlocksToText(blocks, titleKey) {
-      if (!Array.isArray(blocks) || !blocks.length) return '';
-
-      return blocks
-        .map((block) => {
-          const title = sanitizeText(block?.[titleKey] || '');
-          const items = Array.isArray(block?.items)
-            ? block.items.map((item) => `- ${sanitizeText(item)}`).filter((line) => line !== '- ')
-            : [];
-          if (!title && !items.length) return '';
-          return [title, ...items].filter(Boolean).join('\n');
-        })
-        .filter(Boolean)
-        .join('\n\n');
     }
 
     function fillForm(plan) {
       document.getElementById('title').value = plan?.title || '';
       document.getElementById('goal').value = plan?.goal || '';
       document.getElementById('strategy').value = plan?.strategy || '';
-      document.getElementById('mealsText').value = formatBlocksToText(plan?.meals || [], 'name');
-      document.getElementById('subsText').value = formatBlocksToText(plan?.substitutions || [], 'title');
+
+      clearMealBlocks();
+      const existingMeals = Array.isArray(plan?.meals) ? plan.meals : [];
+      if (existingMeals.length) {
+        existingMeals.forEach((meal) => addMealBlock(meal));
+      } else {
+        addMealBlock();
+      }
+
+      const firstSub = Array.isArray(plan?.substitutions) && plan.substitutions[0]
+        ? String(plan.substitutions[0]?.items?.[0] || '')
+        : '';
+      document.getElementById('subsText').value = firstSub;
       document.getElementById('rulesText').value = Array.isArray(plan?.adherence_rules)
-        ? plan.adherence_rules.map((rule) => sanitizeText(rule)).filter(Boolean).join('\n')
+        ? String(plan.adherence_rules[0] || '')
         : '';
       document.getElementById('notes').value = plan?.notes || '';
       document.getElementById('whatsappMessage').value = plan?.whatsapp_message || '';
     }
 
+    addMealBtn.addEventListener('click', () => addMealBlock());
     async function authedRequest(path, options = {}) {
       const adminToken = document.getElementById('adminToken').value.trim();
       if (!adminToken) throw new Error('Token admin obrigatório.');
@@ -218,9 +212,15 @@
           title: sanitizeText(document.getElementById('title').value),
           goal: sanitizeText(document.getElementById('goal').value),
           strategy: sanitizeText(document.getElementById('strategy').value),
-          meals: parseMealsText(),
-          substitutions: parseSubstitutionsText(),
-          adherence_rules: parseRulesText(),
+          meals: collectMeals(),
+          substitutions: (() => {
+            const raw = document.getElementById('subsText').value.trim();
+            return raw ? [{ title: 'Substituições', items: [raw] }] : [];
+          })(),
+          adherence_rules: (() => {
+            const raw = document.getElementById('rulesText').value.trim();
+            return raw ? [raw] : [];
+          })(),
           notes: sanitizeText(document.getElementById('notes').value),
           whatsapp_message: sanitizeText(document.getElementById('whatsappMessage').value)
         };
@@ -233,6 +233,8 @@
         saveBtn.disabled = false;
       }
     });
+    clearMealBlocks();
+    addMealBlock();
   </script>
 </body>
 </html>
