@@ -66,6 +66,18 @@ export default {
           return json({ ok: true, data: weeklyPlan || null });
         }
 
+        if (url.pathname === '/api/portal/nutrition-plan' && method === 'GET') {
+          const plan = await getActiveNutritionPlanByEmail(env.DB, studentEmail);
+          if (!plan) {
+            return json({
+              ok: true,
+              data: null,
+              message: 'Seu plano alimentar ainda não foi liberado no portal. Assim que estiver disponível, ele aparecerá aqui.'
+            });
+          }
+          return json({ ok: true, data: plan });
+        }
+
         if (url.pathname === '/api/portal/checkin' && method === 'POST') {
           const body = await safeJson(request);
           const now = new Date().toISOString();
@@ -427,6 +439,72 @@ export default {
              WHERE id=?`
           ).bind(id).first();
 
+          return json({ ok: true, data: saved });
+        }
+
+        if (url.pathname === '/api/admin/nutrition-plan' && method === 'GET') {
+          const email = String(url.searchParams.get('email') || '').trim().toLowerCase();
+          if (!email) {
+            return json({ ok: false, error: 'email é obrigatório.' }, 400);
+          }
+
+          const plan = await getActiveNutritionPlanByEmail(env.DB, email);
+          return json({ ok: true, data: plan || null });
+        }
+
+        if (url.pathname === '/api/admin/nutrition-plan' && method === 'POST') {
+          const body = await safeJson(request);
+          const studentEmail = String(body?.student_email || '').trim().toLowerCase();
+          const title = nullableTrimmed(body?.title);
+          const goal = nullableTrimmed(body?.goal);
+          const strategy = nullableTrimmed(body?.strategy);
+          const notes = nullableTrimmed(body?.notes);
+          const whatsappMessage = nullableTrimmed(body?.whatsapp_message);
+          const meals = body?.meals;
+          const substitutions = body?.substitutions ?? [];
+          const adherenceRules = body?.adherence_rules ?? [];
+
+          if (!studentEmail) return json({ ok: false, error: 'student_email é obrigatório.' }, 400);
+          if (!Array.isArray(meals) || meals.length === 0) {
+            return json({ ok: false, error: 'meals deve ser um array com pelo menos uma refeição.' }, 400);
+          }
+          if (!Array.isArray(substitutions)) {
+            return json({ ok: false, error: 'substitutions deve ser um array.' }, 400);
+          }
+          if (!Array.isArray(adherenceRules)) {
+            return json({ ok: false, error: 'adherence_rules deve ser um array.' }, 400);
+          }
+
+          const now = new Date().toISOString();
+          const id = crypto.randomUUID();
+
+          await env.DB.prepare(
+            `UPDATE nutrition_plans
+             SET is_active=0, updated_at=?
+             WHERE lower(student_email)=? AND is_active=1`
+          ).bind(now, studentEmail).run();
+
+          await env.DB.prepare(
+            `INSERT INTO nutrition_plans (
+              id, student_email, title, goal, strategy, meals_json, substitutions_json,
+              adherence_rules_json, notes, whatsapp_message, is_active, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`
+          ).bind(
+            id,
+            studentEmail,
+            title,
+            goal,
+            strategy,
+            JSON.stringify(meals),
+            JSON.stringify(substitutions),
+            JSON.stringify(adherenceRules),
+            notes,
+            whatsappMessage,
+            now,
+            now
+          ).run();
+
+          const saved = await getActiveNutritionPlanByEmail(env.DB, studentEmail);
           return json({ ok: true, data: saved });
         }
 
@@ -971,6 +1049,29 @@ async function ensureSchema(db) {
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_weekly_plans_student_email ON weekly_plans(student_email)`
   ).run();
+  await db.prepare(`CREATE TABLE IF NOT EXISTS nutrition_plans (
+    id TEXT PRIMARY KEY,
+    student_email TEXT NOT NULL,
+    title TEXT,
+    goal TEXT,
+    strategy TEXT,
+    meals_json TEXT NOT NULL,
+    substitutions_json TEXT,
+    adherence_rules_json TEXT,
+    notes TEXT,
+    whatsapp_message TEXT,
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`).run();
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_nutrition_plans_student_email ON nutrition_plans(student_email)`
+  ).run();
+  await db.prepare(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_nutrition_plans_single_active
+     ON nutrition_plans(student_email)
+     WHERE is_active = 1`
+  ).run();
 
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_student_checkins_student_week ON student_checkins(student_email, week_ref)`
@@ -1107,6 +1208,50 @@ function normalizeWhatsapp(rawValue) {
   if (digits.startsWith('55')) return digits;
   if (digits.length === 10 || digits.length === 11) return `55${digits}`;
   return digits;
+}
+
+function nullableTrimmed(value) {
+  if (value == null) return null;
+  const trimmed = String(value).trim();
+  return trimmed || null;
+}
+
+async function getActiveNutritionPlanByEmail(db, email) {
+  const row = await db.prepare(
+    `SELECT id, student_email, title, goal, strategy, meals_json, substitutions_json,
+            adherence_rules_json, notes, whatsapp_message, created_at, updated_at
+     FROM nutrition_plans
+     WHERE lower(student_email)=? AND is_active=1
+     ORDER BY updated_at DESC
+     LIMIT 1`
+  ).bind(String(email || '').toLowerCase()).first();
+
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    student_email: row.student_email,
+    title: row.title,
+    goal: row.goal,
+    strategy: row.strategy,
+    meals: safeJsonParseArray(row.meals_json),
+    substitutions: safeJsonParseArray(row.substitutions_json),
+    adherence_rules: safeJsonParseArray(row.adherence_rules_json),
+    notes: row.notes,
+    whatsapp_message: row.whatsapp_message,
+    created_at: row.created_at,
+    updated_at: row.updated_at
+  };
+}
+
+function safeJsonParseArray(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 function corsHeaders() {
