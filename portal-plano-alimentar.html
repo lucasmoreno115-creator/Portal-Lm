@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Plano Alimentar</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <div id='nav'></div>
+
+    <section class='card hero'>
+      <p class='eyebrow'>Consultoria LM</p>
+      <h1>Plano Alimentar</h1>
+      <p class='hero-subtext'>Sua estratégia nutricional atual organizada de forma simples para facilitar a execução no dia a dia.</p>
+    </section>
+
+    <section class='card'>
+      <h2>Estratégia atual</h2>
+      <ul class='mission-list'>
+        <li><strong>Objetivo atual:</strong> Recomposição corporal.</li>
+        <li><strong>Foco da fase:</strong> melhorar consistência, controlar fome e preservar massa muscular.</li>
+        <li><strong>Prioridade da semana:</strong> cumprir pelo menos 80% do plano antes de pensar em ajustes.</li>
+      </ul>
+    </section>
+
+    <section class='card'>
+      <h2>Refeições do plano</h2>
+      <div class='grid'>
+        <article class='meal-card'>
+          <h3>Café da manhã</h3>
+          <ul class='mission-list'>
+            <li>3 ovos</li>
+            <li>1 porção de fruta</li>
+            <li>café sem açúcar ou com adoçante</li>
+          </ul>
+        </article>
+
+        <article class='meal-card'>
+          <h3>Almoço</h3>
+          <ul class='mission-list'>
+            <li>arroz branco cozido</li>
+            <li>frango ou carne magra</li>
+            <li>salada e legumes à vontade</li>
+            <li>azeite medido</li>
+          </ul>
+        </article>
+
+        <article class='meal-card'>
+          <h3>Lanche da tarde</h3>
+          <ul class='mission-list'>
+            <li>opção 1: iogurte proteico + fruta</li>
+            <li>opção 2: pão/rap com frango</li>
+            <li>opção 3: whey + fruta</li>
+          </ul>
+        </article>
+
+        <article class='meal-card'>
+          <h3>Jantar</h3>
+          <ul class='mission-list'>
+            <li>proteína magra</li>
+            <li>carboidrato planejado</li>
+            <li>legumes ou salada</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class='card'>
+      <h2>Substituições inteligentes</h2>
+      <div class='grid'>
+        <article class='meal-card'>
+          <h3>Se não tiver frango</h3>
+          <ul class='mission-list'>
+            <li>carne magra</li>
+            <li>ovos</li>
+            <li>peixe</li>
+          </ul>
+        </article>
+
+        <article class='meal-card'>
+          <h3>Se precisar comer fora</h3>
+          <ul class='mission-list'>
+            <li>escolha uma fonte de proteína</li>
+            <li>mantenha uma porção de carboidrato</li>
+            <li>evite transformar uma refeição livre em um dia livre</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class='card'>
+      <h2>Regras de adesão</h2>
+      <ul class='mission-list'>
+        <li>80% bem feito é melhor que 100% por dois dias e abandono depois.</li>
+        <li>Não compense exageros com jejum agressivo.</li>
+        <li>Se errar uma refeição, volte na próxima.</li>
+        <li>Ajustes serão feitos com base em peso, cintura, treino, fome e adesão.</li>
+      </ul>
+    </section>
+
+    <section class='card support-card'>
+      <h2>Suporte</h2>
+      <p class='muted'>Se surgiu qualquer dúvida na execução, peça orientação antes de ajustar por conta própria.</p>
+      <a class='primary-cta' href='https://wa.me/5514991174500' target='_blank' rel='noopener noreferrer'>Tenho dúvida sobre meu plano</a>
+    </section>
+  </div>
+
+  <script src='portal-shared.js'></script>
+  <script>
+    requireAuth();
+    document.getElementById('nav').innerHTML = nav();
+  </script>
+</body>
+</html>
