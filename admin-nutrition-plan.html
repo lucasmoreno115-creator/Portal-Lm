@@ -1,0 +1,150 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Plano Alimentar do Aluno</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <section class='card hero'>
+      <p class='eyebrow'>Consultoria LM • Painel interno</p>
+      <h1>Plano alimentar do aluno</h1>
+      <p class='muted'>Este sistema apenas exibe o plano cadastrado manualmente pelo profissional. Ele não gera prescrição nutricional automática.</p>
+    </section>
+
+    <section class='card'>
+      <form id='nutritionForm'>
+        <div class='grid'>
+          <label>Token admin<input id='adminToken' type='password' required></label>
+          <label>Email do aluno<input id='studentEmail' type='email' required></label>
+        </div>
+        <button id='loadBtn' type='button'>Carregar plano existente</button>
+
+        <label>Título<input id='title' type='text' placeholder='Plano alimentar atual'></label>
+        <label>Objetivo<input id='goal' type='text' placeholder='Recomposição corporal'></label>
+        <label>Estratégia<textarea id='strategy' rows='3'></textarea></label>
+
+        <label>Refeições (JSON)</label>
+        <textarea id='mealsJson' rows='8' placeholder='[{"name":"Café da manhã","items":["3 ovos","1 fruta"]}]'></textarea>
+
+        <label>Substituições (JSON)</label>
+        <textarea id='subsJson' rows='6' placeholder='[{"title":"Se não tiver frango","items":["carne magra","ovos"]}]'></textarea>
+
+        <label>Regras de adesão (JSON)</label>
+        <textarea id='rulesJson' rows='5' placeholder='["80% bem feito é melhor que perfeição por poucos dias.","Se errar uma refeição, volte na próxima."]'></textarea>
+
+        <label>Observações<textarea id='notes' rows='3'></textarea></label>
+        <label>Mensagem WhatsApp<textarea id='whatsappMessage' rows='2'></textarea></label>
+
+        <button id='saveBtn' type='submit'>Salvar plano alimentar</button>
+      </form>
+    </section>
+
+    <section class='card'>
+      <p id='statusBox' class='status muted'>Informe token e email para carregar ou salvar o plano.</p>
+      <a class='secondary-link' href='admin.html'>Voltar</a>
+    </section>
+  </div>
+
+  <script>
+    const form = document.getElementById('nutritionForm');
+    const loadBtn = document.getElementById('loadBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const statusBox = document.getElementById('statusBox');
+
+    function setStatus(message, type) {
+      statusBox.textContent = message;
+      statusBox.className = 'status';
+      statusBox.classList.add(type || 'muted');
+    }
+
+    function parseJsonField(fieldId, fallback) {
+      const raw = document.getElementById(fieldId).value.trim();
+      if (!raw) return fallback;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) throw new Error(`${fieldId} precisa ser um array JSON.`);
+      return parsed;
+    }
+
+    function fillForm(plan) {
+      document.getElementById('title').value = plan?.title || '';
+      document.getElementById('goal').value = plan?.goal || '';
+      document.getElementById('strategy').value = plan?.strategy || '';
+      document.getElementById('mealsJson').value = JSON.stringify(plan?.meals || [], null, 2);
+      document.getElementById('subsJson').value = JSON.stringify(plan?.substitutions || [], null, 2);
+      document.getElementById('rulesJson').value = JSON.stringify(plan?.adherence_rules || [], null, 2);
+      document.getElementById('notes').value = plan?.notes || '';
+      document.getElementById('whatsappMessage').value = plan?.whatsapp_message || '';
+    }
+
+    async function authedRequest(path, options = {}) {
+      const adminToken = document.getElementById('adminToken').value.trim();
+      if (!adminToken) throw new Error('Token admin obrigatório.');
+
+      const response = await fetch(path, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': adminToken,
+          ...(options.headers || {})
+        }
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || 'Falha na requisição.');
+      }
+      return payload;
+    }
+
+    loadBtn.addEventListener('click', async () => {
+      const email = document.getElementById('studentEmail').value.trim().toLowerCase();
+      if (!email) return setStatus('Informe o email do aluno.', 'error');
+
+      loadBtn.disabled = true;
+      setStatus('Carregando plano...', 'muted');
+      try {
+        const payload = await authedRequest(`/api/admin/nutrition-plan?email=${encodeURIComponent(email)}`);
+        fillForm(payload.data);
+        setStatus(payload.data ? 'Plano carregado com sucesso.' : 'Aluno sem plano ativo. Você pode cadastrar agora.', payload.data ? 'ok' : 'muted');
+      } catch (error) {
+        setStatus(error.message || 'Erro ao carregar plano.', 'error');
+      } finally {
+        loadBtn.disabled = false;
+      }
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const studentEmail = document.getElementById('studentEmail').value.trim().toLowerCase();
+      if (!studentEmail) return setStatus('Informe o email do aluno.', 'error');
+
+      saveBtn.disabled = true;
+      setStatus('Salvando plano alimentar...', 'muted');
+
+      try {
+        const body = {
+          student_email: studentEmail,
+          title: document.getElementById('title').value.trim(),
+          goal: document.getElementById('goal').value.trim(),
+          strategy: document.getElementById('strategy').value.trim(),
+          meals: parseJsonField('mealsJson', []),
+          substitutions: parseJsonField('subsJson', []),
+          adherence_rules: parseJsonField('rulesJson', []),
+          notes: document.getElementById('notes').value.trim(),
+          whatsapp_message: document.getElementById('whatsappMessage').value.trim()
+        };
+
+        await authedRequest('/api/admin/nutrition-plan', { method: 'POST', body: JSON.stringify(body) });
+        setStatus('Plano alimentar salvo com sucesso.', 'ok');
+      } catch (error) {
+        setStatus(error.message || 'Falha ao salvar plano alimentar.', 'error');
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

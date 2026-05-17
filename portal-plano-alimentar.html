@@ -16,94 +16,9 @@
       <p class='hero-subtext'>Sua estratégia nutricional atual organizada de forma simples para facilitar a execução no dia a dia.</p>
     </section>
 
-    <section class='card'>
-      <h2>Estratégia atual</h2>
-      <ul class='mission-list'>
-        <li><strong>Objetivo atual:</strong> Recomposição corporal.</li>
-        <li><strong>Foco da fase:</strong> melhorar consistência, controlar fome e preservar massa muscular.</li>
-        <li><strong>Prioridade da semana:</strong> cumprir pelo menos 80% do plano antes de pensar em ajustes.</li>
-      </ul>
-    </section>
-
-    <section class='card'>
-      <h2>Refeições do plano</h2>
-      <div class='grid'>
-        <article class='meal-card'>
-          <h3>Café da manhã</h3>
-          <ul class='mission-list'>
-            <li>3 ovos</li>
-            <li>1 porção de fruta</li>
-            <li>café sem açúcar ou com adoçante</li>
-          </ul>
-        </article>
-
-        <article class='meal-card'>
-          <h3>Almoço</h3>
-          <ul class='mission-list'>
-            <li>arroz branco cozido</li>
-            <li>frango ou carne magra</li>
-            <li>salada e legumes à vontade</li>
-            <li>azeite medido</li>
-          </ul>
-        </article>
-
-        <article class='meal-card'>
-          <h3>Lanche da tarde</h3>
-          <ul class='mission-list'>
-            <li>opção 1: iogurte proteico + fruta</li>
-            <li>opção 2: pão/rap com frango</li>
-            <li>opção 3: whey + fruta</li>
-          </ul>
-        </article>
-
-        <article class='meal-card'>
-          <h3>Jantar</h3>
-          <ul class='mission-list'>
-            <li>proteína magra</li>
-            <li>carboidrato planejado</li>
-            <li>legumes ou salada</li>
-          </ul>
-        </article>
-      </div>
-    </section>
-
-    <section class='card'>
-      <h2>Substituições inteligentes</h2>
-      <div class='grid'>
-        <article class='meal-card'>
-          <h3>Se não tiver frango</h3>
-          <ul class='mission-list'>
-            <li>carne magra</li>
-            <li>ovos</li>
-            <li>peixe</li>
-          </ul>
-        </article>
-
-        <article class='meal-card'>
-          <h3>Se precisar comer fora</h3>
-          <ul class='mission-list'>
-            <li>escolha uma fonte de proteína</li>
-            <li>mantenha uma porção de carboidrato</li>
-            <li>evite transformar uma refeição livre em um dia livre</li>
-          </ul>
-        </article>
-      </div>
-    </section>
-
-    <section class='card'>
-      <h2>Regras de adesão</h2>
-      <ul class='mission-list'>
-        <li>80% bem feito é melhor que 100% por dois dias e abandono depois.</li>
-        <li>Não compense exageros com jejum agressivo.</li>
-        <li>Se errar uma refeição, volte na próxima.</li>
-        <li>Ajustes serão feitos com base em peso, cintura, treino, fome e adesão.</li>
-      </ul>
-    </section>
-
-    <section class='card support-card'>
-      <h2>Suporte</h2>
-      <p class='muted'>Se surgiu qualquer dúvida na execução, peça orientação antes de ajustar por conta própria.</p>
-      <a class='primary-cta' href='https://wa.me/5514991174500' target='_blank' rel='noopener noreferrer'>Tenho dúvida sobre meu plano</a>
+    <section id='contentCard' class='card'>
+      <p id='statusText' class='muted'>Carregando seu plano alimentar...</p>
+      <div id='planContent' hidden></div>
     </section>
   </div>
 
@@ -111,6 +26,82 @@
   <script>
     requireAuth();
     document.getElementById('nav').innerHTML = nav();
+
+    const statusText = document.getElementById('statusText');
+    const planContent = document.getElementById('planContent');
+
+    function renderList(items) {
+      return `<ul class='mission-list'>${items.map((item) => `<li>${item}</li>`).join('')}</ul>`;
+    }
+
+    function sectionHtml(title, content) {
+      if (!content) return '';
+      return `<section class='card'><h2>${title}</h2>${content}</section>`;
+    }
+
+    function renderPlan(plan) {
+      const strategyItems = [
+        plan.goal ? `<strong>Objetivo atual:</strong> ${plan.goal}.` : '',
+        plan.strategy ? `<strong>Foco da fase:</strong> ${plan.strategy}` : ''
+      ].filter(Boolean);
+
+      const mealsHtml = (plan.meals || []).map((meal) => `
+        <article class='meal-card'>
+          <h3>${meal?.name || 'Refeição'}</h3>
+          ${renderList(Array.isArray(meal?.items) ? meal.items : [])}
+        </article>
+      `).join('');
+
+      const substitutionsHtml = (plan.substitutions || []).map((sub) => `
+        <article class='meal-card'>
+          <h3>${sub?.title || 'Substituição'}</h3>
+          ${renderList(Array.isArray(sub?.items) ? sub.items : [])}
+        </article>
+      `).join('');
+
+      const adherenceRules = Array.isArray(plan.adherence_rules) ? plan.adherence_rules : [];
+      const message = encodeURIComponent(plan.whatsapp_message || 'Olá, estou com dúvida sobre meu plano alimentar no Portal LM.');
+
+      planContent.innerHTML = `
+        ${sectionHtml('Estratégia atual', strategyItems.length ? renderList(strategyItems) : '<p class="muted">Sem estratégia cadastrada.</p>')}
+
+        ${sectionHtml('Refeições do plano', mealsHtml ? `<div class='grid'>${mealsHtml}</div>` : '<p class="muted">Sem refeições cadastradas.</p>')}
+
+        ${sectionHtml('Substituições inteligentes', substitutionsHtml ? `<div class='grid'>${substitutionsHtml}</div>` : '<p class="muted">Sem substituições cadastradas.</p>')}
+
+        ${sectionHtml('Regras de adesão', adherenceRules.length ? renderList(adherenceRules) : '<p class="muted">Sem regras cadastradas.</p>')}
+
+        ${sectionHtml('Observações', plan.notes ? `<p>${plan.notes}</p>` : '<p class="muted">Sem observações.</p>')}
+
+        <section class='card support-card'>
+          <h2>Suporte</h2>
+          <p class='muted'>Se surgiu qualquer dúvida na execução, peça orientação antes de ajustar por conta própria.</p>
+          <a class='primary-cta' href='https://wa.me/5514991174500?text=${message}' target='_blank' rel='noopener noreferrer'>Tenho dúvida sobre meu plano</a>
+        </section>
+      `;
+
+      statusText.hidden = true;
+      planContent.hidden = false;
+    }
+
+    async function loadPlan() {
+      try {
+        const response = await api('/portal/nutrition-plan');
+
+        if (!response?.data) {
+          statusText.textContent = 'Seu plano alimentar ainda não foi liberado no portal. Assim que estiver disponível, ele aparecerá aqui.';
+          statusText.className = 'status muted';
+          return;
+        }
+
+        renderPlan(response.data);
+      } catch (error) {
+        statusText.textContent = 'Não foi possível carregar seu plano alimentar agora. Tente novamente em instantes.';
+        statusText.className = 'status error';
+      }
+    }
+
+    loadPlan();
   </script>
 </body>
 </html>
