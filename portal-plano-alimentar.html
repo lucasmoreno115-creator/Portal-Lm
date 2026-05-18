@@ -19,6 +19,9 @@
     <section id='contentCard' class='card'>
       <p id='statusText' class='muted'>Carregando seu plano alimentar...</p>
       <div id='planContent' hidden></div>
+      <div id='pdfActions' hidden style='margin-top:16px;'>
+        <button id='downloadPdfBtn' type='button' class='primary-cta'>Baixar planejamento completo (PDF)</button>
+      </div>
     </section>
   </div>
 
@@ -29,6 +32,8 @@
 
     const statusText = document.getElementById('statusText');
     const planContent = document.getElementById('planContent');
+    const pdfActions = document.getElementById('pdfActions');
+    const downloadPdfBtn = document.getElementById('downloadPdfBtn');
 
     function escapeHtml(value) {
       return String(value || '')
@@ -121,6 +126,43 @@
       planContent.hidden = false;
     }
 
+
+    async function downloadPlanPdf() {
+      downloadPdfBtn.disabled = true;
+      const originalText = downloadPdfBtn.textContent;
+      downloadPdfBtn.textContent = 'Gerando PDF...';
+
+      try {
+        const response = await fetch('/api/portal/nutrition-plan/pdf', {
+          headers: {
+            'x-student-email': localStorage.getItem('lm_student_email') || '',
+            'x-student-token': localStorage.getItem('lm_student_token') || ''
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Não foi possível gerar o PDF neste momento.');
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = 'planejamento-nutricional.pdf';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        alert(error.message || 'Erro ao baixar PDF.');
+      } finally {
+        downloadPdfBtn.disabled = false;
+        downloadPdfBtn.textContent = originalText;
+      }
+    }
+
+    downloadPdfBtn.addEventListener('click', downloadPlanPdf);
+
     async function loadPlan() {
       try {
         const response = await api('/portal/nutrition-plan');
@@ -132,6 +174,7 @@
         }
 
         renderPlan(response.data);
+        pdfActions.hidden = false;
       } catch (error) {
         statusText.textContent = 'Não foi possível carregar seu plano alimentar agora. Tente novamente em instantes.';
         statusText.className = 'status error';
