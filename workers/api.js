@@ -1,3 +1,5 @@
+import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -85,7 +87,7 @@ export default {
             return json({ ok: false, error: 'Plano alimentar não disponível para exportação.' }, 404);
           }
 
-          const pdfBytes = buildNutritionPlanPdf({
+          const pdfBytes = await buildNutritionPlanPdf({
             studentName: auth.student.name || 'Aluno',
             plan
           });
@@ -1287,134 +1289,108 @@ function sanitizeFilename(value) {
     .replace(/^-|-$/g, '') || 'aluno';
 }
 
-function buildNutritionPlanPdf({ studentName, plan }) {
-  const sections = [
-    ['CONSULTORIA LM'],
-    [studentName || 'Aluno'],
-    ['Planejamento Nutricional Atual'],
-    [''],
-    ['1. Objetivo atual'],
-    [plan?.goal || 'Não informado.'],
-    [''],
-    ['2. Estratégia da fase'],
-    [plan?.strategy || 'Não informada.'],
-    [''],
-    ['3. Plano alimentar'],
-    ...(Array.isArray(plan?.meals) && plan.meals.length
-      ? plan.meals.flatMap((meal, index) => [
-          [`${index + 1}) ${meal?.name || 'Refeição'}`],
-          [Array.isArray(meal?.items) ? String(meal.items[0] || '') : ''],
-          ['']
-        ])
-      : [['Sem refeições cadastradas.'], ['']]),
-    ['4. Equivalências e substituições'],
-    ...(Array.isArray(plan?.substitutions) && plan.substitutions.length
-      ? plan.substitutions.flatMap((sub, index) => [
-          [`${index + 1}) ${sub?.title || 'Substituição'}`],
-          [Array.isArray(sub?.items) ? String(sub.items[0] || '') : ''],
-          ['']
-        ])
-      : [['Sem substituições cadastradas.'], ['']]),
-    ['5. Regras de adesão'],
-    [Array.isArray(plan?.adherence_rules) && plan.adherence_rules.length
-      ? plan.adherence_rules.join('\n')
-      : 'Sem regras cadastradas.'],
-    [''],
-    ['6. Observações'],
-    [plan?.notes || 'Sem observações.'],
-    [''],
-    ['7. Suporte'],
-    ['Em caso de dúvidas, utilize o Portal LM ou entre em contato para ajustes.']
-  ];
+async function buildNutritionPlanPdf({ studentName, plan }) {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595.28, 841.89]);
+  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  const lines = sections.flatMap((part) => part).flatMap((line) => String(line || '').split(/\r?\n/));
+  const marginX = 48;
+  const marginTop = 54;
+  const marginBottom = 48;
+  const contentWidth = page.getWidth() - marginX * 2;
+  let y = page.getHeight() - marginTop;
 
-  const contentParts = [];
-  let y = 790;
-  const maxChars = 95;
-  const lineHeight = 15;
+  const drawWrappedText = (text, options = {}) => {
+    const {
+      size = 11,
+      lineHeight = 15,
+      color = rgb(0.08, 0.1, 0.14),
+      font = fontRegular,
+      indent = 0,
+      bullet = null
+    } = options;
 
-  for (const raw of lines) {
-    const chunks = wrapPdfLine(raw, maxChars);
-    if (!chunks.length) {
-      y -= lineHeight;
-      continue;
+    const cleaned = String(text || '').replace(/\s+/g, ' ').trim();
+    const bulletPrefix = bullet ? `${bullet} ` : '';
+    const maxWidth = contentWidth - indent;
+    const words = `${bulletPrefix}${cleaned}`.split(' ');
+    let current = '';
+
+    for (const word of words) {
+      const test = current ? `${current} ${word}` : word;
+      const width = font.widthOfTextAtSize(test, size);
+      if (width <= maxWidth || !current) current = test;
+      else {
+        if (y < marginBottom) return false;
+        page.drawText(current, { x: marginX + indent, y, size, font, color });
+        y -= lineHeight;
+        current = word;
+      }
     }
 
-    for (const chunk of chunks) {
-      if (y < 50) break;
-      contentParts.push(`BT /F1 11 Tf 50 ${y} Td (${escapePdfText(chunk)}) Tj ET`);
+    if (current) {
+      if (y < marginBottom) return false;
+      page.drawText(current, { x: marginX + indent, y, size, font, color });
       y -= lineHeight;
     }
-    if (y < 50) break;
-  }
 
-  const contentStream = contentParts.join('\n');
-  return createSimplePdf(contentStream);
-}
-
-function wrapPdfLine(value, maxChars) {
-  const text = String(value || '').trim();
-  if (!text) return [''];
-
-  const words = text.split(/\s+/);
-  const lines = [];
-  let current = '';
-
-  for (const word of words) {
-    const test = current ? `${current} ${word}` : word;
-    if (test.length <= maxChars) current = test;
-    else {
-      if (current) lines.push(current);
-      current = word;
-    }
-  }
-
-  if (current) lines.push(current);
-  return lines;
-}
-
-function escapePdfText(value) {
-  return String(value || '')
-    .replace(/\\/g, '\\\\')
-    .replace(/\(/g, '\\(')
-    .replace(/\)/g, '\\)');
-}
-
-function createSimplePdf(contentStream) {
-  const encoder = new TextEncoder();
-  const objects = [];
-
-  const addObject = (body) => {
-    objects.push(body);
-    return objects.length;
+    return true;
   };
 
-  const fontObj = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
-  const contentBytes = encoder.encode(contentStream);
-  const contentObj = addObject(`<< /Length ${contentBytes.length} >>\nstream\n${contentStream}\nendstream`);
-  const pageObj = addObject(`<< /Type /Page /Parent 4 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${fontObj} 0 R >> >> /Contents ${contentObj} 0 R >>`);
-  const pagesObj = addObject(`<< /Type /Pages /Kids [${pageObj} 0 R] /Count 1 >>`);
-  const catalogObj = addObject(`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`);
+  const spacer = (height = 8) => {
+    y -= height;
+  };
 
-  let pdf = '%PDF-1.4\n';
-  const offsets = [0];
+  drawWrappedText('CONSULTORIA LM', { font: fontBold, size: 16, lineHeight: 20, color: rgb(0.06, 0.2, 0.45) });
+  drawWrappedText(studentName || 'Aluno', { font: fontBold, size: 12, lineHeight: 16 });
+  drawWrappedText('Planejamento Nutricional Atual', { size: 11, color: rgb(0.25, 0.3, 0.4) });
+  spacer(12);
 
-  objects.forEach((body, i) => {
-    offsets.push(pdf.length);
-    pdf += `${i + 1} 0 obj\n${body}\nendobj\n`;
-  });
+  const sections = [
+    ['1. Objetivo atual', plan?.goal || 'Não informado.'],
+    ['2. Estratégia da fase', plan?.strategy || 'Não informada.'],
+    ['3. Plano alimentar', Array.isArray(plan?.meals) && plan.meals.length ? plan.meals : null],
+    ['4. Equivalências e substituições', Array.isArray(plan?.substitutions) && plan.substitutions.length ? plan.substitutions : null],
+    ['5. Regras de adesão', Array.isArray(plan?.adherence_rules) && plan.adherence_rules.length ? plan.adherence_rules : ['Sem regras cadastradas.']],
+    ['6. Observações', plan?.notes || 'Sem observações.'],
+    ['7. Suporte', 'Em caso de dúvidas, utilize o Portal LM ou entre em contato para ajustes.']
+  ];
 
-  const xrefOffset = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n`;
-  pdf += '0000000000 65535 f \n';
+  for (const [title, content] of sections) {
+    if (!drawWrappedText(title, { font: fontBold, size: 12, lineHeight: 17 })) break;
 
-  for (let i = 1; i <= objects.length; i += 1) {
-    pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+    if (title.startsWith('3.') && Array.isArray(content)) {
+      for (const [index, meal] of content.entries()) {
+        if (!drawWrappedText(`${index + 1}) ${meal?.name || 'Refeição'}`, { font: fontBold, indent: 8 })) break;
+        const items = Array.isArray(meal?.items) && meal.items.length ? meal.items : ['Sem itens cadastrados.'];
+        for (const item of items) {
+          if (!drawWrappedText(item, { indent: 20, bullet: '•' })) break;
+        }
+        spacer(4);
+      }
+    } else if (title.startsWith('4.') && Array.isArray(content)) {
+      for (const [index, sub] of content.entries()) {
+        if (!drawWrappedText(`${index + 1}) ${sub?.title || 'Substituição'}`, { font: fontBold, indent: 8 })) break;
+        const items = Array.isArray(sub?.items) && sub.items.length ? sub.items : ['Sem itens cadastrados.'];
+        for (const item of items) {
+          if (!drawWrappedText(item, { indent: 20, bullet: '•' })) break;
+        }
+        spacer(4);
+      }
+    } else if (Array.isArray(content)) {
+      for (const rule of content) {
+        if (!drawWrappedText(rule, { indent: 12, bullet: '•' })) break;
+      }
+    } else {
+      drawWrappedText(content, { indent: 8 });
+    }
+
+    spacer(10);
+    if (y < marginBottom) break;
   }
 
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogObj} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-  return encoder.encode(pdf);
+  return pdfDoc.save();
 }
 
 function corsHeaders() {
