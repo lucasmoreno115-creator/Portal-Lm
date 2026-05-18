@@ -66,6 +66,7 @@ export default {
           return json({ ok: true, data: weeklyPlan || null });
         }
 
+
         if (url.pathname === '/api/portal/nutrition-plan' && method === 'GET') {
           const plan = await getActiveNutritionPlanByEmail(env.DB, studentEmail);
           if (!plan) {
@@ -76,6 +77,28 @@ export default {
             });
           }
           return json({ ok: true, data: plan });
+        }
+
+        if (url.pathname === '/api/portal/nutrition-plan/pdf' && method === 'GET') {
+          const plan = await getActiveNutritionPlanByEmail(env.DB, studentEmail);
+          if (!plan) {
+            return json({ ok: false, error: 'Plano alimentar não disponível para exportação.' }, 404);
+          }
+
+          const pdfBytes = buildNutritionPlanPdf({
+            studentName: auth.student.name || 'Aluno',
+            plan
+          });
+
+          return new Response(pdfBytes, {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/pdf',
+              'Content-Disposition': `attachment; filename="planejamento-nutricional-${sanitizeFilename(studentEmail)}.pdf"`,
+              'Cache-Control': 'no-store',
+              ...corsHeaders()
+            }
+          });
         }
 
         if (url.pathname === '/api/portal/checkin' && method === 'POST') {
@@ -1252,6 +1275,146 @@ function safeJsonParseArray(raw) {
   } catch {
     return [];
   }
+}
+
+
+
+function sanitizeFilename(value) {
+  return String(value || 'aluno')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') || 'aluno';
+}
+
+function buildNutritionPlanPdf({ studentName, plan }) {
+  const sections = [
+    ['CONSULTORIA LM'],
+    [studentName || 'Aluno'],
+    ['Planejamento Nutricional Atual'],
+    [''],
+    ['1. Objetivo atual'],
+    [plan?.goal || 'Não informado.'],
+    [''],
+    ['2. Estratégia da fase'],
+    [plan?.strategy || 'Não informada.'],
+    [''],
+    ['3. Plano alimentar'],
+    ...(Array.isArray(plan?.meals) && plan.meals.length
+      ? plan.meals.flatMap((meal, index) => [
+          [`${index + 1}) ${meal?.name || 'Refeição'}`],
+          [Array.isArray(meal?.items) ? String(meal.items[0] || '') : ''],
+          ['']
+        ])
+      : [['Sem refeições cadastradas.'], ['']]),
+    ['4. Equivalências e substituições'],
+    ...(Array.isArray(plan?.substitutions) && plan.substitutions.length
+      ? plan.substitutions.flatMap((sub, index) => [
+          [`${index + 1}) ${sub?.title || 'Substituição'}`],
+          [Array.isArray(sub?.items) ? String(sub.items[0] || '') : ''],
+          ['']
+        ])
+      : [['Sem substituições cadastradas.'], ['']]),
+    ['5. Regras de adesão'],
+    [Array.isArray(plan?.adherence_rules) && plan.adherence_rules.length
+      ? plan.adherence_rules.join('\n')
+      : 'Sem regras cadastradas.'],
+    [''],
+    ['6. Observações'],
+    [plan?.notes || 'Sem observações.'],
+    [''],
+    ['7. Suporte'],
+    ['Em caso de dúvidas, utilize o Portal LM ou entre em contato para ajustes.']
+  ];
+
+  const lines = sections.flatMap((part) => part).flatMap((line) => String(line || '').split(/\r?\n/));
+
+  const contentParts = [];
+  let y = 790;
+  const maxChars = 95;
+  const lineHeight = 15;
+
+  for (const raw of lines) {
+    const chunks = wrapPdfLine(raw, maxChars);
+    if (!chunks.length) {
+      y -= lineHeight;
+      continue;
+    }
+
+    for (const chunk of chunks) {
+      if (y < 50) break;
+      contentParts.push(`BT /F1 11 Tf 50 ${y} Td (${escapePdfText(chunk)}) Tj ET`);
+      y -= lineHeight;
+    }
+    if (y < 50) break;
+  }
+
+  const contentStream = contentParts.join('\n');
+  return createSimplePdf(contentStream);
+}
+
+function wrapPdfLine(value, maxChars) {
+  const text = String(value || '').trim();
+  if (!text) return [''];
+
+  const words = text.split(/\s+/);
+  const lines = [];
+  let current = '';
+
+  for (const word of words) {
+    const test = current ? `${current} ${word}` : word;
+    if (test.length <= maxChars) current = test;
+    else {
+      if (current) lines.push(current);
+      current = word;
+    }
+  }
+
+  if (current) lines.push(current);
+  return lines;
+}
+
+function escapePdfText(value) {
+  return String(value || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)');
+}
+
+function createSimplePdf(contentStream) {
+  const encoder = new TextEncoder();
+  const objects = [];
+
+  const addObject = (body) => {
+    objects.push(body);
+    return objects.length;
+  };
+
+  const fontObj = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  const contentBytes = encoder.encode(contentStream);
+  const contentObj = addObject(`<< /Length ${contentBytes.length} >>\nstream\n${contentStream}\nendstream`);
+  const pageObj = addObject(`<< /Type /Page /Parent 4 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${fontObj} 0 R >> >> /Contents ${contentObj} 0 R >>`);
+  const pagesObj = addObject(`<< /Type /Pages /Kids [${pageObj} 0 R] /Count 1 >>`);
+  const catalogObj = addObject(`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`);
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+
+  objects.forEach((body, i) => {
+    offsets.push(pdf.length);
+    pdf += `${i + 1} 0 obj\n${body}\nendobj\n`;
+  });
+
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+
+  for (let i = 1; i <= objects.length; i += 1) {
+    pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+  }
+
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogObj} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return encoder.encode(pdf);
 }
 
 function corsHeaders() {
