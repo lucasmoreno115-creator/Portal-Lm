@@ -127,6 +127,7 @@
     }
 
 
+<<<<<<< HEAD
     function downloadPlanPdf() {
       downloadPdfBtn.disabled = true;
       const originalText = downloadPdfBtn.textContent;
@@ -144,6 +145,39 @@
           downloadPdfBtn.disabled = false;
           downloadPdfBtn.textContent = originalText;
         }, 500);
+=======
+    async function downloadPlanPdf() {
+      downloadPdfBtn.disabled = true;
+      const originalText = downloadPdfBtn.textContent;
+      downloadPdfBtn.textContent = 'Gerando PDF...';
+
+      try {
+        const response = await fetch('/api/portal/nutrition-plan/pdf', {
+          headers: {
+           'x-student-email': localStorage.getItem('lm_student_email') || '',
+'x-student-token': localStorage.getItem('lm_student_token') || ''
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Não foi possível gerar o PDF neste momento.');
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = 'planejamento-nutricional.pdf';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        alert(error.message || 'Erro ao baixar PDF.');
+      } finally {
+        downloadPdfBtn.disabled = false;
+        downloadPdfBtn.textContent = originalText;
+>>>>>>> eb3a21eb0bc672c8655f5737d760dd834f4c21f6
       }
     }
 
