@@ -156,7 +156,11 @@ function downloadPlanPdf() {
   downloadPdfBtn.textContent = 'Abrindo versão para impressão...';
 
   try {
-    const printWindow = window.open('portal-plano-alimentar-print.html', '_blank', 'noopener,noreferrer');
+    const printWindow = window.open(
+      'portal-plano-alimentar-print.html',
+      '_blank',
+      'noopener,noreferrer'
+    );
 
     if (!printWindow) {
       window.location.href = 'portal-plano-alimentar-print.html';
