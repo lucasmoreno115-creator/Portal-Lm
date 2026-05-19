@@ -127,25 +127,26 @@
     }
 
 
-<<<<<<< HEAD
-    function downloadPlanPdf() {
-      downloadPdfBtn.disabled = true;
-      const originalText = downloadPdfBtn.textContent;
-      downloadPdfBtn.textContent = 'Abrindo versão para impressão...';
+function downloadPlanPdf() {
+  downloadPdfBtn.disabled = true;
+  const originalText = downloadPdfBtn.textContent;
+  downloadPdfBtn.textContent = 'Abrindo versão para impressão...';
 
-      try {
-        const printWindow = window.open('portal-plano-alimentar-print.html', '_blank', 'noopener,noreferrer');
-        if (!printWindow) {
-          window.location.href = 'portal-plano-alimentar-print.html';
-        }
-      } catch (error) {
-        alert(error.message || 'Não foi possível abrir a versão de impressão.');
-      } finally {
-        window.setTimeout(() => {
-          downloadPdfBtn.disabled = false;
-          downloadPdfBtn.textContent = originalText;
-        }, 500);
-=======
+  try {
+    const printWindow = window.open('portal-plano-alimentar-print.html', '_blank', 'noopener,noreferrer');
+
+    if (!printWindow) {
+      window.location.href = 'portal-plano-alimentar-print.html';
+    }
+  } catch (error) {
+    alert(error.message || 'Não foi possível abrir a versão de impressão.');
+  } finally {
+    window.setTimeout(() => {
+      downloadPdfBtn.disabled = false;
+      downloadPdfBtn.textContent = originalText;
+    }, 500);
+  }
+}
     async function downloadPlanPdf() {
       downloadPdfBtn.disabled = true;
       const originalText = downloadPdfBtn.textContent;
