@@ -149,29 +149,52 @@
       planContent.hidden = false;
     }
 
-function downloadPlanPdf() {
-  downloadPdfBtn.disabled = true;
-  const originalText = downloadPdfBtn.textContent;
-  downloadPdfBtn.textContent = 'Abrindo versão para impressão...';
+    function downloadPlanPdf() {
+      downloadPdfBtn.disabled = true;
+      const originalText = downloadPdfBtn.textContent;
+      downloadPdfBtn.textContent = 'Abrindo versão para impressão...';
 
-  try {
-    const printWindow = window.open(
-      'portal-plano-alimentar-print.html',
-      '_blank',
-      'noopener,noreferrer'
-    );
+      try {
+        const printWindow = window.open(
+          'portal-plano-alimentar-print.html',
+          '_blank',
+          'noopener,noreferrer'
+        );
 
-    if (!printWindow) {
-      window.location.href = 'portal-plano-alimentar-print.html';
+        if (!printWindow) {
+          window.location.href = 'portal-plano-alimentar-print.html';
+        }
+      } catch (error) {
+        alert(error.message || 'Não foi possível abrir a versão de impressão.');
+      } finally {
+        window.setTimeout(() => {
+          downloadPdfBtn.disabled = false;
+          downloadPdfBtn.textContent = originalText;
+        }, 500);
+      }
     }
-  } catch (error) {
-    alert(error.message || 'Não foi possível abrir a versão de impressão.');
-  } finally {
-    window.setTimeout(() => {
-      downloadPdfBtn.disabled = false;
-      downloadPdfBtn.textContent = originalText;
-    }, 500);
-  }
-}
+
+    downloadPdfBtn.addEventListener('click', downloadPlanPdf);
+
+    async function loadPlan() {
+      try {
+        const response = await api('/portal/nutrition-plan');
+
+        if (!response?.data) {
+          statusText.textContent = 'Seu plano alimentar ainda não foi liberado no portal. Assim que estiver disponível, ele aparecerá aqui.';
+          statusText.className = 'status muted';
+          return;
+        }
+
+        renderPlan(response.data);
+        pdfActions.hidden = false;
+      } catch (error) {
+        statusText.textContent = 'Não foi possível carregar seu plano alimentar agora. Tente novamente em instantes.';
+        statusText.className = 'status error';
+      }
+    }
+
+    loadPlan();
+  </script>
 </body>
 </html>
