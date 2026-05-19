@@ -1,0 +1,489 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Follow-up Inteligente LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <section class='card hero'>
+      <p class='eyebrow'>Consultoria LM • Painel interno</p>
+      <h1>Follow-up Inteligente LM</h1>
+      <p class='hero-title'>Identifique alunos sem check-in e aja antes da perda de adesão.</p>
+    </section>
+
+    <section class='card'>
+      <label>Token admin
+        <input id='adminToken' type='password' autocomplete='off'>
+      </label>
+      <button id='loadBtn' type='button'>Carregar follow-ups</button>
+      <p id='statusBox' class='status muted'>Informe o token admin para carregar os follow-ups.</p>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Alunos em risco de cancelamento</h2>
+      <ul id='cancellationRiskList' class='mission-list'></ul>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Crítico</h2>
+      <ul id='criticalList' class='mission-list'></ul>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Risco financeiro / Anti-cancelamento</h2>
+      <ul id='financialRiskList' class='mission-list'></ul>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Alta prioridade</h2>
+      <ul id='highList' class='mission-list'></ul>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Check-in pendente</h2>
+      <ul id='missingList' class='mission-list'></ul>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Últimos follow-ups realizados</h2>
+      <ul id='logsList' class='mission-list'></ul>
+    </section>
+
+    <section class='card metric-card'>
+      <h2>Últimas ações de retenção</h2>
+      <ul id='retentionHistoryList' class='mission-list'></ul>
+    </section>
+
+    <a class='secondary-link' href='index.html'>Voltar</a>
+  </div>
+
+  <script>
+    const tokenInput = document.getElementById('adminToken');
+    const loadBtn = document.getElementById('loadBtn');
+    const statusBox = document.getElementById('statusBox');
+    const cancellationRiskList = document.getElementById('cancellationRiskList');
+    const criticalList = document.getElementById('criticalList');
+    const financialRiskList = document.getElementById('financialRiskList');
+    const highList = document.getElementById('highList');
+    const missingList = document.getElementById('missingList');
+    const logsList = document.getElementById('logsList');
+    const retentionHistoryList = document.getElementById('retentionHistoryList');
+
+    const RETENTION_ACTION_OPTIONS = [
+      { value: 'PLANO_START_TEMPORARIO', label: 'Plano Start temporário' },
+      { value: 'PAUSA_ESTRATEGICA_15_30_DIAS', label: 'Pausa estratégica de 15–30 dias' },
+      { value: 'REDUCAO_ACOMPANHAMENTO', label: 'Redução temporária de acompanhamento' },
+      { value: 'AJUSTE_TEMPORARIO_INVESTIMENTO', label: 'Ajuste temporário de investimento' },
+      { value: 'RETORNO_AGENDADO', label: 'Preservar vínculo e agendar retorno' },
+      { value: 'OUTRO', label: 'Outro' }
+    ];
+    const RETENTION_STATUS_OPTIONS = [
+      { value: 'OFFERED', label: 'OFFERED' },
+      { value: 'ACCEPTED', label: 'ACCEPTED' },
+      { value: 'DECLINED', label: 'DECLINED' },
+      { value: 'CANCELLED_ANYWAY', label: 'CANCELLED_ANYWAY' },
+      { value: 'PENDING', label: 'PENDING' }
+    ];
+
+    const OUTCOME_OPTIONS = [
+      { value: 'RETOMOU_ROTINA', label: 'Retomou rotina' },
+      { value: 'VAI_RESPONDER_CHECKIN', label: 'Vai responder check-in hoje' },
+      { value: 'SEMANA_ATIPICA_VIAGEM', label: 'Semana atípica / viagem' },
+      { value: 'DESMOTIVACAO', label: 'Desmotivação' },
+      { value: 'DOR_LIMITACAO', label: 'Dor / limitação física' },
+      { value: 'DIFICULDADE_ALIMENTAR', label: 'Dificuldade alimentar' },
+      { value: 'PROBLEMA_FINANCEIRO', label: 'Problema financeiro' },
+      { value: 'PEDIU_CANCELAMENTO', label: 'Pediu cancelamento' },
+      { value: 'SEM_RESPOSTA', label: 'Sem resposta' },
+      { value: 'OUTRO', label: 'Outro' }
+    ];
+
+    const NEXT_ACTION_OPTIONS = [
+      { value: 'REVISAR_PLANO', label: 'Revisar plano' },
+      { value: 'AJUSTAR_DIETA', label: 'Ajustar dieta' },
+      { value: 'CHAMADA_ESTRATEGICA', label: 'Chamada estratégica' },
+      { value: 'RETORNO_3_DIAS', label: 'Retorno em 3 dias' },
+      { value: 'RETORNO_7_DIAS', label: 'Retorno em 7 dias' },
+      { value: 'SEM_ACAO_NECESSARIA', label: 'Sem ação necessária' },
+      { value: 'OUTRO', label: 'Outro' }
+    ];
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function renderFinancialList(rows) {
+      financialRiskList.innerHTML = '';
+      if (!Array.isArray(rows) || rows.length === 0) {
+        financialRiskList.innerHTML = '<li>Nenhum aluno com risco financeiro no momento.</li>';
+        return;
+      }
+
+      rows.forEach((student) => {
+        const item = document.createElement('li');
+        item.className = 'followup-item financial-risk-item';
+        const suggestions = (student.suggestedRetentionActions || []).map((row) => row.label).join(' • ');
+        const whatsappAction = student.whatsappUrl
+          ? `<a class='secondary-link' href='${escapeHtml(student.whatsappUrl)}' target='_blank' rel='noopener noreferrer'>Abrir WhatsApp</a>`
+          : `<span class='muted'>WhatsApp não cadastrado</span>`;
+
+        item.innerHTML = `
+          <strong>${escapeHtml(student.name || 'Aluno')}</strong> — ${escapeHtml(student.email || '-')}
+          <div class='muted'>Plano: ${escapeHtml(student.planType || 'N/A')}</div>
+          <div>Risco: <span class='badge badge-financial'>${escapeHtml(student.riskLevel || 'FINANCEIRO')}</span></div>
+          <div class='muted'>Último follow-up: ${escapeHtml(student.lastFollowupAt || '-')}</div>
+          <div class='muted'>Motivo: ${escapeHtml(student.reason || '-')}</div>
+          <pre>${escapeHtml(student.message || '')}</pre>
+          <div class='muted retention-actions'>Sugestões: ${escapeHtml(suggestions || '-')}</div>
+          <div class='followup-form'>
+            <label>Proposta aplicada
+              <select class='retention-action-input'>${selectOptions(RETENTION_ACTION_OPTIONS)}</select>
+            </label>
+            <label>Status
+              <select class='retention-status-input'>${selectOptions(RETENTION_STATUS_OPTIONS)}</select>
+            </label>
+            <label>Nota (opcional)
+              <input class='retention-note-input' type='text' placeholder='Ex: ajuste temporário por 30 dias'>
+            </label>
+          </div>
+          <div class='followup-actions'>
+            <button type='button' class='copy-btn'>Copiar mensagem</button>
+            ${whatsappAction}
+            <button type='button' class='retention-btn'>Registrar proposta de retenção</button>
+          </div>
+        `;
+
+        item.querySelector('.copy-btn').addEventListener('click', () => copyMessage(student.message));
+        item.querySelector('.retention-btn').addEventListener('click', () => registerRetention(student, item));
+        financialRiskList.appendChild(item);
+      });
+    }
+
+    async function registerRetention(student, wrapper) {
+      const token = tokenInput.value.trim();
+      const proposedAction = wrapper.querySelector('.retention-action-input')?.value || null;
+      const acceptedStatus = wrapper.querySelector('.retention-status-input')?.value || 'OFFERED';
+      const note = wrapper.querySelector('.retention-note-input')?.value || null;
+
+      if (!token) return setStatus('Preencha o token admin para registrar retenção.', 'error');
+      if (!proposedAction) return setStatus('Selecione a proposta aplicada.', 'error');
+
+      try {
+        const response = await fetch('/api/admin/retention-action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+          body: JSON.stringify({
+            student_email: student.email,
+            financial_reason: student.reason,
+            proposed_action: proposedAction,
+            accepted_status: acceptedStatus,
+            note
+          })
+        });
+
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao registrar retenção');
+        setStatus('Ação de retenção registrada.', 'ok');
+        await loadFollowups(token);
+      } catch (error) {
+        setStatus('Não foi possível registrar a retenção.', 'error');
+      }
+    }
+
+    async function loadRetentionHistory(token) {
+      const response = await fetch('/api/admin/retention-actions', { method: 'GET', headers: { 'x-admin-token': token } });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao carregar histórico de retenção');
+
+      const rows = Array.isArray(payload.data) ? payload.data : [];
+      retentionHistoryList.innerHTML = '';
+      if (!rows.length) {
+        retentionHistoryList.innerHTML = '<li>Nenhuma ação de retenção registrada ainda.</li>';
+        return;
+      }
+
+      rows.forEach((row) => {
+        const item = document.createElement('li');
+        item.className = 'followup-item';
+        item.innerHTML = `
+          <strong>${escapeHtml(row.student_email || '-')}</strong>
+          <div class='muted'>Proposta: ${escapeHtml(row.proposed_action || '-')}</div>
+          <div class='muted'>Status: ${escapeHtml(row.accepted_status || '-')}</div>
+          <div class='muted'>Motivo financeiro: ${escapeHtml(row.financial_reason || '-')}</div>
+          <div class='muted'>Nota: ${escapeHtml(row.note || '-')}</div>
+          <div class='muted'>Data: ${escapeHtml(row.created_at || '-')}</div>
+        `;
+        retentionHistoryList.appendChild(item);
+      });
+    }
+
+    function setStatus(message, type) {
+      statusBox.textContent = message;
+      statusBox.className = 'status';
+      statusBox.classList.add(type || 'muted');
+    }
+
+    function renderEmpty(listEl) {
+      listEl.innerHTML = '<li>Nenhum aluno nesta categoria.</li>';
+    }
+
+    function selectOptions(options) {
+      const rows = ["<option value=''>Selecionar</option>"];
+      options.forEach((option) => rows.push(`<option value='${option.value}'>${option.label}</option>`));
+      return rows.join('');
+    }
+
+    function riskBadgeClass(level) {
+      const risk = String(level || '').toUpperCase();
+      if (risk === 'CRITICAL') return 'badge badge-risk-critical';
+      if (risk === 'HIGH') return 'badge badge-risk-high';
+      return 'badge';
+    }
+
+    async function copyMessage(message) {
+      try {
+        await navigator.clipboard.writeText(message || '');
+        setStatus('Mensagem copiada.', 'ok');
+      } catch (error) {
+        setStatus('Não foi possível copiar a mensagem.', 'error');
+      }
+    }
+
+    function renderStudent(student) {
+      const wrapper = document.createElement('li');
+      wrapper.className = 'followup-item';
+
+      const whatsappAction = student.whatsappUrl
+        ? `<a class='secondary-link' href='${escapeHtml(student.whatsappUrl)}' target='_blank' rel='noopener noreferrer'>Abrir WhatsApp</a>`
+        : `<span class='muted'>WhatsApp não cadastrado</span>`;
+
+      wrapper.innerHTML = `
+        <strong>${escapeHtml(student.name || 'Aluno')}</strong> — ${escapeHtml(student.email || '-')}
+        ${student.recentlyContacted ? `<span class='badge-recent'>Contatado recentemente</span>` : ''}
+        <div class='muted'>Plano: ${escapeHtml(student.planType || 'N/A')}</div>
+        <div class='muted'>Motivo: ${escapeHtml(student.reason || '-')}</div>
+        <div class='muted'>Último check-in: ${escapeHtml(student.lastCheckin || 'Sem histórico de check-in')}</div>
+        ${student.lastFollowupAt ? `<div class='muted'>Último follow-up: ${escapeHtml(student.lastFollowupAt)}</div>` : ''}
+        <pre>${escapeHtml(student.message || '')}</pre>
+        <div class='followup-form'>
+          <label>Resultado do contato
+            <select class='outcome-input'>${selectOptions(OUTCOME_OPTIONS)}</select>
+          </label>
+          <label>Risco de cancelamento
+            <select class='risk-input'>
+              <option value=''>Automático</option>
+              <option value='LOW'>LOW</option>
+              <option value='MEDIUM'>MEDIUM</option>
+              <option value='HIGH'>HIGH</option>
+              <option value='CRITICAL'>CRITICAL</option>
+            </select>
+          </label>
+          <label>Próxima ação
+            <select class='next-action-input'>${selectOptions(NEXT_ACTION_OPTIONS)}</select>
+          </label>
+          <label>Nota (opcional)
+            <input class='note-input' type='text' placeholder='Ex: aluno pediu retorno em 3 dias'>
+          </label>
+        </div>
+        <div class='followup-actions'>
+          <button type='button' class='copy-btn'>Copiar mensagem</button>
+          ${whatsappAction}
+          <button type='button' class='mark-btn'>Marcar como contatado</button>
+        </div>
+      `;
+
+      wrapper.querySelector('.copy-btn').addEventListener('click', () => copyMessage(student.message));
+      wrapper.querySelector('.mark-btn').addEventListener('click', () => markAsContacted(student, wrapper));
+      return wrapper;
+    }
+
+    async function markAsContacted(student, wrapper) {
+      const token = tokenInput.value.trim();
+      if (!token) {
+        setStatus('Preencha o token admin para registrar o follow-up.', 'error');
+        return;
+      }
+
+      const outcome = wrapper.querySelector('.outcome-input')?.value || null;
+      const riskLevel = wrapper.querySelector('.risk-input')?.value || null;
+      const nextAction = wrapper.querySelector('.next-action-input')?.value || null;
+      const noteInput = wrapper.querySelector('.note-input')?.value || null;
+
+      if (!outcome) {
+        setStatus('Selecione o resultado do contato antes de registrar.', 'error');
+        return;
+      }
+
+      if (!nextAction) {
+        setStatus('Selecione a próxima ação antes de registrar.', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/admin/followup-log', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-token': token
+          },
+          body: JSON.stringify({
+            student_email: student.email,
+            reason: student.reason,
+            note: noteInput,
+            contact_type: 'WHATSAPP',
+            outcome,
+            risk_level: riskLevel || null,
+            next_action: nextAction
+          })
+        });
+
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) {
+          throw new Error(payload?.error || 'Falha ao registrar follow-up');
+        }
+
+        setStatus('Follow-up registrado com outcome.', 'ok');
+        await loadFollowups(token);
+      } catch (error) {
+        setStatus('Não foi possível registrar o follow-up.', 'error');
+      }
+    }
+
+    function renderCancellationList(listEl, rows) {
+      listEl.innerHTML = '';
+      if (!Array.isArray(rows) || rows.length === 0) {
+        renderEmpty(listEl);
+        return;
+      }
+
+      rows.forEach((student) => {
+        const item = document.createElement('li');
+        item.className = 'followup-item cancellation-item';
+        item.innerHTML = `
+          <strong>${escapeHtml(student.name || 'Aluno')}</strong> — ${escapeHtml(student.email || '-')}
+          <div class='muted'>Plano: ${escapeHtml(student.planType || 'N/A')}</div>
+          <div>Risco de cancelamento: <span class='${riskBadgeClass(student.riskLevel)}'>${escapeHtml(student.riskLevel || '-')}</span></div>
+          <div class='muted'>Outcome: ${escapeHtml(student.outcome || '-')}</div>
+          <div class='muted'>Próxima ação: ${escapeHtml(student.nextAction || '-')}</div>
+          <div class='muted'>Último follow-up: ${escapeHtml(student.lastFollowupAt || '-')}</div>
+          <div class='muted'>Motivo: ${escapeHtml(student.reason || '-')}</div>
+        `;
+        listEl.appendChild(item);
+      });
+    }
+
+    async function loadLogs(token) {
+      const response = await fetch('/api/admin/followup-logs', {
+        method: 'GET',
+        headers: { 'x-admin-token': token }
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || 'Falha ao carregar histórico');
+      }
+
+      const logs = Array.isArray(payload.data) ? payload.data : [];
+      logsList.innerHTML = '';
+      if (!logs.length) {
+        logsList.innerHTML = '<li>Nenhum follow-up registrado ainda.</li>';
+        return;
+      }
+
+      logs.forEach((log) => {
+        const item = document.createElement('li');
+        item.className = 'followup-item';
+        item.innerHTML = `
+          <strong>${escapeHtml(log.student_email)}</strong>
+          <div class='muted'>Canal: ${escapeHtml(log.contact_type || 'WHATSAPP')}</div>
+          <div class='muted'>Motivo: ${escapeHtml(log.reason || '-')}</div>
+          <div class='muted'>Outcome: ${escapeHtml(log.outcome || '-')}</div>
+          <div class='muted'>Risco: ${escapeHtml(log.risk_level || '-')}</div>
+          <div class='muted'>Próxima ação: ${escapeHtml(log.next_action || '-')}</div>
+          <div class='muted'>Nota: ${escapeHtml(log.note || '-')}</div>
+          <div class='muted'>Due date: ${escapeHtml(log.due_date || '-')}</div>
+          <div class='muted'>Status: ${escapeHtml(log.resolution_status || '-')} ${resolutionBadge(log)}</div>
+          <div class='muted'>Resolvido em: ${escapeHtml(log.resolved_at || '-')}</div>
+          <div class='muted'>Data: ${escapeHtml(log.created_at || '-')}</div>
+        `;
+        logsList.appendChild(item);
+      });
+    }
+
+    async function loadFollowups(token) {
+      const response = await fetch('/api/admin/followup-alerts', {
+        method: 'GET',
+        headers: { 'x-admin-token': token }
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || 'Falha ao carregar follow-ups');
+      }
+
+      const data = payload.data || {};
+      renderCancellationList(cancellationRiskList, data.cancellationRiskStudents || []);
+      renderFinancialList(data.financialRiskStudents || []);
+      renderList(criticalList, data.criticalRiskStudents || []);
+      renderList(highList, data.highRiskStudents || []);
+      renderList(missingList, data.missingCheckins || []);
+      await loadLogs(token);
+      await loadRetentionHistory(token);
+    }
+
+    function renderList(listEl, rows) {
+      listEl.innerHTML = '';
+      if (!Array.isArray(rows) || rows.length === 0) {
+        renderEmpty(listEl);
+        return;
+      }
+      rows.forEach((student) => listEl.appendChild(renderStudent(student)));
+    }
+
+    loadBtn.addEventListener('click', async () => {
+      const token = tokenInput.value.trim();
+      if (!token) {
+        setStatus('Preencha o token admin para carregar os follow-ups.', 'error');
+        return;
+      }
+
+      loadBtn.disabled = true;
+      loadBtn.textContent = 'Carregando...';
+      setStatus('Carregando follow-ups...', 'muted');
+
+      try {
+        await loadFollowups(token);
+        setStatus('Follow-ups carregados com sucesso.', 'ok');
+      } catch (error) {
+        renderEmpty(cancellationRiskList);
+        renderEmpty(criticalList);
+        renderEmpty(financialRiskList);
+        renderEmpty(highList);
+        renderEmpty(missingList);
+        renderEmpty(logsList);
+        renderEmpty(retentionHistoryList);
+        setStatus('Não foi possível carregar. Verifique o token admin.', 'error');
+      } finally {
+        loadBtn.disabled = false;
+        loadBtn.textContent = 'Carregar follow-ups';
+      }
+    });
+
+    renderEmpty(cancellationRiskList);
+    renderEmpty(criticalList);
+    renderEmpty(financialRiskList);
+    renderEmpty(highList);
+    renderEmpty(missingList);
+    renderEmpty(logsList);
+    renderEmpty(retentionHistoryList);
+  </script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Acesso do Aluno LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <section class='card hero'>
+      <p class='eyebrow'>Consultoria LM • Painel interno</p>
+      <h1>Acesso do Aluno LM</h1>
+      <p class='hero-title'>Crie ou atualize o acesso do aluno ao Portal LM.</p>
+      <p class='muted'>Após salvar, envie ao aluno o link do portal, email e token de acesso.</p>
+    </section>
+
+    <section class='card'>
+      <form id='studentAccessForm'>
+        <label>Token admin
+          <input id='adminToken' type='password' autocomplete='off' required>
+        </label>
+
+        <div class='grid'>
+          <label>Nome do aluno
+            <input id='studentName' type='text' required>
+          </label>
+          <label>Email do aluno
+            <input id='studentEmail' type='email' required>
+          </label>
+        </div>
+
+        <label>WhatsApp do aluno
+          <input id='studentWhatsapp' type='text' placeholder='5514999999999'>
+        </label>
+
+        <label>Token/senha de acesso
+          <input id='accessToken' type='text' required>
+        </label>
+
+        <div class='grid'>
+          <label>Tipo de plano
+            <select id='planType'>
+              <option value='START'>START</option>
+              <option value='PREMIUM' selected>PREMIUM</option>
+              <option value='PRESENCIAL'>PRESENCIAL</option>
+            </select>
+          </label>
+          <label>Status
+            <select id='status'>
+              <option value='ACTIVE' selected>ACTIVE</option>
+              <option value='INACTIVE'>INACTIVE</option>
+            </select>
+          </label>
+        </div>
+
+        <button id='saveBtn' type='submit'>Salvar acesso</button>
+      </form>
+    </section>
+
+    <section class='card'>
+      <p id='statusBox' class='status muted'>Preencha os dados do aluno para criar ou atualizar o acesso.</p>
+      <pre id='shareBlock' class='status' style='display:none;white-space:pre-wrap'></pre>
+      <a class='secondary-link' href='index.html'>Voltar</a>
+    </section>
+  </div>
+
+  <script>
+    const form = document.getElementById('studentAccessForm');
+    const saveBtn = document.getElementById('saveBtn');
+    const statusBox = document.getElementById('statusBox');
+    const shareBlock = document.getElementById('shareBlock');
+
+    function normalizeWhatsapp(value) {
+      const digits = String(value || '').replace(/\D+/g, '');
+      if (!digits) return null;
+      if (digits.startsWith('55')) return digits;
+      if (digits.length === 10 || digits.length === 11) return `55${digits}`;
+      return digits;
+    }
+
+    function setStatus(message, type) {
+      statusBox.textContent = message;
+      statusBox.className = 'status';
+      statusBox.classList.add(type || 'muted');
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const adminToken = document.getElementById('adminToken').value.trim();
+      const name = document.getElementById('studentName').value.trim();
+      const email = document.getElementById('studentEmail').value.trim().toLowerCase();
+      const accessToken = document.getElementById('accessToken').value.trim();
+      const planType = document.getElementById('planType').value.trim();
+      const status = document.getElementById('status').value.trim();
+      const whatsapp = normalizeWhatsapp(document.getElementById('studentWhatsapp').value);
+
+      if (!adminToken || !name || !email || !accessToken) {
+        setStatus('Preencha token admin, nome, email e token/senha de acesso.', 'error');
+        shareBlock.style.display = 'none';
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Salvando...';
+      setStatus('Salvando acesso do aluno...', 'muted');
+      shareBlock.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/admin/student-access', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-token': adminToken
+          },
+          body: JSON.stringify({
+            name,
+            email,
+            access_token: accessToken,
+            plan_type: planType,
+            status,
+            whatsapp
+          })
+        });
+
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) {
+          throw new Error(payload?.error || 'Falha ao salvar acesso');
+        }
+
+        setStatus('Acesso salvo com sucesso.', 'ok');
+
+        shareBlock.textContent = `Acesso liberado ao Portal LM:\n\nLink: https://portal.lucasmorenopersonal.com.br\nEmail: ${email}\nToken: ${accessToken}\n\nMensagem:\nSeu acesso ao Portal LM foi liberado. Use o link abaixo com seu email e token para entrar.`;
+        shareBlock.style.display = 'block';
+      } catch (error) {
+        setStatus('Não foi possível salvar o acesso. Verifique token admin e campos obrigatórios.', 'error');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Salvar acesso';
+      }
+    });
+  </script>
+</body>
+</html>

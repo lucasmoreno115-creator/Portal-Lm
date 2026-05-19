@@ -1,0 +1,240 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Plano Alimentar do Aluno</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <section class='card hero'>
+      <p class='eyebrow'>Consultoria LM • Painel interno</p>
+      <h1>Plano alimentar do aluno</h1>
+      <p class='muted'>Este sistema apenas exibe o plano cadastrado manualmente pelo profissional. Ele não gera prescrição nutricional automática.</p>
+    </section>
+
+    <section class='card'>
+      <form id='nutritionForm'>
+        <div class='grid'>
+          <label>Token admin<input id='adminToken' type='password' required></label>
+          <label>Email do aluno<input id='studentEmail' type='email' required></label>
+        </div>
+        <button id='loadBtn' type='button'>Carregar plano existente</button>
+
+        <label>Título<input id='title' type='text' placeholder='Plano alimentar atual'></label>
+        <label>Objetivo<input id='goal' type='text' placeholder='Recomposição corporal'></label>
+        <label>Estratégia<textarea id='strategy' rows='3'></textarea></label>
+
+        <label>Refeições do plano</label>
+        <small class='muted'>Adicione refeições livremente. Para cada uma, informe o título e o conteúdo em texto normal.</small>
+        <div id='mealsContainer' class='stack'></div>
+        <button id='addMealBtn' type='button'>+ Adicionar refeição</button>
+
+        <label>Substituições</label>
+        <small class='muted'>Texto livre. Nenhum parser automático será aplicado.</small>
+        <textarea id='subsText' rows='7' placeholder='Se não tiver frango&#10;- carne magra&#10;- ovos&#10;- peixe'></textarea>
+
+        <label>Regras de adesão</label>
+        <small class='muted'>Texto livre. Nenhum parser automático será aplicado.</small>
+        <textarea id='rulesText' rows='5' placeholder='80% bem feito é melhor que perfeição por poucos dias.&#10;Se errar uma refeição, volte na próxima.'></textarea>
+
+        <label>Observações<textarea id='notes' rows='3'></textarea></label>
+        <label>Mensagem WhatsApp<textarea id='whatsappMessage' rows='2'></textarea></label>
+
+        <button id='saveBtn' type='submit'>Salvar plano alimentar</button>
+      </form>
+    </section>
+
+    <section class='card'>
+      <p id='statusBox' class='status muted'>Informe token e email para carregar ou salvar o plano.</p>
+      <a class='secondary-link' href='admin.html'>Voltar</a>
+    </section>
+  </div>
+
+  <script>
+    const form = document.getElementById('nutritionForm');
+    const loadBtn = document.getElementById('loadBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const addMealBtn = document.getElementById('addMealBtn');
+    const mealsContainer = document.getElementById('mealsContainer');
+    const statusBox = document.getElementById('statusBox');
+
+    function setStatus(message, type) {
+      statusBox.textContent = message;
+      statusBox.className = 'status';
+      statusBox.classList.add(type || 'muted');
+    }
+
+    function sanitizeText(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .trim();
+    }
+
+    function createMealBlock(meal = {}) {
+      const wrapper = document.createElement('article');
+      wrapper.className = 'card';
+      wrapper.innerHTML = `
+        <label>Título da refeição
+          <input type='text' class='meal-title' placeholder='Ex: Pré-treino da manhã'>
+        </label>
+        <label>Conteúdo da refeição
+          <textarea class='meal-content' rows='5' placeholder='Ex: 1 YoPRO\n1 banana\n30g de aveia'></textarea>
+        </label>
+        <button type='button' class='removeMealBtn'>Remover refeição</button>
+      `;
+
+      wrapper.querySelector('.meal-title').value = meal.name || '';
+      const content = Array.isArray(meal.items) ? String(meal.items[0] || '') : '';
+      wrapper.querySelector('.meal-content').value = content;
+
+      wrapper.querySelector('.removeMealBtn').addEventListener('click', () => {
+        wrapper.remove();
+        if (!mealsContainer.children.length) {
+          addMealBlock();
+        }
+      });
+
+      mealsContainer.appendChild(wrapper);
+    }
+
+    function addMealBlock(meal) {
+      createMealBlock(meal);
+    }
+
+    function clearMealBlocks() {
+      mealsContainer.innerHTML = '';
+    }
+
+    function collectMeals() {
+      const blocks = Array.from(mealsContainer.querySelectorAll('.card'));
+      if (!blocks.length) {
+        throw new Error('Adicione ao menos uma refeição válida.');
+      }
+
+      const meals = [];
+      for (let index = 0; index < blocks.length; index += 1) {
+        const block = blocks[index];
+        const title = sanitizeText(block.querySelector('.meal-title')?.value || '');
+        const contentRaw = String(block.querySelector('.meal-content')?.value || '').trim();
+
+        if (!title || !contentRaw) {
+          throw new Error(`Preencha título e conteúdo da refeição ${index + 1} ou remova o bloco vazio.`);
+        }
+
+        meals.push({
+          name: title,
+          items: [contentRaw]
+        });
+      }
+
+      return meals;
+    }
+
+    function fillForm(plan) {
+      document.getElementById('title').value = plan?.title || '';
+      document.getElementById('goal').value = plan?.goal || '';
+      document.getElementById('strategy').value = plan?.strategy || '';
+
+      clearMealBlocks();
+      const existingMeals = Array.isArray(plan?.meals) ? plan.meals : [];
+      if (existingMeals.length) {
+        existingMeals.forEach((meal) => addMealBlock(meal));
+      } else {
+        addMealBlock();
+      }
+
+      const firstSub = Array.isArray(plan?.substitutions) && plan.substitutions[0]
+        ? String(plan.substitutions[0]?.items?.[0] || '')
+        : '';
+      document.getElementById('subsText').value = firstSub;
+      document.getElementById('rulesText').value = Array.isArray(plan?.adherence_rules)
+        ? String(plan.adherence_rules[0] || '')
+        : '';
+      document.getElementById('notes').value = plan?.notes || '';
+      document.getElementById('whatsappMessage').value = plan?.whatsapp_message || '';
+    }
+
+    addMealBtn.addEventListener('click', () => addMealBlock());
+    async function authedRequest(path, options = {}) {
+      const adminToken = document.getElementById('adminToken').value.trim();
+      if (!adminToken) throw new Error('Token admin obrigatório.');
+
+      const response = await fetch(path, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': adminToken,
+          ...(options.headers || {})
+        }
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || 'Falha na requisição.');
+      }
+      return payload;
+    }
+
+    loadBtn.addEventListener('click', async () => {
+      const email = document.getElementById('studentEmail').value.trim().toLowerCase();
+      if (!email) return setStatus('Informe o email do aluno.', 'error');
+
+      loadBtn.disabled = true;
+      setStatus('Carregando plano...', 'muted');
+      try {
+        const payload = await authedRequest(`/api/admin/nutrition-plan?email=${encodeURIComponent(email)}`);
+        fillForm(payload.data);
+        setStatus(payload.data ? 'Plano carregado com sucesso.' : 'Aluno sem plano ativo. Você pode cadastrar agora.', payload.data ? 'ok' : 'muted');
+      } catch (error) {
+        setStatus(error.message || 'Erro ao carregar plano.', 'error');
+      } finally {
+        loadBtn.disabled = false;
+      }
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const studentEmail = document.getElementById('studentEmail').value.trim().toLowerCase();
+      if (!studentEmail) return setStatus('Informe o email do aluno.', 'error');
+
+      saveBtn.disabled = true;
+      setStatus('Salvando plano alimentar...', 'muted');
+
+      try {
+        const body = {
+          student_email: studentEmail,
+          title: sanitizeText(document.getElementById('title').value),
+          goal: sanitizeText(document.getElementById('goal').value),
+          strategy: sanitizeText(document.getElementById('strategy').value),
+          meals: collectMeals(),
+          substitutions: (() => {
+            const raw = document.getElementById('subsText').value.trim();
+            return raw ? [{ title: 'Substituições', items: [raw] }] : [];
+          })(),
+          adherence_rules: (() => {
+            const raw = document.getElementById('rulesText').value.trim();
+            return raw ? [raw] : [];
+          })(),
+          notes: sanitizeText(document.getElementById('notes').value),
+          whatsapp_message: sanitizeText(document.getElementById('whatsappMessage').value)
+        };
+
+        await authedRequest('/api/admin/nutrition-plan', { method: 'POST', body: JSON.stringify(body) });
+        setStatus('Plano alimentar salvo com sucesso.', 'ok');
+      } catch (error) {
+        setStatus(error.message || 'Falha ao salvar plano alimentar.', 'error');
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+    clearMealBlocks();
+    addMealBlock();
+  </script>
+</body>
+</html>

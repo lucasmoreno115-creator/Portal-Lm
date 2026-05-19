@@ -1,0 +1,173 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Plano Alimentar</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <div id='nav'></div>
+
+    <section class='card hero'>
+      <p class='eyebrow'>Consultoria LM</p>
+      <h1>Plano Alimentar</h1>
+      <p class='hero-subtext'>Sua estratégia nutricional atual organizada de forma simples para facilitar a execução no dia a dia.</p>
+    </section>
+
+    <section id='contentCard' class='card'>
+      <p id='statusText' class='muted'>Carregando seu plano alimentar...</p>
+      <div id='planContent' hidden></div>
+      <div id='pdfActions' hidden style='margin-top:16px;'>
+        <button id='downloadPdfBtn' type='button' class='primary-cta'>Baixar planejamento completo (PDF)</button>
+      </div>
+    </section>
+  </div>
+
+  <script src='portal-shared.js'></script>
+  <script>
+    requireAuth();
+    document.getElementById('nav').innerHTML = nav();
+
+    const statusText = document.getElementById('statusText');
+    const planContent = document.getElementById('planContent');
+    const pdfActions = document.getElementById('pdfActions');
+    const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function renderList(items) {
+      return `<ul class='mission-list'>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+    }
+
+    function renderTextBlock(text) {
+      return `<p style='white-space: pre-line;'>${escapeHtml(text)}</p>`;
+    }
+
+    function normalizeLineItems(value) {
+      const stripMarker = (line) => line.replace(/^\s*(?:[-•*]\s+|\d+[.)]\s+)/, '').trim();
+      const splitLines = (text) => String(text || '').split(/\r?\n/).map((line) => stripMarker(line)).filter(Boolean);
+
+      if (Array.isArray(value)) {
+        return value.flatMap((item) => splitLines(item)).filter(Boolean);
+      }
+
+      return splitLines(value);
+    }
+
+    function renderTextOrList(value) {
+      const lines = normalizeLineItems(value);
+      if (!lines.length) return '';
+      return lines.length > 1 ? renderList(lines) : renderTextBlock(lines[0]);
+    }
+
+    function sectionHtml(title, content) {
+      if (!content) return '';
+      return `<section class='card'><h2>${title}</h2>${content}</section>`;
+    }
+
+    function renderPlan(plan) {
+      const strategyGoalHtml = plan.goal
+        ? `<div><p class='eyebrow'>Objetivo atual</p>${renderTextBlock(plan.goal)}</div>`
+        : '';
+      const strategyFocusHtml = (() => {
+        const focusHtml = renderTextOrList(plan.strategy);
+        if (!focusHtml) return '';
+        return `<div><p class='eyebrow'>Foco da fase</p>${focusHtml}</div>`;
+      })();
+      const strategyHtml = strategyGoalHtml || strategyFocusHtml
+        ? `${strategyGoalHtml}${strategyFocusHtml}`
+        : '<p class="muted">Sem estratégia cadastrada.</p>';
+
+      const mealsHtml = (plan.meals || []).map((meal) => `
+        <article class='meal-card'>
+          <h3>${escapeHtml(meal?.name || 'Refeição')}</h3>
+          ${renderTextBlock(Array.isArray(meal?.items) ? String(meal.items[0] || '') : '')}
+        </article>
+      `).join('');
+
+      const substitutionsHtml = (plan.substitutions || []).map((sub) => `
+        <article class='meal-card'>
+          <h3>${escapeHtml(sub?.title || 'Substituição')}</h3>
+          ${renderTextBlock(Array.isArray(sub?.items) ? String(sub.items[0] || '') : '')}
+        </article>
+      `).join('');
+
+      const adherenceRulesHtml = renderTextOrList(plan.adherence_rules);
+      const message = encodeURIComponent(plan.whatsapp_message || 'Olá, estou com dúvida sobre meu plano alimentar no Portal LM.');
+
+      planContent.innerHTML = `
+        ${sectionHtml('Estratégia atual', strategyHtml)}
+
+        ${sectionHtml('Refeições do plano', mealsHtml ? `<div class='grid'>${mealsHtml}</div>` : '<p class="muted">Sem refeições cadastradas.</p>')}
+
+        ${sectionHtml('Substituições inteligentes', substitutionsHtml ? `<div class='grid'>${substitutionsHtml}</div>` : '<p class="muted">Sem substituições cadastradas.</p>')}
+
+        ${sectionHtml('Regras de adesão', adherenceRulesHtml || '<p class="muted">Sem regras cadastradas.</p>')}
+
+        ${sectionHtml('Observações', plan.notes ? renderTextBlock(plan.notes) : '<p class="muted">Sem observações.</p>')}
+
+        <section class='card support-card'>
+          <h2>Suporte</h2>
+          <p class='muted'>Se surgiu qualquer dúvida na execução, peça orientação antes de ajustar por conta própria.</p>
+          <a class='primary-cta' href='https://wa.me/5514991174500?text=${message}' target='_blank' rel='noopener noreferrer'>Tenho dúvida sobre meu plano</a>
+        </section>
+      `;
+
+      statusText.hidden = true;
+      planContent.hidden = false;
+    }
+
+
+    function downloadPlanPdf() {
+      downloadPdfBtn.disabled = true;
+      const originalText = downloadPdfBtn.textContent;
+      downloadPdfBtn.textContent = 'Abrindo versão para impressão...';
+
+      try {
+        const printWindow = window.open('portal-plano-alimentar-print.html', '_blank', 'noopener,noreferrer');
+        if (!printWindow) {
+          window.location.href = 'portal-plano-alimentar-print.html';
+        }
+      } catch (error) {
+        alert(error.message || 'Não foi possível abrir a versão de impressão.');
+      } finally {
+        window.setTimeout(() => {
+          downloadPdfBtn.disabled = false;
+          downloadPdfBtn.textContent = originalText;
+        }, 500);
+      }
+    }
+
+    downloadPdfBtn.addEventListener('click', downloadPlanPdf);
+
+    async function loadPlan() {
+      try {
+        const response = await api('/portal/nutrition-plan');
+
+        if (!response?.data) {
+          statusText.textContent = 'Seu plano alimentar ainda não foi liberado no portal. Assim que estiver disponível, ele aparecerá aqui.';
+          statusText.className = 'status muted';
+          return;
+        }
+
+        renderPlan(response.data);
+        pdfActions.hidden = false;
+      } catch (error) {
+        statusText.textContent = 'Não foi possível carregar seu plano alimentar agora. Tente novamente em instantes.';
+        statusText.className = 'status error';
+      }
+    }
+
+    loadPlan();
+  </script>
+</body>
+</html>

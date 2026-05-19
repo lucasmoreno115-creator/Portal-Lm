@@ -1,0 +1,301 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Planejamento Nutricional Atual</title>
+  <style>
+    :root {
+      --text: #1e1e1e;
+      --muted: #666;
+      --line: #d8d8d8;
+      --accent: #9f7d18;
+      --bg: #f3f3f1;
+      --paper: #fff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.55;
+    }
+
+    .page {
+      width: min(920px, calc(100% - 32px));
+      margin: 24px auto;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      padding: 42px;
+    }
+
+    .cover {
+      border-bottom: 2px solid var(--text);
+      padding-bottom: 26px;
+      margin-bottom: 28px;
+    }
+
+    .brand {
+      margin: 0 0 12px;
+      color: var(--accent);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 2rem;
+      line-height: 1.15;
+    }
+
+    .student {
+      margin: 0;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      width: min(920px, calc(100% - 32px));
+      margin: 20px auto 0;
+    }
+
+    button,
+    a {
+      border: 1px solid #222;
+      border-radius: 6px;
+      background: #222;
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      padding: 10px 14px;
+      text-decoration: none;
+    }
+
+    a {
+      background: transparent;
+      color: #222;
+    }
+
+    .status {
+      width: min(920px, calc(100% - 32px));
+      margin: 24px auto;
+      background: #fff;
+      border: 1px solid var(--line);
+      padding: 18px;
+    }
+
+    section {
+      break-inside: avoid;
+      border-bottom: 1px solid var(--line);
+      padding: 0 0 20px;
+      margin: 0 0 22px;
+    }
+
+    section:last-child {
+      border-bottom: 0;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 1.15rem;
+      line-height: 1.3;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+    }
+
+    p {
+      margin: 0 0 10px;
+    }
+
+    .text-block {
+      white-space: pre-wrap;
+    }
+
+    .item {
+      break-inside: avoid;
+      margin: 0 0 16px;
+    }
+
+    .empty {
+      color: var(--muted);
+    }
+
+    @page {
+      margin: 16mm;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .toolbar,
+      .status {
+        display: none !important;
+      }
+
+      .page {
+        width: 100%;
+        margin: 0;
+        border: 0;
+        padding: 0;
+      }
+
+      .cover {
+        break-after: avoid;
+      }
+
+      section {
+        page-break-inside: avoid;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        padding: 24px;
+      }
+
+      h1 {
+        font-size: 1.55rem;
+      }
+
+      .toolbar {
+        justify-content: stretch;
+      }
+
+      button,
+      a {
+        flex: 1;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class='toolbar'>
+    <a href='portal-plano-alimentar.html'>Voltar</a>
+    <button id='printBtn' type='button' disabled>Imprimir / Salvar em PDF</button>
+  </div>
+
+  <p id='statusText' class='status'>Carregando planejamento nutricional...</p>
+
+  <main id='printPage' class='page' hidden>
+    <header class='cover'>
+      <p class='brand'>Consultoria LM</p>
+      <h1>Planejamento Nutricional Atual</h1>
+      <p id='studentName' class='student'>Aluno</p>
+    </header>
+
+    <div id='planContent'></div>
+  </main>
+
+  <script src='portal-shared.js'></script>
+  <script>
+    requireAuth();
+
+    const statusText = document.getElementById('statusText');
+    const printPage = document.getElementById('printPage');
+    const planContent = document.getElementById('planContent');
+    const studentName = document.getElementById('studentName');
+    const printBtn = document.getElementById('printBtn');
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function removeEmoji(value) {
+      return String(value || '').replace(/[\uFE0F\u200D]|\p{Extended_Pictographic}/gu, '').trim();
+    }
+
+    function cleanText(value) {
+      return removeEmoji(value);
+    }
+
+    function textBlock(value, fallback) {
+      const fallbackText = fallback || 'Não informado.';
+      const text = cleanText(value || '');
+      return `<p class='text-block${text ? '' : ' empty'}'>${escapeHtml(text || fallbackText)}</p>`;
+    }
+
+    function itemContent(item) {
+      const content = Array.isArray(item?.items) ? item.items.join('\n') : '';
+      return textBlock(content, 'Sem itens cadastrados.');
+    }
+
+    function sectionHtml(number, title, content) {
+      return `<section><h2>${number}. ${title}</h2>${content}</section>`;
+    }
+
+    function renderItems(items, titleKey, fallbackTitle) {
+      if (!Array.isArray(items) || !items.length) {
+        return '<p class="empty">Sem itens cadastrados.</p>';
+      }
+
+      return items.map((item, index) => `
+        <article class='item'>
+          <h3>${escapeHtml(cleanText(item?.[titleKey] || `${fallbackTitle} ${index + 1}`))}</h3>
+          ${itemContent(item)}
+        </article>
+      `).join('');
+    }
+
+    function renderPlan(plan) {
+      studentName.textContent = localStorage.getItem('lm_student_name') || 'Aluno';
+
+      planContent.innerHTML = [
+        sectionHtml(1, 'Objetivo atual', textBlock(plan?.goal, 'Não informado.')),
+        sectionHtml(2, 'Estratégia da fase', textBlock(plan?.strategy, 'Não informada.')),
+        sectionHtml(3, 'Plano alimentar', renderItems(plan?.meals, 'name', 'Refeição')),
+        sectionHtml(4, 'Equivalências e substituições', renderItems(plan?.substitutions, 'title', 'Substituição')),
+        sectionHtml(5, 'Regras de adesão', textBlock(Array.isArray(plan?.adherence_rules) ? plan.adherence_rules.join('\n') : plan?.adherence_rules, 'Sem regras cadastradas.')),
+        sectionHtml(6, 'Observações', textBlock(plan?.notes, 'Sem observações.')),
+        sectionHtml(7, 'Suporte', textBlock('Em caso de dúvidas, utilize o Portal LM ou entre em contato para ajustes.'))
+      ].join('');
+
+      statusText.hidden = true;
+      printPage.hidden = false;
+      printBtn.disabled = false;
+    }
+
+    async function loadPlan() {
+      try {
+        const response = await api('/portal/nutrition-plan');
+
+        if (!response?.data) {
+          statusText.textContent = 'Seu plano alimentar ainda não foi liberado no portal.';
+          return;
+        }
+
+        renderPlan(response.data);
+      } catch (error) {
+        statusText.textContent = 'Não foi possível carregar seu plano alimentar agora. Tente novamente em instantes.';
+      }
+    }
+
+    printBtn.addEventListener('click', () => {
+      if (!printPage.hidden) window.print();
+    });
+    loadPlan();
+  </script>
+</body>
+</html>
