@@ -1,5 +1,3 @@
-import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
-
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -79,28 +77,6 @@ export default {
             });
           }
           return json({ ok: true, data: plan });
-        }
-
-        if (url.pathname === '/api/portal/nutrition-plan/pdf' && method === 'GET') {
-          const plan = await getActiveNutritionPlanByEmail(env.DB, studentEmail);
-          if (!plan) {
-            return json({ ok: false, error: 'Plano alimentar não disponível para exportação.' }, 404);
-          }
-
-          const pdfBytes = await buildNutritionPlanPdf({
-            studentName: auth.student.name || 'Aluno',
-            plan
-          });
-
-          return new Response(pdfBytes, {
-            status: 200,
-            headers: {
-              'Content-Type': 'application/pdf',
-              'Content-Disposition': `attachment; filename="planejamento-nutricional-${sanitizeFilename(studentEmail)}.pdf"`,
-              'Cache-Control': 'no-store',
-              ...corsHeaders()
-            }
-          });
         }
 
         if (url.pathname === '/api/portal/checkin' && method === 'POST') {
@@ -1277,120 +1253,6 @@ function safeJsonParseArray(raw) {
   } catch {
     return [];
   }
-}
-
-
-
-function sanitizeFilename(value) {
-  return String(value || 'aluno')
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '') || 'aluno';
-}
-
-async function buildNutritionPlanPdf({ studentName, plan }) {
-  const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([595.28, 841.89]);
-  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-  const marginX = 48;
-  const marginTop = 54;
-  const marginBottom = 48;
-  const contentWidth = page.getWidth() - marginX * 2;
-  let y = page.getHeight() - marginTop;
-
-  const drawWrappedText = (text, options = {}) => {
-    const {
-      size = 11,
-      lineHeight = 15,
-      color = rgb(0.08, 0.1, 0.14),
-      font = fontRegular,
-      indent = 0,
-      bullet = null
-    } = options;
-
-    const cleaned = String(text || '').replace(/\s+/g, ' ').trim();
-    const bulletPrefix = bullet ? `${bullet} ` : '';
-    const maxWidth = contentWidth - indent;
-    const words = `${bulletPrefix}${cleaned}`.split(' ');
-    let current = '';
-
-    for (const word of words) {
-      const test = current ? `${current} ${word}` : word;
-      const width = font.widthOfTextAtSize(test, size);
-      if (width <= maxWidth || !current) current = test;
-      else {
-        if (y < marginBottom) return false;
-        page.drawText(current, { x: marginX + indent, y, size, font, color });
-        y -= lineHeight;
-        current = word;
-      }
-    }
-
-    if (current) {
-      if (y < marginBottom) return false;
-      page.drawText(current, { x: marginX + indent, y, size, font, color });
-      y -= lineHeight;
-    }
-
-    return true;
-  };
-
-  const spacer = (height = 8) => {
-    y -= height;
-  };
-
-  drawWrappedText('CONSULTORIA LM', { font: fontBold, size: 16, lineHeight: 20, color: rgb(0.06, 0.2, 0.45) });
-  drawWrappedText(studentName || 'Aluno', { font: fontBold, size: 12, lineHeight: 16 });
-  drawWrappedText('Planejamento Nutricional Atual', { size: 11, color: rgb(0.25, 0.3, 0.4) });
-  spacer(12);
-
-  const sections = [
-    ['1. Objetivo atual', plan?.goal || 'Não informado.'],
-    ['2. Estratégia da fase', plan?.strategy || 'Não informada.'],
-    ['3. Plano alimentar', Array.isArray(plan?.meals) && plan.meals.length ? plan.meals : null],
-    ['4. Equivalências e substituições', Array.isArray(plan?.substitutions) && plan.substitutions.length ? plan.substitutions : null],
-    ['5. Regras de adesão', Array.isArray(plan?.adherence_rules) && plan.adherence_rules.length ? plan.adherence_rules : ['Sem regras cadastradas.']],
-    ['6. Observações', plan?.notes || 'Sem observações.'],
-    ['7. Suporte', 'Em caso de dúvidas, utilize o Portal LM ou entre em contato para ajustes.']
-  ];
-
-  for (const [title, content] of sections) {
-    if (!drawWrappedText(title, { font: fontBold, size: 12, lineHeight: 17 })) break;
-
-    if (title.startsWith('3.') && Array.isArray(content)) {
-      for (const [index, meal] of content.entries()) {
-        if (!drawWrappedText(`${index + 1}) ${meal?.name || 'Refeição'}`, { font: fontBold, indent: 8 })) break;
-        const items = Array.isArray(meal?.items) && meal.items.length ? meal.items : ['Sem itens cadastrados.'];
-        for (const item of items) {
-          if (!drawWrappedText(item, { indent: 20, bullet: '•' })) break;
-        }
-        spacer(4);
-      }
-    } else if (title.startsWith('4.') && Array.isArray(content)) {
-      for (const [index, sub] of content.entries()) {
-        if (!drawWrappedText(`${index + 1}) ${sub?.title || 'Substituição'}`, { font: fontBold, indent: 8 })) break;
-        const items = Array.isArray(sub?.items) && sub.items.length ? sub.items : ['Sem itens cadastrados.'];
-        for (const item of items) {
-          if (!drawWrappedText(item, { indent: 20, bullet: '•' })) break;
-        }
-        spacer(4);
-      }
-    } else if (Array.isArray(content)) {
-      for (const rule of content) {
-        if (!drawWrappedText(rule, { indent: 12, bullet: '•' })) break;
-      }
-    } else {
-      drawWrappedText(content, { indent: 8 });
-    }
-
-    spacer(10);
-    if (y < marginBottom) break;
-  }
-
-  return pdfDoc.save();
 }
 
 function corsHeaders() {

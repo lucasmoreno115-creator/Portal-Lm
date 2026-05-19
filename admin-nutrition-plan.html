@@ -31,9 +31,14 @@
         <div id='mealsContainer' class='stack'></div>
         <button id='addMealBtn' type='button'>+ Adicionar refeição</button>
 
-        <label>Substituições</label>
-        <small class='muted'>Texto livre. Nenhum parser automático será aplicado.</small>
-        <textarea id='subsText' rows='7' placeholder='Se não tiver frango&#10;- carne magra&#10;- ovos&#10;- peixe'></textarea>
+        <div class='equivalence-admin-header'>
+          <div>
+            <label>Guia de Equival&ecirc;ncias Alimentares</label>
+            <small class='muted'>Template LM edit&aacute;vel antes de salvar o plano do aluno.</small>
+          </div>
+          <button id='resetEquivalencesBtn' type='button' class='secondary-action'>Restaurar template LM</button>
+        </div>
+        <div id='equivalencesContainer' class='equivalence-admin-list'></div>
 
         <label>Regras de adesão</label>
         <small class='muted'>Texto livre. Nenhum parser automático será aplicado.</small>
@@ -58,6 +63,8 @@
     const saveBtn = document.getElementById('saveBtn');
     const addMealBtn = document.getElementById('addMealBtn');
     const mealsContainer = document.getElementById('mealsContainer');
+    const equivalencesContainer = document.getElementById('equivalencesContainer');
+    const resetEquivalencesBtn = document.getElementById('resetEquivalencesBtn');
     const statusBox = document.getElementById('statusBox');
 
     function setStatus(message, type) {
@@ -74,6 +81,83 @@
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;')
         .trim();
+    }
+
+    const foodEquivalences = [
+      { category: 'Prote\u00ednas', icon: '\uD83C\uDF57', reference: '3 bifes de frango ou carne magra (~150g)', items: ['150g de frango', '150g de carne magra', '170g de peixe', '1 lata grande de atum', '4 ovos + 4 claras', '2 iogurtes proteicos'] },
+      { category: 'Carboidratos', icon: '\uD83C\uDF5A', reference: '4 colheres de arroz branco (~120-140g)', items: ['200g de batata inglesa', '150g de batata-doce', '130g de mandioca', '120g de macarr\u00e3o', '140g de cuscuz', '1 Rap10', '1 p\u00e3o franc\u00eas', '2 fatias de p\u00e3o integral'] },
+      { category: 'Gorduras boas', icon: '\uD83E\uDD5C', reference: '5g de azeite', items: ['15g de pasta de amendoim', '15g de castanhas', '15g de amendoim', '60g de abacate'] },
+      { category: 'Frutas', icon: '\uD83C\uDF4C', reference: '1 por\u00e7\u00e3o de fruta', items: ['1 banana m\u00e9dia', '1 ma\u00e7\u00e3 m\u00e9dia', '1 pera m\u00e9dia', '1 laranja', '2 fatias de abacaxi', '2 fatias de mel\u00e3o', '2 fatias grandes de melancia'] },
+      { category: 'Jantar pr\u00e1tico', icon: '\uD83C\uDF7D\uFE0F', reference: '3 colheres de arroz + 3 bifes', items: ['wrap com frango', 'sandu\u00edche estruturado', 'omelete + p\u00e3o', 'carne + batata', 'frango + mandioca'] }
+    ];
+
+    function cloneDefaultEquivalences() {
+      return foodEquivalences.map((category) => ({ category: category.category, icon: category.icon, reference: category.reference, items: [...category.items] }));
+    }
+
+    function normalizeEquivalences(substitutions) {
+      if (!Array.isArray(substitutions) || !substitutions.length) return cloneDefaultEquivalences();
+      const isModern = substitutions.every((item) => item && typeof item === 'object' && 'category' in item && 'reference' in item);
+      if (!isModern) return cloneDefaultEquivalences();
+      return substitutions.map((item) => ({ category: item.category || '', icon: item.icon || '', reference: item.reference || '', items: Array.isArray(item.items) ? item.items : [] }));
+    }
+
+    function createEquivalenceBlock(category = {}) {
+      const wrapper = document.createElement('article');
+      wrapper.className = 'equivalence-admin-card';
+      wrapper.innerHTML = `
+        <div class='grid'>
+          <label>T&iacute;tulo da categoria
+            <input type='text' class='equivalence-category' placeholder='Ex: Prote&iacute;nas'>
+          </label>
+          <label>&Iacute;cone
+            <input type='text' class='equivalence-icon' placeholder='Ex: &#127831;'>
+          </label>
+        </div>
+        <label>Refer&ecirc;ncia principal
+          <input type='text' class='equivalence-reference' placeholder='Ex: 3 bifes (~150g)'>
+        </label>
+        <label>Lista de equival&ecirc;ncias</label>
+        <div class='equivalence-items'></div>
+        <button type='button' class='addEquivalenceItemBtn secondary-action'>+ Adicionar item</button>
+      `;
+      wrapper.querySelector('.equivalence-category').value = category.category || '';
+      wrapper.querySelector('.equivalence-icon').value = category.icon || '';
+      wrapper.querySelector('.equivalence-reference').value = category.reference || '';
+      const itemsContainer = wrapper.querySelector('.equivalence-items');
+      function addItem(value = '') {
+        const row = document.createElement('div');
+        row.className = 'equivalence-item-row';
+        row.innerHTML = `
+          <input type='text' class='equivalence-item' placeholder='Ex: 150g de frango'>
+          <button type='button' class='removeEquivalenceItemBtn' aria-label='Remover item'>Remover</button>
+        `;
+        row.querySelector('.equivalence-item').value = value;
+        row.querySelector('.removeEquivalenceItemBtn').addEventListener('click', () => { row.remove(); if (!itemsContainer.children.length) addItem(); });
+        itemsContainer.appendChild(row);
+      }
+      const items = Array.isArray(category.items) && category.items.length ? category.items : [''];
+      items.forEach((item) => addItem(item));
+      wrapper.querySelector('.addEquivalenceItemBtn').addEventListener('click', () => addItem());
+      equivalencesContainer.appendChild(wrapper);
+    }
+
+    function renderEquivalenceEditor(categories) {
+      equivalencesContainer.innerHTML = '';
+      normalizeEquivalences(categories).forEach((category) => createEquivalenceBlock(category));
+    }
+
+    function collectFoodEquivalences() {
+      const blocks = Array.from(equivalencesContainer.querySelectorAll('.equivalence-admin-card'));
+      return blocks.map((block, index) => {
+        const category = sanitizeText(block.querySelector('.equivalence-category')?.value || '');
+        const icon = sanitizeText(block.querySelector('.equivalence-icon')?.value || '');
+        const reference = sanitizeText(block.querySelector('.equivalence-reference')?.value || '');
+        const items = Array.from(block.querySelectorAll('.equivalence-item')).map((input) => sanitizeText(input.value || '')).filter(Boolean);
+        if (!category || !reference) throw new Error(`Preencha t\u00edtulo e refer\u00eancia da categoria ${index + 1}.`);
+        if (!items.length) throw new Error(`Adicione ao menos um item na categoria ${category}.`);
+        return { category, icon, reference, items };
+      });
     }
 
     function createMealBlock(meal = {}) {
@@ -149,10 +233,7 @@
         addMealBlock();
       }
 
-      const firstSub = Array.isArray(plan?.substitutions) && plan.substitutions[0]
-        ? String(plan.substitutions[0]?.items?.[0] || '')
-        : '';
-      document.getElementById('subsText').value = firstSub;
+      renderEquivalenceEditor(plan?.substitutions);
       document.getElementById('rulesText').value = Array.isArray(plan?.adherence_rules)
         ? String(plan.adherence_rules[0] || '')
         : '';
@@ -161,6 +242,7 @@
     }
 
     addMealBtn.addEventListener('click', () => addMealBlock());
+    resetEquivalencesBtn.addEventListener('click', () => renderEquivalenceEditor(cloneDefaultEquivalences()));
     async function authedRequest(path, options = {}) {
       const adminToken = document.getElementById('adminToken').value.trim();
       if (!adminToken) throw new Error('Token admin obrigatório.');
@@ -213,10 +295,7 @@
           goal: sanitizeText(document.getElementById('goal').value),
           strategy: sanitizeText(document.getElementById('strategy').value),
           meals: collectMeals(),
-          substitutions: (() => {
-            const raw = document.getElementById('subsText').value.trim();
-            return raw ? [{ title: 'Substituições', items: [raw] }] : [];
-          })(),
+          substitutions: collectFoodEquivalences(),
           adherence_rules: (() => {
             const raw = document.getElementById('rulesText').value.trim();
             return raw ? [raw] : [];
@@ -235,6 +314,7 @@
     });
     clearMealBlocks();
     addMealBlock();
+    renderEquivalenceEditor(cloneDefaultEquivalences());
   </script>
 </body>
 </html>

@@ -69,6 +69,35 @@
       return lines.length > 1 ? renderList(lines) : renderTextBlock(lines[0]);
     }
 
+
+    const equivalenceNote = 'As substitui&ccedil;&otilde;es s&atilde;o aproxima&ccedil;&otilde;es pr&aacute;ticas. O objetivo &eacute; manter prote&iacute;na alta, carboidrato controlado e boa ades&atilde;o alimentar.';
+
+    function renderFoodEquivalences(substitutions) {
+      if (!Array.isArray(substitutions) || !substitutions.length) return '';
+      const modernItems = substitutions.filter((item) => item && typeof item === 'object' && 'category' in item && 'reference' in item);
+      if (!modernItems.length) {
+        return substitutions.map((sub) => `
+          <article class='equivalence-card'>
+            <div class='equivalence-card-title'>
+              <span class='equivalence-icon'>*</span>
+              <h3>${escapeHtml(sub?.title || 'Substituicao')}</h3>
+            </div>
+            ${renderTextBlock(Array.isArray(sub?.items) ? String(sub.items[0] || '') : '')}
+          </article>
+        `).join('');
+      }
+      return modernItems.map((category) => `
+        <article class='equivalence-card'>
+          <div class='equivalence-card-title'>
+            <span class='equivalence-icon'>${escapeHtml(category.icon || '*')}</span>
+            <h3>${escapeHtml(category.category || 'Categoria')}</h3>
+          </div>
+          <p class='equivalence-reference'>${escapeHtml(category.reference || '')}</p>
+          ${renderList(Array.isArray(category.items) ? category.items : [])}
+        </article>
+      `).join('');
+    }
+
     function sectionHtml(title, content) {
       if (!content) return '';
       return `<section class='card'><h2>${title}</h2>${content}</section>`;
@@ -85,40 +114,34 @@
       })();
       const strategyHtml = strategyGoalHtml || strategyFocusHtml
         ? `${strategyGoalHtml}${strategyFocusHtml}`
-        : '<p class="muted">Sem estratégia cadastrada.</p>';
+        : '<p class="muted">Sem estrat&eacute;gia cadastrada.</p>';
 
       const mealsHtml = (plan.meals || []).map((meal) => `
         <article class='meal-card'>
-          <h3>${escapeHtml(meal?.name || 'Refeição')}</h3>
+          <h3>${escapeHtml(meal?.name || 'Refeicao')}</h3>
           ${renderTextBlock(Array.isArray(meal?.items) ? String(meal.items[0] || '') : '')}
         </article>
       `).join('');
 
-      const substitutionsHtml = (plan.substitutions || []).map((sub) => `
-        <article class='meal-card'>
-          <h3>${escapeHtml(sub?.title || 'Substituição')}</h3>
-          ${renderTextBlock(Array.isArray(sub?.items) ? String(sub.items[0] || '') : '')}
-        </article>
-      `).join('');
-
+      const substitutionsHtml = renderFoodEquivalences(plan.substitutions || []);
       const adherenceRulesHtml = renderTextOrList(plan.adherence_rules);
-      const message = encodeURIComponent(plan.whatsapp_message || 'Olá, estou com dúvida sobre meu plano alimentar no Portal LM.');
+      const message = encodeURIComponent(plan.whatsapp_message || 'Ola, estou com duvida sobre meu plano alimentar no Portal LM.');
 
       planContent.innerHTML = `
-        ${sectionHtml('Estratégia atual', strategyHtml)}
+        ${sectionHtml('Estrat&eacute;gia atual', strategyHtml)}
 
-        ${sectionHtml('Refeições do plano', mealsHtml ? `<div class='grid'>${mealsHtml}</div>` : '<p class="muted">Sem refeições cadastradas.</p>')}
+        ${sectionHtml('Refei&ccedil;&otilde;es do plano', mealsHtml ? `<div class='grid'>${mealsHtml}</div>` : '<p class="muted">Sem refei&ccedil;&otilde;es cadastradas.</p>')}
 
-        ${sectionHtml('Substituições inteligentes', substitutionsHtml ? `<div class='grid'>${substitutionsHtml}</div>` : '<p class="muted">Sem substituições cadastradas.</p>')}
+        ${sectionHtml('Guia de Equival&ecirc;ncias Alimentares', substitutionsHtml ? `<div class='equivalence-grid'>${substitutionsHtml}</div><p class='equivalence-note'>${equivalenceNote}</p>` : '<p class="muted">Sem equival&ecirc;ncias cadastradas.</p>')}
 
-        ${sectionHtml('Regras de adesão', adherenceRulesHtml || '<p class="muted">Sem regras cadastradas.</p>')}
+        ${sectionHtml('Regras de ades&atilde;o', adherenceRulesHtml || '<p class="muted">Sem regras cadastradas.</p>')}
 
-        ${sectionHtml('Observações', plan.notes ? renderTextBlock(plan.notes) : '<p class="muted">Sem observações.</p>')}
+        ${sectionHtml('Observa&ccedil;&otilde;es', plan.notes ? renderTextBlock(plan.notes) : '<p class="muted">Sem observa&ccedil;&otilde;es.</p>')}
 
         <section class='card support-card'>
           <h2>Suporte</h2>
-          <p class='muted'>Se surgiu qualquer dúvida na execução, peça orientação antes de ajustar por conta própria.</p>
-          <a class='primary-cta' href='https://wa.me/5514991174500?text=${message}' target='_blank' rel='noopener noreferrer'>Tenho dúvida sobre meu plano</a>
+          <p class='muted'>Se surgiu qualquer d&uacute;vida na execu&ccedil;&atilde;o, pe&ccedil;a orienta&ccedil;&atilde;o antes de ajustar por conta pr&oacute;pria.</p>
+          <a class='primary-cta' href='https://wa.me/5514991174500?text=${message}' target='_blank' rel='noopener noreferrer'>Tenho d&uacute;vida sobre meu plano</a>
         </section>
       `;
 
@@ -126,21 +149,24 @@
       planContent.hidden = false;
     }
 
+    function downloadPlanPdf() {
+      downloadPdfBtn.disabled = true;
+      const originalText = downloadPdfBtn.textContent;
+      downloadPdfBtn.textContent = 'Abrindo versao para impressao...';
 
-function downloadPlanPdf() {
-  downloadPdfBtn.disabled = true;
-  const originalText = downloadPdfBtn.textContent;
-  downloadPdfBtn.textContent = 'Abrindo versão para impressão...';
-
-  try {
-    const printWindow = window.open(
-      'portal-plano-alimentar-print.html',
-      '_blank',
-      'noopener,noreferrer'
-    );
-
-    if (!printWindow) {
-      window.location.href = 'portal-plano-alimentar-print.html';
+      try {
+        const printWindow = window.open('portal-plano-alimentar-print.html', '_blank', 'noopener,noreferrer');
+        if (!printWindow) {
+          window.location.href = 'portal-plano-alimentar-print.html';
+        }
+      } catch (error) {
+        alert(error.message || 'Nao foi possivel abrir a versao de impressao.');
+      } finally {
+        window.setTimeout(() => {
+          downloadPdfBtn.disabled = false;
+          downloadPdfBtn.textContent = originalText;
+        }, 500);
+      }
     }
   } catch (error) {
     alert(error.message || 'Não foi possível abrir a versão de impressão.');

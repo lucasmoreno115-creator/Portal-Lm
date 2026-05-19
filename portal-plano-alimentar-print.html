@@ -131,6 +131,42 @@
       margin: 0 0 16px;
     }
 
+    .equivalence-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .equivalence-print-card {
+      break-inside: avoid;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      margin: 0;
+    }
+
+    .equivalence-print-card h3 {
+      color: var(--accent);
+    }
+
+    .equivalence-reference {
+      margin: 0 0 8px;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .equivalence-print-card ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .equivalence-note {
+      margin-top: 14px;
+      border-left: 3px solid var(--accent);
+      padding-left: 12px;
+      color: var(--muted);
+    }
+
     .empty {
       color: var(--muted);
     }
@@ -246,6 +282,25 @@
       return `<section><h2>${number}. ${title}</h2>${content}</section>`;
     }
 
+    function renderFoodEquivalences(items) {
+      if (!Array.isArray(items) || !items.length) {
+        return '<p class="empty">Sem equival&ecirc;ncias cadastradas.</p>';
+      }
+      const modernItems = items.filter((item) => item && typeof item === 'object' && 'category' in item && 'reference' in item);
+      if (!modernItems.length) return renderItems(items, 'title', 'Substituicao');
+      const cards = modernItems.map((item) => {
+        const title = `${item?.icon || ''} ${item?.category || 'Categoria'}`;
+        const entries = (Array.isArray(item?.items) ? item.items : []).map((entry) => `<li>${escapeHtml(cleanText(entry))}</li>`).join('');
+        return '<article class="equivalence-print-card">' +
+          '<h3>' + escapeHtml(cleanText(title)) + '</h3>' +
+          '<p class="equivalence-reference">' + escapeHtml(cleanText(item?.reference || '')) + '</p>' +
+          '<ul>' + entries + '</ul>' +
+          '</article>';
+      }).join('');
+      return '<div class="equivalence-grid">' + cards + '</div>' +
+        '<p class="equivalence-note">As substitui&ccedil;&otilde;es s&atilde;o aproxima&ccedil;&otilde;es pr&aacute;ticas. O objetivo &eacute; manter prote&iacute;na alta, carboidrato controlado e boa ades&atilde;o alimentar.</p>';
+    }
+
     function renderItems(items, titleKey, fallbackTitle) {
       if (!Array.isArray(items) || !items.length) {
         return '<p class="empty">Sem itens cadastrados.</p>';
@@ -266,7 +321,7 @@
         sectionHtml(1, 'Objetivo atual', textBlock(plan?.goal, 'Não informado.')),
         sectionHtml(2, 'Estratégia da fase', textBlock(plan?.strategy, 'Não informada.')),
         sectionHtml(3, 'Plano alimentar', renderItems(plan?.meals, 'name', 'Refeição')),
-        sectionHtml(4, 'Equivalências e substituições', renderItems(plan?.substitutions, 'title', 'Substituição')),
+        sectionHtml(4, 'Guia de Equival&ecirc;ncias Alimentares', renderFoodEquivalences(plan?.substitutions)),
         sectionHtml(5, 'Regras de adesão', textBlock(Array.isArray(plan?.adherence_rules) ? plan.adherence_rules.join('\n') : plan?.adherence_rules, 'Sem regras cadastradas.')),
         sectionHtml(6, 'Observações', textBlock(plan?.notes, 'Sem observações.')),
         sectionHtml(7, 'Suporte', textBlock('Em caso de dúvidas, utilize o Portal LM ou entre em contato para ajustes.'))
