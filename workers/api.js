@@ -17,6 +17,48 @@ export default {
         return json({ ok: true, data: { score: 0, received: body || {} } });
       }
 
+
+      if (url.pathname === '/api/anamnese-premium' && method === 'POST') {
+        const body = await safeJson(request);
+        const studentName = nullableTrimmed(body?.student_name);
+        const studentEmail = nullableTrimmed(body?.student_email)?.toLowerCase() || null;
+        const studentPhone = nullableTrimmed(body?.student_phone);
+        const status = nullableTrimmed(body?.status) || 'RECEBIDA';
+        const answers = body?.answers && typeof body.answers === 'object' ? body.answers : {};
+        const internalScores = body?.internal_scores && typeof body.internal_scores === 'object' ? body.internal_scores : {
+          adherence_score: null,
+          risk_score: null,
+          routine_score: null,
+          recovery_score: null
+        };
+
+        if (!studentName || !studentEmail) {
+          return json({ ok: false, error: 'student_name e student_email são obrigatórios.' }, 400);
+        }
+
+        const id = crypto.randomUUID();
+        const now = new Date().toISOString();
+
+        await env.DB.prepare(
+          `INSERT INTO premium_anamnesis (
+            id, student_name, student_email, student_phone, status,
+            answers_json, internal_scores_json, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(
+          id,
+          studentName,
+          studentEmail,
+          studentPhone,
+          status,
+          JSON.stringify(answers),
+          JSON.stringify(internalScores),
+          now,
+          now
+        ).run();
+
+        return json({ ok: true, data: { id, created_at: now } });
+      }
+
       if (url.pathname === '/api/portal/login' && method === 'POST') {
         const body = await safeJson(request);
         const email = String(body?.email || '').trim().toLowerCase();
@@ -916,6 +958,58 @@ Me responde aqui para ajustarmos o próximo passo e evitar que sua semana fique 
           });
         }
 
+
+        if (url.pathname === '/api/admin/anamneses' && method === 'GET') {
+          const { results } = await env.DB.prepare(
+            `SELECT id, student_name, student_email, student_phone, status, created_at, updated_at
+             FROM premium_anamnesis
+             ORDER BY created_at DESC`
+          ).all();
+
+          return json({ ok: true, data: results || [] });
+        }
+
+        const anamnesisDetailMatch = url.pathname.match(/^\/api\/admin\/anamneses\/([^/]+)$/);
+
+        if (anamnesisDetailMatch && method === 'GET') {
+          const id = anamnesisDetailMatch[1];
+          const row = await env.DB.prepare(
+            `SELECT * FROM premium_anamnesis WHERE id=? LIMIT 1`
+          ).bind(id).first();
+
+          if (!row) return json({ ok: false, error: 'Anamnese não encontrada.' }, 404);
+
+          return json({
+            ok: true,
+            data: {
+              ...row,
+              answers: safeJsonParseObject(row.answers_json),
+              internal_scores: safeJsonParseObject(row.internal_scores_json)
+            }
+          });
+        }
+
+        if (anamnesisDetailMatch && method === 'PATCH') {
+          const id = anamnesisDetailMatch[1];
+          const body = await safeJson(request);
+          const status = nullableTrimmed(body?.status);
+
+          if (!status) {
+            return json({ ok: false, error: 'status é obrigatório.' }, 400);
+          }
+
+          const now = new Date().toISOString();
+          const result = await env.DB.prepare(
+            `UPDATE premium_anamnesis SET status=?, updated_at=? WHERE id=?`
+          ).bind(status, now, id).run();
+
+          if (!result?.meta?.changes) {
+            return json({ ok: false, error: 'Anamnese não encontrada.' }, 404);
+          }
+
+          return json({ ok: true, data: { id, status, updated_at: now } });
+        }
+
         if (url.pathname === '/api/admin/leads' && method === 'GET') {
           return json({ ok: true, data: [] });
         }
@@ -1098,6 +1192,26 @@ async function ensureSchema(db) {
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_retention_actions_student_email ON retention_actions(student_email)`
   ).run();
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS premium_anamnesis (
+    id TEXT PRIMARY KEY,
+    student_name TEXT NOT NULL,
+    student_email TEXT NOT NULL,
+    student_phone TEXT,
+    status TEXT NOT NULL DEFAULT 'RECEBIDA',
+    answers_json TEXT NOT NULL,
+    internal_scores_json TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`).run();
+
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_premium_anamnesis_created_at ON premium_anamnesis(created_at)`
+  ).run();
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_premium_anamnesis_student_email ON premium_anamnesis(student_email)`
+  ).run();
+
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_retention_actions_created_at ON retention_actions(created_at)`
   ).run();
@@ -1252,6 +1366,16 @@ function safeJsonParseArray(raw) {
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
+  }
+}
+
+function safeJsonParseObject(raw) {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
   }
 }
 
