@@ -7,140 +7,113 @@
   <link rel='stylesheet' href='portal.css'>
 </head>
 <body>
-  <div class='home-layout'>
-    <aside class='home-sidebar' aria-label='Navegação principal'>
-      <div class='sidebar-shell'>
-        <div class='sidebar-brand'>
-          <img src='assets/logo-lm-gold.png' alt='Logo LM' class='sidebar-logo' onerror="this.style.display='none'; this.parentElement.classList.add('brand-fallback');">
+  <main class='container home-main'>
+    <div id='nav' class='mobile-nav'></div>
+
+    <section class='card hero hero-premium'>
+      <div class='hero-glow' aria-hidden='true'></div>
+      <div class='hero-split'>
+        <div class='hero-image-panel' aria-hidden='true'>
+          <div class='hero-image-overlay'></div>
         </div>
 
-        <nav class='sidebar-nav' aria-label='Atalhos do portal'>
-          <a href='portal.html'>Início</a>
-          <a href='portal-checkin.html'>Check-in</a>
-          <a href='portal-plano-alimentar.html'>Plano Alimentar</a>
-          <a href='portal-progressao.html'>Progressão</a>
-          <a href='portal-biblioteca.html'>Biblioteca</a>
-          <button id='sidebarLogoutBtn' type='button'>Sair</button>
-        </nav>
+        <div class='hero-content'>
+          <p class='eyebrow'>Consultoria LM Premium</p>
+          <h1 id='hello'>Olá, Aluno</h1>
+          <p class='hero-title'>Sua direção da semana</p>
+          <p class='hero-subtext'>Consistência antes da intensidade. Execute o plano definido e mantenha o foco no que realmente importa agora.</p>
+          <p class='hero-meta'>Análise semanal ativa</p>
+          <div class='hero-cta-group'>
+            <a class='primary-cta hero-cta-primary' href='portal-checkin.html'>FAZER CHECK-IN</a>
+            <a class='outline-cta hero-cta-secondary' href='#weekly-plan-section'>VER PLANO DA SEMANA</a>
+          </div>
+        </div>
       </div>
+    </section>
 
-      <div id='nav' class='mobile-nav'></div>
-    </aside>
+    <section class='card action-card next-action-section'>
+      <p class='section-kicker'>PRÓXIMA AÇÃO</p>
+      <p id='nextMsg'>Envie seu check-in para liberar a análise da semana.</p>
+      <a id='nextBtn' class='primary-cta' href='portal-checkin.html'>Fazer agora</a>
+    </section>
 
-    <main class='container home-main'>
-      <section class='card hero hero-premium'>
-        <img class='hero-logo' src='assets/logo-lm-gold.png' alt='Logo LM' onerror="this.style.display='none'; this.parentElement.classList.add('hero-logo-fallback');">
-
-        <div class='hero-glow' aria-hidden='true'></div>
-        <div class='hero-split'>
-          <div class='hero-image-panel' aria-hidden='true'>
-            <div class='hero-image-overlay'></div>
-          </div>
-
-          <div class='hero-content'>
-            <p class='eyebrow'>Consultoria LM Premium</p>
-            <h1 id='hello'>Olá, Aluno</h1>
-            <p class='hero-title'>Sua direção da semana</p>
-            <p class='hero-subtext'>Consistência antes da intensidade. Execute o plano definido, envie seu check-in e mantenha o foco no que realmente importa agora.</p>
-            <p class='hero-meta'>Análise semanal ativa</p>
-            <a class='hero-anchor-cta' href='portal-checkin.html'>Fazer check-in agora</a>
-          </div>
+    <section class='card status-week-section'>
+      <div>
+        <p class='section-kicker'>STATUS DA SEMANA</p>
+        <ul class='status-checklist'>
+          <li><span class='status-mark'>✓</span><span>Plano alimentar</span></li>
+          <li><span class='status-mark'>✓</span><span>Treinos</span></li>
+          <li><span class='status-mark'>○</span><span>Cardio</span></li>
+          <li><span class='status-mark'>✓</span><span>Hidratação</span></li>
+        </ul>
+        <div class='status-dynamic'>
+          <span>Check-in</span>
+          <span id='checkStatus' class='badge badge-warning'>Pendente</span>
         </div>
-      </section>
-
-      <section class='command-center'>
-        <p class='section-label'>Painel estratégico</p>
-
-        <section class='command-center-grid'>
-          <section class='card metric-card mission-card'>
-            <h2>Missão da semana</h2>
-            <ul class='mission-list mission-blocks' id='weeklyMission'>
-              <li><span class='mission-label'>Treino</span><p>Consolidar força e progressão.</p></li>
-              <li><span class='mission-label'>Cardio</span><p>2–3 sessões de Zona 2.</p></li>
-              <li><span class='mission-label'>Risco principal</span><p>Compensação alimentar no final de semana.</p></li>
-              <li><span class='mission-label'>Observação</span><p>Seu foco não é emagrecer mais. Seu foco é sustentar.</p></li>
-            </ul>
-          </section>
-
-          <section class='card action-card'>
-            <h2>Próxima ação</h2>
-            <p id='nextMsg'>Envie seu check-in para liberar a análise da semana.</p>
-            <a id='nextBtn' class='primary-cta' href='portal-checkin.html'>Fazer agora</a>
-          </section>
-
-          <section class='card metric-card status-card'>
-            <h2>Status da semana</h2>
-            <ul class='status-list'>
-              <li><span>Check-in semanal</span><span id='checkStatus' class='badge badge-warning'>Pendente</span></li>
-              <li><span>Plano alimentar</span><strong>Em execução</strong></li>
-              <li><span>Treinos executados</span><strong>Em acompanhamento</strong></li>
-              <li><span>Foco da semana</span><strong id='weeklyFocus'>Consistência antes de ajuste</strong></li>
-            </ul>
-            <p id='weeklyInsight' class='muted'>Sua semana começa com clareza. Envie seu check-in para liberar a análise estratégica.</p>
-          </section>
-        </section>
-      </section>
-
-      <section class='dashboard-grid'>
-        <section class='journey-track card'>
-          <div class='journey-label'>Sua evolução</div>
-          <ol class='journey-steps premium-journey'>
-            <li class='is-complete'><span class='state' aria-hidden='true'>✓</span><span class='journey-step-text'>Avaliação inicial</span></li>
-            <li class='is-complete'><span class='state' aria-hidden='true'>✓</span><span class='journey-step-text'>Plano criado</span></li>
-            <li class='is-complete'><span class='state' aria-hidden='true'>✓</span><span class='journey-step-text'>Execução ativa</span></li>
-            <li class='is-current'><span class='state' aria-hidden='true'>●</span><span class='journey-step-text'>Check-in semanal</span></li>
-            <li class='is-next'><span class='state' aria-hidden='true'>○</span><span class='journey-step-text'>Próximo ajuste</span></li>
-          </ol>
-          <p class='journey-legend'><span>✓ concluído</span><span>● etapa atual</span><span>○ próxima etapa</span></p>
-        </section>
-
-        <section class='card mini-highlight tip-card'>
-          <h2>Dica do Lucas</h2>
-          <p>Pequenas escolhas diárias constroem grandes resultados. Confie no processo.</p>
-        </section>
-
-        <section class='card mini-highlight spotlight-card'>
-          <h2>Você está no caminho certo</h2>
-          <p>Mantenha a consistência. Os resultados virão com repetição e ajuste.</p>
-        </section>
-      </section>
-
-      <section class='card quick-access'>
-        <h2>Acesso rápido</h2>
-        <div class='quick-links'>
-          <a class='secondary-link' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'>📱 MFIT</a>
-          <a class='secondary-link' href='portal-checkin.html'>📋 Check-in semanal</a>
-          <a class='secondary-link' href='portal-progressao.html'>🏋️ Progressão de carga</a>
-          <a class='secondary-link' href='portal-plano-alimentar.html'>🍽 Plano Alimentar</a>
-          <a class='secondary-link' href='portal-biblioteca.html'>📚 Biblioteca LM</a>
+      </div>
+      <div class='status-summary'>
+        <div class='progress-ring' role='img' aria-label='Execução semanal'>
+          <strong id='weeklyProgress'>75%</strong>
+          <span>execução</span>
         </div>
-      </section>
-    </main>
-  </div>
+        <p><strong>Foco:</strong> <span id='weeklyFocus'>Consistência antes de ajuste</span></p>
+        <p id='weeklyInsight' class='muted'>Sua semana começa com clareza. Envie seu check-in para liberar a análise estratégica.</p>
+      </div>
+    </section>
+
+    <section class='card mission-section'>
+      <p class='section-kicker'>MISSÃO DA SEMANA</p>
+      <ul class='mission-list mission-blocks' id='weeklyMission'>
+        <li>Treinar 4x</li>
+        <li>Cardio 3x</li>
+        <li>Seguir plano alimentar</li>
+        <li>Enviar check-in</li>
+      </ul>
+    </section>
+
+    <section class='card weekly-plan-editorial' id='weekly-plan-section'>
+      <p class='section-kicker'>PLANO DA SEMANA</p>
+      <div class='weekly-plan-grid'>
+        <article>
+          <h2>TREINO</h2>
+          <p id='weeklyPlanTraining'>Executar o plano prescrito no MFIT com técnica e consistência.</p>
+        </article>
+        <article>
+          <h2>CARDIO</h2>
+          <p id='weeklyPlanCardio'>Cumprir a meta semanal definida com constância.</p>
+        </article>
+        <article>
+          <h2>NUTRIÇÃO</h2>
+          <p id='weeklyPlanNutrition'>Manter o plano alimentar e evitar compensações.</p>
+        </article>
+        <article>
+          <h2>FOCO PRINCIPAL</h2>
+          <p class='weekly-insight-copy'>Consistência na execução diária.</p>
+        </article>
+        <article class='weekly-observation'>
+          <h2>OBSERVAÇÃO</h2>
+          <p id='weeklyPlanObservation'>Mensagem estratégica da semana.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class='card quick-access'>
+      <p class='section-kicker'>ACESSO RÁPIDO</p>
+      <div class='quick-links'>
+        <a class='secondary-link' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'>📱 MFIT</a>
+        <a class='secondary-link' href='portal-plano-alimentar.html'>🍽 Plano Alimentar</a>
+        <a class='secondary-link' href='portal-checkin.html'>📋 Check-in</a>
+        <a class='secondary-link' href='portal-progressao.html'>🏋 Progressão</a>
+        <a class='secondary-link' href='portal-biblioteca.html'>📚 Biblioteca</a>
+      </div>
+    </section>
+  </main>
 
   <script src='portal-shared.js'></script>
   <script>
     requireAuth();
     document.getElementById('nav').innerHTML = nav();
     document.getElementById('hello').textContent = `Olá, ${localStorage.getItem('lm_student_name') || 'Aluno'}`;
-
-    (function bindDesktopLogout() {
-      const desktopLogoutBtn = document.getElementById('sidebarLogoutBtn');
-      if (!desktopLogoutBtn) return;
-
-      desktopLogoutBtn.addEventListener('click', () => {
-        const logoutButton = document.querySelector('#nav #logoutBtn');
-        if (logoutButton) {
-          logoutButton.click();
-          return;
-        }
-
-        localStorage.removeItem('lm_token');
-        localStorage.removeItem('lm_role');
-        localStorage.removeItem('lm_student_name');
-        location.href = 'portal-login.html';
-      });
-    })();
 
     (async () => {
       const checkStatusEl = document.querySelector('#checkStatus');
@@ -149,6 +122,12 @@
       const weeklyFocusEl = document.querySelector('#weeklyFocus');
       const weeklyInsightEl = document.querySelector('#weeklyInsight');
       const weeklyMissionEl = document.querySelector('#weeklyMission');
+      const weeklyProgressEl = document.querySelector('#weeklyProgress');
+      const weeklyPlanTrainingEl = document.querySelector('#weeklyPlanTraining');
+      const weeklyPlanCardioEl = document.querySelector('#weeklyPlanCardio');
+      const weeklyPlanNutritionEl = document.querySelector('#weeklyPlanNutrition');
+      const weeklyPlanObservationEl = document.querySelector('#weeklyPlanObservation');
+      const weeklyInsightCopies = document.querySelectorAll('.weekly-insight-copy');
 
       try {
         const [checkinResponse, weeklyPlanResponse] = await Promise.all([
@@ -160,23 +139,37 @@
         const weeklyPlan = weeklyPlanResponse?.data || null;
 
         if (weeklyPlan) {
-          weeklyFocusEl.textContent = weeklyPlan.nutrition_focus || weeklyPlan.training_focus || 'Consistência antes de ajuste';
+          const trainingFocus = weeklyPlan.training_focus || 'executar o que está prescrito no MFIT.';
+          const cardioTarget = weeklyPlan.cardio_target || 'cumprir a orientação combinada.';
+          const nutritionFocus = weeklyPlan.nutrition_focus || 'manter foco na rotina planejada.';
+          const mainRisk = weeklyPlan.main_risk || 'manter foco na rotina planejada.';
+          const coachMessage = weeklyPlan.coach_message || 'consistência e execução com qualidade na semana.';
+
+          weeklyFocusEl.textContent = nutritionFocus || trainingFocus;
+          weeklyPlanTrainingEl.textContent = trainingFocus;
+          weeklyPlanCardioEl.textContent = cardioTarget;
+          weeklyPlanNutritionEl.textContent = nutritionFocus;
+          weeklyPlanObservationEl.textContent = coachMessage;
 
           const missionItems = [
-            `<li><span class='mission-label'>Treino</span><p>${weeklyPlan.training_focus || 'executar o que está prescrito no MFIT.'}</p></li>`,
-            `<li><span class='mission-label'>Cardio</span><p>${weeklyPlan.cardio_target || 'cumprir a orientação combinada.'}</p></li>`,
-            `<li><span class='mission-label'>Risco principal</span><p>${weeklyPlan.main_risk || 'manter foco na rotina planejada.'}</p></li>`,
-            `<li><span class='mission-label'>Observação</span><p>${weeklyPlan.coach_message || 'consistência e execução com qualidade na semana.'}</p></li>`
+            `<li>✓ ${trainingFocus}</li>`,
+            `<li>✓ ${cardioTarget}</li>`,
+            `<li>✓ ${nutritionFocus}</li>`,
+            `<li>✓ ${mainRisk}</li>`
           ];
           weeklyMissionEl.innerHTML = missionItems.join('');
 
-          weeklyInsightEl.textContent = weeklyPlan.coach_message || 'Semana com direção estratégica definida. Priorize execução com consistência.';
+          weeklyInsightEl.textContent = coachMessage;
+          weeklyInsightCopies.forEach((el) => {
+            el.textContent = coachMessage;
+          });
         }
 
         if (hasCheckin) {
           checkStatusEl.textContent = 'Enviado';
           checkStatusEl.classList.remove('badge-warning');
           checkStatusEl.classList.add('badge-ok');
+          weeklyProgressEl.textContent = '100%';
 
           nextMsgEl.textContent = 'Check-in recebido. Agora sua semana entra em fase de acompanhamento.';
           nextBtnEl.textContent = 'Ver histórico de check-ins';
