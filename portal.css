@@ -122,3 +122,48 @@ details{border:1px solid var(--border);border-radius:10px;padding:10px;backgroun
 .equivalence-card .mission-list{color:#dedede;gap:7px}
 .equivalence-note{margin:14px 0 0;padding:13px 14px;border:1px solid rgba(212,175,55,.2);border-left:4px solid var(--gold);border-radius:10px;background:#131107;color:#d7d0b8}
 @media (max-width:640px){.equivalence-admin-header{display:grid}.equivalence-admin-header .secondary-action,.removeEquivalenceItemBtn{width:100%}.equivalence-item-row{grid-template-columns:1fr}.equivalence-card{padding:14px}}
+
+:root{
+  --hero-image: linear-gradient(120deg,#0f0f0f,#1b1b1b);
+}
+
+.hero-premium{
+  min-height:320px;
+  align-items:flex-end;
+  background-image:
+    radial-gradient(circle at 85% 15%,rgba(212,175,55,.22),transparent 42%),
+    linear-gradient(95deg,rgba(0,0,0,.82) 5%,rgba(8,8,8,.74) 45%,rgba(8,8,8,.92) 100%),
+    var(--hero-image);
+  background-size:cover;
+  background-position:center;
+}
+.hero-content{padding:4px 2px 2px}
+.hero-title{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;line-height:1.05;margin:0 0 12px}
+.hero-subtext{font-size:1.06rem;max-width:700px;color:#d2d2d2}
+
+.section-label{font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);font-weight:700;margin:8px 0 10px}
+.command-center{margin-bottom:16px}
+.command-center-grid .card{background:linear-gradient(180deg,#161616 0%,#111111 100%);border-radius:16px;padding:22px;border-color:#2f2f2f;box-shadow:0 12px 26px rgba(0,0,0,.25)}
+.action-card{border-color:rgba(212,175,55,.4);box-shadow:0 10px 26px rgba(0,0,0,.35), inset 0 0 0 1px rgba(212,175,55,.12)}
+.primary-cta{width:100%;text-transform:uppercase;letter-spacing:.04em}
+.status-card .status-list li{position:relative;padding-left:38px}
+.status-card .status-list li::before{content:'✓';position:absolute;left:12px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;border:1px solid rgba(212,175,55,.5);color:#f0d47a;font-size:.73rem}
+
+.journey-track{padding:18px}
+.journey-steps{grid-template-columns:repeat(5,minmax(0,1fr))}
+.journey-steps li{display:flex;align-items:center;font-size:.9rem}
+
+.coach-note{font-size:1.05rem;line-height:1.6;color:#e8dfc6;border-left:3px solid var(--gold);padding-left:14px;margin:0}
+
+.grid .secondary-link{justify-content:space-between;background:#151515;border-color:#343434;min-height:48px}
+.grid .secondary-link::after{content:'›';color:#c8a849;font-size:1.15rem}
+
+@media (max-width:860px){
+  .hero-premium{min-height:300px}
+  .journey-steps{grid-template-columns:1fr 1fr}
+}
+@media (max-width:640px){
+  .hero-title{font-size:2rem}
+  .hero-subtext{font-size:.98rem}
+  .journey-steps{grid-template-columns:1fr}
+}
