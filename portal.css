@@ -191,6 +191,37 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 
 .portal-home-v7 .quick-links{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 
+.portal-home-v7 .hero-app{min-height:320px;height:clamp(300px,34vw,360px)}
+.portal-home-v7 .hero-app .hero-content{padding:48px clamp(20px,5vw,58px) 28px;max-width:760px}
+.portal-home-v7 .hero-app .hero-content h1{margin:0 0 8px;font-size:clamp(1.1rem,1.8vw,1.35rem);font-weight:500;color:#f1f1f1;letter-spacing:.01em}
+.portal-home-v7 .hero-app .hero-title{margin:0 0 12px;font-size:clamp(2rem,4.2vw,3.2rem);line-height:1.04}
+.portal-home-v7 .hero-app .hero-subtext{font-size:clamp(.95rem,1.4vw,1.15rem);line-height:1.55;max-width:620px}
+.portal-home-v7 .hero-badge{display:inline-flex;align-items:center;margin:16px 0 0;padding:8px 14px;border-radius:999px;border:1px solid rgba(212,175,55,.48);background:rgba(16,16,16,.78);color:#f0d47a;font-weight:600}
+
+.portal-home-v7 .dashboard-card{background:linear-gradient(180deg,#151515,#101010);border:1px solid #2f2f2f;border-radius:18px}
+.portal-home-v7 .dashboard-card h2{margin:0 0 14px;font-size:1.8rem;font-size:clamp(1.2rem,2vw,1.8rem)}
+.portal-home-v7 .action-card-v6{display:grid;gap:12px;align-content:start;border-color:rgba(212,175,55,.4)}
+.portal-home-v7 .action-helper{margin:0;color:#d4b257;font-size:.95rem}
+.portal-home-v7 .action-card-v6 .primary-cta{width:100%;max-width:330px}
+
+.portal-home-v7 .status-card-v6{display:grid;gap:14px}
+.portal-home-v7 .status-lines{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.portal-home-v7 .status-lines li{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid #2f2f2f;border-radius:10px;background:#141414;align-items:center}
+.portal-home-v7 .status-pill{padding:4px 10px;border-radius:999px;border:1px solid #36513a;background:rgba(86,153,89,.15);color:#acd9af;font-size:.88rem}
+.portal-home-v7 .status-summary{border:0;padding:0;background:transparent}
+
+.portal-home-v7 .mission-card-v6 .weekly-plan-grid{gap:14px}
+.portal-home-v7 .mission-card-v6 .weekly-plan-grid article{padding-bottom:12px}
+
+.portal-home-v7 .journey-card-v6 .journey-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.portal-home-v7 .journey-card-v6 .journey-list li{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid #2f2f2f;border-radius:10px;background:#131313}
+.portal-home-v7 .journey-done{color:#f0d47a}
+.portal-home-v7 .journey-current{color:#e9c86a;font-weight:700}
+.portal-home-v7 .journey-next{color:#cccccc}
+
+.portal-home-v7 .consultant-card-v6 p:last-child{font-size:1.02rem;line-height:1.62}
+.portal-home-v7 .quick-access-v6 .quick-links{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+
 @media (max-width:1024px){
   .portal-home-v7 .hero-premium{min-height:520px;height:clamp(520px,62vw,620px)}
   .portal-home-v7 .hero-content{padding:84px 30px 36px;max-width:100%}
@@ -209,16 +240,15 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
   .portal-home-v7 .hero-logo-wrap{top:14px;right:14px}
   .portal-home-v7 .hero-logo{width:76px}
   .portal-home-v7 .hero-logo-fallback{min-width:76px;font-size:1rem}
-  .portal-home-v7 .hero-premium{min-height:560px;height:auto}
+  .portal-home-v7 .hero-premium{min-height:320px;height:auto}
   .portal-home-v7 .hero-bg-image{object-position:center top}
   .portal-home-v7 .hero-premium::before{background:linear-gradient(90deg,rgba(0,0,0,.86) 0%,rgba(0,0,0,.62) 58%,rgba(0,0,0,.82) 100%)}
   .portal-home-v7 .hero-glow{opacity:.55}
-  .portal-home-v7 .hero-content{min-height:620px;padding:96px 24px 48px;max-width:100%}
-  .portal-home-v7 .hero-content h1{font-size:.95rem}
-  .portal-home-v7 .hero-title{font-size:clamp(2rem,10.5vw,3rem);line-height:1.05}
-  .portal-home-v7 .hero-subtext{max-width:100%;font-size:.95rem;line-height:1.55}
-  .portal-home-v7 .hero-cta-group{flex-direction:column;margin-top:24px}
-  .portal-home-v7 .hero-cta-group a{width:100%;min-height:54px}
+  .portal-home-v7 .hero-app{min-height:300px}
+  .portal-home-v7 .hero-app .hero-content{min-height:300px;padding:72px 20px 20px}
+  .portal-home-v7 .hero-app .hero-title{font-size:clamp(1.8rem,8vw,2.4rem)}
+  .portal-home-v7 .hero-app .hero-subtext{font-size:.95rem}
+  .portal-home-v7 .action-card-v6 .primary-cta{max-width:100%}
   .portal-home-v7 .quick-links{grid-template-columns:1fr}
 }
 
