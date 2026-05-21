@@ -12,8 +12,9 @@
 
     <section class='card hero hero-premium'>
       <div class='hero-glow' aria-hidden='true'></div>
+      <div class='hero-gold-curve' aria-hidden='true'></div>
       <div class='hero-logo-wrap'>
-        <img class="hero-logo" src="assets/logo-lm-gold.png" alt="LM" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+        <img class='hero-logo' src='assets/logo-lm-gold.png' alt='LM' onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
         <span class='hero-logo-fallback' aria-label='LM'>LM</span>
       </div>
       <div class='hero-split'>
@@ -22,93 +23,100 @@
         </div>
 
         <div class='hero-content'>
-          <p class='eyebrow'>Consultoria LM Premium</p>
           <h1 id='hello'>Olá, Aluno</h1>
           <p class='hero-title'>Sua direção da semana</p>
-          <p class='hero-subtext'>Consistência antes da intensidade. Execute o plano definido e mantenha o foco no que realmente importa agora.</p>
+          <p class='hero-subtext'>Consistência antes da intensidade. Execute o plano definido, envie seu check-in e mantenha o foco no que realmente importa agora.</p>
           <p class='hero-meta'>Análise semanal ativa</p>
           <div class='hero-cta-group'>
-            <a class='primary-cta hero-cta-primary' href='portal-checkin.html'>FAZER CHECK-IN</a>
-            <a class='outline-cta hero-cta-secondary' href='#weekly-plan-section'>VER PLANO DA SEMANA</a>
+            <a class='primary-cta hero-cta-primary' href='portal-checkin.html'>FAZER CHECK-IN AGORA</a>
           </div>
         </div>
       </div>
     </section>
 
-    <section class='card action-card next-action-section'>
-      <p class='section-kicker'>PRÓXIMA AÇÃO</p>
-      <p id='nextMsg'>Envie seu check-in para liberar a análise da semana.</p>
-      <a id='nextBtn' class='primary-cta' href='portal-checkin.html'>Fazer agora</a>
-    </section>
-
-    <section class='card status-week-section'>
-      <div>
-        <p class='section-kicker'>STATUS DA SEMANA</p>
-        <ul class='status-checklist'>
-          <li><span class='status-mark'>✓</span><span>Plano alimentar</span></li>
-          <li><span class='status-mark'>✓</span><span>Treinos</span></li>
-          <li><span class='status-mark'>○</span><span>Cardio</span></li>
-          <li><span class='status-mark'>✓</span><span>Hidratação</span></li>
+    <section class='top-cards-grid'>
+      <article class='card mission-section'>
+        <p class='section-kicker'>MISSÃO DA SEMANA</p>
+        <ul class='mission-list mission-blocks' id='weeklyMission'>
+          <li>Treinar 4x</li>
+          <li>Cardio 3x</li>
+          <li>Seguir plano alimentar</li>
+          <li>Enviar check-in</li>
         </ul>
-        <div class='status-dynamic'>
-          <span>Check-in</span>
-          <span id='checkStatus' class='badge badge-warning'>Pendente</span>
+      </article>
+
+      <article class='card action-card next-action-section'>
+        <p class='section-kicker'>PRÓXIMA AÇÃO</p>
+        <p id='nextMsg'>Envie seu check-in para liberar a análise da semana.</p>
+        <a id='nextBtn' class='primary-cta' href='portal-checkin.html'>Fazer agora</a>
+      </article>
+
+      <article class='card status-week-section'>
+        <div>
+          <p class='section-kicker'>STATUS DA SEMANA</p>
+          <ul class='status-checklist'>
+            <li><span class='status-mark'>✓</span><span>Plano alimentar</span></li>
+            <li><span class='status-mark'>✓</span><span>Treinos</span></li>
+            <li><span class='status-mark'>○</span><span>Cardio</span></li>
+            <li><span class='status-mark'>✓</span><span>Hidratação</span></li>
+          </ul>
+          <div class='status-dynamic'>
+            <span>Check-in</span>
+            <span id='checkStatus' class='badge badge-warning'>Pendente</span>
+          </div>
         </div>
-      </div>
-      <div class='status-summary'>
-        <div class='status-panel' aria-live='polite'>
-          <p class='status-panel-title'>Status</p>
-          <p id='weeklyStatusText'>Semana em andamento</p>
+        <div class='status-summary'>
+          <div class='status-panel' aria-live='polite'>
+            <p class='status-panel-title'>Status</p>
+            <p id='weeklyStatusText'>Semana em andamento</p>
+          </div>
+          <p><strong>Foco:</strong> <span id='weeklyFocus'>Consistência antes de ajuste</span></p>
+          <p id='weeklyInsight' class='muted'>Sua semana começa com clareza. Envie seu check-in para liberar a análise estratégica.</p>
         </div>
-        <p><strong>Foco:</strong> <span id='weeklyFocus'>Consistência antes de ajuste</span></p>
-        <p id='weeklyInsight' class='muted'>Sua semana começa com clareza. Envie seu check-in para liberar a análise estratégica.</p>
-      </div>
+      </article>
     </section>
 
-    <section class='card mission-section'>
-      <p class='section-kicker'>MISSÃO DA SEMANA</p>
-      <ul class='mission-list mission-blocks' id='weeklyMission'>
-        <li>Treinar 4x</li>
-        <li>Cardio 3x</li>
-        <li>Seguir plano alimentar</li>
-        <li>Enviar check-in</li>
-      </ul>
-    </section>
+    <section class='second-row-grid'>
+      <section class='card weekly-plan-editorial' id='weekly-plan-section'>
+        <p class='section-kicker'>PLANO DA SEMANA</p>
+        <div class='weekly-plan-grid'>
+          <article>
+            <h2>TREINO</h2>
+            <p id='weeklyPlanTraining'>Executar o plano prescrito no MFIT com técnica e consistência.</p>
+          </article>
+          <article>
+            <h2>CARDIO</h2>
+            <p id='weeklyPlanCardio'>Cumprir a meta semanal definida com constância.</p>
+          </article>
+          <article>
+            <h2>NUTRIÇÃO</h2>
+            <p id='weeklyPlanNutrition'>Manter o plano alimentar e evitar compensações.</p>
+          </article>
+          <article>
+            <h2>FOCO PRINCIPAL</h2>
+            <p class='weekly-insight-copy'>Consistência na execução diária.</p>
+          </article>
+          <article class='weekly-observation'>
+            <h2>OBSERVAÇÃO</h2>
+            <p id='weeklyPlanObservation'>Mensagem estratégica da semana.</p>
+          </article>
+        </div>
+      </section>
 
-    <section class='card weekly-plan-editorial' id='weekly-plan-section'>
-      <p class='section-kicker'>PLANO DA SEMANA</p>
-      <div class='weekly-plan-grid'>
-        <article>
-          <h2>TREINO</h2>
-          <p id='weeklyPlanTraining'>Executar o plano prescrito no MFIT com técnica e consistência.</p>
-        </article>
-        <article>
-          <h2>CARDIO</h2>
-          <p id='weeklyPlanCardio'>Cumprir a meta semanal definida com constância.</p>
-        </article>
-        <article>
-          <h2>NUTRIÇÃO</h2>
-          <p id='weeklyPlanNutrition'>Manter o plano alimentar e evitar compensações.</p>
-        </article>
-        <article>
-          <h2>FOCO PRINCIPAL</h2>
-          <p class='weekly-insight-copy'>Consistência na execução diária.</p>
-        </article>
-        <article class='weekly-observation'>
-          <h2>OBSERVAÇÃO</h2>
-          <p id='weeklyPlanObservation'>Mensagem estratégica da semana.</p>
-        </article>
-      </div>
+      <aside class='card consultant-note'>
+        <p class='section-kicker'>MENSAGEM DO CONSULTOR</p>
+        <p>Consistência antes de perfeição. Execute o básico bem feito.</p>
+      </aside>
     </section>
 
     <section class='card quick-access'>
       <p class='section-kicker'>ACESSO RÁPIDO</p>
       <div class='quick-links'>
-        <a class='secondary-link' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'>📱 MFIT</a>
-        <a class='secondary-link' href='portal-plano-alimentar.html'>🍽 Plano Alimentar</a>
-        <a class='secondary-link' href='portal-checkin.html'>📋 Check-in</a>
-        <a class='secondary-link' href='portal-progressao.html'>🏋 Progressão</a>
-        <a class='secondary-link' href='portal-biblioteca.html'>📚 Biblioteca</a>
+        <a class='secondary-link' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'><span class='quick-icon'>🏋</span><span>MFIT</span></a>
+        <a class='secondary-link' href='portal-checkin.html'><span class='quick-icon'>✅</span><span>Check-in semanal</span></a>
+        <a class='secondary-link' href='portal-progressao.html'><span class='quick-icon'>📈</span><span>Progressão de carga</span></a>
+        <a class='secondary-link' href='portal-plano-alimentar.html'><span class='quick-icon'>🥗</span><span>Plano Alimentar</span></a>
+        <a class='secondary-link' href='portal-biblioteca.html'><span class='quick-icon'>📚</span><span>Biblioteca LM</span></a>
       </div>
     </section>
   </main>
