@@ -60,8 +60,8 @@ details{border:1px solid var(--border);border-radius:10px;padding:10px;backgroun
   background-size:cover;background-position:center;
   box-shadow:0 14px 30px rgba(0,0,0,.4),inset 0 0 0 1px rgba(212,175,55,.10)
 }
-.hero-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.45) 0%,rgba(0,0,0,.75) 70%,rgba(0,0,0,.85) 100%);z-index:-1}
-.hero-content{max-width:760px}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(rgba(0,0,0,.72),rgba(0,0,0,.55));z-index:0}
+.hero-content{max-width:760px;position:relative;z-index:1}
 .command-center-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:16px 0}
 .command-center-grid .card{margin-bottom:0}
 .journey-track{margin:0 0 16px;padding:14px 16px;border:1px solid rgba(212,175,55,.28);border-radius:14px;background:linear-gradient(180deg,#131313,#101010)}
@@ -129,13 +129,11 @@ details{border:1px solid var(--border);border-radius:10px;padding:10px;backgroun
 
 .hero-premium{
   min-height:320px;
+  max-height:420px;
   align-items:flex-end;
-  background-image:
-    radial-gradient(circle at 85% 15%,rgba(212,175,55,.22),transparent 42%),
-    linear-gradient(95deg,rgba(0,0,0,.82) 5%,rgba(8,8,8,.74) 45%,rgba(8,8,8,.92) 100%),
-    var(--hero-image);
+  background-image:url('assets/hero-lm.jpg');
   background-size:cover;
-  background-position:center;
+  background-position:center center;
 }
 .hero-content{padding:4px 2px 2px}
 .hero-title{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;line-height:1.05;margin:0 0 12px}
@@ -175,10 +173,11 @@ details{border:1px solid var(--border);border-radius:10px;padding:10px;backgroun
 .grid .secondary-link::after{content:'›';color:#c8a849;font-size:1.15rem}
 
 @media (max-width:860px){
-  .hero-premium{min-height:300px}
+  .hero-premium{min-height:300px;max-height:360px}
   .journey-steps{grid-template-columns:1fr 1fr}
 }
 @media (max-width:640px){
+  .hero-premium{min-height:240px;max-height:300px}
   .hero-title{font-size:2rem}
   .hero-subtext{font-size:.98rem}
   .hero-meta{font-size:.74rem}
