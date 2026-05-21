@@ -142,16 +142,16 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 .portal-home-v7 .section-kicker{margin:0 0 12px;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);font-weight:700}
 
 .portal-home-v7 .hero-premium{position:relative;overflow:hidden;isolation:isolate;width:100%;padding:0;min-height:560px;height:clamp(560px,58vw,680px)}
-.portal-home-v7 .hero-premium::before{display:none}
+.portal-home-v7 .hero-premium::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 24% 45%,rgba(0,0,0,.28),rgba(0,0,0,.82) 70%),linear-gradient(102deg,rgba(0,0,0,.82) 15%,rgba(0,0,0,.55) 56%,rgba(0,0,0,.9) 100%);z-index:0}
 .portal-home-v7 .hero-bg-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center center;z-index:0}
-.portal-home-v7 .hero-overlay{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.78) 0%,rgba(0,0,0,.56) 48%,rgba(0,0,0,.86) 100%)}
+.portal-home-v7 .hero-overlay{position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.82),rgba(0,0,0,.55));z-index:1}
 
-.portal-home-v7 .hero-glow{position:absolute;inset:0;background:radial-gradient(circle at 88% 30%,rgba(212,175,55,.16),transparent 40%),radial-gradient(circle at 78% 85%,rgba(212,175,55,.1),transparent 45%);z-index:2;pointer-events:none}
-.portal-home-v7 .hero-gold-curve{position:absolute;right:-120px;top:-80px;width:420px;height:420px;border-radius:50%;border:1px solid rgba(212,175,55,.2);background:radial-gradient(circle,rgba(212,175,55,.14),rgba(212,175,55,.02) 55%,transparent 70%);filter:blur(1px);z-index:3;pointer-events:none}
-.portal-home-v7 .hero-logo-wrap{position:absolute;top:20px;right:22px;z-index:6}
+.portal-home-v7 .hero-glow{position:absolute;inset:0;background:radial-gradient(circle at 88% 30%,rgba(212,175,55,.16),transparent 40%),radial-gradient(circle at 78% 85%,rgba(212,175,55,.1),transparent 45%);z-index:2}
+.portal-home-v7 .hero-gold-curve{position:absolute;right:-120px;top:-80px;width:420px;height:420px;border-radius:50%;border:1px solid rgba(212,175,55,.2);background:radial-gradient(circle,rgba(212,175,55,.14),rgba(212,175,55,.02) 55%,transparent 70%);filter:blur(1px);z-index:3}
+.portal-home-v7 .hero-logo-wrap{position:absolute;top:20px;right:22px;z-index:5}
 .portal-home-v7 .hero-logo{display:block;width:108px;max-width:20vw;height:auto}
 .portal-home-v7 .hero-logo-fallback{display:none;align-items:center;justify-content:center;min-width:100px;padding:4px 8px;color:var(--gold-soft);font-weight:800;font-size:1.28rem;letter-spacing:.12em}
-.portal-home-v7 .hero-content{position:relative;z-index:7;min-height:inherit;height:100%;display:flex;flex-direction:column;justify-content:center;padding:96px clamp(22px,6vw,72px) 52px;max-width:820px}
+.portal-home-v7 .hero-content{position:relative;z-index:4;display:flex;flex-direction:column;justify-content:center;height:100%;padding:96px clamp(22px,6vw,72px) 52px;max-width:820px}
 .portal-home-v7 .hero-eyebrow{margin:0 0 14px;font-size:.8rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#e8c86a}
 .portal-home-v7 .hero-content h1{margin:0 0 16px;font-size:clamp(.95rem,1.35vw,1.1rem);font-weight:500;color:#dbdbdb;letter-spacing:.06em}
 .portal-home-v7 .hero-title{margin:0 0 16px;font-size:clamp(2.5rem,5.8vw,5.1rem);font-weight:800;line-height:1.02;letter-spacing:.01em;color:#fff}
@@ -209,9 +209,9 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
   .portal-home-v7 .hero-logo-wrap{top:14px;right:14px}
   .portal-home-v7 .hero-logo{width:76px}
   .portal-home-v7 .hero-logo-fallback{min-width:76px;font-size:1rem}
-  .portal-home-v7 .hero-premium{min-height:620px;height:auto}
-  .portal-home-v7 .hero-bg-image{object-fit:cover;object-position:38% center;opacity:.62}
-  .portal-home-v7 .hero-overlay{background:linear-gradient(90deg,rgba(0,0,0,.88) 0%,rgba(0,0,0,.74) 58%,rgba(0,0,0,.92) 100%)}
+  .portal-home-v7 .hero-premium{min-height:560px;height:auto}
+  .portal-home-v7 .hero-bg-image{object-position:center top}
+  .portal-home-v7 .hero-premium::before{background:linear-gradient(90deg,rgba(0,0,0,.86) 0%,rgba(0,0,0,.62) 58%,rgba(0,0,0,.82) 100%)}
   .portal-home-v7 .hero-glow{opacity:.55}
   .portal-home-v7 .hero-content{min-height:620px;padding:96px 24px 48px;max-width:100%}
   .portal-home-v7 .hero-content h1{font-size:.95rem}
