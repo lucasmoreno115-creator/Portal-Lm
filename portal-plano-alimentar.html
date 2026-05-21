@@ -20,7 +20,7 @@
       <p id='statusText' class='muted'>Carregando seu plano alimentar...</p>
       <div id='planContent' hidden></div>
       <div id='pdfActions' hidden style='margin-top:16px;'>
-        <button id='downloadPdfBtn' type='button' class='primary-cta'>Baixar planejamento completo (PDF)</button>
+        <button id='downloadPdfBtn' type='button' class='primary-cta'>Baixar PDF completo</button>
       </div>
     </section>
   </div>
@@ -103,6 +103,18 @@
       return `<section class='card'><h2>${title}</h2>${content}</section>`;
     }
 
+    function createAccordionSection(id, title, content, isOpen) {
+      return `
+        <section class='card nutrition-accordion ${isOpen ? 'is-open' : ''}' data-accordion>
+          <button type='button' class='nutrition-accordion-header' aria-expanded='${isOpen ? 'true' : 'false'}' aria-controls='${id}'>
+            <span>${title}</span>
+            <span class='accordion-chevron' aria-hidden='true'>⌄</span>
+          </button>
+          <div id='${id}' class='nutrition-accordion-content' ${isOpen ? '' : 'hidden'}>${content}</div>
+        </section>
+      `;
+    }
+
     function renderPlan(plan) {
       const strategyGoalHtml = plan.goal
         ? `<div><p class='eyebrow'>Objetivo atual</p>${renderTextBlock(plan.goal)}</div>`
@@ -126,27 +138,77 @@
       const substitutionsHtml = renderFoodEquivalences(plan.substitutions || []);
       const adherenceRulesHtml = renderTextOrList(plan.adherence_rules);
       const message = encodeURIComponent(plan.whatsapp_message || 'Ola, estou com duvida sobre meu plano alimentar no Portal LM.');
+      const summaryHtml = `
+        <section class='card'>
+          <h2>Resumo do plano</h2>
+          <div class='nutrition-summary-grid'>
+            <article class='nutrition-summary-card'>
+              <p class='eyebrow'>Objetivo atual</p>
+              <p>Recomposi&ccedil;&atilde;o corporal</p>
+            </article>
+            <article class='nutrition-summary-card'>
+              <p class='eyebrow'>Foco da fase</p>
+              <p>Sustentar resultado e melhorar performance</p>
+            </article>
+            <article class='nutrition-summary-card'>
+              <p class='eyebrow'>Status do plano</p>
+              <p>Plano ativo</p>
+            </article>
+          </div>
+        </section>
+      `;
+
+      const mealsSection = mealsHtml ? `<div class='grid'>${mealsHtml}</div>` : '<p class="muted">Sem refei&ccedil;&otilde;es cadastradas.</p>';
+      const substitutionsSection = substitutionsHtml ? `<div class='equivalence-grid'>${substitutionsHtml}</div><p class='equivalence-note'>${equivalenceNote}</p>` : '<p class="muted">Sem equival&ecirc;ncias cadastradas.</p>';
+      const supportSection = `
+        <p class='muted'>Se surgiu qualquer d&uacute;vida na execu&ccedil;&atilde;o, pe&ccedil;a orienta&ccedil;&atilde;o antes de ajustar por conta pr&oacute;pria.</p>
+        <div class='nutrition-actions'>
+          <a class='primary-cta' href='https://wa.me/5514991174500?text=${message}' target='_blank' rel='noopener noreferrer'>Falar com Lucas sobre este plano</a>
+        </div>
+      `;
 
       planContent.innerHTML = `
-        ${sectionHtml('Estrat&eacute;gia atual', strategyHtml)}
-
-        ${sectionHtml('Refei&ccedil;&otilde;es do plano', mealsHtml ? `<div class='grid'>${mealsHtml}</div>` : '<p class="muted">Sem refei&ccedil;&otilde;es cadastradas.</p>')}
-
-        ${sectionHtml('Guia de Equival&ecirc;ncias Alimentares', substitutionsHtml ? `<div class='equivalence-grid'>${substitutionsHtml}</div><p class='equivalence-note'>${equivalenceNote}</p>` : '<p class="muted">Sem equival&ecirc;ncias cadastradas.</p>')}
-
-        ${sectionHtml('Regras de ades&atilde;o', adherenceRulesHtml || '<p class="muted">Sem regras cadastradas.</p>')}
-
-        ${sectionHtml('Observa&ccedil;&otilde;es', plan.notes ? renderTextBlock(plan.notes) : '<p class="muted">Sem observa&ccedil;&otilde;es.</p>')}
-
-        <section class='card support-card'>
-          <h2>Suporte</h2>
-          <p class='muted'>Se surgiu qualquer d&uacute;vida na execu&ccedil;&atilde;o, pe&ccedil;a orienta&ccedil;&atilde;o antes de ajustar por conta pr&oacute;pria.</p>
-          <a class='primary-cta' href='https://wa.me/5514991174500?text=${message}' target='_blank' rel='noopener noreferrer'>Tenho d&uacute;vida sobre meu plano</a>
-        </section>
+        ${summaryHtml}
+        ${createAccordionSection('acc-strategy', 'Estrat&eacute;gia atual', strategyHtml, false)}
+        ${createAccordionSection('acc-meals', 'Refei&ccedil;&otilde;es do plano', mealsSection, true)}
+        ${createAccordionSection('acc-equivalences', 'Guia de Equival&ecirc;ncias Alimentares', substitutionsSection, false)}
+        ${createAccordionSection('acc-rules', 'Regras de ades&atilde;o', adherenceRulesHtml || '<p class="muted">Sem regras cadastradas.</p>', false)}
+        ${createAccordionSection('acc-notes', 'Observa&ccedil;&otilde;es', plan.notes ? renderTextBlock(plan.notes) : '<p class="muted">Sem observa&ccedil;&otilde;es.</p>', false)}
+        ${createAccordionSection('acc-support', 'Suporte', supportSection, false)}
       `;
 
       statusText.hidden = true;
       planContent.hidden = false;
+      bindAccordions();
+      setAccordionDefaultByViewport();
+    }
+
+    function toggleAccordion(section, shouldOpen) {
+      const header = section.querySelector('.nutrition-accordion-header');
+      const content = section.querySelector('.nutrition-accordion-content');
+      if (!header || !content) return;
+      section.classList.toggle('is-open', shouldOpen);
+      header.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+      content.hidden = !shouldOpen;
+    }
+
+    function bindAccordions() {
+      document.querySelectorAll('[data-accordion]').forEach((section) => {
+        const header = section.querySelector('.nutrition-accordion-header');
+        if (!header) return;
+        header.addEventListener('click', () => {
+          const isOpen = section.classList.contains('is-open');
+          toggleAccordion(section, !isOpen);
+        });
+      });
+    }
+
+    function setAccordionDefaultByViewport() {
+      if (window.innerWidth > 720) return;
+      document.querySelectorAll('[data-accordion]').forEach((section) => {
+        const content = section.querySelector('.nutrition-accordion-content');
+        toggleAccordion(section, content?.id === 'acc-meals');
+      });
     }
 
     function downloadPlanPdf() {

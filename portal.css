@@ -297,3 +297,49 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
     min-height:auto;
   }
 }
+
+.hero .eyebrow{margin:0 0 8px;font-size:.76rem;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);font-weight:700}
+.hero h1{margin:0 0 8px;font-size:clamp(1.6rem,3.2vw,2.2rem)}
+.hero-subtext{margin:0;color:#d6d6d6;max-width:68ch}
+
+#planContent{display:grid;gap:14px}
+#planContent .card h2{margin:0;font-size:1.1rem}
+#planContent p{margin:0;overflow-wrap:anywhere}
+
+.nutrition-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.nutrition-summary-card{padding:14px;border:1px solid #333;border-radius:12px;background:#171717;display:grid;gap:6px}
+.nutrition-summary-card p:last-child{font-weight:600;color:#f0f0f0}
+
+.nutrition-accordion{padding:0;overflow:hidden}
+.nutrition-accordion-header{width:100%;display:flex;justify-content:space-between;align-items:center;padding:16px 18px;background:#141414;border:0;border-bottom:1px solid transparent;color:#fff;text-align:left;font-weight:700;letter-spacing:.01em}
+.nutrition-accordion.is-open .nutrition-accordion-header{border-bottom-color:#2f2f2f}
+.nutrition-accordion-content{padding:16px 18px;display:grid;gap:12px}
+.accordion-chevron{transition:transform .2s ease}
+.nutrition-accordion.is-open .accordion-chevron{transform:rotate(180deg)}
+
+.meal-card{padding:14px;border:1px solid #313131;border-radius:12px;background:#171717;display:grid;gap:8px;min-width:0}
+.meal-card h3{margin:0;font-size:1rem}
+.meal-card p{white-space:pre-line;line-height:1.6}
+
+.equivalence-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.equivalence-card{padding:14px;border:1px solid #313131;border-radius:12px;background:#171717;display:grid;gap:8px;min-width:0}
+.equivalence-card-title{display:flex;gap:8px;align-items:center}
+.equivalence-card h3{margin:0;font-size:1rem}
+.equivalence-icon{color:var(--gold);font-weight:700}
+.equivalence-reference{color:#d7d7d7;font-weight:600}
+.mission-list{margin:0;padding-left:18px;display:grid;gap:6px}
+.equivalence-note{margin-top:4px;color:#bdbdbd;font-size:.95rem}
+
+.nutrition-actions{display:grid;gap:10px}
+.nutrition-actions .primary-cta{width:100%;text-transform:none;letter-spacing:0}
+
+@media (max-width:720px){
+  .container{padding:14px}
+  .card{padding:16px}
+  .nutrition-summary-grid{grid-template-columns:1fr}
+  .nutrition-accordion-header{padding:15px 14px;font-size:1rem}
+  .nutrition-accordion-content{padding:14px}
+  .grid,.equivalence-grid{grid-template-columns:1fr}
+  .meal-card,.equivalence-card{padding:13px}
+  a.primary-cta,button.primary-cta{width:100%;min-width:0;white-space:normal;text-align:center;padding-inline:14px}
+}
