@@ -115,6 +115,95 @@
       `;
     }
 
+    function buildFoodConverterSection() {
+      return `
+        <div class='nutrition-tools-card'>
+          <div class='food-converter'>
+            <h3>🥩 Conversor Cru ↔ Pronto</h3>
+            <p class='muted'>Use esta ferramenta para estimar o peso aproximado da prote&iacute;na antes ou depois do preparo.</p>
+            <div class='food-converter-grid'>
+              <div class='food-converter-field'>
+                <label for='foodType'>Tipo de alimento</label>
+                <select id='foodType'>
+                  <option value='frango'>Frango</option>
+                  <option value='carne bovina'>Carne bovina</option>
+                  <option value='carne suina'>Carne su&iacute;na</option>
+                  <option value='peixe'>Peixe</option>
+                </select>
+              </div>
+              <div class='food-converter-field'>
+                <label for='foodDirection'>Convers&atilde;o</label>
+                <select id='foodDirection'>
+                  <option value='raw_to_cooked'>Cru → Pronto</option>
+                  <option value='cooked_to_raw'>Pronto → Cru</option>
+                </select>
+              </div>
+              <div class='food-converter-field'>
+                <label for='foodWeight'>Peso</label>
+                <div class='food-converter-weight-wrap'>
+                  <input id='foodWeight' type='number' min='0' step='1' placeholder='Ex: 150' inputmode='numeric'>
+                  <span>g</span>
+                </div>
+              </div>
+            </div>
+            <p id='foodConverterResult' class='food-converter-result' aria-live='polite'>Informe o peso para calcular.</p>
+            <p class='food-converter-note'>Valores aproximados. O peso final pode variar conforme m&eacute;todo de preparo, tempo de coc&ccedil;&atilde;o e teor de &aacute;gua do alimento.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    function setupFoodConverter() {
+      const foodType = document.getElementById('foodType');
+      const foodDirection = document.getElementById('foodDirection');
+      const foodWeight = document.getElementById('foodWeight');
+      const result = document.getElementById('foodConverterResult');
+      if (!foodType || !foodDirection || !foodWeight || !result) return;
+
+      const lossRateByFood = {
+        frango: 0.3,
+        'carne bovina': 0.3,
+        'carne suina': 0.3,
+        peixe: 0.2
+      };
+      const labelByFood = {
+        frango: 'frango',
+        'carne bovina': 'carne bovina',
+        'carne suina': 'carne suína',
+        peixe: 'peixe'
+      };
+
+      const updateResult = () => {
+        const weight = Number(foodWeight.value);
+        const selectedFood = foodType.value;
+        const selectedDirection = foodDirection.value;
+        const lossRate = lossRateByFood[selectedFood] ?? 0.3;
+
+        if (!Number.isFinite(weight) || weight <= 0) {
+          result.textContent = 'Informe o peso para calcular.';
+          return;
+        }
+
+        const baseFactor = 1 - lossRate;
+        const convertedWeight = selectedDirection === 'raw_to_cooked'
+          ? weight * baseFactor
+          : weight / baseFactor;
+
+        const roundedInput = Math.round(weight);
+        const roundedResult = Math.round(convertedWeight);
+        const foodLabel = labelByFood[selectedFood] || selectedFood;
+
+        result.textContent = selectedDirection === 'raw_to_cooked'
+          ? `${roundedInput}g de ${foodLabel} cru equivalem a aproximadamente ${roundedResult}g pronto.`
+          : `${roundedInput}g de ${foodLabel} pronto equivalem a aproximadamente ${roundedResult}g cru.`;
+      };
+
+      foodType.addEventListener('change', updateResult);
+      foodDirection.addEventListener('change', updateResult);
+      foodWeight.addEventListener('input', updateResult);
+      updateResult();
+    }
+
     function renderPlan(plan) {
       const strategyGoalHtml = plan.goal
         ? `<div><p class='eyebrow'>🎯 Objetivo atual</p>${renderTextBlock(plan.goal)}</div>`
@@ -174,6 +263,7 @@
         ${createAccordionSection('acc-equivalences', 'Guia de Equival&ecirc;ncias Alimentares', substitutionsSection, false)}
         ${createAccordionSection('acc-rules', 'Regras de ades&atilde;o', adherenceRulesHtml || '<p class="muted">Sem regras cadastradas.</p>', false)}
         ${createAccordionSection('acc-notes', 'Observa&ccedil;&otilde;es', plan.notes ? renderTextBlock(plan.notes) : '<p class="muted">Sem observa&ccedil;&otilde;es.</p>', false)}
+        ${createAccordionSection('acc-tools', '🧮 Ferramentas nutricionais', buildFoodConverterSection(), false)}
         ${createAccordionSection('acc-support', 'Suporte', supportSection, false)}
       `;
 
@@ -181,6 +271,7 @@
       planContent.hidden = false;
       bindAccordions();
       setAccordionDefaultByViewport();
+      setupFoodConverter();
     }
 
     function toggleAccordion(section, shouldOpen) {
