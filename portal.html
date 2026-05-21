@@ -7,10 +7,7 @@
   <link rel='stylesheet' href='portal.css'>
 </head>
 <body class="portal-home-v7">
-  <main class='container home-main'>
-    <div id='nav' class='mobile-nav'></div>
-
-    <section class='hero hero-premium'>
+  <section class='hero hero-premium'>
       <div class='hero-glow' aria-hidden='true'></div>
       <div class='hero-gold-curve' aria-hidden='true'></div>
       <div class='hero-logo-wrap'>
@@ -20,20 +17,23 @@
       <div class='hero-content'>
         <p class='hero-eyebrow'>CONSULTORIA PREMIUM LM</p>
         <h1 id='hello'>Olá, Aluno 👋</h1>
-        <p class='hero-title'>Seu plano da semana,<br>com direção clara.</p>
-        <p class='hero-subtext'>Acompanhe sua estratégia, execute suas prioridades e saiba exatamente o que fazer agora para evoluir com consistência.</p>
+        <p class='hero-title'>Sua semana com mais clareza.</p>
+        <p class='hero-subtext'>Aqui você encontra a direção principal da semana, seus próximos passos e os ajustes que ajudam a manter constância sem precisar buscar perfeição.</p>
         <div class='hero-cta-group'>
-          <a class='primary-cta hero-cta-primary' href='#weekly-plan-section'>Ver plano da semana</a>
-          <a class='hero-cta-secondary' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'>Abrir MFIT</a>
+          <a class='primary-cta hero-cta-primary' href='#weekly-plan-section'>Ver direção da semana</a>
+          <a class='hero-cta-secondary' href='portal-checkin.html'>Enviar check-in</a>
         </div>
       </div>
-    </section>
+  </section>
+
+  <main class='container home-main'>
+    <div id='nav' class='mobile-nav'></div>
 
     <section class='top-cards-grid'>
       <article class='card action-card next-action-section'>
         <p class='section-kicker'>PRÓXIMA AÇÃO</p>
-        <p id='nextMsg'>Envie seu check-in para liberar a análise da semana.</p>
-        <a id='nextBtn' class='primary-cta' href='portal-checkin.html'>Fazer agora</a>
+        <p id='nextMsg'>Quando puder, envie seu check-in para que eu consiga acompanhar sua evolução com mais precisão.</p>
+        <a id='nextBtn' class='primary-cta' href='portal-checkin.html'>Enviar check-in</a>
       </article>
 
       <article class='card status-week-section'>
@@ -53,10 +53,10 @@
         <div class='status-summary'>
           <div class='status-panel' aria-live='polite'>
             <p class='status-panel-title'>Status</p>
-            <p id='weeklyStatusText'>Semana em andamento</p>
+            <p id='weeklyStatusText'>Sua semana já está em andamento</p>
           </div>
-          <p><strong>Foco:</strong> <span id='weeklyFocus'>Consistência antes de ajuste</span></p>
-          <p id='weeklyInsight' class='muted'>Sua semana começa com clareza. Envie seu check-in para liberar a análise estratégica.</p>
+          <p><strong>Foco:</strong> <span id='weeklyFocus'>Constância antes de novos ajustes</span></p>
+          <p id='weeklyInsight' class='muted'>Seu próximo passo está aqui: quando puder, envie seu check-in para que eu consiga ajustar sua semana com mais precisão.</p>
         </div>
       </article>
     </section>
@@ -67,30 +67,30 @@
         <div class='weekly-plan-grid'>
           <article>
             <h2>TREINO</h2>
-            <p id='weeklyPlanTraining'>Executar o plano prescrito no MFIT com técnica e consistência.</p>
+            <p id='weeklyPlanTraining'>Use o treino no MFIT como base da semana, priorizando técnica, controle e regularidade.</p>
           </article>
           <article>
             <h2>CARDIO</h2>
-            <p id='weeklyPlanCardio'>Cumprir a meta semanal definida com constância.</p>
+            <p id='weeklyPlanCardio'>Busque realizar o cardio combinado da forma mais sustentável possível dentro da sua rotina.</p>
           </article>
           <article>
             <h2>NUTRIÇÃO</h2>
-            <p id='weeklyPlanNutrition'>Manter o plano alimentar e evitar compensações.</p>
+            <p id='weeklyPlanNutrition'>Procure manter a alimentação alinhada ao plano, sem transformar pequenos desvios em culpa ou compensações exageradas.</p>
           </article>
           <article>
             <h2>MISSÃO PRINCIPAL</h2>
-            <p class='weekly-insight-copy'>Consistência na execução diária.</p>
+            <p class='weekly-insight-copy'>Manter pequenas decisões bem feitas ao longo da semana.</p>
           </article>
           <article class='weekly-observation'>
             <h2>OBSERVAÇÃO</h2>
-            <p id='weeklyPlanObservation'>Mensagem estratégica da semana.</p>
+            <p id='weeklyPlanObservation'>Sua orientação estratégica aparecerá aqui sempre que houver uma atualização.</p>
           </article>
         </div>
       </section>
 
       <aside class='card consultant-note'>
         <p class='section-kicker'>MENSAGEM DO CONSULTOR</p>
-        <p>Consistência antes de perfeição. Execute o básico bem feito.</p>
+        <p>Não precisa ser uma semana perfeita. O mais importante é manter direção, ajustar o que for necessário e seguir com constância.</p>
       </aside>
     </section>
 
@@ -159,7 +159,7 @@
           checkStatusEl.classList.add('badge-ok');
           weeklyStatusTextEl.textContent = 'Check-in enviado';
 
-          nextMsgEl.textContent = 'Check-in recebido. Agora sua semana entra em fase de acompanhamento.';
+          nextMsgEl.textContent = 'Check-in recebido. A partir dele, consigo acompanhar melhor sua semana e ajustar o que for necessário.';
           nextBtnEl.textContent = 'Ver histórico de check-ins';
           nextBtnEl.href = 'portal-checkin.html';
         }
