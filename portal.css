@@ -314,6 +314,7 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 .nutrition-accordion-header{width:100%;display:flex;justify-content:space-between;align-items:center;padding:16px 18px;background:#141414;border:0;border-bottom:1px solid transparent;color:#fff;text-align:left;font-weight:700;letter-spacing:.01em}
 .nutrition-accordion.is-open .nutrition-accordion-header{border-bottom-color:#2f2f2f}
 .nutrition-accordion-content{padding:16px 18px;display:grid;gap:12px}
+.nutrition-accordion-content[hidden]{display:none !important}
 .accordion-chevron{transition:transform .2s ease}
 .nutrition-accordion.is-open .accordion-chevron{transform:rotate(180deg)}
 

@@ -117,12 +117,12 @@
 
     function renderPlan(plan) {
       const strategyGoalHtml = plan.goal
-        ? `<div><p class='eyebrow'>Objetivo atual</p>${renderTextBlock(plan.goal)}</div>`
+        ? `<div><p class='eyebrow'>🎯 Objetivo atual</p>${renderTextBlock(plan.goal)}</div>`
         : '';
       const strategyFocusHtml = (() => {
         const focusHtml = renderTextOrList(plan.strategy);
         if (!focusHtml) return '';
-        return `<div><p class='eyebrow'>Foco da fase</p>${focusHtml}</div>`;
+        return `<div><p class='eyebrow'>📈 Foco da fase</p>${focusHtml}</div>`;
       })();
       const strategyHtml = strategyGoalHtml || strategyFocusHtml
         ? `${strategyGoalHtml}${strategyFocusHtml}`
@@ -143,15 +143,15 @@
           <h2>Resumo do plano</h2>
           <div class='nutrition-summary-grid'>
             <article class='nutrition-summary-card'>
-              <p class='eyebrow'>Objetivo atual</p>
+              <p class='eyebrow'>🎯 Objetivo atual</p>
               <p>Recomposi&ccedil;&atilde;o corporal</p>
             </article>
             <article class='nutrition-summary-card'>
-              <p class='eyebrow'>Foco da fase</p>
+              <p class='eyebrow'>📈 Foco da fase</p>
               <p>Sustentar resultado e melhorar performance</p>
             </article>
             <article class='nutrition-summary-card'>
-              <p class='eyebrow'>Status do plano</p>
+              <p class='eyebrow'>✅ Status do plano</p>
               <p>Plano ativo</p>
             </article>
           </div>
@@ -196,10 +196,10 @@
       document.querySelectorAll('[data-accordion]').forEach((section) => {
         const header = section.querySelector('.nutrition-accordion-header');
         if (!header) return;
-        header.addEventListener('click', () => {
+        header.onclick = () => {
           const isOpen = section.classList.contains('is-open');
           toggleAccordion(section, !isOpen);
-        });
+        };
       });
     }
 
