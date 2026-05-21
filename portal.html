@@ -10,23 +10,33 @@
   <div class='container'>
     <div id='nav'></div>
 
-    <section class='card hero'>
-      <p class='eyebrow'>Consultoria LM</p>
-      <h1 id='hello'>Olá, Aluno</h1>
-      <p class='hero-title'>Seu painel estratégico da semana</p>
-      <p class='muted'>O treino completo está no MFIT. Aqui você acompanha sua execução, envia feedback e entende o foco da semana.</p>
+    <section class='card hero hero-premium'>
+      <div class='hero-overlay'></div>
+      <div class='hero-content'>
+        <p class='eyebrow'>Consultoria LM</p>
+        <h1 id='hello'>Olá, Aluno</h1>
+        <p class='hero-title'>Sua direção da semana</p>
+        <p class='hero-subtext'>Execute o plano definido, envie seu check-in e mantenha consistência no que realmente importa agora.</p>
+      </div>
     </section>
 
-    <section class='card mfit-card'>
-      <h2>Direcionamento da semana</h2>
-      <p>Seu treino está disponível no MFIT.<br><br>Use o Portal LM para acompanhar sua execução, registrar feedbacks e manter consistência durante a semana.</p>
-      <!-- TODO: substituir pelo link oficial/individual do MFIT quando disponível -->
-      <a class='primary-cta' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'>Abrir MFIT</a>
-      <p class='muted'><a href='https://wa.me/5514991174500' target='_blank' rel='noopener noreferrer'>Falar com suporte</a></p>
-      <p class='muted'>Se houver divergência entre MFIT e Portal LM, siga sempre o treino prescrito no MFIT.</p>
-    </section>
+    <section class='command-center-grid'>
+      <section class='card metric-card'>
+        <h2>Missão da semana</h2>
+        <ul class='mission-list' id='weeklyMission'>
+          <li><strong>Treino:</strong> executar o que está prescrito no MFIT.</li>
+          <li><strong>Cardio:</strong> cumprir a orientação combinada.</li>
+          <li><strong>Nutrição:</strong> manter adesão ao plano alimentar.</li>
+          <li><strong>Feedback:</strong> enviar check-in semanal.</li>
+        </ul>
+      </section>
 
-    <div class='command-grid'>
+      <section class='card action-card'>
+        <h2>Próxima ação</h2>
+        <p id='nextMsg'>Envie seu check-in para liberar a análise da semana.</p>
+        <a id='nextBtn' class='primary-cta' href='portal-checkin.html'>Fazer check-in agora</a>
+      </section>
+
       <section class='card metric-card'>
         <h2>Status da semana</h2>
         <ul class='status-list'>
@@ -37,22 +47,25 @@
         </ul>
         <p id='weeklyInsight' class='muted'>Sua semana começa com clareza. Envie seu check-in para liberar a análise estratégica.</p>
       </section>
+    </section>
 
-      <section class='card action-card'>
-        <h2>Sua próxima ação</h2>
-        <p id='nextMsg'>Envie seu check-in para liberar a análise da semana.</p>
-        <a id='nextBtn' class='primary-cta' href='portal-checkin.html'>Fazer check-in agora</a>
-      </section>
-    </div>
+    <section class='journey-track'>
+      <div class='journey-label'>Jornada LM</div>
+      <ol class='journey-steps'>
+        <li>Direção definida</li>
+        <li>Execução no MFIT</li>
+        <li>Check-in enviado</li>
+        <li>Ajuste estratégico</li>
+      </ol>
+    </section>
 
-    <section class='card metric-card'>
-      <h2>Missão da semana</h2>
-      <ul class='mission-list' id='weeklyMission'>
-        <li><strong>Treino:</strong> executar o que está prescrito no MFIT.</li>
-        <li><strong>Cardio:</strong> cumprir a orientação combinada.</li>
-        <li><strong>Nutrição:</strong> manter adesão ao plano alimentar.</li>
-        <li><strong>Feedback:</strong> enviar check-in semanal.</li>
-      </ul>
+    <section class='card mfit-card'>
+      <h2>Direcionamento da semana</h2>
+      <p>Seu treino está disponível no MFIT.<br><br>Use o Portal LM para acompanhar sua execução, registrar feedbacks e manter consistência durante a semana.</p>
+      <!-- TODO: substituir pelo link oficial/individual do MFIT quando disponível -->
+      <a class='primary-cta' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'>Abrir MFIT</a>
+      <p class='muted'><a href='https://wa.me/5514991174500' target='_blank' rel='noopener noreferrer'>Falar com suporte</a></p>
+      <p class='muted'>Se houver divergência entre MFIT e Portal LM, siga sempre o treino prescrito no MFIT.</p>
     </section>
 
     <section class='card metric-card'>
