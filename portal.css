@@ -184,3 +184,53 @@ details{border:1px solid var(--border);border-radius:10px;padding:10px;backgroun
   .journey-steps{grid-template-columns:1fr}
   .premium-journey li{padding:11px}
 }
+
+/* Home V3 Premium */
+.hero-premium{
+  position:relative;
+  min-height:500px;
+  max-height:none;
+  padding:0;
+  overflow:hidden;
+  border:1px solid rgba(212,175,55,.35);
+  border-radius:20px;
+  background:linear-gradient(125deg,#0f0f0f 0%,#111111 56%,#1b1609 100%);
+  box-shadow:0 24px 60px rgba(0,0,0,.55), inset 0 0 0 1px rgba(212,175,55,.11);
+}
+.hero-glow{position:absolute;inset:0;pointer-events:none;background:
+  radial-gradient(circle at 92% 34%,rgba(212,175,55,.18),transparent 40%),
+  radial-gradient(circle at 78% 100%,rgba(212,175,55,.1),transparent 42%);
+}
+.hero-split{display:grid;grid-template-columns:40% 60%;min-height:500px;position:relative;z-index:1}
+.hero-image-panel{position:relative;background:
+  linear-gradient(165deg,rgba(0,0,0,.15),rgba(0,0,0,.5)),
+  url('assets/hero-lm.jpg'),
+  linear-gradient(120deg,#181818,#2a2a2a);
+  background-size:cover;
+  background-position:center top;
+  border-right:1px solid rgba(212,175,55,.15);
+}
+.hero-image-overlay{position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.2) 0%,rgba(0,0,0,.65) 100%)}
+.hero-content{display:flex;flex-direction:column;justify-content:center;padding:42px 44px;max-width:none}
+.hero-title{font-size:clamp(2rem,3vw,2.8rem);font-weight:800;line-height:1.05}
+.hero-subtext{font-size:1.05rem;max-width:620px;color:#d4d4d4}
+.hero-meta{width:max-content}
+.hero-anchor-cta{display:inline-flex;align-items:center;justify-content:center;margin-top:18px;padding:12px 18px;border-radius:11px;border:1px solid #e2c35e;background:linear-gradient(180deg,#e4c764,#cfa537);color:#1a1304;text-decoration:none;font-weight:800;letter-spacing:.03em;box-shadow:0 8px 24px rgba(212,175,55,.28)}
+
+.command-center-grid{grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch}
+.status-card{border-color:rgba(212,175,55,.38);box-shadow:0 14px 30px rgba(0,0,0,.38), inset 0 0 0 1px rgba(212,175,55,.1)}
+.status-card .status-list li{background:#121212;border-color:#363636}
+.status-card .status-list li span:first-child{font-weight:600;color:#d2d2d2}
+
+@media (max-width:960px){
+  .hero-premium{min-height:unset}
+  .hero-split{grid-template-columns:1fr;min-height:unset}
+  .hero-image-panel{min-height:220px;border-right:0;border-bottom:1px solid rgba(212,175,55,.15)}
+  .hero-image-overlay{background:linear-gradient(180deg,rgba(0,0,0,.32) 0%,rgba(0,0,0,.66) 100%)}
+  .hero-content{padding:26px 22px 28px}
+}
+@media (max-width:640px){
+  .hero-title{font-size:clamp(1.55rem,8vw,2rem)}
+  .hero-subtext{font-size:.98rem}
+  .hero-anchor-cta{width:100%}
+}
