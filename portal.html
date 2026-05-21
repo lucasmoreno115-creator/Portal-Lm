@@ -7,10 +7,15 @@
   <link rel='stylesheet' href='portal.css'>
 </head>
 <body>
-  <div class='container'>
-    <div id='nav'></div>
+  <div class='home-layout'>
+    <aside class='home-sidebar' aria-label='Navegação'>
+      <div id='nav'></div>
+    </aside>
 
-    <section class='card hero hero-premium'>
+    <main class='container home-main'>
+      <section class='card hero hero-premium'>
+        <img class='hero-logo' src='assets/logo-lm-gold.png' alt='Logo LM' onerror="this.style.display='none'; this.parentElement.classList.add('hero-logo-fallback');">
+
       <div class='hero-glow' aria-hidden='true'></div>
       <div class='hero-split'>
         <div class='hero-image-panel' aria-hidden='true'>
@@ -25,9 +30,9 @@
           <a class='hero-anchor-cta' href='#weeklyMission'>Ver plano da semana</a>
         </div>
       </div>
-    </section>
+      </section>
 
-    <section class='command-center'>
+      <section class='command-center'>
       <p class='section-label'>Sua estratégia da semana</p>
       <section class='command-center-grid'>
         <section class='card metric-card status-card'>
@@ -59,33 +64,36 @@
       </section>
     </section>
 
-    <section class='journey-track'>
-      <div class='journey-label'>Jornada LM</div>
-      <ol class='journey-steps premium-journey'>
-        <li class='is-complete'><span class='state' aria-hidden='true'>✓</span><span class='journey-step-text'>Avaliação inicial</span></li>
-        <li class='is-complete'><span class='state' aria-hidden='true'>✓</span><span class='journey-step-text'>Plano criado</span></li>
-        <li class='is-complete'><span class='state' aria-hidden='true'>✓</span><span class='journey-step-text'>Execução ativa</span></li>
-        <li class='is-current'><span class='state' aria-hidden='true'>●</span><span class='journey-step-text'>Check-in semanal</span></li>
-        <li class='is-next'><span class='state' aria-hidden='true'>○</span><span class='journey-step-text'>Próximo ajuste</span></li>
-      </ol>
-      <p class='journey-legend'><span>✓ concluído</span><span>● etapa atual</span><span>○ próxima etapa</span></p>
-    </section>
+      <section class='dashboard-grid'>
+        <section class='journey-track card'>
+          <div class='journey-label'>Jornada LM</div>
+          <ol class='journey-steps premium-journey'>
+            <li class='is-complete'><span class='state' aria-hidden='true'>✓</span><span class='journey-step-text'>Avaliação inicial</span></li>
+            <li class='is-complete'><span class='state' aria-hidden='true'>✓</span><span class='journey-step-text'>Plano criado</span></li>
+            <li class='is-complete'><span class='state' aria-hidden='true'>✓</span><span class='journey-step-text'>Execução ativa</span></li>
+            <li class='is-current'><span class='state' aria-hidden='true'>●</span><span class='journey-step-text'>Check-in semanal</span></li>
+            <li class='is-next'><span class='state' aria-hidden='true'>○</span><span class='journey-step-text'>Próximo ajuste</span></li>
+          </ol>
+          <p class='journey-legend'><span>✓ concluído</span><span>● etapa atual</span><span>○ próxima etapa</span></p>
+        </section>
 
-    <section class='card metric-card'>
-      <h2>Mensagem do seu consultor</h2>
-      <p class='coach-note'>“Nessa semana, o foco é executar o plano com consistência. Não busque perfeição. Busque repetir o básico bem feito.”</p>
-    </section>
+        <section class='card metric-card'>
+          <h2>Mensagem do seu consultor</h2>
+          <p class='coach-note'>“Nessa semana, o foco é executar o plano com consistência. Não busque perfeição. Busque repetir o básico bem feito.”</p>
+        </section>
 
-    <section class='card metric-card'>
-      <h2>Acesso rápido</h2>
-      <div class='grid'>
-        <a class='secondary-link' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'>📱 MFIT</a>
-        <a class='secondary-link' href='portal-checkin.html'>📋 Check-in semanal</a>
-        <a class='secondary-link' href='portal-progressao.html'>🏋️ Progressão de carga</a>
-        <a class='secondary-link' href='portal-plano-alimentar.html'>🍽 Plano Alimentar</a>
-        <a class='secondary-link' href='portal-biblioteca.html'>📚 Biblioteca LM</a>
-      </div>
-    </section>
+        <section class='card metric-card'>
+          <h2>Acesso rápido</h2>
+          <div class='grid'>
+            <a class='secondary-link' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'>📱 MFIT</a>
+            <a class='secondary-link' href='portal-checkin.html'>📋 Check-in semanal</a>
+            <a class='secondary-link' href='portal-progressao.html'>🏋️ Progressão de carga</a>
+            <a class='secondary-link' href='portal-plano-alimentar.html'>🍽 Plano Alimentar</a>
+            <a class='secondary-link' href='portal-biblioteca.html'>📚 Biblioteca LM</a>
+          </div>
+        </section>
+      </section>
+    </main>
   </div>
 
   <script src='portal-shared.js'></script>
