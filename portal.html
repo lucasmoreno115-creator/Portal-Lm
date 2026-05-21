@@ -17,19 +17,20 @@
         <h1 id='hello'>Olá, Aluno</h1>
         <p class='hero-title'>Sua direção da semana</p>
         <p class='hero-subtext'>Consistência antes da intensidade. Execute o plano definido, envie seu check-in e mantenha o foco no que realmente importa agora.</p>
+        <p class='hero-meta'>Análise semanal ativa</p>
       </div>
     </section>
 
     <section class='command-center'>
-      <p class='section-label'>Seu command center</p>
+      <p class='section-label'>Sua estratégia da semana</p>
       <section class='command-center-grid'>
         <section class='card metric-card'>
           <h2>Missão da semana</h2>
-          <ul class='mission-list' id='weeklyMission'>
-            <li><strong>Treino:</strong> executar o que está prescrito no MFIT.</li>
-            <li><strong>Cardio:</strong> cumprir a orientação combinada.</li>
-            <li><strong>Nutrição:</strong> manter adesão ao plano alimentar.</li>
-            <li><strong>Feedback:</strong> enviar check-in semanal.</li>
+          <ul class='mission-list mission-blocks' id='weeklyMission'>
+            <li><span class='mission-label'>Treino</span><p>Consolidar força e progressão.</p></li>
+            <li><span class='mission-label'>Cardio</span><p>2–3 sessões de Zona 2.</p></li>
+            <li><span class='mission-label'>Risco principal</span><p>Compensação alimentar no final de semana.</p></li>
+            <li><span class='mission-label'>Observação</span><p>Seu foco não é emagrecer mais. Seu foco é sustentar.</p></li>
           </ul>
         </section>
 
@@ -54,28 +55,29 @@
 
     <section class='journey-track'>
       <div class='journey-label'>Jornada LM</div>
-      <ol class='journey-steps'>
-        <li>Avaliação inicial</li>
-        <li>Plano criado</li>
-        <li>Execução ativa</li>
-        <li>Check-in semanal</li>
-        <li>Próximo ajuste</li>
+      <ol class='journey-steps premium-journey'>
+        <li class='is-complete'><span class='state' aria-hidden='true'>✓</span><span class='journey-step-text'>Avaliação inicial</span></li>
+        <li class='is-complete'><span class='state' aria-hidden='true'>✓</span><span class='journey-step-text'>Plano criado</span></li>
+        <li class='is-complete'><span class='state' aria-hidden='true'>✓</span><span class='journey-step-text'>Execução ativa</span></li>
+        <li class='is-current'><span class='state' aria-hidden='true'>●</span><span class='journey-step-text'>Check-in semanal</span></li>
+        <li class='is-next'><span class='state' aria-hidden='true'>○</span><span class='journey-step-text'>Próximo ajuste</span></li>
       </ol>
+      <p class='journey-legend'><span>✓ concluído</span><span>● etapa atual</span><span>○ próxima etapa</span></p>
     </section>
 
     <section class='card metric-card'>
-      <h2>Observação do Lucas</h2>
+      <h2>Mensagem do seu consultor</h2>
       <p class='coach-note'>“Nessa semana, o foco é executar o plano com consistência. Não busque perfeição. Busque repetir o básico bem feito.”</p>
     </section>
 
     <section class='card metric-card'>
       <h2>Acesso rápido</h2>
       <div class='grid'>
-        <a class='secondary-link' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'>MFIT</a>
-        <a class='secondary-link' href='portal-checkin.html'>Check-in semanal</a>
-        <a class='secondary-link' href='portal-progressao.html'>Progressão de carga</a>
-        <a class='secondary-link' href='portal-plano-alimentar.html'>Plano Alimentar</a>
-        <a class='secondary-link' href='portal-biblioteca.html'>Biblioteca LM</a>
+        <a class='secondary-link' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'>📱 MFIT</a>
+        <a class='secondary-link' href='portal-checkin.html'>📋 Check-in semanal</a>
+        <a class='secondary-link' href='portal-progressao.html'>🏋️ Progressão de carga</a>
+        <a class='secondary-link' href='portal-plano-alimentar.html'>🍽 Plano Alimentar</a>
+        <a class='secondary-link' href='portal-biblioteca.html'>📚 Biblioteca LM</a>
       </div>
     </section>
   </div>
@@ -107,10 +109,10 @@
           weeklyFocusEl.textContent = weeklyPlan.nutrition_focus || weeklyPlan.training_focus || 'Consistência antes de ajuste';
 
           const missionItems = [
-            `<li><strong>Treino:</strong> ${weeklyPlan.training_focus || 'executar o que está prescrito no MFIT.'}</li>`,
-            `<li><strong>Cardio:</strong> ${weeklyPlan.cardio_target || 'cumprir a orientação combinada.'}</li>`,
-            `<li><strong>Risco principal:</strong> ${weeklyPlan.main_risk || 'manter foco na rotina planejada.'}</li>`,
-            `<li><strong>Observação:</strong> ${weeklyPlan.coach_message || 'consistência e execução com qualidade na semana.'}</li>`
+            `<li><span class='mission-label'>Treino</span><p>${weeklyPlan.training_focus || 'executar o que está prescrito no MFIT.'}</p></li>`,
+            `<li><span class='mission-label'>Cardio</span><p>${weeklyPlan.cardio_target || 'cumprir a orientação combinada.'}</p></li>`,
+            `<li><span class='mission-label'>Risco principal</span><p>${weeklyPlan.main_risk || 'manter foco na rotina planejada.'}</p></li>`,
+            `<li><span class='mission-label'>Observação</span><p>${weeklyPlan.coach_message || 'consistência e execução com qualidade na semana.'}</p></li>`
           ];
           weeklyMissionEl.innerHTML = missionItems.join('');
 

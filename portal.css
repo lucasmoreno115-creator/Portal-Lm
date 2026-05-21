@@ -140,6 +140,7 @@ details{border:1px solid var(--border);border-radius:10px;padding:10px;backgroun
 .hero-content{padding:4px 2px 2px}
 .hero-title{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;line-height:1.05;margin:0 0 12px}
 .hero-subtext{font-size:1.06rem;max-width:700px;color:#d2d2d2}
+.hero-meta{display:inline-flex;margin-top:14px;padding:6px 10px;border-radius:999px;border:1px solid rgba(212,175,55,.38);background:rgba(0,0,0,.35);color:#f0d47a;font-size:.78rem;letter-spacing:.02em}
 
 .section-label{font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);font-weight:700;margin:8px 0 10px}
 .command-center{margin-bottom:16px}
@@ -149,9 +150,24 @@ details{border:1px solid var(--border);border-radius:10px;padding:10px;backgroun
 .status-card .status-list li{position:relative;padding-left:38px}
 .status-card .status-list li::before{content:'✓';position:absolute;left:12px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;border:1px solid rgba(212,175,55,.5);color:#f0d47a;font-size:.73rem}
 
+.mission-blocks{list-style:none;padding:0;gap:10px}
+.mission-blocks li{padding:12px;border:1px solid #2f2f2f;border-radius:11px;background:#131313}
+.mission-label{display:block;font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:#f0d47a;font-weight:700;margin-bottom:4px}
+.mission-blocks li p{margin:0;color:#dddddd;line-height:1.5;overflow-wrap:anywhere;word-break:break-word}
+
 .journey-track{padding:18px}
 .journey-steps{grid-template-columns:repeat(5,minmax(0,1fr))}
 .journey-steps li{display:flex;align-items:center;font-size:.9rem}
+.premium-journey{gap:8px}
+.premium-journey li{padding:10px 12px;border-radius:10px;border:1px solid #303030;background:#111;display:flex;gap:8px;align-items:flex-start}
+.premium-journey .state{font-weight:800;line-height:1;color:#a7a7a7;margin-top:2px}
+.premium-journey .journey-step-text{color:#e0e0e0;line-height:1.4}
+.premium-journey .is-complete{border-color:rgba(80,170,95,.55);background:rgba(80,170,95,.11)}
+.premium-journey .is-complete .state{color:#9be0a8}
+.premium-journey .is-current{border-color:rgba(212,175,55,.7);background:rgba(212,175,55,.12)}
+.premium-journey .is-current .state{color:#f0d47a}
+.premium-journey .is-next{border-color:#3a3a3a}
+.journey-legend{display:flex;flex-wrap:wrap;gap:12px;margin:10px 2px 0;color:#bdbdbd;font-size:.82rem}
 
 .coach-note{font-size:1.05rem;line-height:1.6;color:#e8dfc6;border-left:3px solid var(--gold);padding-left:14px;margin:0}
 
@@ -165,5 +181,7 @@ details{border:1px solid var(--border);border-radius:10px;padding:10px;backgroun
 @media (max-width:640px){
   .hero-title{font-size:2rem}
   .hero-subtext{font-size:.98rem}
+  .hero-meta{font-size:.74rem}
   .journey-steps{grid-template-columns:1fr}
+  .premium-journey li{padding:11px}
 }
