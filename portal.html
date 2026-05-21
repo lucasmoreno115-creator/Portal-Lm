@@ -12,6 +12,10 @@
 
     <section class='card hero hero-premium'>
       <div class='hero-glow' aria-hidden='true'></div>
+      <div class='hero-logo-wrap'>
+        <img class="hero-logo" src="assets/logo-lm-gold.png" alt="LM" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+        <span class='hero-logo-fallback' aria-label='LM'>LM</span>
+      </div>
       <div class='hero-split'>
         <div class='hero-image-panel' aria-hidden='true'>
           <div class='hero-image-overlay'></div>
@@ -52,9 +56,9 @@
         </div>
       </div>
       <div class='status-summary'>
-        <div class='progress-ring' role='img' aria-label='Execução semanal'>
-          <strong id='weeklyProgress'>75%</strong>
-          <span>execução</span>
+        <div class='status-panel' aria-live='polite'>
+          <p class='status-panel-title'>Status</p>
+          <p id='weeklyStatusText'>Semana em andamento</p>
         </div>
         <p><strong>Foco:</strong> <span id='weeklyFocus'>Consistência antes de ajuste</span></p>
         <p id='weeklyInsight' class='muted'>Sua semana começa com clareza. Envie seu check-in para liberar a análise estratégica.</p>
@@ -122,7 +126,7 @@
       const weeklyFocusEl = document.querySelector('#weeklyFocus');
       const weeklyInsightEl = document.querySelector('#weeklyInsight');
       const weeklyMissionEl = document.querySelector('#weeklyMission');
-      const weeklyProgressEl = document.querySelector('#weeklyProgress');
+      const weeklyStatusTextEl = document.querySelector('#weeklyStatusText');
       const weeklyPlanTrainingEl = document.querySelector('#weeklyPlanTraining');
       const weeklyPlanCardioEl = document.querySelector('#weeklyPlanCardio');
       const weeklyPlanNutritionEl = document.querySelector('#weeklyPlanNutrition');
@@ -155,7 +159,7 @@
             `<li>✓ ${trainingFocus}</li>`,
             `<li>✓ ${cardioTarget}</li>`,
             `<li>✓ ${nutritionFocus}</li>`,
-            `<li>✓ ${mainRisk}</li>`
+            `<li>⚠ Atenção da semana: ${mainRisk}</li>`
           ];
           weeklyMissionEl.innerHTML = missionItems.join('');
 
@@ -169,7 +173,7 @@
           checkStatusEl.textContent = 'Enviado';
           checkStatusEl.classList.remove('badge-warning');
           checkStatusEl.classList.add('badge-ok');
-          weeklyProgressEl.textContent = '100%';
+          weeklyStatusTextEl.textContent = 'Check-in enviado';
 
           nextMsgEl.textContent = 'Check-in recebido. Agora sua semana entra em fase de acompanhamento.';
           nextBtnEl.textContent = 'Ver histórico de check-ins';
