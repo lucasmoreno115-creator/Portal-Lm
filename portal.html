@@ -18,28 +18,18 @@
         <span class='hero-logo-fallback' aria-label='LM'>LM</span>
       </div>
       <div class='hero-content'>
-        <p class='hero-eyebrow'>CONSULTORIA LM PREMIUM</p>
+        <p class='hero-eyebrow'>CONSULTORIA PREMIUM LM</p>
         <h1 id='hello'>Olá, Aluno 👋</h1>
-        <p class='hero-title'>SUA DIREÇÃO<br>DA SEMANA</p>
-        <p class='hero-subtext'>Treine. Execute. Reporte.<br>O resultado vem da consistência repetida com estratégia.</p>
+        <p class='hero-title'>Seu plano da semana,<br>com direção clara.</p>
+        <p class='hero-subtext'>Acompanhe sua estratégia, execute suas prioridades e saiba exatamente o que fazer agora para evoluir com consistência.</p>
         <div class='hero-cta-group'>
-          <a class='primary-cta hero-cta-primary' href='portal-checkin.html'>FAZER CHECK-IN</a>
-          <a class='hero-cta-secondary' href='#weekly-plan-section'>VER PLANO DA SEMANA</a>
+          <a class='primary-cta hero-cta-primary' href='#weekly-plan-section'>Ver plano da semana</a>
+          <a class='hero-cta-secondary' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'>Abrir MFIT</a>
         </div>
       </div>
     </section>
 
     <section class='top-cards-grid'>
-      <article class='card mission-section'>
-        <p class='section-kicker'>MISSÃO DA SEMANA</p>
-        <ul class='mission-list mission-blocks' id='weeklyMission'>
-          <li>Treinar 4x</li>
-          <li>Cardio 3x</li>
-          <li>Seguir plano alimentar</li>
-          <li>Enviar check-in</li>
-        </ul>
-      </article>
-
       <article class='card action-card next-action-section'>
         <p class='section-kicker'>PRÓXIMA AÇÃO</p>
         <p id='nextMsg'>Envie seu check-in para liberar a análise da semana.</p>
@@ -88,7 +78,7 @@
             <p id='weeklyPlanNutrition'>Manter o plano alimentar e evitar compensações.</p>
           </article>
           <article>
-            <h2>FOCO PRINCIPAL</h2>
+            <h2>MISSÃO PRINCIPAL</h2>
             <p class='weekly-insight-copy'>Consistência na execução diária.</p>
           </article>
           <article class='weekly-observation'>
@@ -128,7 +118,6 @@
       const nextBtnEl = document.querySelector('#nextBtn');
       const weeklyFocusEl = document.querySelector('#weeklyFocus');
       const weeklyInsightEl = document.querySelector('#weeklyInsight');
-      const weeklyMissionEl = document.querySelector('#weeklyMission');
       const weeklyStatusTextEl = document.querySelector('#weeklyStatusText');
       const weeklyPlanTrainingEl = document.querySelector('#weeklyPlanTraining');
       const weeklyPlanCardioEl = document.querySelector('#weeklyPlanCardio');
@@ -158,17 +147,9 @@
           weeklyPlanNutritionEl.textContent = nutritionFocus;
           weeklyPlanObservationEl.textContent = coachMessage;
 
-          const missionItems = [
-            `<li>✓ ${trainingFocus}</li>`,
-            `<li>✓ ${cardioTarget}</li>`,
-            `<li>✓ ${nutritionFocus}</li>`,
-            `<li>⚠ Atenção da semana: ${mainRisk}</li>`
-          ];
-          weeklyMissionEl.innerHTML = missionItems.join('');
-
           weeklyInsightEl.textContent = coachMessage;
           weeklyInsightCopies.forEach((el) => {
-            el.textContent = coachMessage;
+            el.textContent = mainRisk;
           });
         }
 
