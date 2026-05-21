@@ -246,6 +246,72 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 .portal-home-v7 .consultant-card-v6 p:last-child{font-size:1.02rem;line-height:1.62}
 .portal-home-v7 .quick-access-v6 .quick-links{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
 
+@media (min-width:901px){
+  .portal-home-v7 .top-cards-grid{
+    grid-template-columns:minmax(320px,.85fr) minmax(520px,1.15fr);
+    align-items:stretch;
+  }
+
+  .portal-home-v7 .action-card-v6{
+    align-content:start;
+    min-height:260px;
+  }
+
+  .portal-home-v7 .action-card-v6 #nextMsg{max-width:42ch}
+  .portal-home-v7 .action-card-v6 .primary-cta{max-width:340px}
+
+  .portal-home-v7 .status-lines li{
+    display:grid;
+    grid-template-columns:minmax(150px,220px) 1fr;
+    align-items:center;
+  }
+
+  .portal-home-v7 .status-lines li strong,
+  .portal-home-v7 .status-lines li span:last-child{
+    justify-self:end;
+    text-align:right;
+  }
+
+  .portal-home-v7 .status-lines li:last-child{
+    grid-template-columns:160px 1fr;
+    align-items:start;
+  }
+
+  .portal-home-v7 .status-lines li:last-child strong{
+    justify-self:start;
+    text-align:left;
+    line-height:1.45;
+    max-width:100%;
+  }
+
+  .portal-home-v7 .dashboard-card,
+  .portal-home-v7 .dashboard-card *,
+  .portal-home-v7 .status-lines li,
+  .portal-home-v7 .journey-list li{
+    overflow-wrap:normal;
+    word-break:normal;
+    min-width:0;
+    max-width:100%;
+  }
+
+  .portal-home-v7 .hero-app{height:clamp(320px,30vw,390px)}
+  .portal-home-v7 .hero-app .hero-content{
+    padding-left:clamp(44px,6vw,96px);
+    max-width:720px;
+  }
+  .portal-home-v7 .hero-app .hero-title{max-width:11ch}
+
+  .portal-home-v7 .quick-access-v6{
+    max-width:980px;
+    margin-inline:auto;
+  }
+  .portal-home-v7 .quick-access-v6 .quick-links{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .portal-home-v7 .quick-access-v6 .secondary-link{
+    min-height:68px;
+    align-items:center;
+  }
+}
+
 @media (max-width:1024px){
   .portal-home-v7 .hero-premium{min-height:520px;height:clamp(520px,62vw,620px)}
   .portal-home-v7 .hero-content{padding:84px 30px 36px;max-width:100%}
