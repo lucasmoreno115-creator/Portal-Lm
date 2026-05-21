@@ -234,3 +234,32 @@ details{border:1px solid var(--border);border-radius:10px;padding:10px;backgroun
   .hero-subtext{font-size:.98rem}
   .hero-anchor-cta{width:100%}
 }
+
+/* Home V4 layout */
+.home-layout{display:grid;grid-template-columns:260px minmax(0,1fr);max-width:1320px;margin:0 auto;padding:20px;gap:22px}
+.home-main.container{max-width:none;margin:0;padding:0}
+.home-sidebar{position:sticky;top:18px;align-self:start;background:linear-gradient(180deg,#141414 0%,#0f0f0f 100%);border:1px solid rgba(212,175,55,.26);border-radius:18px;padding:16px;box-shadow:0 18px 35px rgba(0,0,0,.35)}
+.home-sidebar nav{display:flex;flex-direction:column;gap:10px;margin:0}
+.home-sidebar nav a,.home-sidebar nav button{display:flex;width:100%;padding:12px 14px;border-radius:12px;background:#171717;border:1px solid #343434;justify-content:flex-start}
+.hero-premium{position:relative}
+.hero-logo{position:absolute;top:20px;right:20px;width:92px;height:auto;z-index:3;filter:drop-shadow(0 8px 16px rgba(0,0,0,.38))}
+.hero-logo-fallback::after{content:'LM';position:absolute;top:20px;right:20px;z-index:3;padding:8px 14px;border:1px solid rgba(212,175,55,.6);border-radius:999px;color:#f0d47a;font-weight:800;letter-spacing:.08em;background:rgba(0,0,0,.45)}
+.dashboard-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.dashboard-grid .card,.dashboard-grid .journey-track{margin:0}
+.dashboard-grid .journey-track{grid-column:span 1}
+
+@media (max-width:1024px){
+  .home-layout{grid-template-columns:1fr;gap:14px;padding:14px}
+  .home-sidebar{position:static;background:transparent;border:0;box-shadow:none;padding:0}
+  .home-sidebar nav{flex-direction:row;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+  .home-sidebar nav a,.home-sidebar nav button{width:auto;padding:8px 12px;border-radius:999px;justify-content:center}
+  .hero-split{grid-template-columns:1fr;min-height:unset}
+  .hero-image-panel{min-height:240px;background-position:center top}
+  .hero-content{padding:24px}
+  .dashboard-grid{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .hero-logo{width:72px;top:14px;right:14px}
+  .hero-image-panel{min-height:200px;background-position:center top;background-size:cover}
+  .hero-content{padding:18px}
+}
