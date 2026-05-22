@@ -161,7 +161,7 @@ export default {
 
         if (url.pathname === '/api/portal/checkins' && method === 'GET') {
           const { results } = await env.DB.prepare(
-            `SELECT * FROM student_checkins WHERE student_email=? ORDER BY created_at DESC LIMIT 20`
+            `SELECT id, student_email, week_ref, training_adherence, nutrition_adherence, cardio_adherence, free_meals, hunger_level, binge_or_snacking, sleep_quality, energy_level, stress_level, weekly_weight, waist, strength_status, main_difficulty, routine_context, weekly_score, support_needed, created_at, coach_status, coach_reply, coach_reply_at FROM student_checkins WHERE student_email=? ORDER BY created_at DESC LIMIT 20`
           ).bind(studentEmail).all();
 
           return json({ ok: true, data: results || [] });
@@ -549,6 +549,107 @@ export default {
 
           const saved = await getActiveNutritionPlanByEmail(env.DB, studentEmail);
           return json({ ok: true, data: saved });
+        }
+
+
+        if (url.pathname === '/api/admin/checkins' && method === 'GET') {
+          const statusFilter = nullableTrimmed(url.searchParams.get('status'));
+          const studentEmailFilter = nullableTrimmed(url.searchParams.get('student_email'))?.toLowerCase() || null;
+          const limitRaw = Number(url.searchParams.get('limit') || 50);
+          const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 1), 200) : 50;
+
+          const where = [];
+          const params = [];
+
+          if (statusFilter && statusFilter !== 'all') {
+            where.push('sc.coach_status = ?');
+            params.push(statusFilter);
+          }
+
+          if (studentEmailFilter) {
+            where.push('(lower(sc.student_email) LIKE ? OR lower(coalesce(sa.name,'')) LIKE ?)');
+            const like = `%${studentEmailFilter}%`;
+            params.push(like, like);
+          }
+
+          const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+          const query = `SELECT
+              sc.id,
+              sc.student_email,
+              coalesce(sa.name, '') AS student_name,
+              sc.created_at,
+              sc.training_adherence,
+              sc.nutrition_adherence,
+              sc.cardio_adherence,
+              sc.free_meals,
+              sc.hunger_level,
+              sc.binge_or_snacking,
+              sc.sleep_quality,
+              sc.energy_level,
+              sc.stress_level,
+              sc.weekly_weight,
+              sc.waist,
+              sc.strength_status,
+              sc.main_difficulty,
+              sc.routine_context,
+              sc.weekly_score,
+              sc.support_needed,
+              sc.coach_status,
+              sc.coach_reply,
+              sc.coach_reply_at
+            FROM student_checkins sc
+            LEFT JOIN student_access sa ON lower(sa.email) = lower(sc.student_email)
+            ${whereSql}
+            ORDER BY sc.created_at DESC
+            LIMIT ?`;
+
+          const { results } = await env.DB.prepare(query).bind(...params, limit).all();
+          return json({ ok: true, data: results || [] });
+        }
+
+        if (/^\/api\/admin\/checkins\/[^/]+\/reply$/.test(url.pathname) && method === 'PATCH') {
+          const id = decodeURIComponent(url.pathname.split('/')[4] || '').trim();
+          if (!id) {
+            return json({ ok: false, error: 'id é obrigatório.' }, 400);
+          }
+
+          const body = await safeJson(request);
+          const coachReply = nullableTrimmed(body?.coach_reply);
+          const coachStatus = nullableTrimmed(body?.coach_status) || 'replied';
+
+          if (!coachReply) {
+            return json({ ok: false, error: 'coach_reply é obrigatório.' }, 400);
+          }
+
+          const now = new Date().toISOString();
+          const reviewedBy = request.headers.get('x-admin-user') || 'admin';
+
+          const existing = await env.DB.prepare(
+            `SELECT id FROM student_checkins WHERE id=? LIMIT 1`
+          ).bind(id).first();
+
+          if (!existing) {
+            return json({ ok: false, error: 'Check-in não encontrado.' }, 404);
+          }
+
+          await env.DB.prepare(
+            `UPDATE student_checkins
+             SET coach_reply=?,
+                 coach_reply_at=?,
+                 coach_status=?,
+                 reviewed_at=?,
+                 reviewed_by=?
+             WHERE id=?`
+          ).bind(coachReply, now, coachStatus, now, reviewedBy, id).run();
+
+          const updated = await env.DB.prepare(
+            `SELECT id, coach_status, coach_reply, coach_reply_at, reviewed_at, reviewed_by
+             FROM student_checkins
+             WHERE id=?`
+          ).bind(id).first();
+
+          return json({ ok: true, data: updated });
         }
 
 
@@ -1114,6 +1215,12 @@ async function ensureSchema(db) {
     support_needed TEXT,
     created_at TEXT NOT NULL
   )`).run();
+
+  await ensureColumn(db, 'student_checkins', 'coach_reply', 'TEXT');
+  await ensureColumn(db, 'student_checkins', 'coach_reply_at', 'TEXT');
+  await ensureColumn(db, 'student_checkins', 'coach_status', "TEXT DEFAULT 'pending'");
+  await ensureColumn(db, 'student_checkins', 'reviewed_at', 'TEXT');
+  await ensureColumn(db, 'student_checkins', 'reviewed_by', 'TEXT');
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS progression_logs (
     id TEXT PRIMARY KEY,

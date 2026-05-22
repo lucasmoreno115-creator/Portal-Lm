@@ -109,11 +109,24 @@
       }
     };
 
+    function formatDate(value) {
+      if (!value) return '-';
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString('pt-BR');
+    }
+
     async function load() {
       const r = await api('/portal/checkins');
-      hist.innerHTML = (r.data || []).map(c =>
-        `<div class='status'>${c.created_at} · Treino: ${c.training_adherence || '-'} · Dificuldade: ${c.main_difficulty || '-'}</div>`
-      ).join('') || 'Sem histórico';
+      hist.innerHTML = (r.data || []).map(c => {
+        const replyBlock = c.coach_reply
+          ? `<div class='coach-reply-card'><strong>Resposta do Lucas</strong><p>${c.coach_reply}</p><small>${formatDate(c.coach_reply_at)}</small></div>`
+          : `<p class='muted'>Seu check-in foi recebido. A orientação aparecerá aqui quando for registrada.</p>`;
+
+        return `<div class='status'>
+          <p><strong>${formatDate(c.created_at)}</strong> · Treino: ${c.training_adherence || '-'} · Dificuldade: ${c.main_difficulty || '-'}</p>
+          ${replyBlock}
+        </div>`;
+      }).join('') || 'Sem histórico';
     }
 
     load();
