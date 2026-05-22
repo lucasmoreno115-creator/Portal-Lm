@@ -423,3 +423,16 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
   .meal-card,.equivalence-card{padding:13px}
   a.primary-cta,button.primary-cta{width:100%;min-width:0;white-space:normal;text-align:center;padding-inline:14px}
 }
+
+.admin-checkins-page .hero{margin-bottom:14px}
+.checkin-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end}
+.checkin-admin-card{border:1px solid #343434;border-radius:14px;background:#121212;padding:16px;margin:12px 0;display:grid;gap:12px}
+.checkin-admin-card header h3{margin:0 0 4px}
+.checkin-status{width:max-content;text-transform:capitalize}
+.checkin-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.checkin-detail-grid div{padding:10px;border:1px solid #2f2f2f;border-radius:10px;background:#101010}
+.checkin-detail-grid p{margin:6px 0 0}
+.checkin-reply-box{display:grid;gap:10px}
+.coach-reply-card{border:1px solid rgba(212,175,55,.35);background:rgba(212,175,55,.08);border-radius:12px;padding:12px}
+.coach-reply-card p{margin:8px 0}
+.coach-reply-card small{color:#c9c9c9}
