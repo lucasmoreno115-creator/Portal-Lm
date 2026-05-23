@@ -21,8 +21,9 @@ export default {
       if (url.pathname === '/api/anamnese-premium' && method === 'POST') {
         const body = await safeJson(request);
         const studentName = nullableTrimmed(body?.student_name);
-        const studentEmail = nullableTrimmed(body?.student_email)?.toLowerCase() || null;
+        const providedEmail = nullableTrimmed(body?.student_email)?.toLowerCase() || null;
         const studentPhone = nullableTrimmed(body?.student_phone);
+        const studentEmail = providedEmail || buildFallbackAnamnesisEmail(studentName, studentPhone);
         const status = nullableTrimmed(body?.status) || 'RECEBIDA';
         const answers = body?.answers && typeof body.answers === 'object' ? body.answers : {};
         const internalScores = body?.internal_scores && typeof body.internal_scores === 'object' ? body.internal_scores : {
@@ -32,8 +33,8 @@ export default {
           recovery_score: null
         };
 
-        if (!studentName || !studentEmail) {
-          return json({ ok: false, error: 'student_name e student_email são obrigatórios.' }, 400);
+        if (!studentName) {
+          return json({ ok: false, error: 'student_name é obrigatório.' }, 400);
         }
 
         const id = crypto.randomUUID();
@@ -1499,6 +1500,13 @@ function corsResponse() {
     status: 204,
     headers: corsHeaders()
   });
+}
+
+
+function buildFallbackAnamnesisEmail(studentName, studentPhone) {
+  const normalizedName = String(studentName || '').toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '').slice(0, 24) || 'aluno';
+  const normalizedPhone = String(studentPhone || '').replace(/\D+/g, '').slice(-8) || Date.now().toString().slice(-8);
+  return `${normalizedName}.${normalizedPhone}@anamnese.local`;
 }
 
 function json(payload, status = 200) {
