@@ -3,96 +3,46 @@
 <head>
   <meta charset='utf-8'>
   <meta name='viewport' content='width=device-width,initial-scale=1'>
-  <title>Anamnese Premium LM</title>
+  <title>Anamnese Premium LM V2</title>
   <link rel='stylesheet' href='portal.css'>
   <style>
-    .premium-shell { max-width: 720px; margin: 0 auto; }
-    .premium-step { display: none; animation: fade .25s ease; }
-    .premium-step.active { display: block; }
-    .premium-title { font-size: 1.6rem; margin-bottom: 8px; }
-    .premium-sub { color: #b6b6b6; margin-bottom: 18px; }
-    .premium-progress-track { height: 8px; background: #1e1e1e; border-radius: 999px; margin-bottom: 18px; }
-    .premium-progress-bar { height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, #8b6a2b, #d4af37); transition: width .25s ease; }
-    textarea,input,select { width: 100%; min-height: 48px; margin-bottom: 14px; }
-    textarea { min-height: 120px; }
-    .premium-actions { display: flex; gap: 10px; }
-    .premium-actions button { flex: 1; }
-    .ghost { background: transparent; border: 1px solid #6f5a22; color: #d4af37; }
-    .small { font-size: .9rem; color: #9d9d9d; }
-    @keyframes fade { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+    .premium-shell{max-width:760px;margin:0 auto}.premium-step{display:none;animation:fade .25s ease}.premium-step.active{display:block}
+    .premium-title{font-size:1.5rem;margin-bottom:8px}.premium-sub{color:#b6b6b6;margin-bottom:18px}
+    .premium-progress-track{height:8px;background:#1e1e1e;border-radius:999px;margin-bottom:18px}.premium-progress-bar{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#8b6a2b,#d4af37);transition:width .25s ease}
+    textarea,input,select{width:100%;min-height:48px;margin-bottom:14px}textarea{min-height:92px}
+    .premium-actions{display:flex;gap:10px}.premium-actions button{flex:1}.ghost{background:transparent;border:1px solid #6f5a22;color:#d4af37}.small{font-size:.9rem;color:#9d9d9d}
+    @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
   </style>
 </head>
 <body>
-  <div class='container premium-shell'>
-    <section class='card'>
-      <div class='premium-progress-track'><div class='premium-progress-bar' id='progressBar'></div></div>
-      <p class='small' id='progressLabel'>Etapa 1</p>
-
-      <form id='premiumForm'>
-        <div class='premium-step active'><h1 class='premium-title'>Bem-vindo ao Método LM</h1><p class='premium-sub'>Você está iniciando oficialmente sua transformação com estratégia individualizada.</p></div>
-        <div class='premium-step'><h2 class='premium-title'>O que vamos analisar</h2><p class='premium-sub'>Vamos mapear rotina, comportamento, treino e contexto clínico para personalizar seu plano.</p></div>
-        <div class='premium-step'><h2 class='premium-title'>Quanto mais honesto você for, melhor será seu resultado</h2><p class='premium-sub'>Não existe resposta perfeita. Existe resposta real.</p></div>
-        <div class='premium-step'><h2 class='premium-title'>Dados iniciais</h2><input name='student_name' placeholder='Seu nome completo' required><input name='student_email' type='email' placeholder='Seu melhor email' required><input name='student_phone' placeholder='Seu WhatsApp com DDD'></div>
-        <div class='premium-step'><h2 class='premium-title'>Dor e motivação</h2><textarea name='emotional_why_now' placeholder='Por que esse objetivo é importante para você agora?'></textarea><textarea name='emotional_bothers' placeholder='O que mais te incomoda hoje?'></textarea><textarea name='emotional_life_change' placeholder='O que mudaria na sua vida se alcançasse esse resultado?'></textarea><textarea name='emotional_barriers' placeholder='O que mais te atrapalha hoje?'></textarea><textarea name='emotional_history' placeholder='Já tentou mudar antes? O que funcionou e o que não funcionou?'></textarea></div>
-        <div class='premium-step'><h2 class='premium-title'>Comportamento e adesão</h2><textarea name='behavior_hunger_times' placeholder='Horários de mais fome/vontade de comer'></textarea><textarea name='behavior_diet_break' placeholder='O que mais te faz sair da dieta?'></textarea><select name='behavior_stress_eating'><option value=''>Quando está ansioso/estressado...</option><option>Como mais</option><option>Como menos</option><option>Como igual</option></select><textarea name='behavior_snacking' placeholder='Costuma beliscar? Como acontece?'></textarea><select name='behavior_preference'><option value=''>Prefere...</option><option>Praticidade</option><option>Variedade</option><option>Equilíbrio entre os dois</option></select><textarea name='adherence_difficulty' placeholder='O que mais dificulta seguir um plano hoje?'></textarea><textarea name='adherence_weekend' placeholder='Como é seu final de semana?'></textarea></div>
-        <div class='premium-step'><h2 class='premium-title'>Rotina e execução</h2><textarea name='routine_schedule' placeholder='Horários da rotina'></textarea><textarea name='routine_meals' placeholder='Horários das refeições'></textarea><textarea name='routine_training_slots' placeholder='Horários disponíveis para treino'></textarea><textarea name='routine_sleep' placeholder='Como está seu sono atualmente?'></textarea><textarea name='routine_work' placeholder='Trabalho e ritmo do dia'></textarea><textarea name='routine_social' placeholder='Vida social'></textarea><textarea name='routine_frequency' placeholder='Frequência alimentar'></textarea><textarea name='routine_environment' placeholder='Ambiente alimentar em casa e no trabalho'></textarea><textarea name='routine_availability' placeholder='Disponibilidade real para execução'></textarea></div>
-        <div class='premium-step'><h2 class='premium-title'>Treino</h2><textarea name='training_current' placeholder='Já treina atualmente? Há quanto tempo?'></textarea><textarea name='training_days' placeholder='Quantos dias consegue treinar?'></textarea><textarea name='training_where' placeholder='Onde treina? Academia completa?'></textarea><textarea name='training_pain_injury' placeholder='Existe dor, lesão ou exercício que incomoda?'></textarea><textarea name='training_preference' placeholder='Preferência de treino'></textarea><textarea name='training_cardio' placeholder='Cardio atual'></textarea></div>
-        <div class='premium-step'><h2 class='premium-title'>Coleta clínica premium</h2><textarea name='clinical_conditions' placeholder='Hipertensão, diabetes, ansiedade, compulsão, depressão, dores, lesões, hormonal...'></textarea><textarea name='clinical_intestine_digestion' placeholder='Intestino e digestão'></textarea><textarea name='clinical_sleep_quality' placeholder='Qualidade do sono'></textarea><textarea name='clinical_medications' placeholder='Medicamentos, hormônios e exames'></textarea><input name='clinical_files_link' placeholder='Link para exames/fotos/PDF (opcional, upload futuro)'><textarea name='clinical_file_notes' placeholder='Observações sobre arquivos'></textarea></div>
-        <div class='premium-step'><h2 class='premium-title'>Quase finalizando</h2><p class='premium-sub'>Revise rapidamente e toque em enviar para iniciar sua estratégia individualizada.</p></div>
-        <div class='premium-step'><h2 class='premium-title'>Avaliação recebida com sucesso</h2><p class='premium-sub'>Agora vamos transformar suas respostas em uma estratégia individualizada baseada na sua rotina, comportamento, objetivo e capacidade real de execução.</p><p class='small'>Seu envio foi registrado com segurança no Método LM.</p></div>
-
-        <div class='premium-actions' id='actions'>
-          <button class='ghost' type='button' id='backBtn'>Voltar</button>
-          <button type='button' id='nextBtn'>Continuar</button>
-        </div>
-      </form>
-    </section>
-  </div>
-
-  <script>
-    const steps = [...document.querySelectorAll('.premium-step')];
-    const lastInteractiveStep = steps.length - 2;
-    const finalStep = steps.length - 1;
-    const storageKey = 'lm_premium_anamnese_draft_v1';
-    let current = 0;
-    const form = document.getElementById('premiumForm');
-    const backBtn = document.getElementById('backBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    const actions = document.getElementById('actions');
-
-    function restoreDraft() { const raw = localStorage.getItem(storageKey); if (!raw) return; try { const draft = JSON.parse(raw); Object.entries(draft).forEach(([k,v]) => { const el = form.elements[k]; if (el) el.value = v; }); } catch {} }
-    function saveDraft() { const data = {}; [...form.elements].forEach(el => { if (el.name) data[el.name] = el.value; }); localStorage.setItem(storageKey, JSON.stringify(data)); }
-    function setStep(idx){ current = idx; steps.forEach((s,i)=>s.classList.toggle('active',i===idx)); document.getElementById('progressBar').style.width = `${Math.round((idx/(steps.length-1))*100)}%`; document.getElementById('progressLabel').textContent = `Etapa ${Math.min(idx+1, steps.length)} de ${steps.length}`; backBtn.style.visibility = idx===0?'hidden':'visible'; nextBtn.textContent = idx===lastInteractiveStep?'Enviar avaliação':'Continuar'; if(idx===finalStep){actions.style.display='none';}}
-    async function submitPremium(){
-      saveDraft();
-      nextBtn.disabled = true; nextBtn.textContent = 'Enviando...';
-      const values = Object.fromEntries(new FormData(form).entries());
-      const payload = {
-        student_name: values.student_name || '',
-        student_email: values.student_email || '',
-        student_phone: values.student_phone || '',
-        status: 'RECEBIDA',
-        answers: {
-          emotional: { why_now: values.emotional_why_now, bothers: values.emotional_bothers, life_change: values.emotional_life_change, barriers: values.emotional_barriers, history: values.emotional_history },
-          behavior: { hunger_times: values.behavior_hunger_times, diet_break: values.behavior_diet_break, stress_eating: values.behavior_stress_eating, snacking: values.behavior_snacking, preference: values.behavior_preference },
-          routine: { schedule: values.routine_schedule, meals: values.routine_meals, training_slots: values.routine_training_slots, sleep: values.routine_sleep, work: values.routine_work, social: values.routine_social, frequency: values.routine_frequency, environment: values.routine_environment, availability: values.routine_availability },
-          training: { current: values.training_current, days: values.training_days, where: values.training_where, pain_injury: values.training_pain_injury, preference: values.training_preference, cardio: values.training_cardio },
-          clinical: { conditions: values.clinical_conditions, intestine_digestion: values.clinical_intestine_digestion, sleep_quality: values.clinical_sleep_quality, medications: values.clinical_medications, files_link: values.clinical_files_link, file_notes: values.clinical_file_notes },
-          nutrition: { preference: values.behavior_preference }, adherence: { difficulty: values.adherence_difficulty, weekend: values.adherence_weekend }, metadata: { source: 'anamnese-premium.html', submitted_at: new Date().toISOString() }
-        },
-        internal_scores: { adherence_score: null, risk_score: null, routine_score: null, recovery_score: null }
-      };
-      const res = await fetch('/api/anamnese-premium', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      const data = await res.json().catch(() => ({}));
-      if(!res.ok || !data.ok) throw new Error(data.error || 'Falha ao enviar.');
-      localStorage.removeItem(storageKey);
-      setStep(finalStep);
-    }
-
-    restoreDraft(); setStep(0);
-    form.addEventListener('input', saveDraft);
-    backBtn.addEventListener('click', ()=>setStep(Math.max(0,current-1)));
-    nextBtn.addEventListener('click', async ()=>{ if(current===lastInteractiveStep){ try { await submitPremium(); } catch(e){ alert(e.message || 'Erro no envio.'); nextBtn.disabled=false; nextBtn.textContent='Enviar avaliação'; } return;} setStep(Math.min(lastInteractiveStep,current+1)); });
-  </script>
-</body>
-</html>
+  <div class='container premium-shell'><section class='card'>
+    <div class='premium-progress-track'><div class='premium-progress-bar' id='progressBar'></div></div>
+    <p class='small' id='progressLabel'>Etapa 1</p>
+    <form id='premiumForm'>
+      <div class='premium-step active'><h1 class='premium-title'>Anamnese Premium LM V2</h1><p class='premium-sub'>Preencha com honestidade. Isso define sua estratégia individual.</p></div>
+      <div class='premium-step'><h2 class='premium-title'>1) Dados pessoais</h2><input name='personal_full_name' placeholder='Nome completo' required><input name='personal_birth_date' type='date' placeholder='Data de nascimento'><select name='personal_sex'><option value=''>Sexo</option><option>Feminino</option><option>Masculino</option><option>Outro</option></select><input name='personal_height' placeholder='Altura (ex: 1,72m)'><input name='personal_weight' placeholder='Peso atual (kg)'><input name='personal_city_state' placeholder='Cidade/Estado'><input name='personal_whatsapp' placeholder='WhatsApp'><input name='personal_instagram' placeholder='Instagram (opcional)'></div>
+      <div class='premium-step'><h2 class='premium-title'>2) Objetivo</h2><textarea name='objectives_main_goal' placeholder='Principal objetivo'></textarea><textarea name='objectives_current_pain' placeholder='O que mais incomoda atualmente'></textarea><textarea name='objectives_importance' placeholder='Por que esse objetivo é importante'></textarea><textarea name='objectives_life_change' placeholder='O que mudaria na sua vida ao alcançar esse objetivo'></textarea></div>
+      <div class='premium-step'><h2 class='premium-title'>3) Histórico de peso</h2><input name='weight_history_low_5y' placeholder='Menor peso dos últimos 5 anos'><input name='weight_history_high_5y' placeholder='Maior peso dos últimos 5 anos'><input name='weight_history_near_current_time' placeholder='Há quanto tempo está próximo do peso atual'><select name='weight_history_recent_assessment'><option value=''>Possui avaliação física recente?</option><option>Sim</option><option>Não</option></select></div>
+      <div class='premium-step'><h2 class='premium-title'>4) Treinamento</h2><select name='training_currently_trains'><option value=''>Treina atualmente?</option><option>Sim</option><option>Não</option></select><input name='training_time_training' placeholder='Há quanto tempo treina'><input name='training_days_per_week' placeholder='Dias por semana'><input name='training_where' placeholder='Onde treina'><input name='training_best_time' placeholder='Melhor horário para treinar'><select name='training_cardio'><option value=''>Faz cardio?</option><option>Sim</option><option>Não</option><option>Às vezes</option></select><textarea name='training_injuries_pain' placeholder='Lesões/dores'></textarea></div>
+      <div class='premium-step'><h2 class='premium-title'>5) Alimentação</h2><input name='nutrition_meals_per_day' placeholder='Quantas refeições por dia'><select name='nutrition_defined_schedule'><option value=''>Possui horários definidos?</option><option>Sim</option><option>Não</option></select><textarea name='nutrition_self_evaluation' placeholder='Como avalia sua alimentação'></textarea><input name='nutrition_hardest_meal' placeholder='Refeição mais difícil'><input name='nutrition_hunger_peak' placeholder='Horário de maior fome'><input name='nutrition_off_plan_frequency' placeholder='Quantas vezes come fora do planejado'><select name='nutrition_stress_eating'><option value=''>Come mais quando está estressado?</option><option>Sim</option><option>Não</option><option>Às vezes</option></select><select name='nutrition_binge_episodes'><option value=''>Episódios de compulsão?</option><option>Sim</option><option>Não</option><option>Às vezes</option></select><textarea name='nutrition_biggest_difficulty' placeholder='Maior dificuldade alimentar'></textarea><textarea name='nutrition_restrictions' placeholder='Restrições/intolerâncias'></textarea></div>
+      <div class='premium-step'><h2 class='premium-title'>6) Sono e recuperação</h2><input name='recovery_sleep_hours' placeholder='Horas de sono'><select name='recovery_sleep_quality'><option value=''>Qualidade do sono</option><option>Ruim</option><option>Regular</option><option>Boa</option></select><input name='recovery_daily_energy' type='number' min='0' max='10' placeholder='Energia diária (0-10)'><input name='recovery_stress_level' type='number' min='0' max='10' placeholder='Estresse (0-10)'><select name='recovery_wakes_rested'><option value=''>Acorda descansado?</option><option>Sim</option><option>Não</option><option>Às vezes</option></select></div>
+      <div class='premium-step'><h2 class='premium-title'>7) Rotina</h2><textarea name='routine_flow' placeholder='Como funciona sua rotina'></textarea><input name='routine_work_hours' placeholder='Horário de trabalho'><input name='routine_best_training_time' placeholder='Melhor horário para treinar'><select name='routine_allows_planning'><option value=''>Sua rotina permite seguir um planejamento?</option><option>Sim</option><option>Não</option><option>Parcialmente</option></select><textarea name='routine_organization_barrier' placeholder='O que mais dificulta sua organização'></textarea><input name='routine_lives_with' placeholder='Com quem mora'><select name='routine_prepares_meals'><option value=''>Prepara suas refeições?</option><option>Sim</option><option>Não</option><option>Parcialmente</option></select></div>
+      <div class='premium-step'><h2 class='premium-title'>8) Saúde</h2><textarea name='health_conditions' placeholder='Condições de saúde'></textarea><textarea name='health_medications' placeholder='Medicamentos'></textarea><textarea name='health_hormones' placeholder='Hormônios'></textarea><textarea name='health_supplements' placeholder='Suplementos'></textarea><textarea name='health_bowel_function' placeholder='Funcionamento intestinal'></textarea><select name='health_recent_exams'><option value=''>Possui exames recentes?</option><option>Sim</option><option>Não</option></select></div>
+      <div class='premium-step'><h2 class='premium-title'>9) Adesão e comportamento</h2><textarea name='adherence_consistency_barrier' placeholder='O que mais atrapalha sua consistência'></textarea><textarea name='adherence_tried_before' placeholder='O que já tentou'></textarea><textarea name='adherence_worked' placeholder='O que funcionou'></textarea><textarea name='adherence_not_worked' placeholder='O que não funcionou'></textarea><input name='adherence_change_readiness' type='number' min='0' max='10' placeholder='Disposição para mudar (0-10)'><textarea name='adherence_expectation' placeholder='O que espera da Consultoria LM'></textarea></div>
+      <div class='premium-step'><h2 class='premium-title'>10) Observações finais</h2><textarea name='final_notes' placeholder='Existe algo importante que eu deveria saber e que ainda não foi perguntado?'></textarea></div>
+      <div class='premium-step'><h2 class='premium-title'>Avaliação recebida com sucesso</h2><p class='premium-sub'>Seu envio foi registrado com segurança.</p></div>
+      <div class='premium-actions' id='actions'><button class='ghost' type='button' id='backBtn'>Voltar</button><button type='button' id='nextBtn'>Continuar</button></div>
+    </form>
+  </section></div>
+<script>
+const steps=[...document.querySelectorAll('.premium-step')],lastInteractiveStep=steps.length-2,finalStep=steps.length-1,storageKey='lm_premium_anamnese_draft_v2';
+let current=0;const form=document.getElementById('premiumForm'),backBtn=document.getElementById('backBtn'),nextBtn=document.getElementById('nextBtn'),actions=document.getElementById('actions');
+const toInt=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
+function restoreDraft(){const raw=localStorage.getItem(storageKey);if(!raw)return;try{const d=JSON.parse(raw);Object.entries(d).forEach(([k,v])=>{const el=form.elements[k];if(el)el.value=v})}catch{}}
+function saveDraft(){const data={};[...form.elements].forEach(el=>{if(el.name)data[el.name]=el.value});localStorage.setItem(storageKey,JSON.stringify(data))}
+function setStep(i){current=i;steps.forEach((s,idx)=>s.classList.toggle('active',idx===i));document.getElementById('progressBar').style.width=`${Math.round((i/(steps.length-1))*100)}%`;document.getElementById('progressLabel').textContent=`Etapa ${Math.min(i+1,steps.length)} de ${steps.length}`;backBtn.style.visibility=i===0?'hidden':'visible';nextBtn.textContent=i===lastInteractiveStep?'Enviar avaliação':'Continuar';if(i===finalStep)actions.style.display='none';}
+async function submitPremium(){saveDraft();nextBtn.disabled=true;nextBtn.textContent='Enviando...';const v=Object.fromEntries(new FormData(form).entries());const payload={student_name:v.personal_full_name||'',student_email:'',student_phone:v.personal_whatsapp||'',status:'RECEBIDA',answers:{version:'LM_V2',personal:{full_name:v.personal_full_name,birth_date:v.personal_birth_date,sex:v.personal_sex,height:v.personal_height,weight:v.personal_weight,city_state:v.personal_city_state,whatsapp:v.personal_whatsapp,instagram:v.personal_instagram},objectives:{main_goal:v.objectives_main_goal,current_pain:v.objectives_current_pain,importance:v.objectives_importance,life_change:v.objectives_life_change},weight_history:{low_5y:v.weight_history_low_5y,high_5y:v.weight_history_high_5y,near_current_time:v.weight_history_near_current_time,recent_assessment:v.weight_history_recent_assessment},training:{currently_trains:v.training_currently_trains,time_training:v.training_time_training,days_per_week:v.training_days_per_week,where:v.training_where,best_time:v.training_best_time,cardio:v.training_cardio,injuries_pain:v.training_injuries_pain},nutrition:{meals_per_day:v.nutrition_meals_per_day,defined_schedule:v.nutrition_defined_schedule,self_evaluation:v.nutrition_self_evaluation,hardest_meal:v.nutrition_hardest_meal,hunger_peak:v.nutrition_hunger_peak,off_plan_frequency:v.nutrition_off_plan_frequency,stress_eating:v.nutrition_stress_eating,binge_episodes:v.nutrition_binge_episodes,biggest_difficulty:v.nutrition_biggest_difficulty,restrictions:v.nutrition_restrictions},recovery:{sleep_hours:v.recovery_sleep_hours,sleep_quality:v.recovery_sleep_quality,daily_energy:toInt(v.recovery_daily_energy),stress_level:toInt(v.recovery_stress_level),wakes_rested:v.recovery_wakes_rested},routine:{flow:v.routine_flow,work_hours:v.routine_work_hours,best_training_time:v.routine_best_training_time,allows_planning:v.routine_allows_planning,organization_barrier:v.routine_organization_barrier,lives_with:v.routine_lives_with,prepares_meals:v.routine_prepares_meals},health:{conditions:v.health_conditions,medications:v.health_medications,hormones:v.health_hormones,supplements:v.health_supplements,bowel_function:v.health_bowel_function,recent_exams:v.health_recent_exams},adherence:{consistency_barrier:v.adherence_consistency_barrier,tried_before:v.adherence_tried_before,worked:v.adherence_worked,not_worked:v.adherence_not_worked,change_readiness:toInt(v.adherence_change_readiness),expectation:v.adherence_expectation},observations:{final_notes:v.final_notes},metadata:{source:'anamnese-premium.html',form_version:'LM_V2',submitted_at:new Date().toISOString()}},internal_scores:{adherence_score:null,risk_score:null,routine_score:null,recovery_score:null}};
+const res=await fetch('/api/anamnese-premium',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await res.json().catch(()=>({}));if(!res.ok||!data.ok)throw new Error(data.error||'Falha ao enviar.');localStorage.removeItem(storageKey);setStep(finalStep)}
+restoreDraft();setStep(0);form.addEventListener('input',saveDraft);backBtn.addEventListener('click',()=>setStep(Math.max(0,current-1)));nextBtn.addEventListener('click',async()=>{if(current===lastInteractiveStep){try{await submitPremium()}catch(e){alert(e.message||'Erro no envio.');nextBtn.disabled=false;nextBtn.textContent='Enviar avaliação'}return}setStep(Math.min(lastInteractiveStep,current+1))});
+</script>
+</body></html>
