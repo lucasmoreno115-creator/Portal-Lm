@@ -300,7 +300,10 @@
       try {
         const res = await fetch(`/api/admin/student-360?email=${encodeURIComponent(email)}`, { headers: { 'x-admin-token': token } });
         const payload = await res.json();
-        if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao carregar dados.');
+        if (!res.ok || !payload?.ok) {
+          const fallback404 = 'Nenhum dado encontrado para este email. Verifique se há acesso, anamnese, check-in ou plano alimentar cadastrado.';
+          throw new Error(res.status === 404 ? (payload?.error || fallback404) : (payload?.error || 'Falha ao carregar dados.'));
+        }
 
         const data = payload.data || {};
         const student = data.student || {};

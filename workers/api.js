@@ -213,16 +213,12 @@ export default {
             return json({ ok: false, error: 'email é obrigatório.' }, 400);
           }
 
-          const student = await env.DB.prepare(
+          const studentAccess = await env.DB.prepare(
             `SELECT name, email, whatsapp, plan_type, status
              FROM student_access
              WHERE lower(email)=?
              LIMIT 1`
           ).bind(email).first();
-
-          if (!student) {
-            return json({ ok: false, error: 'Aluno não encontrado.' }, 404);
-          }
 
           const latestAnamnesis = await env.DB.prepare(
             `SELECT id, student_name, student_email, student_phone, status, answers_json, internal_scores_json, created_at, updated_at
@@ -251,6 +247,39 @@ export default {
           ).bind(email, getWeekRef(new Date())).first();
 
           const activeNutritionPlan = await getActiveNutritionPlanByEmail(env.DB, email);
+
+
+          const latestWeeklyPlanByEmail = await env.DB.prepare(
+            `SELECT id, student_email, week_ref, training_focus, cardio_target, nutrition_focus, main_risk, coach_message, status, updated_at
+             FROM weekly_plans
+             WHERE lower(student_email)=?
+             ORDER BY updated_at DESC
+             LIMIT 1`
+          ).bind(email).first();
+
+          const hasAnyData = Boolean(
+            studentAccess
+            || latestAnamnesis
+            || latestCheckin
+            || activeNutritionPlan
+            || latestWeeklyPlanByEmail
+          );
+
+          if (!hasAnyData) {
+            return json({ ok: false, error: 'Nenhum dado encontrado para este email. Verifique se há acesso, anamnese, check-in ou plano alimentar cadastrado.' }, 404);
+          }
+
+          const student = {
+            name: studentAccess?.name
+              || latestAnamnesis?.student_name
+              || latestCheckin?.student_name
+              || activeNutritionPlan?.student_name
+              || email,
+            email,
+            whatsapp: studentAccess?.whatsapp || latestAnamnesis?.student_phone || null,
+            plan_type: studentAccess?.plan_type || 'Não cadastrado',
+            status: studentAccess?.status || 'Sem acesso criado'
+          };
 
           const timeline = [];
           if (latestAnamnesis?.created_at) {
