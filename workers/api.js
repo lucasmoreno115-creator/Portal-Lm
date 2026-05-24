@@ -206,6 +206,93 @@ export default {
           return json({ ok: false, error: 'Unauthorized' }, 401);
         }
 
+
+        if (url.pathname === '/api/admin/student-360' && method === 'GET') {
+          const email = String(url.searchParams.get('email') || '').trim().toLowerCase();
+          if (!email) {
+            return json({ ok: false, error: 'email é obrigatório.' }, 400);
+          }
+
+          const student = await env.DB.prepare(
+            `SELECT name, email, whatsapp, plan_type, status
+             FROM student_access
+             WHERE lower(email)=?
+             LIMIT 1`
+          ).bind(email).first();
+
+          if (!student) {
+            return json({ ok: false, error: 'Aluno não encontrado.' }, 404);
+          }
+
+          const latestAnamnesis = await env.DB.prepare(
+            `SELECT id, student_name, student_email, student_phone, status, answers_json, internal_scores_json, created_at, updated_at
+             FROM premium_anamnesis
+             WHERE lower(student_email)=?
+             ORDER BY created_at DESC
+             LIMIT 1`
+          ).bind(email).first();
+
+          const latestCheckin = await env.DB.prepare(
+            `SELECT id, student_email, week_ref, training_adherence, nutrition_adherence, cardio_adherence, free_meals, hunger_level,
+                    binge_or_snacking, sleep_quality, energy_level, stress_level, weekly_weight, waist, strength_status,
+                    main_difficulty, routine_context, weekly_score, support_needed, coach_status, coach_reply, coach_reply_at, created_at
+             FROM student_checkins
+             WHERE lower(student_email)=?
+             ORDER BY created_at DESC
+             LIMIT 1`
+          ).bind(email).first();
+
+          const activeWeeklyPlan = await env.DB.prepare(
+            `SELECT id, student_email, week_ref, training_focus, cardio_target, nutrition_focus, main_risk, coach_message, status, updated_at
+             FROM weekly_plans
+             WHERE lower(student_email)=? AND week_ref=?
+             ORDER BY updated_at DESC
+             LIMIT 1`
+          ).bind(email, getWeekRef(new Date())).first();
+
+          const activeNutritionPlan = await getActiveNutritionPlanByEmail(env.DB, email);
+
+          const timeline = [];
+          if (latestAnamnesis?.created_at) {
+            timeline.push({ type: 'anamnese_enviada', at: latestAnamnesis.created_at, title: 'Anamnese enviada' });
+          }
+          if (latestCheckin?.created_at) {
+            timeline.push({ type: 'checkin_enviado', at: latestCheckin.created_at, title: 'Check-in enviado' });
+          }
+          if (latestCheckin?.coach_reply_at || latestCheckin?.coach_reply) {
+            timeline.push({
+              type: 'resposta_coach',
+              at: latestCheckin.coach_reply_at || latestCheckin.created_at,
+              title: 'Resposta do coach',
+              detail: latestCheckin.coach_reply || null
+            });
+          }
+          if (activeWeeklyPlan?.updated_at) {
+            timeline.push({ type: 'plano_semanal_atualizado', at: activeWeeklyPlan.updated_at, title: 'Plano semanal atualizado' });
+          }
+          if (activeNutritionPlan?.updated_at || activeNutritionPlan?.created_at) {
+            timeline.push({
+              type: 'plano_alimentar_atualizado',
+              at: activeNutritionPlan.updated_at || activeNutritionPlan.created_at,
+              title: 'Plano alimentar atualizado'
+            });
+          }
+
+          timeline.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+
+          return json({
+            ok: true,
+            data: {
+              student,
+              latest_anamnesis: latestAnamnesis || null,
+              latest_checkin: latestCheckin || null,
+              active_weekly_plan: activeWeeklyPlan || null,
+              active_nutrition_plan: activeNutritionPlan || null,
+              timeline
+            }
+          });
+        }
+
         if (url.pathname === '/api/admin/student-access' && method === 'POST') {
           const body = await safeJson(request);
 
