@@ -689,7 +689,7 @@ export default {
           }
 
           if (studentEmailFilter) {
-            where.push('(lower(sc.student_email) LIKE ? OR lower(coalesce(sa.name,'')) LIKE ?)');
+            where.push(`(lower(sc.student_email) LIKE ? OR lower(coalesce(sa.name,'')) LIKE ?)`);
             const like = `%${studentEmailFilter}%`;
             params.push(like, like);
           }
