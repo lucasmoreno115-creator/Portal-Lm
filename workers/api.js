@@ -654,6 +654,110 @@ export default {
         }
 
 
+        if (url.pathname === '/api/admin/command-center' && method === 'GET') {
+          const currentWeekRef = getWeekRef(new Date());
+          const hasNutritionPlans = await tableExists(env.DB, 'nutrition_plans');
+          const hasFollowupLogs = await tableExists(env.DB, 'followup_logs');
+
+          const pendingCheckinsRow = await env.DB.prepare(
+            `SELECT COUNT(*) AS total
+             FROM student_checkins
+             WHERE coach_status IS NULL
+                OR coach_status='pending'`
+          ).first();
+
+          const studentsWithoutCheckinWeekRow = await env.DB.prepare(
+            `SELECT COUNT(*) AS total
+             FROM student_access sa
+             WHERE sa.status='ACTIVE'
+               AND NOT EXISTS (
+                 SELECT 1
+                 FROM student_checkins sc
+                 WHERE lower(sc.student_email)=lower(sa.email)
+                   AND sc.week_ref=?
+               )`
+          ).bind(currentWeekRef).first();
+
+          const newAnamnesesRow = await env.DB.prepare(
+            `SELECT COUNT(*) AS total
+             FROM premium_anamnesis
+             WHERE status='RECEBIDA'`
+          ).first();
+
+          const studentsWithoutWeeklyPlanRow = await env.DB.prepare(
+            `SELECT COUNT(*) AS total
+             FROM student_access sa
+             WHERE sa.status='ACTIVE'
+               AND NOT EXISTS (
+                 SELECT 1
+                 FROM weekly_plans wp
+                 WHERE lower(wp.student_email)=lower(sa.email)
+                   AND wp.week_ref=?
+                   AND wp.status='ACTIVE'
+               )`
+          ).bind(currentWeekRef).first();
+
+          const studentsWithoutNutritionPlanRow = hasNutritionPlans
+            ? await env.DB.prepare(
+              `SELECT COUNT(*) AS total
+               FROM student_access sa
+               WHERE sa.status='ACTIVE'
+                 AND NOT EXISTS (
+                   SELECT 1
+                   FROM nutrition_plans np
+                   WHERE lower(np.student_email)=lower(sa.email)
+                     AND np.is_active=1
+                 )`
+            ).first()
+            : { total: 0 };
+
+          const overdueFollowupsRow = hasFollowupLogs
+            ? await env.DB.prepare(
+              `SELECT COUNT(*) AS total
+               FROM followup_logs
+               WHERE resolution_status='OPEN'
+                 AND due_date IS NOT NULL
+                 AND datetime(due_date) <= datetime('now')`
+            ).first()
+            : { total: 0 };
+
+          const pendingCheckins = Number(pendingCheckinsRow?.total || 0);
+          const studentsWithoutCheckinWeek = Number(studentsWithoutCheckinWeekRow?.total || 0);
+          const newAnamneses = Number(newAnamnesesRow?.total || 0);
+          const studentsWithoutWeeklyPlan = Number(studentsWithoutWeeklyPlanRow?.total || 0);
+          const studentsWithoutNutritionPlan = Number(studentsWithoutNutritionPlanRow?.total || 0);
+          const overdueFollowups = Number(overdueFollowupsRow?.total || 0);
+
+          let priorityMessage = 'Operação em dia.';
+          if (pendingCheckins > 0) {
+            priorityMessage = 'Responder check-ins pendentes.';
+          } else if (studentsWithoutCheckinWeek > 0) {
+            priorityMessage = 'Cobrar check-ins da semana dos alunos ativos.';
+          } else if (newAnamneses > 0) {
+            priorityMessage = 'Analisar novas anamneses.';
+          } else if (studentsWithoutWeeklyPlan > 0) {
+            priorityMessage = 'Atualizar planos da semana.';
+          }
+
+          return json({
+            ok: true,
+            data: {
+              pending_checkins: pendingCheckins,
+              students_without_checkin_week: studentsWithoutCheckinWeek,
+              new_anamneses: newAnamneses,
+              students_without_weekly_plan: studentsWithoutWeeklyPlan,
+              students_without_nutrition_plan: studentsWithoutNutritionPlan,
+              overdue_followups: overdueFollowups,
+              priority_message: priorityMessage,
+              schema_audit: {
+                nutrition_plans_exists: hasNutritionPlans,
+                followup_logs_exists: hasFollowupLogs
+              }
+            }
+          });
+        }
+
+
         if (url.pathname === '/api/admin/followup-alerts' && method === 'GET') {
           const currentWeekRef = getWeekRef(new Date());
 
@@ -1354,6 +1458,14 @@ function isFinancialRiskFollowup(student) {
   const reason = `${student.latestReason || ''}`.toLowerCase();
   const terms = ['financeir', 'dinheiro', 'mensalidade', 'pagament', 'custo', 'investimento', 'valor'];
   return terms.some((term) => reason.includes(term));
+}
+
+
+async function tableExists(db, tableName) {
+  const row = await db.prepare(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name=? LIMIT 1`
+  ).bind(tableName).first();
+  return Boolean(row?.name);
 }
 
 async function ensureColumn(db, tableName, columnName, sqlType) {

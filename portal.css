@@ -436,3 +436,49 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 .coach-reply-card{border:1px solid rgba(212,175,55,.35);background:rgba(212,175,55,.08);border-radius:12px;padding:12px}
 .coach-reply-card p{margin:8px 0}
 .coach-reply-card small{color:#c9c9c9}
+
+.command-center-page{
+  background:radial-gradient(circle at 85% 0%,rgba(212,175,55,.1),transparent 34%),var(--bg);
+}
+
+.command-actions{
+  margin-top:14px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  align-items:end;
+}
+
+.command-grid{
+  margin-top:18px;
+  display:grid;
+  gap:14px;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+
+.command-card h2{margin:0;font-size:1.1rem}
+.command-number{
+  margin:2px 0 4px;
+  font-size:2.4rem;
+  line-height:1;
+  font-weight:800;
+  color:var(--gold-soft);
+}
+
+.command-priority{
+  margin-top:18px;
+  border-color:rgba(212,175,55,.5);
+  box-shadow:inset 0 0 0 1px rgba(212,175,55,.14);
+}
+
+.command-priority h2{margin:0 0 8px}
+.command-priority p{margin:0;color:#f1f1f1;font-size:1.05rem}
+
+@media (max-width:1100px){
+  .command-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+
+@media (max-width:720px){
+  .command-actions{grid-template-columns:1fr;}
+  .command-grid{grid-template-columns:1fr;}
+}

@@ -1,0 +1,132 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Admin Command Center LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body class='command-center-page'>
+  <div class='container'>
+    <nav>
+      <a href='/admin.html'>← Voltar ao Admin Hub</a>
+      <a href='/admin-checkins.html'>Check-ins</a>
+      <a href='/admin-anamneses.html'>Anamneses</a>
+      <a href='/admin-weekly-plan.html'>Plano semanal</a>
+      <a href='/admin-followup.html'>Follow-up</a>
+    </nav>
+
+    <section class='card'>
+      <p class='eyebrow'>Consultoria LM • Operação diária</p>
+      <h1>Admin Command Center LM</h1>
+      <p class='muted'>Sua visão diária de operação, retenção e acompanhamento da Consultoria LM.</p>
+      <div class='command-actions'>
+        <label>
+          Token admin
+          <input id='token' placeholder='Cole o x-admin-token' />
+        </label>
+        <button id='loadBtn' type='button'>Carregar operação</button>
+      </div>
+      <div id='status' class='status'>Informe o token admin para carregar os indicadores.</div>
+    </section>
+
+    <section class='command-grid'>
+      <article class='card command-card'>
+        <h2>Check-ins pendentes</h2>
+        <p id='pendingCheckins' class='command-number'>0</p>
+        <p class='muted'>Check-ins aguardando resposta do coach.</p>
+        <a class='secondary-link' href='/admin-checkins.html'>Abrir check-ins</a>
+      </article>
+
+
+      <article class='card command-card'>
+        <h2>Alunos sem check-in na semana</h2>
+        <p id='withoutCheckinWeek' class='command-number'>0</p>
+        <p class='muted'>Alunos ativos sem check-in na semana atual.</p>
+        <a class='secondary-link' href='/admin-checkins.html'>Abrir check-ins</a>
+      </article>
+
+      <article class='card command-card'>
+        <h2>Anamneses novas</h2>
+        <p id='newAnamneses' class='command-number'>0</p>
+        <p class='muted'>Anamneses premium com status RECEBIDA.</p>
+        <a class='secondary-link' href='/admin-anamneses.html'>Abrir anamneses</a>
+      </article>
+
+      <article class='card command-card'>
+        <h2>Sem plano da semana</h2>
+        <p id='withoutWeeklyPlan' class='command-number'>0</p>
+        <p class='muted'>Alunos ativos sem plano semanal da semana atual.</p>
+        <a class='secondary-link' href='/admin-weekly-plan.html'>Criar plano</a>
+      </article>
+
+      <article class='card command-card'>
+        <h2>Sem plano alimentar</h2>
+        <p id='withoutNutritionPlan' class='command-number'>0</p>
+        <p class='muted'>Alunos ativos sem plano alimentar ativo.</p>
+        <a class='secondary-link' href='/admin-nutrition-plan.html'>Criar plano alimentar</a>
+      </article>
+
+      <article class='card command-card'>
+        <h2>Follow-ups vencidos</h2>
+        <p id='overdueFollowups' class='command-number'>0</p>
+        <p class='muted'>Follow-ups abertos com prazo já vencido.</p>
+        <a class='secondary-link' href='/admin-followup.html'>Abrir follow-up</a>
+      </article>
+    </section>
+
+    <section class='card command-priority'>
+      <h2>Prioridade de hoje</h2>
+      <p id='priorityMsg'>Operação em dia.</p>
+    </section>
+  </div>
+
+  <script>
+    const tokenInput = document.getElementById('token');
+    const loadBtn = document.getElementById('loadBtn');
+    const statusEl = document.getElementById('status');
+
+    function setText(id, value) {
+      document.getElementById(id).textContent = String(value ?? 0);
+    }
+
+    async function loadCommandCenter() {
+      const token = tokenInput.value.trim();
+      if (!token) {
+        statusEl.textContent = 'Informe o token admin para carregar os indicadores.';
+        return;
+      }
+
+      loadBtn.disabled = true;
+      statusEl.textContent = 'Carregando operação...';
+
+      try {
+        const res = await fetch('/api/admin/command-center', {
+          headers: { 'x-admin-token': token }
+        });
+        const payload = await res.json();
+
+        if (!res.ok || !payload.ok) {
+          throw new Error(payload.error || 'Falha ao carregar command center.');
+        }
+
+        const data = payload.data || {};
+        setText('pendingCheckins', data.pending_checkins);
+        setText('withoutCheckinWeek', data.students_without_checkin_week);
+        setText('newAnamneses', data.new_anamneses);
+        setText('withoutWeeklyPlan', data.students_without_weekly_plan);
+        setText('withoutNutritionPlan', data.students_without_nutrition_plan);
+        setText('overdueFollowups', data.overdue_followups);
+        document.getElementById('priorityMsg').textContent = data.priority_message || 'Operação em dia.';
+        statusEl.textContent = 'Operação carregada com sucesso.';
+      } catch (error) {
+        statusEl.textContent = error.message || 'Erro ao carregar operação.';
+      } finally {
+        loadBtn.disabled = false;
+      }
+    }
+
+    loadBtn.addEventListener('click', loadCommandCenter);
+  </script>
+</body>
+</html>
