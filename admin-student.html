@@ -1,0 +1,324 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>LM Student 360</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body class='student-360-page'>
+  <div class='container'>
+    <nav>
+      <a href='/admin.html'>← Voltar ao Admin Hub</a>
+      <a href='/admin-command-center.html'>Voltar ao Command Center</a>
+    </nav>
+
+    <section class='card student-hero'>
+      <p class='eyebrow'>Consultoria LM • Visão única do aluno</p>
+      <h1 id='studentName'>LM Student 360</h1>
+      <div class='student-meta'>
+        <span id='studentEmail'>Email: -</span>
+        <span id='studentWhatsapp'>WhatsApp: -</span>
+        <span id='studentPlan'>Plano: -</span>
+        <span id='studentStatus'>Status: -</span>
+      </div>
+      <div class='grid'>
+        <label>Token admin
+          <input id='adminToken' type='password' autocomplete='off' placeholder='Cole o x-admin-token'>
+        </label>
+        <label>Email do aluno
+          <input id='studentEmailInput' type='email' placeholder='aluno@email.com'>
+        </label>
+      </div>
+      <div class='student-action-row'>
+        <button id='loadBtn' type='button'>Carregar Student 360</button>
+      </div>
+      <div id='statusBox' class='status muted'>Informe email do aluno e token admin.</div>
+    </section>
+
+    <section class='student-360-grid'>
+      <article class='card student-360-card'>
+        <h2>Resumo do aluno</h2>
+        <div id='studentSummary'></div>
+      </article>
+
+      <article class='card student-360-card'>
+        <h2>Anamnese mais recente</h2>
+        <div id='latestAnamnesis'></div>
+        <a class='secondary-link' id='openAnamnesis' href='/admin-anamneses.html'>Abrir Anamnese</a>
+      </article>
+
+      <article class='card student-360-card'>
+        <h2>Check-in mais recente</h2>
+        <div id='latestCheckin'></div>
+        <a class='secondary-link' id='openCheckins' href='/admin-checkins.html'>Abrir Check-ins</a>
+      </article>
+
+      <article class='card student-360-card'>
+        <h2>Resposta do coach</h2>
+        <div id='coachReply'></div>
+      </article>
+
+      <article class='card student-360-card'>
+        <h2>Plano da semana</h2>
+        <div id='weeklyPlan'></div>
+        <a class='secondary-link' id='editWeeklyPlan' href='/admin-weekly-plan.html'>Editar Plano da Semana</a>
+      </article>
+
+      <article class='card student-360-card'>
+        <h2>Plano alimentar</h2>
+        <div id='nutritionPlan'></div>
+        <a class='secondary-link' id='editNutritionPlan' href='/admin-nutrition-plan.html'>Editar Plano Alimentar</a>
+      </article>
+
+      <article class='card student-360-card'>
+        <h2>Timeline</h2>
+        <ul id='timeline' class='student-timeline'></ul>
+      </article>
+    </section>
+  </div>
+
+  <script src='/admin-auth.js'></script>
+  <script>
+    const tokenInput = document.getElementById('adminToken');
+    const emailInput = document.getElementById('studentEmailInput');
+    const loadBtn = document.getElementById('loadBtn');
+    const statusBox = document.getElementById('statusBox');
+
+    function byId(id) { return document.getElementById(id); }
+    function setText(id, value) { byId(id).textContent = value || '-'; }
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatDate(value) {
+      if (!value) return 'Não informado';
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString('pt-BR');
+    }
+
+    function pickFirst(obj, paths) {
+      if (!obj || !Array.isArray(paths)) return null;
+      for (const path of paths) {
+        const keys = String(path || '').split('.').filter(Boolean);
+        let cur = obj;
+        for (const key of keys) {
+          if (cur == null || typeof cur !== 'object') {
+            cur = null;
+            break;
+          }
+          cur = cur[key];
+        }
+        if (cur != null && String(cur).trim() !== '') return cur;
+      }
+      return null;
+    }
+
+    function field(label, value, highlight) {
+      const safeLabel = escapeHtml(label);
+      const safeValue = escapeHtml(value == null || value === '' ? 'Não informado' : value);
+      const valueClass = highlight ? 'student-highlight' : '';
+      return `<li class='student-info-item'><span>${safeLabel}</span><strong class='${valueClass}'>${safeValue}</strong></li>`;
+    }
+
+    function renderFields(items) {
+      return `<ul class='student-info-list'>${items.join('')}</ul>`;
+    }
+
+    function renderEmpty(message) {
+      return `<div class='student-empty'>${escapeHtml(message || 'Sem dados.')}</div>`;
+    }
+
+    function parseAnamnesisAnswers(anamnesis) {
+      if (!anamnesis?.answers_json) return {};
+      try { return JSON.parse(anamnesis.answers_json) || {}; } catch (_) { return {}; }
+    }
+
+    function hydrateLinks(email) {
+      const query = encodeURIComponent(email || '');
+      byId('openCheckins').href = `/admin-checkins.html?email=${query}`;
+      byId('openAnamnesis').href = `/admin-anamneses.html?email=${query}`;
+      byId('editWeeklyPlan').href = `/admin-weekly-plan.html?email=${query}`;
+      byId('editNutritionPlan').href = `/admin-nutrition-plan.html?email=${query}`;
+    }
+
+    function renderSummary(student, answers) {
+      const html = renderFields([
+        field('Nome', student?.name, true),
+        field('Email', student?.email),
+        field('WhatsApp', student?.whatsapp),
+        field('Plano', student?.plan_type, true),
+        field('Status', student?.status, true),
+        field('Objetivo principal', pickFirst(answers, ['objetivo_principal', 'goals.main_goal', 'objetivo'])),
+        field('Principal limitador', pickFirst(answers, ['principal_limitador', 'limiting_factor', 'dificuldade_principal'])),
+        field('Organização alimentar', pickFirst(answers, ['organizacao_alimentar', 'nutrition.organization', 'rotina_alimentar'])),
+        field('Frequência de treino', pickFirst(answers, ['frequencia_treino', 'training.frequency', 'treino_frequencia'])),
+        field('Qualidade do sono', pickFirst(answers, ['qualidade_sono', 'sleep.quality', 'sono'])),
+        field('Risco de abandono', pickFirst(answers, ['risco_abandono', 'dropout_risk', 'adherence.risk']))
+      ]);
+      byId('studentSummary').innerHTML = html;
+    }
+
+    function renderAnamnesis(anamnesis, answers) {
+      if (!anamnesis) {
+        byId('latestAnamnesis').innerHTML = renderEmpty('Sem anamnese registrada.');
+        return;
+      }
+      byId('latestAnamnesis').innerHTML = renderFields([
+        field('Data de envio', formatDate(anamnesis.created_at), true),
+        field('Objetivo principal', pickFirst(answers, ['objetivo_principal', 'goals.main_goal', 'objetivo'])),
+        field('O que mais incomoda', pickFirst(answers, ['o_que_mais_incomoda', 'incômodo_principal', 'pain_point'])),
+        field('Maior dificuldade alimentar', pickFirst(answers, ['maior_dificuldade_alimentar', 'nutrition.main_difficulty', 'dificuldade_alimentar'])),
+        field('Rotina', pickFirst(answers, ['rotina', 'routine', 'routine_context'])),
+        field('Sono/recuperação', pickFirst(answers, ['sono_recuperacao', 'sleep.recovery', 'recovery'])),
+        field('Saúde/medicações/hormônios', pickFirst(answers, ['saude_medicacoes_hormonios', 'health.medications_hormones', 'health_notes'])),
+        field('Adesão/expectativa', pickFirst(answers, ['adesao_expectativa', 'adherence.expectation', 'expectativa']))
+      ]);
+    }
+
+    function renderCheckin(checkin) {
+      if (!checkin) {
+        byId('latestCheckin').innerHTML = renderEmpty('Sem check-in registrado.');
+        return;
+      }
+      byId('latestCheckin').innerHTML = renderFields([
+        field('Data do check-in', formatDate(checkin.created_at), true),
+        field('Peso', checkin.weekly_weight),
+        field('Adesão treino', checkin.training_adherence),
+        field('Adesão nutrição', checkin.nutrition_adherence),
+        field('Adesão cardio', checkin.cardio_adherence),
+        field('Fome', checkin.hunger_level),
+        field('Sono', checkin.sleep_quality),
+        field('Energia', checkin.energy_level),
+        field('Estresse', checkin.stress_level),
+        field('Principal dificuldade', checkin.main_difficulty),
+        field('Contexto da rotina', checkin.routine_context),
+        field('Suporte necessário', checkin.support_needed)
+      ]);
+    }
+
+    function renderCoachReply(checkin) {
+      if (!checkin?.coach_reply) {
+        byId('coachReply').innerHTML = renderEmpty('Sem resposta registrada para o último check-in.');
+        return;
+      }
+      byId('coachReply').innerHTML = renderFields([
+        field('Status', checkin.coach_status || 'pending', true),
+        field('Respondido em', formatDate(checkin.coach_reply_at)),
+        field('Resposta', checkin.coach_reply)
+      ]);
+    }
+
+    function renderWeeklyPlan(plan) {
+      if (!plan) {
+        byId('weeklyPlan').innerHTML = renderEmpty('Sem plano semanal ativo na semana atual.');
+        return;
+      }
+      byId('weeklyPlan').innerHTML = renderFields([
+        field('Semana', plan.week_ref, true),
+        field('Foco do treino', plan.training_focus),
+        field('Meta de cardio', plan.cardio_target),
+        field('Foco nutricional', plan.nutrition_focus),
+        field('Principal risco', plan.main_risk),
+        field('Mensagem estratégica', plan.coach_message)
+      ]);
+    }
+
+    function renderNutritionPlan(plan) {
+      if (!plan) {
+        byId('nutritionPlan').innerHTML = renderEmpty('Sem plano alimentar ativo.');
+        return;
+      }
+      const meals = Array.isArray(plan.meals) ? plan.meals.length : (Array.isArray(plan.plan_json?.meals) ? plan.plan_json.meals.length : null);
+      byId('nutritionPlan').innerHTML = renderFields([
+        field('Título', plan.title, true),
+        field('Objetivo', plan.objective),
+        field('Estratégia', plan.strategy),
+        field('Status', plan.status || 'ACTIVE'),
+        field('Última atualização', formatDate(plan.updated_at || plan.created_at)),
+        field('Quantidade de refeições', meals)
+      ]);
+    }
+
+    function renderTimeline(timeline) {
+      const timelineEl = byId('timeline');
+      timelineEl.innerHTML = '';
+      const items = Array.isArray(timeline) ? timeline : [];
+      if (!items.length) {
+        timelineEl.innerHTML = `<li class='student-empty'>Sem eventos recentes.</li>`;
+        return;
+      }
+      items.forEach((event) => {
+        const li = document.createElement('li');
+        const description = event.detail || event.title || event.type || 'Evento';
+        li.innerHTML = `<div><strong>${escapeHtml(event.title || event.type || 'Evento')}</strong><p>${escapeHtml(description)}</p></div><span>${escapeHtml(formatDate(event.at))}</span>`;
+        timelineEl.appendChild(li);
+      });
+    }
+
+    async function loadStudent360() {
+      const token = tokenInput.value.trim();
+      const email = emailInput.value.trim().toLowerCase();
+      if (!token || !email) {
+        statusBox.textContent = 'Informe token admin e email do aluno.';
+        return;
+      }
+      loadBtn.disabled = true;
+      statusBox.textContent = 'Carregando dados do aluno...';
+      try {
+        const res = await fetch(`/api/admin/student-360?email=${encodeURIComponent(email)}`, { headers: { 'x-admin-token': token } });
+        const payload = await res.json();
+        if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao carregar dados.');
+
+        const data = payload.data || {};
+        const student = data.student || {};
+        const anamnesis = data.latest_anamnesis || null;
+        const answers = parseAnamnesisAnswers(anamnesis);
+        const checkin = data.latest_checkin || null;
+
+        setText('studentName', student.name || 'Aluno sem nome');
+        setText('studentEmail', `Email: ${student.email || '-'}`);
+        setText('studentWhatsapp', `WhatsApp: ${student.whatsapp || '-'}`);
+        setText('studentPlan', `Plano: ${student.plan_type || '-'}`);
+        setText('studentStatus', `Status: ${student.status || '-'}`);
+
+        renderSummary(student, answers);
+        renderAnamnesis(anamnesis, answers);
+        renderCheckin(checkin);
+        renderCoachReply(checkin);
+        renderWeeklyPlan(data.active_weekly_plan || null);
+        renderNutritionPlan(data.active_nutrition_plan || null);
+        renderTimeline(data.timeline || []);
+
+        hydrateLinks(student.email || email);
+        statusBox.textContent = 'Student 360 carregado com sucesso.';
+      } catch (error) {
+        statusBox.textContent = error.message || 'Erro ao carregar Student 360.';
+      } finally {
+        loadBtn.disabled = false;
+      }
+    }
+
+    loadBtn.addEventListener('click', loadStudent360);
+
+    const params = new URLSearchParams(window.location.search);
+    const initialEmail = (params.get('email') || '').trim().toLowerCase();
+    if (initialEmail) {
+      emailInput.value = initialEmail;
+      hydrateLinks(initialEmail);
+    }
+
+    const savedToken = window.LMAdminAuth?.getAdminToken?.() || '';
+    if (initialEmail && savedToken) {
+      tokenInput.value = savedToken;
+      loadStudent360();
+    }
+  </script>
+</body>
+</html>
