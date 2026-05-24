@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Admin Login Global LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <section class='card hero'>
+      <p class='eyebrow'>Consultoria LM • Admin Hub</p>
+      <h1>Admin Login Global</h1>
+      <p class='hero-title'>Digite o token admin uma vez para reutilizar nas telas administrativas.</p>
+    </section>
+
+    <section class='card'>
+      <label>Token admin
+        <input id='adminToken' type='password' autocomplete='off' required>
+      </label>
+      <div class='grid'>
+        <button id='saveBtn' type='button'>Salvar token global</button>
+        <a class='secondary-link' href='/admin.html'>Ir para Admin Hub</a>
+      </div>
+      <p id='statusBox' class='status muted'>O token será salvo em localStorage como <code>lm_admin_token</code>.</p>
+    </section>
+  </div>
+
+  <script src='/admin-auth.js'></script>
+  <script>
+    const input = document.getElementById('adminToken');
+    const saveBtn = document.getElementById('saveBtn');
+    const statusBox = document.getElementById('statusBox');
+
+    saveBtn.addEventListener('click', () => {
+      const token = input.value.trim();
+      if (!token) {
+        statusBox.textContent = 'Preencha o token admin.';
+        statusBox.className = 'status error';
+        return;
+      }
+      window.LMAdminAuth.setAdminToken(token);
+      statusBox.textContent = 'Token global salvo com sucesso.';
+      statusBox.className = 'status ok';
+    });
+  </script>
+</body>
+</html>
