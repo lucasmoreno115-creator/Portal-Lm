@@ -278,6 +278,9 @@ export default {
             });
           }
 
+          const clinicalPriority = computeClinicalPriority(latestCheckin, activeWeeklyPlan);
+          const nextRecommendedAction = computeNextRecommendedAction(latestCheckin, activeWeeklyPlan);
+
           timeline.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
 
           return json({
@@ -288,6 +291,8 @@ export default {
               latest_checkin: latestCheckin || null,
               active_weekly_plan: activeWeeklyPlan || null,
               active_nutrition_plan: activeNutritionPlan || null,
+              clinical_priority: clinicalPriority,
+              next_recommended_action: nextRecommendedAction,
               timeline
             }
           });
@@ -1776,6 +1781,40 @@ function isoWeekStartDate(year, week) {
   target.setUTCDate(week1Monday.getUTCDate() + (week - 1) * 7);
 
   return target;
+}
+
+function computeClinicalPriority(checkin, weeklyPlan) {
+  if (!checkin) {
+    return { level: 'HIGH', message: 'Sem check-in recente. Prioridade em reativar contato clínico.' };
+  }
+
+  const stress = Number(checkin.stress_level || 0);
+  const energy = Number(checkin.energy_level || 0);
+  const sleep = Number(checkin.sleep_quality || 0);
+  const hasSupportSignal = String(checkin.support_needed || '').trim().length > 0;
+  const pendingCoachReply = !checkin.coach_reply;
+  const hasRiskInPlan = String(weeklyPlan?.main_risk || '').trim().length > 0;
+
+  if (stress >= 8 || energy <= 3 || sleep <= 3 || hasSupportSignal) {
+    return { level: 'CRITICAL', message: 'Aluno em sinal clínico agudo. Ajustar plano e responder hoje.' };
+  }
+  if (pendingCoachReply || !hasRiskInPlan) {
+    return { level: 'HIGH', message: 'Ações clínicas pendentes na semana atual.' };
+  }
+  return { level: 'MODERATE', message: 'Aluno estável. Manter acompanhamento e microajustes.' };
+}
+
+function computeNextRecommendedAction(checkin, weeklyPlan) {
+  if (!checkin) {
+    return { code: 'REQUEST_CHECKIN', label: 'Cobrar check-in da semana', reason: 'Sem check-in disponível no Student 360.' };
+  }
+  if (!checkin.coach_reply) {
+    return { code: 'REPLY_CHECKIN', label: 'Responder último check-in', reason: 'Existe check-in sem retorno do coach.' };
+  }
+  if (!weeklyPlan) {
+    return { code: 'CREATE_WEEKLY_PLAN', label: 'Criar plano semanal atual', reason: 'Aluno sem plano semanal ativo.' };
+  }
+  return { code: 'REFINE_WEEKLY_PLAN', label: 'Refinar plano semanal', reason: 'Check-in respondido; revisar foco de execução.' };
 }
 
 function isAdminAuthorized(request, env) {

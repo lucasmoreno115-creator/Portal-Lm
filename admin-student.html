@@ -51,7 +51,10 @@
       <article class='card student-360-card'>
         <h2>Check-in mais recente</h2>
         <div id='latestCheckin'></div>
-        <a class='secondary-link' id='openCheckins' href='/admin-checkins.html'>Abrir Check-ins</a>
+        <div class='student-action-row'>
+          <textarea id='coachReplyInput' rows='3' placeholder='Escreva a resposta ao check-in'></textarea>
+          <button id='replyCheckinBtn' type='button'>Responder check-in</button>
+        </div>
       </article>
 
       <article class='card student-360-card'>
@@ -62,7 +65,15 @@
       <article class='card student-360-card'>
         <h2>Plano da semana</h2>
         <div id='weeklyPlan'></div>
-        <a class='secondary-link' id='editWeeklyPlan' href='/admin-weekly-plan.html'>Editar Plano da Semana</a>
+        <div class='student-action-row'>
+          <input id='planWeekRef' type='text' placeholder='2026-W20'>
+          <textarea id='planTrainingFocus' rows='2' placeholder='Foco treino'></textarea>
+          <textarea id='planCardioTarget' rows='2' placeholder='Meta cardio'></textarea>
+          <textarea id='planNutritionFocus' rows='2' placeholder='Foco nutrição'></textarea>
+          <textarea id='planMainRisk' rows='2' placeholder='Principal risco'></textarea>
+          <textarea id='planCoachMessage' rows='3' placeholder='Mensagem estratégica'></textarea>
+          <button id='saveWeeklyPlanBtn' type='button'>Salvar plano semanal</button>
+        </div>
       </article>
 
       <article class='card student-360-card'>
@@ -75,6 +86,14 @@
         <h2>Timeline</h2>
         <ul id='timeline' class='student-timeline'></ul>
       </article>
+      <article class='card student-360-card'>
+        <h2>Prioridade Clínica</h2>
+        <div id='clinicalPriority'></div>
+      </article>
+      <article class='card student-360-card'>
+        <h2>Próxima Ação Recomendada</h2>
+        <div id='nextAction'></div>
+      </article>
     </section>
   </div>
 
@@ -83,7 +102,10 @@
     const tokenInput = document.getElementById('adminToken');
     const emailInput = document.getElementById('studentEmailInput');
     const loadBtn = document.getElementById('loadBtn');
+    const replyBtn = document.getElementById('replyCheckinBtn');
+    const savePlanBtn = document.getElementById('saveWeeklyPlanBtn');
     const statusBox = document.getElementById('statusBox');
+    let latestCheckinId = null;
 
     function byId(id) { return document.getElementById(id); }
     function setText(id, value) { byId(id).textContent = value || '-'; }
@@ -142,9 +164,7 @@
 
     function hydrateLinks(email) {
       const query = encodeURIComponent(email || '');
-      byId('openCheckins').href = `/admin-checkins.html?email=${query}`;
       byId('openAnamnesis').href = `/admin-anamneses.html?email=${query}`;
-      byId('editWeeklyPlan').href = `/admin-weekly-plan.html?email=${query}`;
       byId('editNutritionPlan').href = `/admin-nutrition-plan.html?email=${query}`;
     }
 
@@ -261,6 +281,12 @@
         timelineEl.appendChild(li);
       });
     }
+    function renderPriority(priority) {
+      byId('clinicalPriority').innerHTML = priority ? renderFields([field('Nível', priority.level, true), field('Resumo', priority.message)]) : renderEmpty('Sem prioridade calculada.');
+    }
+    function renderNextAction(action) {
+      byId('nextAction').innerHTML = action ? renderFields([field('Ação', action.label, true), field('Motivo', action.reason), field('Código', action.code)]) : renderEmpty('Sem ação recomendada.');
+    }
 
     async function loadStudent360() {
       const token = tokenInput.value.trim();
@@ -291,9 +317,18 @@
         renderSummary(student, answers);
         renderAnamnesis(anamnesis, answers);
         renderCheckin(checkin);
+        latestCheckinId = checkin?.id || null;
         renderCoachReply(checkin);
         renderWeeklyPlan(data.active_weekly_plan || null);
+        byId('planWeekRef').value = data.active_weekly_plan?.week_ref || '';
+        byId('planTrainingFocus').value = data.active_weekly_plan?.training_focus || '';
+        byId('planCardioTarget').value = data.active_weekly_plan?.cardio_target || '';
+        byId('planNutritionFocus').value = data.active_weekly_plan?.nutrition_focus || '';
+        byId('planMainRisk').value = data.active_weekly_plan?.main_risk || '';
+        byId('planCoachMessage').value = data.active_weekly_plan?.coach_message || '';
         renderNutritionPlan(data.active_nutrition_plan || null);
+        renderPriority(data.clinical_priority || null);
+        renderNextAction(data.next_recommended_action || null);
         renderTimeline(data.timeline || []);
 
         hydrateLinks(student.email || email);
@@ -306,6 +341,31 @@
     }
 
     loadBtn.addEventListener('click', loadStudent360);
+    replyBtn.addEventListener('click', async () => {
+      const token = tokenInput.value.trim();
+      const reply = byId('coachReplyInput').value.trim();
+      if (!token || !latestCheckinId || !reply) return;
+      replyBtn.disabled = true;
+      try {
+        const res = await fetch(`/api/admin/checkins/${encodeURIComponent(latestCheckinId)}/reply`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-admin-token': token }, body: JSON.stringify({ coach_reply: reply, coach_status: 'replied' }) });
+        const payload = await res.json();
+        if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao responder check-in');
+        byId('coachReplyInput').value = '';
+        await loadStudent360();
+      } finally { replyBtn.disabled = false; }
+    });
+    savePlanBtn.addEventListener('click', async () => {
+      const token = tokenInput.value.trim();
+      const email = emailInput.value.trim().toLowerCase();
+      if (!token || !email || !byId('planWeekRef').value.trim()) return;
+      savePlanBtn.disabled = true;
+      try {
+        const res = await fetch('/api/admin/weekly-plan', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-token': token }, body: JSON.stringify({ student_email: email, week_ref: byId('planWeekRef').value.trim(), training_focus: byId('planTrainingFocus').value.trim(), cardio_target: byId('planCardioTarget').value.trim(), nutrition_focus: byId('planNutritionFocus').value.trim(), main_risk: byId('planMainRisk').value.trim(), coach_message: byId('planCoachMessage').value.trim() }) });
+        const payload = await res.json();
+        if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao salvar plano semanal');
+        await loadStudent360();
+      } finally { savePlanBtn.disabled = false; }
+    });
 
     const params = new URLSearchParams(window.location.search);
     const initialEmail = (params.get('email') || '').trim().toLowerCase();
