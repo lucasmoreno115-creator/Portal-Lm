@@ -79,6 +79,36 @@
       <h2>Prioridade de hoje</h2>
       <p id='priorityMsg'>Operação em dia.</p>
     </section>
+
+    <section class='card action-inbox'>
+      <h2>Caixa de entrada operacional</h2>
+      <div class='action-grid'>
+        <article class='action-section'>
+          <h3>⚡ Check-ins pendentes</h3>
+          <div id='pendingCheckinsList' class='action-list'></div>
+        </article>
+        <article class='action-section'>
+          <h3>🚨 Sem check-in na semana</h3>
+          <div id='withoutCheckinWeekList' class='action-list'></div>
+        </article>
+        <article class='action-section'>
+          <h3>📝 Anamneses novas</h3>
+          <div id='newAnamnesesList' class='action-list'></div>
+        </article>
+        <article class='action-section'>
+          <h3>📋 Sem plano da semana</h3>
+          <div id='withoutWeeklyPlanList' class='action-list'></div>
+        </article>
+        <article class='action-section'>
+          <h3>🥗 Sem plano alimentar</h3>
+          <div id='withoutNutritionPlanList' class='action-list'></div>
+        </article>
+        <article class='action-section'>
+          <h3>🔄 Follow-ups vencidos</h3>
+          <div id='overdueFollowupsList' class='action-list'></div>
+        </article>
+      </div>
+    </section>
   </div>
 
   <script src='/admin-auth.js'></script>
@@ -89,6 +119,26 @@
 
     function setText(id, value) {
       document.getElementById(id).textContent = String(value ?? 0);
+    }
+    function renderActionList(id, list) {
+      const root = document.getElementById(id);
+      const items = Array.isArray(list) ? list : [];
+      if (!items.length) {
+        root.innerHTML = "<p class='muted'>Nenhuma pendência nesta lista.</p>";
+        return;
+      }
+      root.innerHTML = items.map((item) => {
+        const date = item.last_event_at ? `<p class='action-item-meta'>Data: ${new Date(item.last_event_at).toLocaleString('pt-BR')}</p>` : '';
+        return `<article class='action-item'>
+          <div>
+            <strong>${item.name || '-'}</strong>
+            <p class='action-item-meta'>${item.email || '-'}</p>
+            <p class='action-item-reason'>${item.reason || ''}</p>
+            ${date}
+          </div>
+          <a class='action-item-button' href='${item.action_url || '#'}'>Abrir aluno</a>
+        </article>`;
+      }).join('');
     }
 
     async function loadCommandCenter() {
@@ -118,6 +168,12 @@
         setText('withoutWeeklyPlan', data.students_without_weekly_plan);
         setText('withoutNutritionPlan', data.students_without_nutrition_plan);
         setText('overdueFollowups', data.overdue_followups);
+        renderActionList('pendingCheckinsList', data.pending_checkins_list);
+        renderActionList('withoutCheckinWeekList', data.students_without_checkin_week_list);
+        renderActionList('newAnamnesesList', data.new_anamneses_list);
+        renderActionList('withoutWeeklyPlanList', data.students_without_weekly_plan_list);
+        renderActionList('withoutNutritionPlanList', data.students_without_nutrition_plan_list);
+        renderActionList('overdueFollowupsList', data.overdue_followups_list);
         document.getElementById('priorityMsg').textContent = data.priority_message || 'Operação em dia.';
         statusEl.textContent = 'Operação carregada com sucesso.';
       } catch (error) {

@@ -779,6 +779,7 @@ export default {
           const currentWeekRef = getWeekRef(new Date());
           const hasNutritionPlans = await tableExists(env.DB, 'nutrition_plans');
           const hasFollowupLogs = await tableExists(env.DB, 'followup_logs');
+          const buildActionUrl = (email) => `/admin-student.html?email=${encodeURIComponent(String(email || '').toLowerCase())}`;
 
           const pendingCheckinsRow = await env.DB.prepare(
             `SELECT COUNT(*) AS total
@@ -849,13 +850,143 @@ export default {
           const studentsWithoutNutritionPlan = Number(studentsWithoutNutritionPlanRow?.total || 0);
           const overdueFollowups = Number(overdueFollowupsRow?.total || 0);
 
+          const { results: pendingCheckinsListRaw = [] } = await env.DB.prepare(
+            `SELECT sa.name, sa.email, sc.created_at
+             FROM student_checkins sc
+             JOIN student_access sa ON lower(sa.email)=lower(sc.student_email)
+             WHERE sc.coach_status IS NULL OR sc.coach_status='pending'
+             ORDER BY datetime(sc.created_at) ASC
+             LIMIT 10`
+          ).all();
+
+          const { results: studentsWithoutCheckinWeekListRaw = [] } = await env.DB.prepare(
+            `SELECT sa.name, sa.email,
+                    (
+                      SELECT sc_last.created_at
+                      FROM student_checkins sc_last
+                      WHERE lower(sc_last.student_email)=lower(sa.email)
+                      ORDER BY datetime(sc_last.created_at) DESC
+                      LIMIT 1
+                    ) AS last_checkin_at
+             FROM student_access sa
+             WHERE sa.status='ACTIVE'
+               AND NOT EXISTS (
+                 SELECT 1
+                 FROM student_checkins sc
+                 WHERE lower(sc.student_email)=lower(sa.email)
+                   AND sc.week_ref=?
+               )
+             ORDER BY datetime(last_checkin_at) ASC NULLS FIRST, sa.name ASC
+             LIMIT 10`
+          ).bind(currentWeekRef).all();
+
+          const { results: newAnamnesesListRaw = [] } = await env.DB.prepare(
+            `SELECT student_name AS name, student_email AS email, created_at
+             FROM premium_anamnesis
+             WHERE status='RECEBIDA'
+             ORDER BY datetime(created_at) ASC
+             LIMIT 10`
+          ).all();
+
+          const { results: studentsWithoutWeeklyPlanListRaw = [] } = await env.DB.prepare(
+            `SELECT sa.name, sa.email
+             FROM student_access sa
+             WHERE sa.status='ACTIVE'
+               AND NOT EXISTS (
+                 SELECT 1
+                 FROM weekly_plans wp
+                 WHERE lower(wp.student_email)=lower(sa.email)
+                   AND wp.week_ref=?
+                   AND wp.status='ACTIVE'
+               )
+             ORDER BY sa.name ASC
+             LIMIT 10`
+          ).bind(currentWeekRef).all();
+
+          const studentsWithoutNutritionPlanListRaw = hasNutritionPlans
+            ? (await env.DB.prepare(
+              `SELECT sa.name, sa.email
+               FROM student_access sa
+               WHERE sa.status='ACTIVE'
+                 AND NOT EXISTS (
+                   SELECT 1
+                   FROM nutrition_plans np
+                   WHERE lower(np.student_email)=lower(sa.email)
+                     AND np.is_active=1
+                 )
+               ORDER BY sa.name ASC
+               LIMIT 10`
+            ).all()).results || []
+            : [];
+
+          const overdueFollowupsListRaw = hasFollowupLogs
+            ? (await env.DB.prepare(
+              `SELECT sa.name, sa.email, fl.due_date
+               FROM followup_logs fl
+               JOIN student_access sa ON lower(sa.email)=lower(fl.student_email)
+               WHERE fl.resolution_status='OPEN'
+                 AND fl.due_date IS NOT NULL
+                 AND datetime(fl.due_date) <= datetime('now')
+               ORDER BY datetime(fl.due_date) ASC
+               LIMIT 10`
+            ).all()).results || []
+            : [];
+
+          const pendingCheckinsList = pendingCheckinsListRaw.map((item) => ({
+            name: item.name || item.email,
+            email: item.email,
+            reason: 'Check-in aguardando resposta',
+            last_event_at: item.created_at || null,
+            action_url: buildActionUrl(item.email)
+          }));
+
+          const studentsWithoutCheckinWeekList = studentsWithoutCheckinWeekListRaw.map((item) => ({
+            name: item.name || item.email,
+            email: item.email,
+            reason: 'Sem check-in na semana atual',
+            last_event_at: item.last_checkin_at || null,
+            action_url: buildActionUrl(item.email)
+          }));
+
+          const newAnamnesesList = newAnamnesesListRaw.map((item) => ({
+            name: item.name || item.email,
+            email: item.email,
+            reason: 'Anamnese aguardando análise',
+            last_event_at: item.created_at || null,
+            action_url: buildActionUrl(item.email)
+          }));
+
+          const studentsWithoutWeeklyPlanList = studentsWithoutWeeklyPlanListRaw.map((item) => ({
+            name: item.name || item.email,
+            email: item.email,
+            reason: 'Plano semanal ausente',
+            last_event_at: null,
+            action_url: buildActionUrl(item.email)
+          }));
+
+          const studentsWithoutNutritionPlanList = studentsWithoutNutritionPlanListRaw.map((item) => ({
+            name: item.name || item.email,
+            email: item.email,
+            reason: 'Plano alimentar ausente',
+            last_event_at: null,
+            action_url: buildActionUrl(item.email)
+          }));
+
+          const overdueFollowupsList = overdueFollowupsListRaw.map((item) => ({
+            name: item.name || item.email,
+            email: item.email,
+            reason: 'Follow-up vencido aguardando resolução',
+            last_event_at: item.due_date || null,
+            action_url: buildActionUrl(item.email)
+          }));
+
           let priorityMessage = 'Operação em dia.';
-          if (pendingCheckins > 0) {
-            priorityMessage = 'Responder check-ins pendentes.';
-          } else if (studentsWithoutCheckinWeek > 0) {
-            priorityMessage = 'Cobrar check-ins da semana dos alunos ativos.';
-          } else if (newAnamneses > 0) {
-            priorityMessage = 'Analisar novas anamneses.';
+          if (pendingCheckinsList.length > 0) {
+            priorityMessage = `Comece respondendo o check-in de ${pendingCheckinsList[0].name}.`;
+          } else if (studentsWithoutCheckinWeekList.length > 0) {
+            priorityMessage = `Comece cobrando check-in de ${studentsWithoutCheckinWeekList[0].name}.`;
+          } else if (newAnamnesesList.length > 0) {
+            priorityMessage = `Comece analisando a anamnese de ${newAnamnesesList[0].name}.`;
           } else if (studentsWithoutWeeklyPlan > 0) {
             priorityMessage = 'Atualizar planos da semana.';
           }
@@ -869,6 +1000,12 @@ export default {
               students_without_weekly_plan: studentsWithoutWeeklyPlan,
               students_without_nutrition_plan: studentsWithoutNutritionPlan,
               overdue_followups: overdueFollowups,
+              pending_checkins_list: pendingCheckinsList,
+              students_without_checkin_week_list: studentsWithoutCheckinWeekList,
+              new_anamneses_list: newAnamnesesList,
+              students_without_weekly_plan_list: studentsWithoutWeeklyPlanList,
+              students_without_nutrition_plan_list: studentsWithoutNutritionPlanList,
+              overdue_followups_list: overdueFollowupsList,
               priority_message: priorityMessage,
               schema_audit: {
                 nutrition_plans_exists: hasNutritionPlans,

@@ -474,6 +474,17 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 .command-priority h2{margin:0 0 8px}
 .command-priority p{margin:0;color:#f1f1f1;font-size:1.05rem}
 
+.action-inbox{margin-top:18px}
+.action-inbox h2{margin:0 0 12px}
+.action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.action-section{border:1px solid #343434;border-radius:12px;background:#121212;padding:12px;display:grid;gap:10px}
+.action-section h3{margin:0;font-size:1rem}
+.action-list{display:grid;gap:10px}
+.action-item{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:10px;border:1px solid #2b2b2b;border-radius:10px;background:#171717}
+.action-item-meta{margin:3px 0;color:#c6c6c6;font-size:.88rem;overflow-wrap:anywhere}
+.action-item-reason{margin:4px 0 0;color:#ececec;font-size:.92rem}
+.action-item-button{display:inline-flex;align-items:center;justify-content:center;padding:8px 10px;border-radius:8px;border:1px solid rgba(212,175,55,.5);background:rgba(212,175,55,.12);color:#f8e6a0;text-decoration:none;font-weight:600;white-space:nowrap}
+
 @media (max-width:1100px){
   .command-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
@@ -481,6 +492,8 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 @media (max-width:720px){
   .command-actions{grid-template-columns:1fr;}
   .command-grid{grid-template-columns:1fr;}
+  .action-grid{grid-template-columns:1fr;}
+  .action-item{flex-direction:column}
 }
 
 .student-360-page .container{display:grid;gap:14px}
