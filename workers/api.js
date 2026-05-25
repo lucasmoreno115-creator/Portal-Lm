@@ -851,9 +851,11 @@ export default {
           const overdueFollowups = Number(overdueFollowupsRow?.total || 0);
 
           const { results: pendingCheckinsListRaw = [] } = await env.DB.prepare(
-            `SELECT sa.name, sa.email, sc.created_at
+            `SELECT sa.name,
+                    COALESCE(sa.email, sc.student_email) AS email,
+                    sc.created_at
              FROM student_checkins sc
-             JOIN student_access sa ON lower(sa.email)=lower(sc.student_email)
+             LEFT JOIN student_access sa ON lower(sa.email)=lower(sc.student_email)
              WHERE sc.coach_status IS NULL OR sc.coach_status='pending'
              ORDER BY datetime(sc.created_at) ASC
              LIMIT 10`
@@ -921,9 +923,11 @@ export default {
 
           const overdueFollowupsListRaw = hasFollowupLogs
             ? (await env.DB.prepare(
-              `SELECT sa.name, sa.email, fl.due_date
+              `SELECT sa.name,
+                      COALESCE(sa.email, fl.student_email) AS email,
+                      fl.due_date
                FROM followup_logs fl
-               JOIN student_access sa ON lower(sa.email)=lower(fl.student_email)
+               LEFT JOIN student_access sa ON lower(sa.email)=lower(fl.student_email)
                WHERE fl.resolution_status='OPEN'
                  AND fl.due_date IS NOT NULL
                  AND datetime(fl.due_date) <= datetime('now')
