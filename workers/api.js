@@ -466,6 +466,24 @@ export default {
           return json({ ok: true, data: { email, status: requestedStatus, reason: reason || null } });
         }
 
+        if (url.pathname === '/api/admin/reactivation-contact' && method === 'POST') {
+          const body = await readJson(request);
+          const email = String(body?.email || '').trim().toLowerCase();
+          if (!email) {
+            return json({ ok: false, error: 'email é obrigatório.' }, 400);
+          }
+          const reason = nullableTrimmed(body?.reason) || 'Contato de reativação enviado pelo Command Center';
+          await logActivityEvent(env.DB, {
+            student_email: email,
+            event_type: 'REACTIVATION_CONTACT_SENT',
+            source: 'admin',
+            title: 'Contato de reativação enviado',
+            payload: { reason }
+          });
+
+          return json({ ok: true, data: { email, event_type: 'REACTIVATION_CONTACT_SENT', reason } });
+        }
+
         if (url.pathname === '/api/admin/followup-log' && method === 'POST') {
           const body = await safeJson(request);
           const studentEmail = String(body?.student_email || '').trim().toLowerCase();
@@ -892,6 +910,30 @@ export default {
              FROM student_access
              WHERE status='PENDING_ONBOARDING'`
           ).first();
+          const inactiveStudentsRow = await env.DB.prepare(
+            `SELECT COUNT(*) AS total
+             FROM student_access
+             WHERE status='INACTIVE'`
+          ).first();
+
+          const { results: inactiveStudentsListRaw = [] } = await env.DB.prepare(
+            `SELECT sa.name,
+                    sa.email,
+                    sa.plan_type,
+                    sa.updated_at AS inactivated_at,
+                    (
+                      SELECT at.metadata_json
+                      FROM activity_timeline at
+                      WHERE lower(at.student_email)=lower(sa.email)
+                        AND at.event_type='STUDENT_INACTIVATED'
+                      ORDER BY datetime(at.created_at) DESC
+                      LIMIT 1
+                    ) AS inactivation_meta
+             FROM student_access sa
+             WHERE sa.status='INACTIVE'
+             ORDER BY datetime(sa.updated_at) DESC
+             LIMIT 10`
+          ).all();
 
           const studentsWithoutWeeklyPlanRow = await env.DB.prepare(
             `SELECT COUNT(*) AS total
@@ -937,6 +979,16 @@ export default {
           const studentsWithoutNutritionPlan = Number(studentsWithoutNutritionPlanRow?.total || 0);
           const overdueFollowups = Number(overdueFollowupsRow?.total || 0);
           const pendingOnboarding = Number(pendingOnboardingRow?.total || 0);
+          const inactiveStudents = Number(inactiveStudentsRow?.total || 0);
+          const revenueByPlanType = {
+            START: 0,
+            PREMIUM: 497,
+            VIP: 997
+          };
+          const reactivationRevenuePotential = (inactiveStudentsListRaw || []).reduce((sum, item) => {
+            const planType = String(item?.plan_type || '').trim().toUpperCase();
+            return sum + Number(revenueByPlanType[planType] || revenueByPlanType.PREMIUM);
+          }, 0);
           const { results: recentActivitiesRaw = [] } = await env.DB.prepare(`SELECT student_email, event_type, title, created_at FROM activity_timeline ORDER BY datetime(created_at) DESC LIMIT 8`).all();
 
           const { results: pendingCheckinsListRaw = [] } = await env.DB.prepare(
@@ -1086,6 +1138,22 @@ export default {
             last_event_at: item.created_at || null,
             action_url: buildActionUrl(item.email)
           }));
+          const inactiveStudentsList = inactiveStudentsListRaw.map((item) => {
+            const meta = safeJsonParse(item.inactivation_meta);
+            const reason = String(meta?.reason || 'Sem motivo informado').trim();
+            const inactivatedAt = item.inactivated_at || null;
+            const daysSinceInactivation = inactivatedAt
+              ? Math.max(0, Math.floor((Date.now() - new Date(inactivatedAt).getTime()) / (1000 * 60 * 60 * 24)))
+              : null;
+            return {
+              name: item.name || item.email,
+              email: item.email,
+              reason,
+              inactivated_at: inactivatedAt,
+              days_since_inactivation: daysSinceInactivation,
+              action_url: buildActionUrl(item.email)
+            };
+          });
 
           let priorityMessage = 'Operação em dia.';
           if (pendingCheckinsList.length > 0) {
@@ -1108,6 +1176,8 @@ export default {
               students_without_nutrition_plan: studentsWithoutNutritionPlan,
               overdue_followups: overdueFollowups,
               pending_onboarding: pendingOnboarding,
+              inactive_students: inactiveStudents,
+              reactivation_revenue_potential: reactivationRevenuePotential,
               pending_checkins_list: pendingCheckinsList,
               students_without_checkin_week_list: studentsWithoutCheckinWeekList,
               new_anamneses_list: newAnamnesesList,
@@ -1115,6 +1185,7 @@ export default {
               students_without_nutrition_plan_list: studentsWithoutNutritionPlanList,
               overdue_followups_list: overdueFollowupsList,
               pending_onboarding_list: pendingOnboardingList,
+              inactive_students_list: inactiveStudentsList,
               recent_activities: (recentActivitiesRaw || []).map((row) => ({ student_email: row.student_email, type: row.event_type, title: row.title, at: row.created_at, action_url: buildActionUrl(row.student_email) })),
               priority_message: priorityMessage,
               schema_audit: {

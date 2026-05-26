@@ -74,6 +74,14 @@
       </article>
 
       <article class='card command-card'>
+        <h2>♻️ Reativação</h2>
+        <p id='inactiveStudents' class='command-number'>0</p>
+        <p id='reactivationRevenuePotential' class='muted'>Potencial de receita: R$ 0</p>
+        <p class='muted'>Alunos inativos que podem voltar para a operação.</p>
+        <a class='secondary-link' href='#reactivationHub'>Abrir hub de reativação</a>
+      </article>
+
+      <article class='card command-card'>
         <h2>Follow-ups vencidos</h2>
         <p id='overdueFollowups' class='command-number'>0</p>
         <p class='muted'>Follow-ups abertos com prazo já vencido.</p>
@@ -118,6 +126,10 @@
           <div id='overdueFollowupsList' class='action-list'></div>
         </article>
         <article class='action-section'>
+          <h3 id='reactivationHub'>♻️ Reativação Hub V1</h3>
+          <div id='inactiveStudentsList' class='action-list'></div>
+        </article>
+        <article class='action-section'>
           <h3>🕒 Últimas atividades</h3>
           <div id='recentActivitiesList' class='action-list'></div>
         </article>
@@ -157,6 +169,34 @@
         </article>`;
       }).join('');
     }
+    function currencyBRL(value) {
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
+    }
+    function getReactivationMessage(student) {
+      return `Oi, ${student.name || 'tudo bem'}! Sentimos sua falta na Consultoria LM.\n\nVi que sua conta ficou inativa há ${student.days_since_inactivation ?? '-'} dias${student.reason ? ` (${student.reason})` : ''}. Quero te ajudar a retomar com um plano simples e direto para essa semana.\n\nSe fizer sentido pra você, te reativo agora e já alinhamos seu próximo passo. 💪`;
+    }
+    function renderReactivationList(list) {
+      const root = document.getElementById('inactiveStudentsList');
+      const items = Array.isArray(list) ? list : [];
+      if (!items.length) {
+        root.innerHTML = "<p class='muted'>Nenhum aluno inativo recente.</p>";
+        return;
+      }
+      root.innerHTML = items.map((item, index) => `<article class='action-item'>
+          <div>
+            <strong>${item.name || '-'}</strong>
+            <p class='action-item-meta'>${item.email || '-'}</p>
+            <p class='action-item-reason'>Motivo: ${item.reason || 'Sem motivo informado'}</p>
+            <p class='action-item-meta'>Dias desde inativação: ${item.days_since_inactivation ?? '-'}</p>
+          </div>
+          <div class='command-actions'>
+            <button type='button' class='action-item-button' data-action='send-contact' data-index='${index}'>💬 Reativar contato</button>
+            <button type='button' class='action-item-button' data-action='reactivate-student' data-index='${index}'>🔁 Reativar aluno</button>
+          </div>
+        </article>`).join('');
+    }
+
+    let inactiveStudentsCache = [];
     function getTimelineEventView(event) {
       const type = String(event?.type || event?.event_type || '').toUpperCase();
       const map = {
@@ -201,6 +241,8 @@
         setText('withoutNutritionPlan', data.students_without_nutrition_plan);
         setText('overdueFollowups', data.overdue_followups);
         setText('pendingOnboarding', data.pending_onboarding);
+        setText('inactiveStudents', data.inactive_students);
+        document.getElementById('reactivationRevenuePotential').textContent = `Potencial de receita: ${currencyBRL(data.reactivation_revenue_potential)}`;
         renderActionList('pendingCheckinsList', data.pending_checkins_list);
         renderActionList('withoutCheckinWeekList', data.students_without_checkin_week_list);
         renderActionList('newAnamnesesList', data.new_anamneses_list);
@@ -208,6 +250,8 @@
         renderActionList('withoutNutritionPlanList', data.students_without_nutrition_plan_list);
         renderActionList('overdueFollowupsList', data.overdue_followups_list);
         renderActionList('pendingOnboardingList', data.pending_onboarding_list);
+        inactiveStudentsCache = Array.isArray(data.inactive_students_list) ? data.inactive_students_list : [];
+        renderReactivationList(inactiveStudentsCache);
         renderActionList('recentActivitiesList', (data.recent_activities || []).map((item) => {
           const view = getTimelineEventView(item);
           return ({
@@ -227,6 +271,44 @@
     }
 
     loadBtn.addEventListener('click', loadCommandCenter);
+    document.getElementById('inactiveStudentsList').addEventListener('click', async (event) => {
+      const target = event.target.closest('button[data-action]');
+      if (!target) return;
+      const action = target.getAttribute('data-action');
+      const index = Number(target.getAttribute('data-index'));
+      const student = inactiveStudentsCache[index];
+      if (!student) return;
+      const token = tokenInput.value.trim();
+      if (!token) {
+        statusEl.textContent = 'Informe o token admin para executar ações de reativação.';
+        return;
+      }
+      if (action === 'send-contact') {
+        const message = getReactivationMessage(student);
+        await navigator.clipboard.writeText(message);
+        await fetch('/api/admin/reactivation-contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+          body: JSON.stringify({ email: student.email, reason: student.reason || null })
+        });
+        statusEl.textContent = `Mensagem copiada e contato de reativação registrado para ${student.name}.`;
+        return;
+      }
+      if (action === 'reactivate-student') {
+        const res = await fetch('/api/admin/student-access/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+          body: JSON.stringify({ email: student.email, status: 'ACTIVE', reason: 'Reativado via Command Center - Reativação Hub V1' })
+        });
+        const payload = await res.json();
+        if (!res.ok || !payload.ok) {
+          statusEl.textContent = payload.error || 'Falha ao reativar aluno.';
+          return;
+        }
+        statusEl.textContent = `Aluno ${student.name} reativado com sucesso.`;
+        await loadCommandCenter();
+      }
+    });
     if (adminSessionToken) loadCommandCenter();
   </script>
 </body>
