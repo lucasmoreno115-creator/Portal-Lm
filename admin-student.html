@@ -240,14 +240,25 @@
     function getAccessMessage() {
       const name = currentStudent?.name || 'Aluno(a)';
       const email = currentStudent?.email || emailInput.value.trim().toLowerCase();
-      const token = currentStudent?.token || currentStudent?.access_token || 'token_não_encontrado';
+      const token = currentStudent?.token || currentStudent?.access_token || '';
       const portalLink = `${window.location.origin}/portal-login.html`;
+      if (!token) {
+        return `Olá, ${name}!\n\nSeu acesso à Consultoria LM foi liberado.\n\n• Email: ${email}\n• Portal: ${portalLink}\n\n⚠️ Token não disponível nesta tela.\nConsulte "Acessos de Alunos" para recuperar ou reenviar o acesso.\n\nQualquer dúvida, me chama por aqui 👊`;
+      }
       return `Olá, ${name}!\n\nSeu acesso à Consultoria LM foi liberado.\n\n• Email: ${email}\n• Token: ${token}\n• Portal: ${portalLink}\n\nQualquer dúvida, me chama por aqui 👊`;
+    }
+    function syncAccessMessageActions() {
+      const hasToken = !!(currentStudent?.token || currentStudent?.access_token);
+      copyAccessMessageBtn.disabled = !hasToken;
+      openAccessWhatsappBtn.disabled = !hasToken;
+      const title = hasToken ? '' : 'Token do aluno indisponível';
+      copyAccessMessageBtn.title = title;
+      openAccessWhatsappBtn.title = title;
     }
     function getStrategicSummaryMessage() {
       const answers = parseAnamnesisAnswers(currentStudent?.latest_anamnesis || null);
       const checkin = currentStudent?.latest_checkin || {};
-      const nextAction = byId('nextAction')?.textContent?.trim() || 'Sem próxima ação definida';
+      const nextAction = currentStudent?.next_recommended_action?.label || currentStudent?.next_recommended_action?.reason || 'Sem próxima ação definida';
       return [
         `Resumo Estratégico — ${currentStudent?.name || 'Aluno(a)'}`,
         `• Objetivo: ${pickFirst(answers, ['objetivo_principal', 'goals.main_goal', 'objetivo']) || 'Não informado'}`,
@@ -464,7 +475,8 @@
           active_weekly_plan: data.active_weekly_plan || null,
           active_nutrition_plan: data.active_nutrition_plan || null,
           latest_checkin: checkin || null,
-          latest_anamnesis: data.latest_anamnesis || null
+          latest_anamnesis: data.latest_anamnesis || null,
+          next_recommended_action: data.next_recommended_action || null
         };
         const anamnesis = data.latest_anamnesis || null;
         const answers = parseAnamnesisAnswers(anamnesis);
@@ -494,6 +506,7 @@
         renderTimeline(data.timeline || []);
         renderOperationalDiagnosis(data);
         byId('accessMessageOutput').value = getAccessMessage();
+        syncAccessMessageActions();
         byId('communicationPreview').value = '';
 
         hydrateLinks(student.email || email);
