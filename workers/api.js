@@ -23,7 +23,7 @@ export default {
         const studentName = nullableTrimmed(body?.student_name);
         const providedEmail = nullableTrimmed(body?.student_email)?.toLowerCase() || null;
         const studentPhone = nullableTrimmed(body?.student_phone);
-        const studentEmail = providedEmail || buildFallbackAnamnesisEmail(studentName, studentPhone);
+        const studentEmail = providedEmail;
         const status = nullableTrimmed(body?.status) || 'RECEBIDA';
         const answers = body?.answers && typeof body.answers === 'object' ? body.answers : {};
         const internalScores = body?.internal_scores && typeof body.internal_scores === 'object' ? body.internal_scores : {
@@ -35,6 +35,12 @@ export default {
 
         if (!studentName) {
           return json({ ok: false, error: 'student_name é obrigatório.' }, 400);
+        }
+        if (!studentEmail) {
+          return json({ ok: false, error: 'student_email é obrigatório.' }, 400);
+        }
+        if (!studentPhone) {
+          return json({ ok: false, error: 'student_phone é obrigatório.' }, 400);
         }
 
         const id = crypto.randomUUID();
@@ -56,6 +62,25 @@ export default {
           now,
           now
         ).run();
+
+        const existingAccess = await env.DB.prepare(
+          `SELECT id FROM student_access WHERE lower(email)=? LIMIT 1`
+        ).bind(studentEmail).first();
+
+        if (!existingAccess) {
+          await env.DB.prepare(
+            `INSERT INTO student_access (
+              id, name, email, access_token, status, plan_type, whatsapp, created_at
+            ) VALUES (?, ?, ?, ?, 'PENDING_ONBOARDING', 'PREMIUM', ?, ?)`
+          ).bind(
+            crypto.randomUUID(),
+            studentName,
+            studentEmail,
+            generateAccessToken(),
+            normalizeWhatsapp(studentPhone),
+            now
+          ).run();
+        }
 
         return json({ ok: true, data: { id, created_at: now } });
       }
@@ -388,6 +413,27 @@ export default {
               whatsapp
             }
           });
+        }
+
+        if (url.pathname === '/api/admin/student-access/activate' && method === 'POST') {
+          const body = await safeJson(request);
+          const email = String(body?.email || '').trim().toLowerCase();
+          if (!email) {
+            return json({ ok: false, error: 'email é obrigatório.' }, 400);
+          }
+
+          const existing = await env.DB.prepare(
+            `SELECT id FROM student_access WHERE lower(email)=? LIMIT 1`
+          ).bind(email).first();
+          if (!existing) {
+            return json({ ok: false, error: 'Aluno não encontrado no student_access.' }, 404);
+          }
+
+          await env.DB.prepare(
+            `UPDATE student_access SET status='ACTIVE' WHERE id=?`
+          ).bind(existing.id).run();
+
+          return json({ ok: true, data: { email, status: 'ACTIVE' } });
         }
 
         if (url.pathname === '/api/admin/followup-log' && method === 'POST') {
@@ -805,6 +851,11 @@ export default {
              FROM premium_anamnesis
              WHERE status='RECEBIDA'`
           ).first();
+          const pendingOnboardingRow = await env.DB.prepare(
+            `SELECT COUNT(*) AS total
+             FROM student_access
+             WHERE status='PENDING_ONBOARDING'`
+          ).first();
 
           const studentsWithoutWeeklyPlanRow = await env.DB.prepare(
             `SELECT COUNT(*) AS total
@@ -849,6 +900,7 @@ export default {
           const studentsWithoutWeeklyPlan = Number(studentsWithoutWeeklyPlanRow?.total || 0);
           const studentsWithoutNutritionPlan = Number(studentsWithoutNutritionPlanRow?.total || 0);
           const overdueFollowups = Number(overdueFollowupsRow?.total || 0);
+          const pendingOnboarding = Number(pendingOnboardingRow?.total || 0);
 
           const { results: pendingCheckinsListRaw = [] } = await env.DB.prepare(
             `SELECT sa.name,
@@ -935,6 +987,13 @@ export default {
                LIMIT 10`
             ).all()).results || []
             : [];
+          const { results: pendingOnboardingListRaw = [] } = await env.DB.prepare(
+            `SELECT name, email, created_at
+             FROM student_access
+             WHERE status='PENDING_ONBOARDING'
+             ORDER BY datetime(created_at) ASC
+             LIMIT 10`
+          ).all();
 
           const pendingCheckinsList = pendingCheckinsListRaw.map((item) => ({
             name: item.name || item.email,
@@ -983,6 +1042,13 @@ export default {
             last_event_at: item.due_date || null,
             action_url: buildActionUrl(item.email)
           }));
+          const pendingOnboardingList = pendingOnboardingListRaw.map((item) => ({
+            name: item.name || item.email,
+            email: item.email,
+            reason: 'Aguardando liberação de acesso',
+            last_event_at: item.created_at || null,
+            action_url: buildActionUrl(item.email)
+          }));
 
           let priorityMessage = 'Operação em dia.';
           if (pendingCheckinsList.length > 0) {
@@ -1004,12 +1070,14 @@ export default {
               students_without_weekly_plan: studentsWithoutWeeklyPlan,
               students_without_nutrition_plan: studentsWithoutNutritionPlan,
               overdue_followups: overdueFollowups,
+              pending_onboarding: pendingOnboarding,
               pending_checkins_list: pendingCheckinsList,
               students_without_checkin_week_list: studentsWithoutCheckinWeekList,
               new_anamneses_list: newAnamnesesList,
               students_without_weekly_plan_list: studentsWithoutWeeklyPlanList,
               students_without_nutrition_plan_list: studentsWithoutNutritionPlanList,
               overdue_followups_list: overdueFollowupsList,
+              pending_onboarding_list: pendingOnboardingList,
               priority_message: priorityMessage,
               schema_audit: {
                 nutrition_plans_exists: hasNutritionPlans,
@@ -1876,6 +1944,9 @@ function corsResponse() {
   });
 }
 
+function generateAccessToken() {
+  return crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+}
 
 function buildFallbackAnamnesisEmail(studentName, studentPhone) {
   const normalizedName = String(studentName || '').toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '').slice(0, 24) || 'aluno';
