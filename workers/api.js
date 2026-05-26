@@ -427,25 +427,43 @@ export default {
           });
         }
 
-        if (url.pathname === '/api/admin/student-access/activate' && method === 'POST') {
+        if (url.pathname === '/api/admin/student-access/status' && method === 'POST') {
           const body = await safeJson(request);
           const email = String(body?.email || '').trim().toLowerCase();
+          const requestedStatus = String(body?.status || '').trim().toUpperCase();
+          const reason = nullableTrimmed(body?.reason);
           if (!email) {
             return json({ ok: false, error: 'email é obrigatório.' }, 400);
           }
+          if (!['ACTIVE', 'INACTIVE'].includes(requestedStatus)) {
+            return json({ ok: false, error: 'status deve ser ACTIVE ou INACTIVE.' }, 400);
+          }
 
           const existing = await env.DB.prepare(
-            `SELECT id FROM student_access WHERE lower(email)=? LIMIT 1`
+            `SELECT id, status FROM student_access WHERE lower(email)=? LIMIT 1`
           ).bind(email).first();
           if (!existing) {
             return json({ ok: false, error: 'Aluno não encontrado no student_access.' }, 404);
           }
 
           await env.DB.prepare(
-            `UPDATE student_access SET status='ACTIVE' WHERE id=?`
-          ).bind(existing.id).run();
+            `UPDATE student_access SET status=? WHERE id=?`
+          ).bind(requestedStatus, existing.id).run();
 
-          return json({ ok: true, data: { email, status: 'ACTIVE' } });
+          const previousStatus = String(existing.status || '').toUpperCase();
+          if (previousStatus !== requestedStatus) {
+            const eventType = requestedStatus === 'INACTIVE' ? 'STUDENT_INACTIVATED' : 'STUDENT_REACTIVATED';
+            const title = requestedStatus === 'INACTIVE' ? 'Aluno inativado' : 'Aluno reativado';
+            await logActivityEvent(env.DB, {
+              student_email: email,
+              event_type: eventType,
+              source: 'admin',
+              title,
+              payload: { previous_status: previousStatus || null, new_status: requestedStatus, reason: reason || null }
+            });
+          }
+
+          return json({ ok: true, data: { email, status: requestedStatus, reason: reason || null } });
         }
 
         if (url.pathname === '/api/admin/followup-log' && method === 'POST') {
