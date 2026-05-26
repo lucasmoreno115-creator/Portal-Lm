@@ -1,3 +1,10 @@
+import { EVENT_TYPES } from './event-types.js';
+import { nullableTrimmed, safeJsonParse, getWeekRef } from './lm-utils.js';
+import { buildBaseTimeline, appendActivityRows } from './timeline-engine.js';
+import { inferRiskLevelFromOutcome } from './student-lifecycle.js';
+import { buildActionUrl } from './command-center.js';
+import { buildStudentSummary } from './student360.js';
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -62,7 +69,7 @@ export default {
           now,
           now
         ).run();
-        await logActivityEvent(env.DB, { student_email: studentEmail, event_type: 'ANAMNESE_SUBMITTED', source: 'portal', title: 'Anamnese enviada', payload: { anamnesis_id: id, status } });
+        await logActivityEvent(env.DB, { student_email: studentEmail, event_type: EVENT_TYPES.ANAMNESE_SUBMITTED, source: 'portal', title: 'Anamnese enviada', payload: { anamnesis_id: id, status } });
 
         const existingAccess = await env.DB.prepare(
           `SELECT id FROM student_access WHERE lower(email)=? LIMIT 1`
@@ -182,7 +189,7 @@ export default {
             body?.supportNeeded || null,
             now
           ).run();
-          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: 'CHECKIN_SUBMITTED', source: 'portal', title: 'Check-in enviado', payload: { checkin_id: id, week_ref: weekRef } });
+          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: EVENT_TYPES.CHECKIN_SUBMITTED, source: 'portal', title: 'Check-in enviado', payload: { checkin_id: id, week_ref: weekRef } });
 
           return json({ ok: true, data: { id, weekRef, createdAt: now } });
         }
@@ -215,7 +222,7 @@ export default {
             body?.decision || 'Manter carga',
             now
           ).run();
-          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: 'PROGRESSION_LOG_SUBMITTED', source: 'portal', title: 'Progresso registrado', payload: { progression_id: id } });
+          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: EVENT_TYPES.PROGRESSION_LOG_SUBMITTED, source: 'portal', title: 'Progresso registrado', payload: { progression_id: id } });
 
           return json({ ok: true, data: { id, createdAt: now } });
         }
@@ -297,43 +304,8 @@ export default {
             return json({ ok: false, error: 'Nenhum dado encontrado para este email. Verifique se há acesso, anamnese, check-in ou plano alimentar cadastrado.' }, 404);
           }
 
-          const student = {
-            name: studentAccess?.name
-              || latestAnamnesis?.student_name
-              || latestCheckin?.student_name
-              || activeNutritionPlan?.student_name
-              || email,
-            email,
-            whatsapp: studentAccess?.whatsapp || latestAnamnesis?.student_phone || null,
-            plan_type: studentAccess?.plan_type || 'Não cadastrado',
-            status: studentAccess?.status || 'Sem acesso criado'
-          };
-
-          const timeline = [];
-          if (latestAnamnesis?.created_at) {
-            timeline.push({ type: 'anamnese_enviada', at: latestAnamnesis.created_at, title: 'Anamnese enviada' });
-          }
-          if (latestCheckin?.created_at) {
-            timeline.push({ type: 'checkin_enviado', at: latestCheckin.created_at, title: 'Check-in enviado' });
-          }
-          if (latestCheckin?.coach_reply_at || latestCheckin?.coach_reply) {
-            timeline.push({
-              type: 'resposta_coach',
-              at: latestCheckin.coach_reply_at || latestCheckin.created_at,
-              title: 'Resposta do coach',
-              detail: latestCheckin.coach_reply || null
-            });
-          }
-          if (activeWeeklyPlan?.updated_at) {
-            timeline.push({ type: 'plano_semanal_atualizado', at: activeWeeklyPlan.updated_at, title: 'Plano semanal atualizado' });
-          }
-          if (activeNutritionPlan?.updated_at || activeNutritionPlan?.created_at) {
-            timeline.push({
-              type: 'plano_alimentar_atualizado',
-              at: activeNutritionPlan.updated_at || activeNutritionPlan.created_at,
-              title: 'Plano alimentar atualizado'
-            });
-          }
+          const student = buildStudentSummary({ studentAccess, latestAnamnesis, latestCheckin, activeNutritionPlan, email });
+          const timeline = buildBaseTimeline({ latestAnamnesis, latestCheckin, activeWeeklyPlan, activeNutritionPlan });
 
           const timelineType = String(url.searchParams.get('timeline_type') || '').trim().toUpperCase() || null;
           const timelineLimitRaw = Number(url.searchParams.get('timeline_limit') || 30);
@@ -342,12 +314,12 @@ export default {
           const timelineParams = [email];
           if (timelineType) { whereTimeline.push('event_type=?'); timelineParams.push(timelineType); }
           const { results: activityRows = [] } = await env.DB.prepare(`SELECT event_type, created_at, title, metadata_json FROM activity_timeline WHERE ${whereTimeline.join(' AND ')} ORDER BY datetime(created_at) DESC LIMIT ?`).bind(...timelineParams, timelineLimit).all();
-          for (const row of activityRows) { timeline.push({ type: String(row.event_type || '').toLowerCase(), at: row.created_at, title: row.title || 'Atividade', detail: safeJsonParse(row.metadata_json) }); }
+          appendActivityRows(timeline, activityRows);
 
           const clinicalPriority = computeClinicalPriority(latestCheckin, activeWeeklyPlan);
           const nextRecommendedAction = computeNextRecommendedAction(latestCheckin, activeWeeklyPlan);
 
-          timeline.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+          
 
           return json({
             ok: true,
@@ -452,7 +424,7 @@ export default {
 
           const previousStatus = String(existing.status || '').toUpperCase();
           if (previousStatus !== requestedStatus) {
-            const eventType = requestedStatus === 'INACTIVE' ? 'STUDENT_INACTIVATED' : 'STUDENT_REACTIVATED';
+            const eventType = requestedStatus === 'INACTIVE' ? EVENT_TYPES.STUDENT_INACTIVATED : EVENT_TYPES.STUDENT_REACTIVATED;
             const title = requestedStatus === 'INACTIVE' ? 'Aluno inativado' : 'Aluno reativado';
             await logActivityEvent(env.DB, {
               student_email: email,
@@ -475,13 +447,13 @@ export default {
           const reason = nullableTrimmed(body?.reason) || 'Contato de reativação enviado pelo Command Center';
           await logActivityEvent(env.DB, {
             student_email: email,
-            event_type: 'REACTIVATION_CONTACT_SENT',
+            event_type: EVENT_TYPES.REACTIVATION_CONTACT_SENT,
             source: 'admin',
             title: 'Contato de reativação enviado',
             payload: { reason }
           });
 
-          return json({ ok: true, data: { email, event_type: 'REACTIVATION_CONTACT_SENT', reason } });
+          return json({ ok: true, data: { email, event_type: EVENT_TYPES.REACTIVATION_CONTACT_SENT, reason } });
         }
 
         if (url.pathname === '/api/admin/followup-log' && method === 'POST') {
@@ -509,7 +481,7 @@ export default {
               id, student_email, contact_type, reason, note, outcome, risk_level, next_action, due_date, resolution_status, created_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           ).bind(id, studentEmail, contactType, reason, note, outcome, riskLevel, nextAction, dueDate, resolutionStatus, createdAt).run();
-          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: 'FOLLOWUP_LOGGED', source: 'admin', title: 'Follow-up registrado', payload: { followup_id: id } });
+          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: EVENT_TYPES.FOLLOWUP_LOGGED, source: 'admin', title: 'Follow-up registrado', payload: { followup_id: id } });
 
           return json({
             ok: true,
@@ -692,7 +664,7 @@ export default {
             ).run();
           }
 
-          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: 'WEEKLY_PLAN_UPDATED', source: 'admin', title: 'Plano semanal atualizado', payload: { weekly_plan_id: id, week_ref: weekRef } });
+          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: EVENT_TYPES.WEEKLY_PLAN_UPDATED, source: 'admin', title: 'Plano semanal atualizado', payload: { weekly_plan_id: id, week_ref: weekRef } });
 
           const saved = await env.DB.prepare(
             `SELECT id, student_email, week_ref, training_focus, cardio_target,
@@ -766,7 +738,7 @@ export default {
             now
           ).run();
 
-          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: 'NUTRITION_PLAN_UPDATED', source: 'admin', title: 'Plano alimentar atualizado', payload: { nutrition_plan_id: id } });
+          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: EVENT_TYPES.NUTRITION_PLAN_UPDATED, source: 'admin', title: 'Plano alimentar atualizado', payload: { nutrition_plan_id: id } });
           const saved = await getActiveNutritionPlanByEmail(env.DB, studentEmail);
           return json({ ok: true, data: saved });
         }
@@ -863,7 +835,7 @@ export default {
              WHERE id=?`
           ).bind(coachReply, now, coachStatus, now, reviewedBy, id).run();
           const studentEmailForActivity = await env.DB.prepare(`SELECT student_email FROM student_checkins WHERE id=? LIMIT 1`).bind(id).first();
-          await logActivityEvent(env.DB, { student_email: String(studentEmailForActivity?.student_email || '').toLowerCase(), event_type: 'COACH_REPLY_SENT', source: 'admin', title: 'Resposta do coach enviada', payload: { checkin_id: id, coach_status: coachStatus } });
+          await logActivityEvent(env.DB, { student_email: String(studentEmailForActivity?.student_email || '').toLowerCase(), event_type: EVENT_TYPES.COACH_REPLY_SENT, source: 'admin', title: 'Resposta do coach enviada', payload: { checkin_id: id, coach_status: coachStatus } });
 
           const updated = await env.DB.prepare(
             `SELECT id, coach_status, coach_reply, coach_reply_at, reviewed_at, reviewed_by
@@ -879,7 +851,7 @@ export default {
           const currentWeekRef = getWeekRef(new Date());
           const hasNutritionPlans = await tableExists(env.DB, 'nutrition_plans');
           const hasFollowupLogs = await tableExists(env.DB, 'followup_logs');
-          const buildActionUrl = (email) => `/admin-student.html?email=${encodeURIComponent(String(email || '').toLowerCase())}`;
+          
 
           const pendingCheckinsRow = await env.DB.prepare(
             `SELECT COUNT(*) AS total
@@ -1902,7 +1874,7 @@ async function logActivityEvent(db, event) {
   ).run();
 }
 
-function safeJsonParse(value) {
+function __deprecated_safeJsonParse(value) {
   try { return value ? JSON.parse(value) : null; } catch { return null; }
 }
 
@@ -1993,7 +1965,7 @@ function resolveResolutionStatus(nextAction, dueDate) {
   return 'OPEN';
 }
 
-function inferRiskLevelFromOutcome(outcome) {
+function __deprecated_inferRiskLevelFromOutcome(outcome) {
   switch (String(outcome || '').toUpperCase()) {
     case 'PEDIU_CANCELAMENTO':
       return 'CRITICAL';
@@ -2022,7 +1994,7 @@ function normalizeWhatsapp(rawValue) {
   return digits;
 }
 
-function nullableTrimmed(value) {
+function __deprecated_nullableTrimmed(value) {
   if (value == null) return null;
   const trimmed = String(value).trim();
   return trimmed || null;
@@ -2119,7 +2091,7 @@ async function safeJson(request) {
   }
 }
 
-function getWeekRef(date) {
+function __deprecated_getWeekRef(date) {
   const d = new Date(Date.UTC(
     date.getUTCFullYear(),
     date.getUTCMonth(),
