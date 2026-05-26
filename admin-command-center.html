@@ -68,6 +68,13 @@
       </article>
 
       <article class='card command-card'>
+        <h2>🆕 Novos alunos aguardando liberação</h2>
+        <p id='pendingOnboarding' class='command-number'>0</p>
+        <p class='muted'>Registros em student_access com status PENDING_ONBOARDING.</p>
+        <a class='secondary-link' href='/admin-students.html'>Abrir alunos</a>
+      </article>
+
+      <article class='card command-card'>
         <h2>Follow-ups vencidos</h2>
         <p id='overdueFollowups' class='command-number'>0</p>
         <p class='muted'>Follow-ups abertos com prazo já vencido.</p>
@@ -102,6 +109,10 @@
         <article class='action-section'>
           <h3>🥗 Sem plano alimentar</h3>
           <div id='withoutNutritionPlanList' class='action-list'></div>
+        </article>
+        <article class='action-section'>
+          <h3>🆕 Aguardando liberação</h3>
+          <div id='pendingOnboardingList' class='action-list'></div>
         </article>
         <article class='action-section'>
           <h3>🔄 Follow-ups vencidos</h3>
@@ -168,12 +179,14 @@
         setText('withoutWeeklyPlan', data.students_without_weekly_plan);
         setText('withoutNutritionPlan', data.students_without_nutrition_plan);
         setText('overdueFollowups', data.overdue_followups);
+        setText('pendingOnboarding', data.pending_onboarding);
         renderActionList('pendingCheckinsList', data.pending_checkins_list);
         renderActionList('withoutCheckinWeekList', data.students_without_checkin_week_list);
         renderActionList('newAnamnesesList', data.new_anamneses_list);
         renderActionList('withoutWeeklyPlanList', data.students_without_weekly_plan_list);
         renderActionList('withoutNutritionPlanList', data.students_without_nutrition_plan_list);
         renderActionList('overdueFollowupsList', data.overdue_followups_list);
+        renderActionList('pendingOnboardingList', data.pending_onboarding_list);
         document.getElementById('priorityMsg').textContent = data.priority_message || 'Operação em dia.';
         statusEl.textContent = 'Operação carregada com sucesso.';
       } catch (error) {
