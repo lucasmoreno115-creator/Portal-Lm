@@ -560,5 +560,8 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 .student-highlight{color:#f0d47a !important}
 .student-empty{padding:12px;border:1px dashed #3a3a3a;border-radius:10px;background:#111;color:#bdbdbd}
 .student-action-row{display:flex;gap:10px;flex-wrap:wrap}
+.student-action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.student-action-grid button,.student-action-row button{min-height:40px}
+#accessMessageOutput{width:100%;min-height:140px}
 .student-timeline li p{margin:4px 0 0;color:#d7d7d7;overflow-wrap:anywhere}
 .student-360-card,.student-hero,.student-meta,.student-info-item{max-width:100%}
