@@ -26,7 +26,7 @@
         <span id='studentStatus'>Status: -</span>
       </div>
       <div class='grid'>
-        <label>Token admin
+        <label id='adminTokenWrap'>Token admin
           <input id='adminToken' type='password' autocomplete='off' placeholder='Cole o x-admin-token'>
         </label>
         <label>Email do aluno
@@ -36,11 +36,17 @@
       <div class='student-action-row'>
         <button id='loadBtn' type='button'>Carregar Student 360</button>
       </div>
+      <div id='adminSessionStatus' class='status muted' hidden>🟢 Sessão administrativa ativa</div>
       <div id='statusBox' class='status muted'>Informe email do aluno e token admin.</div>
     </section>
 
+    <section class='card student-360-card executive-summary-card'>
+      <h2>Resumo Executivo</h2>
+      <div id='executiveSummary'></div>
+    </section>
+
     <section class='student-360-grid'>
-      <article class='card student-360-card'>
+      <article class='card student-360-card' id='actionsCenter'>
         <h2>⚡ Central de Ações</h2>
         <div class='student-action-grid'>
           <button id='sendAccessBtn' type='button'>📩 Enviar acesso</button>
@@ -62,10 +68,12 @@
         <div id='studentSummary'></div>
       </article>
 
-      <article class='card student-360-card'>
-        <h2>Anamnese mais recente</h2>
-        <div id='latestAnamnesis'></div>
-        <a class='secondary-link' id='openAnamnesis' href='/admin-anamneses.html'>Abrir Anamnese</a>
+      <article class='card student-360-card collapsible-card' data-collapse-key='anamnesis'>
+        <h2><button class='collapse-toggle' type='button' data-collapse-target='anamnesis'>Anamnese mais recente</button></h2>
+        <div id='collapse-anamnesis'>
+          <div id='latestAnamnesis'></div>
+          <a class='secondary-link' id='openAnamnesis' href='/admin-anamneses.html'>Abrir Anamnese</a>
+        </div>
       </article>
 
       <article class='card student-360-card'>
@@ -82,11 +90,12 @@
         <div id='coachReply'></div>
       </article>
 
-      <article class='card student-360-card'>
-        <h2>Plano da semana</h2>
+      <article class='card student-360-card collapsible-card' data-collapse-key='weeklyPlan'>
+        <h2><button class='collapse-toggle' type='button' data-collapse-target='weeklyPlan'>Plano da semana</button></h2>
+        <div id='collapse-weeklyPlan'>
         <div id='weeklyPlan'></div>
         <button id='editWeeklyPlanBtn' type='button'>Editar</button>
-        <div class='student-action-row'>
+        <div class='student-action-row' id='weeklyPlanForm'>
           <input id='planWeekRef' type='text' placeholder='2026-W20'>
           <textarea id='planTrainingFocus' rows='2' placeholder='Foco treino'></textarea>
           <textarea id='planCardioTarget' rows='2' placeholder='Meta cardio'></textarea>
@@ -95,12 +104,15 @@
           <textarea id='planCoachMessage' rows='3' placeholder='Mensagem estratégica'></textarea>
           <button id='saveWeeklyPlanBtn' type='button'>Salvar plano semanal</button>
         </div>
+        </div>
       </article>
 
-      <article class='card student-360-card'>
-        <h2>Plano alimentar</h2>
-        <div id='nutritionPlan'></div>
-        <a class='secondary-link' id='editNutritionPlan' href='/admin-nutrition-plan.html'>Editar</a>
+      <article class='card student-360-card collapsible-card' data-collapse-key='nutritionPlan'>
+        <h2><button class='collapse-toggle' type='button' data-collapse-target='nutritionPlan'>Plano alimentar</button></h2>
+        <div id='collapse-nutritionPlan'>
+          <div id='nutritionPlan'></div>
+          <a class='secondary-link' id='editNutritionPlan' href='/admin-nutrition-plan.html'>Editar</a>
+        </div>
       </article>
 
       <article class='card student-360-card'>
@@ -124,9 +136,11 @@
         <div id='onboardingStatus'></div>
       </article>
 
-      <article class='card student-360-card'>
-        <h2>Timeline</h2>
-        <ul id='timeline' class='student-timeline'></ul>
+      <article class='card student-360-card collapsible-card' data-collapse-key='timeline'>
+        <h2><button class='collapse-toggle' type='button' data-collapse-target='timeline'>Timeline</button></h2>
+        <div id='collapse-timeline'>
+          <ul id='timeline' class='student-timeline'></ul>
+        </div>
       </article>
       <article class='card student-360-card'>
         <h2>Prioridade Clínica</h2>
@@ -147,6 +161,8 @@
   <script>window.LMAdminAuth.attachLogout('adminLogoutBtn');</script>
   <script>
     const tokenInput = document.getElementById('adminToken');
+    const tokenWrap = document.getElementById('adminTokenWrap');
+    const adminSessionStatus = document.getElementById('adminSessionStatus');
     const adminSessionToken = window.LMAdminAuth.requireAdmin();
     window.LMAdminAuth.hydrateAdminTokenInput('adminToken');
     const emailInput = document.getElementById('studentEmailInput');
@@ -175,6 +191,17 @@
 
     function byId(id) { return document.getElementById(id); }
     function setText(id, value) { byId(id).textContent = value || '-'; }
+    function showToast(message) {
+      const el = document.createElement('div');
+      el.className = 'lm-toast';
+      el.textContent = message;
+      document.body.appendChild(el);
+      requestAnimationFrame(() => el.classList.add('is-visible'));
+      setTimeout(() => {
+        el.classList.remove('is-visible');
+        setTimeout(() => el.remove(), 220);
+      }, 1800);
+    }
 
     function escapeHtml(value) {
       return String(value == null ? '' : value)
@@ -300,6 +327,15 @@
         field('Risco de abandono', pickFirst(answers, ['risco_abandono', 'dropout_risk', 'adherence.risk']))
       ]);
       byId('studentSummary').innerHTML = html;
+    }
+    function renderExecutiveSummary(student, answers, action) {
+      byId('executiveSummary').innerHTML = renderFields([
+        field('Aluno', student?.name, true),
+        field('Status', student?.status, true),
+        field('Objetivo', pickFirst(answers, ['objetivo_principal', 'goals.main_goal', 'objetivo'])),
+        field('Prioridade', currentStudent?.clinical_priority?.message || currentStudent?.clinical_priority?.level),
+        field('Próxima ação', action?.label || action?.reason)
+      ]);
     }
 
     function renderAnamnesis(anamnesis, answers) {
@@ -458,6 +494,7 @@
         return;
       }
       loadBtn.disabled = true;
+      document.querySelectorAll('#studentSummary,#latestAnamnesis,#latestCheckin,#weeklyPlan,#nutritionPlan,#timeline,#executiveSummary').forEach((el) => el.classList.add('skeleton'));
       statusBox.textContent = 'Carregando dados do aluno...';
       try {
         const res = await fetch(`/api/admin/student-360?email=${encodeURIComponent(email)}`, { headers: { 'x-admin-token': token } });
@@ -502,6 +539,8 @@
         renderNutritionPlan(data.active_nutrition_plan || null);
         renderPriority(data.clinical_priority || null);
         renderNextAction(data.next_recommended_action || null);
+        currentStudent.clinical_priority = data.clinical_priority || null;
+        renderExecutiveSummary(student, answers, data.next_recommended_action || null);
         renderOnboardingStatus(student);
         renderTimeline(data.timeline || []);
         renderOperationalDiagnosis(data);
@@ -511,18 +550,20 @@
 
         hydrateLinks(student.email || email);
         statusBox.textContent = 'Student 360 carregado com sucesso.';
+        byId('actionsCenter').scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch (error) {
         statusBox.textContent = error.message || 'Erro ao carregar Student 360.';
       } finally {
         loadBtn.disabled = false;
+        document.querySelectorAll('.skeleton').forEach((el) => el.classList.remove('skeleton'));
       }
     }
 
     loadBtn.addEventListener('click', loadStudent360);
     quickReplyCheckinBtn.addEventListener('click', () => byId('coachReplyInput').focus());
-    openWeeklyPlanBtn.addEventListener('click', () => byId('planWeekRef').focus());
+    openWeeklyPlanBtn.addEventListener('click', () => byId('weeklyPlan').scrollIntoView({ behavior: 'smooth', block: 'start' }));
     editWeeklyPlanBtn.addEventListener('click', () => byId('planWeekRef').focus());
-    openNutritionPlanBtn.addEventListener('click', () => window.location.href = byId('editNutritionPlan').href);
+    openNutritionPlanBtn.addEventListener('click', () => byId('nutritionPlan').scrollIntoView({ behavior: 'smooth', block: 'start' }));
     openWhatsappBtn.addEventListener('click', () => {
       const link = getWhatsappLink(currentStudent?.whatsapp || '');
       if (link) window.open(link, '_blank', 'noopener');
@@ -534,6 +575,7 @@
       const text = byId('accessMessageOutput').value.trim();
       if (!text) return;
       await navigator.clipboard.writeText(text);
+      showToast('✅ Mensagem copiada');
     });
     openAccessWhatsappBtn.addEventListener('click', () => {
       const link = getWhatsappLink(currentStudent?.whatsapp || '');
@@ -544,16 +586,19 @@
       const phone = String(currentStudent?.whatsapp || '').trim();
       if (!phone) return;
       await navigator.clipboard.writeText(phone);
+      showToast('✅ WhatsApp copiado');
     });
     copyEmailBtn.addEventListener('click', async () => {
       const email = String(currentStudent?.email || '').trim();
       if (!email) return;
       await navigator.clipboard.writeText(email);
+      showToast('✅ Email copiado');
     });
     copyStrategicSummaryBtn.addEventListener('click', async () => {
       const text = getStrategicSummaryMessage();
       byId('communicationPreview').value = text;
       await navigator.clipboard.writeText(text);
+      showToast('✅ Resumo copiado');
     });
     generateWeeklyGuidanceBtn.addEventListener('click', () => {
       byId('communicationPreview').value = getWeeklyGuidanceMessage();
@@ -565,6 +610,7 @@
       const text = byId('communicationPreview').value.trim();
       if (!text) return;
       await navigator.clipboard.writeText(text);
+      showToast('✅ Mensagem copiada');
     });
     openCommunicationWhatsappBtn.addEventListener('click', () => {
       const link = getWhatsappLink(currentStudent?.whatsapp || '');
@@ -583,6 +629,7 @@
         if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao responder check-in');
         byId('coachReplyInput').value = '';
         await loadStudent360();
+        showToast('✅ Check-in respondido');
       } finally { replyBtn.disabled = false; }
     });
     activateAccessBtn.addEventListener('click', async () => {
@@ -611,6 +658,7 @@
         const payload = await res.json();
         if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao salvar plano semanal');
         await loadStudent360();
+        showToast('✅ Plano salvo');
       } finally { savePlanBtn.disabled = false; }
     });
 
@@ -623,6 +671,29 @@
     }
 
     const savedToken = adminSessionToken || window.LMAdminAuth?.getAdminToken?.() || '';
+    if (savedToken) {
+      tokenWrap.hidden = true;
+      adminSessionStatus.hidden = false;
+    }
+    const collapseKeys = ['anamnesis', 'weeklyPlan', 'nutritionPlan', 'timeline'];
+    const savedCollapse = JSON.parse(localStorage.getItem('student360Collapsible') || '{}');
+    function applyCollapseState(key, collapsed) {
+      const body = byId(`collapse-${key}`);
+      const btn = document.querySelector(`[data-collapse-target='${key}']`);
+      if (!body || !btn) return;
+      body.hidden = !!collapsed;
+      btn.setAttribute('aria-expanded', String(!collapsed));
+      btn.textContent = `${collapsed ? '▶' : '▼'} ${btn.textContent.replace(/^[▶▼]\s*/, '')}`;
+    }
+    collapseKeys.forEach((key) => applyCollapseState(key, !!savedCollapse[key]));
+    document.querySelectorAll('.collapse-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.collapseTarget;
+        savedCollapse[key] = !savedCollapse[key];
+        localStorage.setItem('student360Collapsible', JSON.stringify(savedCollapse));
+        applyCollapseState(key, savedCollapse[key]);
+      });
+    });
     if (initialEmail && savedToken) {
       tokenInput.value = savedToken;
       loadStudent360();
