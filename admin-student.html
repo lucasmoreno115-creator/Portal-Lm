@@ -41,6 +41,23 @@
 
     <section class='student-360-grid'>
       <article class='card student-360-card'>
+        <h2>⚡ Central de Ações</h2>
+        <div class='student-action-grid'>
+          <button id='sendAccessBtn' type='button'>📩 Enviar acesso</button>
+          <button id='openWhatsappBtn' type='button'>💬 Abrir WhatsApp</button>
+          <button id='openWeeklyPlanBtn' type='button'>📋 Plano da Semana</button>
+          <button id='openNutritionPlanBtn' type='button'>🥗 Plano Alimentar</button>
+          <button id='quickReplyCheckinBtn' type='button'>✅ Responder Check-in</button>
+          <button id='activateAccessBtn' type='button'>🚀 Liberar Acesso</button>
+        </div>
+        <div class='student-action-row'>
+          <textarea id='accessMessageOutput' rows='6' placeholder='Mensagem de acesso será gerada aqui'></textarea>
+          <button id='copyAccessMessageBtn' type='button'>Copiar mensagem</button>
+          <button id='openAccessWhatsappBtn' type='button'>Abrir WhatsApp</button>
+        </div>
+      </article>
+
+      <article class='card student-360-card'>
         <h2>Resumo do aluno</h2>
         <div id='studentSummary'></div>
       </article>
@@ -68,6 +85,7 @@
       <article class='card student-360-card'>
         <h2>Plano da semana</h2>
         <div id='weeklyPlan'></div>
+        <button id='editWeeklyPlanBtn' type='button'>Editar</button>
         <div class='student-action-row'>
           <input id='planWeekRef' type='text' placeholder='2026-W20'>
           <textarea id='planTrainingFocus' rows='2' placeholder='Foco treino'></textarea>
@@ -82,15 +100,12 @@
       <article class='card student-360-card'>
         <h2>Plano alimentar</h2>
         <div id='nutritionPlan'></div>
-        <a class='secondary-link' id='editNutritionPlan' href='/admin-nutrition-plan.html'>Editar Plano Alimentar</a>
+        <a class='secondary-link' id='editNutritionPlan' href='/admin-nutrition-plan.html'>Editar</a>
       </article>
 
       <article class='card student-360-card'>
         <h2>Status do onboarding</h2>
         <div id='onboardingStatus'></div>
-        <div class='student-action-row'>
-          <button id='activateAccessBtn' type='button'>🚀 Liberar acesso</button>
-        </div>
       </article>
 
       <article class='card student-360-card'>
@@ -104,6 +119,10 @@
       <article class='card student-360-card'>
         <h2>Próxima Ação Recomendada</h2>
         <div id='nextAction'></div>
+      </article>
+      <article class='card student-360-card'>
+        <h2>Diagnóstico Operacional</h2>
+        <div id='operationalDiagnosis'></div>
       </article>
     </section>
   </div>
@@ -119,8 +138,17 @@
     const replyBtn = document.getElementById('replyCheckinBtn');
     const savePlanBtn = document.getElementById('saveWeeklyPlanBtn');
     const activateAccessBtn = document.getElementById('activateAccessBtn');
+    const sendAccessBtn = document.getElementById('sendAccessBtn');
+    const openWhatsappBtn = document.getElementById('openWhatsappBtn');
+    const openWeeklyPlanBtn = document.getElementById('openWeeklyPlanBtn');
+    const openNutritionPlanBtn = document.getElementById('openNutritionPlanBtn');
+    const quickReplyCheckinBtn = document.getElementById('quickReplyCheckinBtn');
+    const editWeeklyPlanBtn = document.getElementById('editWeeklyPlanBtn');
+    const copyAccessMessageBtn = document.getElementById('copyAccessMessageBtn');
+    const openAccessWhatsappBtn = document.getElementById('openAccessWhatsappBtn');
     const statusBox = document.getElementById('statusBox');
     let latestCheckinId = null;
+    let currentStudent = {};
 
     function byId(id) { return document.getElementById(id); }
     function setText(id, value) { byId(id).textContent = value || '-'; }
@@ -181,6 +209,17 @@
       const query = encodeURIComponent(email || '');
       byId('openAnamnesis').href = `/admin-anamneses.html?email=${query}`;
       byId('editNutritionPlan').href = `/admin-nutrition-plan.html?email=${query}`;
+    }
+    function getWhatsappLink(raw) {
+      const digits = String(raw || '').replace(/\D/g, '');
+      return digits ? `https://wa.me/${digits}` : '';
+    }
+    function getAccessMessage() {
+      const name = currentStudent?.name || 'Aluno(a)';
+      const email = currentStudent?.email || emailInput.value.trim().toLowerCase();
+      const token = currentStudent?.token || currentStudent?.access_token || 'token_não_encontrado';
+      const portalLink = `${window.location.origin}/portal-login.html`;
+      return `Olá, ${name}!\n\nSeu acesso à Consultoria LM foi liberado.\n\n• Email: ${email}\n• Token: ${token}\n• Portal: ${portalLink}\n\nQualquer dúvida, me chama por aqui 👊`;
     }
 
     function renderSummary(student, answers) {
@@ -284,7 +323,17 @@
     function renderTimeline(timeline) {
       const timelineEl = byId('timeline');
       timelineEl.innerHTML = '';
-      const items = Array.isArray(timeline) ? timeline : [];
+      const items = [...(Array.isArray(timeline) ? timeline : [])];
+      const smart = [
+        { type: 'onboarding', title: 'Onboarding', at: currentStudent.created_at || currentStudent.updated_at, detail: 'Cadastro inicial do aluno no sistema.' },
+        { type: 'acesso', title: 'Acesso', at: currentStudent.access_granted_at || currentStudent.updated_at, detail: 'Status de acesso ao portal atualizado.' },
+        { type: 'plano semanal', title: 'Plano semanal', at: pickFirst(currentStudent, ['active_weekly_plan.updated_at']), detail: 'Plano semanal revisado/ativo.' },
+        { type: 'plano alimentar', title: 'Plano alimentar', at: pickFirst(currentStudent, ['active_nutrition_plan.updated_at']), detail: 'Plano alimentar atualizado.' },
+        { type: 'check-in', title: 'Check-in', at: pickFirst(currentStudent, ['latest_checkin.created_at']), detail: 'Último check-in enviado pelo aluno.' },
+        { type: 'follow-up', title: 'Follow-up', at: pickFirst(currentStudent, ['latest_checkin.coach_reply_at']), detail: 'Último follow-up/resposta do coach.' }
+      ].filter((event) => event.at);
+      smart.forEach((event) => items.push(event));
+      items.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
       if (!items.length) {
         timelineEl.innerHTML = `<li class='student-empty'>Sem eventos recentes.</li>`;
         return;
@@ -308,6 +357,35 @@
       byId('onboardingStatus').innerHTML = renderFields([field('Status do onboarding', label, true)]);
       activateAccessBtn.disabled = status === 'ACTIVE';
     }
+    function renderOperationalDiagnosis(data) {
+      const student = data?.student || {};
+      const checkin = data?.latest_checkin || {};
+      const isActive = String(student.status || '').toUpperCase() === 'ACTIVE';
+      const hasWeekly = !!data?.active_weekly_plan;
+      const hasNutrition = !!data?.active_nutrition_plan;
+      const hasReply = !!checkin?.coach_reply;
+      let status = 'Operação Assistida';
+      let reason = 'Existem pendências de execução para manter consistência.';
+      let next = 'Concluir itens pendentes no Centro de Ação.';
+      if (!isActive) {
+        status = 'Aguardando ativação';
+        reason = 'Aluno ainda sem acesso ativo.';
+        next = 'Usar “🚀 Liberar Acesso”.';
+      } else if (!hasWeekly || !hasNutrition) {
+        status = 'Planejamento incompleto';
+        reason = 'Falta plano semanal e/ou plano alimentar atualizados.';
+        next = 'Atualizar planos usando os atalhos da Central de Ações.';
+      } else if (!hasReply) {
+        status = 'Follow-up pendente';
+        reason = 'Último check-in sem resposta do coach.';
+        next = 'Responder check-in com direcionamento objetivo.';
+      } else {
+        status = 'Operação em dia';
+        reason = 'Acesso ativo, planos em dia e check-in respondido.';
+        next = 'Executar follow-up de rotina em 24h.';
+      }
+      byId('operationalDiagnosis').innerHTML = renderFields([field('Status', status, true), field('Motivo', reason), field('Próxima ação', next)]);
+    }
 
     async function loadStudent360() {
       const token = tokenInput.value.trim();
@@ -328,9 +406,15 @@
 
         const data = payload.data || {};
         const student = data.student || {};
+        const checkin = data.latest_checkin || null;
+        currentStudent = {
+          ...student,
+          active_weekly_plan: data.active_weekly_plan || null,
+          active_nutrition_plan: data.active_nutrition_plan || null,
+          latest_checkin: checkin || null
+        };
         const anamnesis = data.latest_anamnesis || null;
         const answers = parseAnamnesisAnswers(anamnesis);
-        const checkin = data.latest_checkin || null;
 
         setText('studentName', student.name || 'Aluno sem nome');
         setText('studentEmail', `Email: ${student.email || '-'}`);
@@ -355,6 +439,8 @@
         renderNextAction(data.next_recommended_action || null);
         renderOnboardingStatus(student);
         renderTimeline(data.timeline || []);
+        renderOperationalDiagnosis(data);
+        byId('accessMessageOutput').value = getAccessMessage();
 
         hydrateLinks(student.email || email);
         statusBox.textContent = 'Student 360 carregado com sucesso.';
@@ -366,6 +452,27 @@
     }
 
     loadBtn.addEventListener('click', loadStudent360);
+    quickReplyCheckinBtn.addEventListener('click', () => byId('coachReplyInput').focus());
+    openWeeklyPlanBtn.addEventListener('click', () => byId('planWeekRef').focus());
+    editWeeklyPlanBtn.addEventListener('click', () => byId('planWeekRef').focus());
+    openNutritionPlanBtn.addEventListener('click', () => window.location.href = byId('editNutritionPlan').href);
+    openWhatsappBtn.addEventListener('click', () => {
+      const link = getWhatsappLink(currentStudent?.whatsapp || '');
+      if (link) window.open(link, '_blank', 'noopener');
+    });
+    sendAccessBtn.addEventListener('click', () => {
+      byId('accessMessageOutput').value = getAccessMessage();
+    });
+    copyAccessMessageBtn.addEventListener('click', async () => {
+      const text = byId('accessMessageOutput').value.trim();
+      if (!text) return;
+      await navigator.clipboard.writeText(text);
+    });
+    openAccessWhatsappBtn.addEventListener('click', () => {
+      const link = getWhatsappLink(currentStudent?.whatsapp || '');
+      const text = encodeURIComponent(byId('accessMessageOutput').value.trim() || getAccessMessage());
+      if (link) window.open(`${link}?text=${text}`, '_blank', 'noopener');
+    });
     replyBtn.addEventListener('click', async () => {
       const token = tokenInput.value.trim();
       const reply = byId('coachReplyInput').value.trim();
@@ -413,6 +520,7 @@
     if (initialEmail) {
       emailInput.value = initialEmail;
       hydrateLinks(initialEmail);
+      byId('editNutritionPlan').href = `/admin-nutrition-plan.html?email=${encodeURIComponent(initialEmail)}`;
     }
 
     const savedToken = adminSessionToken || window.LMAdminAuth?.getAdminToken?.() || '';
