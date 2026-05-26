@@ -140,6 +140,8 @@
       <article class='card student-360-card collapsible-card' data-collapse-key='timeline'>
         <h2><button class='collapse-toggle' type='button' data-collapse-target='timeline'>Timeline</button></h2>
         <div id='collapse-timeline'>
+          <div id='timelineLatestActivity' class='timeline-latest-activity'>Sem atividade recente.</div>
+          <div id='timelineFilters' class='timeline-filters'></div>
           <ul id='timeline' class='student-timeline'></ul>
         </div>
       </article>
@@ -423,28 +425,101 @@
 
     function renderTimeline(timeline) {
       const timelineEl = byId('timeline');
+      const filtersEl = byId('timelineFilters');
+      const latestEl = byId('timelineLatestActivity');
       timelineEl.innerHTML = '';
       const items = [...(Array.isArray(timeline) ? timeline : [])];
-      const smart = [
-        { type: 'onboarding', title: 'Onboarding', at: currentStudent.created_at || currentStudent.updated_at, detail: 'Cadastro inicial do aluno no sistema.' },
-        { type: 'acesso', title: 'Acesso', at: currentStudent.access_granted_at || currentStudent.updated_at, detail: 'Status de acesso ao portal atualizado.' },
-        { type: 'plano semanal', title: 'Plano semanal', at: pickFirst(currentStudent, ['active_weekly_plan.updated_at']), detail: 'Plano semanal revisado/ativo.' },
-        { type: 'plano alimentar', title: 'Plano alimentar', at: pickFirst(currentStudent, ['active_nutrition_plan.updated_at']), detail: 'Plano alimentar atualizado.' },
-        { type: 'check-in', title: 'Check-in', at: pickFirst(currentStudent, ['latest_checkin.created_at']), detail: 'Último check-in enviado pelo aluno.' },
-        { type: 'follow-up', title: 'Follow-up', at: pickFirst(currentStudent, ['latest_checkin.coach_reply_at']), detail: 'Último follow-up/resposta do coach.' }
-      ].filter((event) => event.at);
-      smart.forEach((event) => items.push(event));
       items.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
-      if (!items.length) {
+      const FILTERS = [
+        { key: 'all', label: 'Todos' },
+        { key: 'checkins', label: 'Check-ins' },
+        { key: 'planos', label: 'Planos' },
+        { key: 'onboarding', label: 'Onboarding' },
+        { key: 'comunicação', label: 'Comunicação' },
+        { key: 'lifecycle', label: 'Lifecycle' },
+        { key: 'treino', label: 'Treino' }
+      ];
+      const currentFilter = window.__timelineFilterKey || 'all';
+
+      filtersEl.innerHTML = FILTERS.map((filter) => `<button type='button' data-timeline-filter='${filter.key}' class='${filter.key === currentFilter ? "is-active" : ""}'>${filter.label}</button>`).join('');
+      filtersEl.querySelectorAll('button[data-timeline-filter]').forEach((button) => {
+        button.addEventListener('click', () => {
+          window.__timelineFilterKey = button.getAttribute('data-timeline-filter') || 'all';
+          renderTimeline(window.__timelineItemsCache || []);
+        });
+      });
+
+      window.__timelineItemsCache = items;
+      const latest = items[0];
+      if (latest) {
+        const latestView = getTimelineEventView(latest);
+        latestEl.innerHTML = `<strong>Última atividade relevante</strong><p>${escapeHtml(`${latestView.icon} ${latestView.title}`)}</p><span>${escapeHtml(formatRelativeDate(latest.at))}</span>`;
+      } else {
+        latestEl.innerHTML = `<strong>Última atividade relevante</strong><p>Sem atividade recente.</p>`;
+      }
+      const filteredItems = items.filter((event) => matchesTimelineFilter(event, currentFilter));
+      if (!filteredItems.length) {
         timelineEl.innerHTML = `<li class='student-empty'>Sem eventos recentes.</li>`;
         return;
       }
-      items.forEach((event) => {
+      filteredItems.forEach((event) => {
+        const view = getTimelineEventView(event);
+        const metadataLines = formatTimelineMetadata(event.detail || event.metadata || event.metadata_json || null);
+        const metadataHtml = metadataLines.length ? `<p>${metadataLines.map((line) => escapeHtml(line)).join('<br>')}</p>` : '';
         const li = document.createElement('li');
-        const description = event.detail || event.title || event.type || 'Evento';
-        li.innerHTML = `<div><strong>${escapeHtml(event.title || event.type || 'Evento')}</strong><p>${escapeHtml(description)}</p></div><span>${escapeHtml(formatDate(event.at))}</span>`;
+        li.innerHTML = `<div><strong>${escapeHtml(`${view.icon} ${view.title}`)}</strong><p>${escapeHtml(view.description)}</p>${metadataHtml}</div><span>${escapeHtml(formatDate(event.at))}</span>`;
         timelineEl.appendChild(li);
       });
+    }
+    function getTimelineEventView(event) {
+      const type = String(event?.type || event?.event_type || '').toUpperCase();
+      const map = {
+        ANAMNESE_SUBMITTED: { icon: '📝', title: 'Anamnese enviada', description: 'O aluno enviou a Anamnese Premium LM.', category: 'onboarding' },
+        CHECKIN_SUBMITTED: { icon: '✅', title: 'Check-in enviado', description: 'O aluno enviou o check-in semanal.', category: 'checkins' },
+        COACH_REPLY_SENT: { icon: '📩', title: 'Check-in respondido', description: 'O coach respondeu o check-in do aluno.', category: 'checkins' },
+        PROGRESSION_LOG_SUBMITTED: { icon: '🏋️', title: 'Progressão registrada', description: 'O aluno registrou uma atualização de treino.', category: 'treino' },
+        FOLLOWUP_LOGGED: { icon: '💬', title: 'Follow-up registrado', description: 'Uma ação de acompanhamento foi registrada.', category: 'comunicação' },
+        WEEKLY_PLAN_UPDATED: { icon: '📋', title: 'Plano semanal atualizado', description: 'O planejamento estratégico da semana foi criado ou revisado.', category: 'planos' },
+        NUTRITION_PLAN_UPDATED: { icon: '🥗', title: 'Plano alimentar atualizado', description: 'O plano alimentar ativo foi criado ou revisado.', category: 'planos' },
+        STUDENT_INACTIVATED: { icon: '⚫', title: 'Aluno inativado', description: 'O aluno foi removido da operação ativa.', category: 'lifecycle' },
+        STUDENT_REACTIVATED: { icon: '🟢', title: 'Aluno reativado', description: 'O aluno voltou para a operação ativa.', category: 'lifecycle' }
+      };
+      return map[type] || { icon: '🕒', title: 'Atividade registrada', description: 'Um evento operacional foi registrado no sistema.', category: 'outros' };
+    }
+    function formatTimelineMetadata(metadata) {
+      let obj = metadata;
+      if (typeof metadata === 'string') {
+        try { obj = JSON.parse(metadata); } catch (_) { return []; }
+      }
+      if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return [];
+      const out = [];
+      if (obj.week_ref) out.push(`Semana: ${obj.week_ref}`);
+      if (obj.coach_status) out.push(`Status: ${obj.coach_status}`);
+      if (obj.previous_status) out.push(`Status anterior: ${obj.previous_status}`);
+      if (obj.new_status) out.push(`Novo status: ${obj.new_status}`);
+      if (obj.reason) out.push(`Motivo: ${obj.reason}`);
+      return out;
+    }
+    function matchesTimelineFilter(event, filterKey) {
+      if (!filterKey || filterKey === 'all') return true;
+      const type = String(event?.type || '').toUpperCase();
+      const filters = {
+        checkins: ['CHECKIN_SUBMITTED', 'COACH_REPLY_SENT'],
+        planos: ['WEEKLY_PLAN_UPDATED', 'NUTRITION_PLAN_UPDATED'],
+        onboarding: ['ANAMNESE_SUBMITTED', 'ACCESS_CREATED', 'ACCESS_ACTIVATED', 'PENDING_ONBOARDING'],
+        comunicação: ['FOLLOWUP_LOGGED', 'COACH_REPLY_SENT'],
+        lifecycle: ['STUDENT_INACTIVATED', 'STUDENT_REACTIVATED'],
+        treino: ['PROGRESSION_LOG_SUBMITTED']
+      };
+      return (filters[filterKey] || []).includes(type);
+    }
+    function formatRelativeDate(value) {
+      if (!value) return 'Sem data';
+      const diff = Date.now() - new Date(value).getTime();
+      const days = Math.floor(diff / 86400000);
+      if (days <= 0) return 'hoje';
+      if (days === 1) return 'há 1 dia';
+      return `há ${days} dias`;
     }
     function renderPriority(priority) {
       byId('clinicalPriority').innerHTML = priority ? renderFields([field('Nível', priority.level, true), field('Resumo', priority.message)]) : renderEmpty('Sem prioridade calculada.');

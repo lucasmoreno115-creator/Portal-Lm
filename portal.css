@@ -564,6 +564,12 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 .student-action-grid button,.student-action-row button{min-height:40px}
 #accessMessageOutput{width:100%;min-height:140px}
 .student-timeline li p{margin:4px 0 0;color:#d7d7d7;overflow-wrap:anywhere}
+.timeline-latest-activity{margin:0 0 10px;padding:10px;border:1px solid #2f2f2f;border-radius:10px;background:#101010}
+.timeline-latest-activity p{margin:6px 0 2px}
+.timeline-latest-activity span{color:#bcbcbc;font-size:.88rem}
+.timeline-filters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
+.timeline-filters button{border:1px solid #3b3b3b;background:#171717;color:#ddd;border-radius:999px;padding:6px 10px;cursor:pointer}
+.timeline-filters button.is-active{border-color:#d4af37;color:#f5dc8d;background:rgba(212,175,55,.15)}
 .student-360-card,.student-hero,.student-meta,.student-info-item{max-width:100%}
 .executive-summary-card{position:sticky;top:8px;z-index:3}
 .collapse-toggle{all:unset;cursor:pointer;font-weight:700}
