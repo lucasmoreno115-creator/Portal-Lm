@@ -892,7 +892,14 @@ export default {
             `SELECT sa.name,
                     sa.email,
                     sa.plan_type,
-                    sa.updated_at AS inactivated_at,
+                    COALESCE((
+                      SELECT at.created_at
+                      FROM activity_timeline at
+                      WHERE lower(at.student_email)=lower(sa.email)
+                        AND at.event_type='STUDENT_INACTIVATED'
+                      ORDER BY datetime(at.created_at) DESC
+                      LIMIT 1
+                    ), sa.created_at) AS inactivated_at,
                     (
                       SELECT at.metadata_json
                       FROM activity_timeline at
@@ -903,7 +910,7 @@ export default {
                     ) AS inactivation_meta
              FROM student_access sa
              WHERE sa.status='INACTIVE'
-             ORDER BY datetime(sa.updated_at) DESC
+             ORDER BY datetime(inactivated_at) DESC
              LIMIT 10`
           ).all();
 
