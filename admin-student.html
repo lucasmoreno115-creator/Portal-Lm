@@ -55,6 +55,7 @@
           <button id='openNutritionPlanBtn' type='button'>🥗 Plano Alimentar</button>
           <button id='quickReplyCheckinBtn' type='button'>✅ Responder Check-in</button>
           <button id='activateAccessBtn' type='button'>🚀 Liberar Acesso</button>
+          <button id='toggleStudentStatusBtn' type='button'>🚫 Inativar aluno</button>
         </div>
         <div class='student-action-row'>
           <textarea id='accessMessageOutput' rows='6' placeholder='Mensagem de acesso será gerada aqui'></textarea>
@@ -170,6 +171,7 @@
     const replyBtn = document.getElementById('replyCheckinBtn');
     const savePlanBtn = document.getElementById('saveWeeklyPlanBtn');
     const activateAccessBtn = document.getElementById('activateAccessBtn');
+    const toggleStudentStatusBtn = document.getElementById('toggleStudentStatusBtn');
     const sendAccessBtn = document.getElementById('sendAccessBtn');
     const openWhatsappBtn = document.getElementById('openWhatsappBtn');
     const openWeeklyPlanBtn = document.getElementById('openWeeklyPlanBtn');
@@ -452,9 +454,17 @@
     }
     function renderOnboardingStatus(student) {
       const status = String(student?.status || '').toUpperCase();
-      const label = status === 'ACTIVE' ? '🟢 Ativo' : '🟡 Aguardando liberação';
+      const label = status === 'ACTIVE'
+        ? '🟢 Ativo'
+        : status === 'INACTIVE'
+          ? '⚫ Inativo'
+          : '🟡 Aguardando liberação';
       byId('onboardingStatus').innerHTML = renderFields([field('Status do onboarding', label, true)]);
       activateAccessBtn.disabled = status === 'ACTIVE';
+      const canInactivate = status === 'ACTIVE' || status === 'PENDING_ONBOARDING';
+      const canReactivate = status === 'INACTIVE';
+      toggleStudentStatusBtn.disabled = !canInactivate && !canReactivate;
+      toggleStudentStatusBtn.textContent = canReactivate ? '🔁 Reativar aluno' : '🚫 Inativar aluno';
     }
     function renderOperationalDiagnosis(data) {
       const student = data?.student || {};
@@ -647,6 +657,34 @@
         if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao liberar acesso');
         await loadStudent360();
       } finally { activateAccessBtn.disabled = false; }
+    });
+    toggleStudentStatusBtn.addEventListener('click', async () => {
+      const token = tokenInput.value.trim();
+      const email = emailInput.value.trim().toLowerCase();
+      const currentStatus = String(currentStudent?.status || '').toUpperCase();
+      if (!token || !email) return;
+      if (!['ACTIVE', 'PENDING_ONBOARDING', 'INACTIVE'].includes(currentStatus)) return;
+      const targetStatus = currentStatus === 'INACTIVE' ? 'ACTIVE' : 'INACTIVE';
+      const reasonPrompt = targetStatus === 'INACTIVE'
+        ? 'Motivo da inativação (opcional):'
+        : 'Motivo da reativação (opcional):';
+      const reason = window.prompt(reasonPrompt, '') || '';
+      toggleStudentStatusBtn.disabled = true;
+      try {
+        const res = await fetch('/api/admin/student-access/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+          body: JSON.stringify({ email, status: targetStatus, reason: reason.trim() || null })
+        });
+        const payload = await res.json();
+        if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao atualizar status do aluno');
+        await loadStudent360();
+        showToast(targetStatus === 'INACTIVE' ? '✅ Aluno inativado' : '✅ Aluno reativado');
+      } catch (error) {
+        statusBox.textContent = error.message || 'Erro ao atualizar status do aluno.';
+      } finally {
+        toggleStudentStatusBtn.disabled = false;
+      }
     });
     savePlanBtn.addEventListener('click', async () => {
       const token = tokenInput.value.trim();
