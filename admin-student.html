@@ -104,6 +104,22 @@
       </article>
 
       <article class='card student-360-card'>
+        <h2>📲 Comunicação LM</h2>
+        <div class='student-action-grid'>
+          <button id='copyWhatsappBtn' type='button'>📞 Copiar WhatsApp</button>
+          <button id='copyEmailBtn' type='button'>📧 Copiar Email</button>
+          <button id='copyStrategicSummaryBtn' type='button'>📋 Copiar Resumo Estratégico</button>
+          <button id='generateWeeklyGuidanceBtn' type='button'>📤 Orientação Semanal</button>
+          <button id='generateCheckinResponseBtn' type='button'>📤 Resposta Check-in</button>
+        </div>
+        <div class='student-action-row'>
+          <textarea id='communicationPreview' rows='7' placeholder='Preview da mensagem'></textarea>
+          <button id='copyCommunicationPreviewBtn' type='button'>Copiar</button>
+          <button id='openCommunicationWhatsappBtn' type='button'>Abrir WhatsApp</button>
+        </div>
+      </article>
+
+      <article class='card student-360-card'>
         <h2>Status do onboarding</h2>
         <div id='onboardingStatus'></div>
       </article>
@@ -146,6 +162,13 @@
     const editWeeklyPlanBtn = document.getElementById('editWeeklyPlanBtn');
     const copyAccessMessageBtn = document.getElementById('copyAccessMessageBtn');
     const openAccessWhatsappBtn = document.getElementById('openAccessWhatsappBtn');
+    const copyWhatsappBtn = document.getElementById('copyWhatsappBtn');
+    const copyEmailBtn = document.getElementById('copyEmailBtn');
+    const copyStrategicSummaryBtn = document.getElementById('copyStrategicSummaryBtn');
+    const generateWeeklyGuidanceBtn = document.getElementById('generateWeeklyGuidanceBtn');
+    const generateCheckinResponseBtn = document.getElementById('generateCheckinResponseBtn');
+    const copyCommunicationPreviewBtn = document.getElementById('copyCommunicationPreviewBtn');
+    const openCommunicationWhatsappBtn = document.getElementById('openCommunicationWhatsappBtn');
     const statusBox = document.getElementById('statusBox');
     let latestCheckinId = null;
     let currentStudent = {};
@@ -217,9 +240,49 @@
     function getAccessMessage() {
       const name = currentStudent?.name || 'Aluno(a)';
       const email = currentStudent?.email || emailInput.value.trim().toLowerCase();
-      const token = currentStudent?.token || currentStudent?.access_token || 'token_não_encontrado';
+      const token = currentStudent?.token || currentStudent?.access_token || '';
       const portalLink = `${window.location.origin}/portal-login.html`;
+      if (!token) {
+        return `Olá, ${name}!\n\nSeu acesso à Consultoria LM foi liberado.\n\n• Email: ${email}\n• Portal: ${portalLink}\n\n⚠️ Token não disponível nesta tela.\nConsulte "Acessos de Alunos" para recuperar ou reenviar o acesso.\n\nQualquer dúvida, me chama por aqui 👊`;
+      }
       return `Olá, ${name}!\n\nSeu acesso à Consultoria LM foi liberado.\n\n• Email: ${email}\n• Token: ${token}\n• Portal: ${portalLink}\n\nQualquer dúvida, me chama por aqui 👊`;
+    }
+    function syncAccessMessageActions() {
+      const hasToken = !!(currentStudent?.token || currentStudent?.access_token);
+      copyAccessMessageBtn.disabled = !hasToken;
+      openAccessWhatsappBtn.disabled = !hasToken;
+      const title = hasToken ? '' : 'Token do aluno indisponível';
+      copyAccessMessageBtn.title = title;
+      openAccessWhatsappBtn.title = title;
+    }
+    function getStrategicSummaryMessage() {
+      const answers = parseAnamnesisAnswers(currentStudent?.latest_anamnesis || null);
+      const checkin = currentStudent?.latest_checkin || {};
+      const nextAction = currentStudent?.next_recommended_action?.label || currentStudent?.next_recommended_action?.reason || 'Sem próxima ação definida';
+      return [
+        `Resumo Estratégico — ${currentStudent?.name || 'Aluno(a)'}`,
+        `• Objetivo: ${pickFirst(answers, ['objetivo_principal', 'goals.main_goal', 'objetivo']) || 'Não informado'}`,
+        `• Frequência treino: ${pickFirst(answers, ['frequencia_treino', 'training.frequency', 'treino_frequencia']) || 'Não informado'}`,
+        `• Sono: ${pickFirst(answers, ['qualidade_sono', 'sleep.quality', 'sono']) || checkin.sleep_quality || 'Não informado'}`,
+        `• Principal dificuldade: ${checkin.main_difficulty || pickFirst(answers, ['maior_dificuldade_alimentar', 'nutrition.main_difficulty', 'dificuldade_alimentar']) || 'Não informado'}`,
+        `• Próxima ação: ${nextAction}`
+      ].join('\n');
+    }
+    function getWeeklyGuidanceMessage() {
+      const plan = currentStudent?.active_weekly_plan || {};
+      return [
+        `Orientação Semanal — ${currentStudent?.name || 'Aluno(a)'}`,
+        `• Foco de treino: ${plan.training_focus || 'Não informado'}`,
+        `• Meta de cardio: ${plan.cardio_target || 'Não informado'}`,
+        `• Foco nutricional: ${plan.nutrition_focus || 'Não informado'}`,
+        `• Principal risco: ${plan.main_risk || 'Não informado'}`,
+        `• Mensagem do coach: ${plan.coach_message || 'Não informado'}`
+      ].join('\n');
+    }
+    function getCheckinResponseMessage() {
+      const reply = currentStudent?.latest_checkin?.coach_reply || '';
+      const name = currentStudent?.name || 'Aluno(a)';
+      return `Check-in respondido para ${name}:\n\n${reply || 'Sem resposta do coach registrada.'}`;
     }
 
     function renderSummary(student, answers) {
@@ -411,7 +474,9 @@
           ...student,
           active_weekly_plan: data.active_weekly_plan || null,
           active_nutrition_plan: data.active_nutrition_plan || null,
-          latest_checkin: checkin || null
+          latest_checkin: checkin || null,
+          latest_anamnesis: data.latest_anamnesis || null,
+          next_recommended_action: data.next_recommended_action || null
         };
         const anamnesis = data.latest_anamnesis || null;
         const answers = parseAnamnesisAnswers(anamnesis);
@@ -441,6 +506,8 @@
         renderTimeline(data.timeline || []);
         renderOperationalDiagnosis(data);
         byId('accessMessageOutput').value = getAccessMessage();
+        syncAccessMessageActions();
+        byId('communicationPreview').value = '';
 
         hydrateLinks(student.email || email);
         statusBox.textContent = 'Student 360 carregado com sucesso.';
@@ -472,6 +539,38 @@
       const link = getWhatsappLink(currentStudent?.whatsapp || '');
       const text = encodeURIComponent(byId('accessMessageOutput').value.trim() || getAccessMessage());
       if (link) window.open(`${link}?text=${text}`, '_blank', 'noopener');
+    });
+    copyWhatsappBtn.addEventListener('click', async () => {
+      const phone = String(currentStudent?.whatsapp || '').trim();
+      if (!phone) return;
+      await navigator.clipboard.writeText(phone);
+    });
+    copyEmailBtn.addEventListener('click', async () => {
+      const email = String(currentStudent?.email || '').trim();
+      if (!email) return;
+      await navigator.clipboard.writeText(email);
+    });
+    copyStrategicSummaryBtn.addEventListener('click', async () => {
+      const text = getStrategicSummaryMessage();
+      byId('communicationPreview').value = text;
+      await navigator.clipboard.writeText(text);
+    });
+    generateWeeklyGuidanceBtn.addEventListener('click', () => {
+      byId('communicationPreview').value = getWeeklyGuidanceMessage();
+    });
+    generateCheckinResponseBtn.addEventListener('click', () => {
+      byId('communicationPreview').value = getCheckinResponseMessage();
+    });
+    copyCommunicationPreviewBtn.addEventListener('click', async () => {
+      const text = byId('communicationPreview').value.trim();
+      if (!text) return;
+      await navigator.clipboard.writeText(text);
+    });
+    openCommunicationWhatsappBtn.addEventListener('click', () => {
+      const link = getWhatsappLink(currentStudent?.whatsapp || '');
+      const text = encodeURIComponent(byId('communicationPreview').value.trim());
+      if (!link || !text) return;
+      window.open(`${link}?text=${text}`, '_blank', 'noopener');
     });
     replyBtn.addEventListener('click', async () => {
       const token = tokenInput.value.trim();
