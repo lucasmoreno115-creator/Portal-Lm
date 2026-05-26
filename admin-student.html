@@ -83,6 +83,14 @@
       </article>
 
       <article class='card student-360-card'>
+        <h2>Status do onboarding</h2>
+        <div id='onboardingStatus'></div>
+        <div class='student-action-row'>
+          <button id='activateAccessBtn' type='button'>🚀 Liberar acesso</button>
+        </div>
+      </article>
+
+      <article class='card student-360-card'>
         <h2>Timeline</h2>
         <ul id='timeline' class='student-timeline'></ul>
       </article>
@@ -104,6 +112,7 @@
     const loadBtn = document.getElementById('loadBtn');
     const replyBtn = document.getElementById('replyCheckinBtn');
     const savePlanBtn = document.getElementById('saveWeeklyPlanBtn');
+    const activateAccessBtn = document.getElementById('activateAccessBtn');
     const statusBox = document.getElementById('statusBox');
     let latestCheckinId = null;
 
@@ -287,6 +296,12 @@
     function renderNextAction(action) {
       byId('nextAction').innerHTML = action ? renderFields([field('Ação', action.label, true), field('Motivo', action.reason), field('Código', action.code)]) : renderEmpty('Sem ação recomendada.');
     }
+    function renderOnboardingStatus(student) {
+      const status = String(student?.status || '').toUpperCase();
+      const label = status === 'ACTIVE' ? '🟢 Ativo' : '🟡 Aguardando liberação';
+      byId('onboardingStatus').innerHTML = renderFields([field('Status do onboarding', label, true)]);
+      activateAccessBtn.disabled = status === 'ACTIVE';
+    }
 
     async function loadStudent360() {
       const token = tokenInput.value.trim();
@@ -332,6 +347,7 @@
         renderNutritionPlan(data.active_nutrition_plan || null);
         renderPriority(data.clinical_priority || null);
         renderNextAction(data.next_recommended_action || null);
+        renderOnboardingStatus(student);
         renderTimeline(data.timeline || []);
 
         hydrateLinks(student.email || email);
@@ -356,6 +372,22 @@
         byId('coachReplyInput').value = '';
         await loadStudent360();
       } finally { replyBtn.disabled = false; }
+    });
+    activateAccessBtn.addEventListener('click', async () => {
+      const token = tokenInput.value.trim();
+      const email = emailInput.value.trim().toLowerCase();
+      if (!token || !email) return;
+      activateAccessBtn.disabled = true;
+      try {
+        const res = await fetch('/api/admin/student-access/activate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+          body: JSON.stringify({ email })
+        });
+        const payload = await res.json();
+        if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao liberar acesso');
+        await loadStudent360();
+      } finally { activateAccessBtn.disabled = false; }
     });
     savePlanBtn.addEventListener('click', async () => {
       const token = tokenInput.value.trim();
