@@ -62,6 +62,7 @@ export default {
           now,
           now
         ).run();
+        await logActivityEvent(env.DB, { student_email: studentEmail, event_type: 'ANAMNESE_SUBMITTED', source: 'portal', title: 'Anamnese enviada', payload: { anamnesis_id: id, status } });
 
         const existingAccess = await env.DB.prepare(
           `SELECT id FROM student_access WHERE lower(email)=? LIMIT 1`
@@ -181,6 +182,7 @@ export default {
             body?.supportNeeded || null,
             now
           ).run();
+          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: 'CHECKIN_SUBMITTED', source: 'portal', title: 'Check-in enviado', payload: { checkin_id: id, week_ref: weekRef } });
 
           return json({ ok: true, data: { id, weekRef, createdAt: now } });
         }
@@ -213,6 +215,7 @@ export default {
             body?.decision || 'Manter carga',
             now
           ).run();
+          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: 'PROGRESSION_LOG_SUBMITTED', source: 'portal', title: 'Progresso registrado', payload: { progression_id: id } });
 
           return json({ ok: true, data: { id, createdAt: now } });
         }
@@ -331,6 +334,15 @@ export default {
               title: 'Plano alimentar atualizado'
             });
           }
+
+          const timelineType = String(url.searchParams.get('timeline_type') || '').trim().toUpperCase() || null;
+          const timelineLimitRaw = Number(url.searchParams.get('timeline_limit') || 30);
+          const timelineLimit = Number.isFinite(timelineLimitRaw) ? Math.min(Math.max(Math.trunc(timelineLimitRaw), 1), 100) : 30;
+          const whereTimeline = ['lower(student_email)=?'];
+          const timelineParams = [email];
+          if (timelineType) { whereTimeline.push('event_type=?'); timelineParams.push(timelineType); }
+          const { results: activityRows = [] } = await env.DB.prepare(`SELECT event_type, created_at, title, metadata_json FROM activity_timeline WHERE ${whereTimeline.join(' AND ')} ORDER BY datetime(created_at) DESC LIMIT ?`).bind(...timelineParams, timelineLimit).all();
+          for (const row of activityRows) { timeline.push({ type: String(row.event_type || '').toLowerCase(), at: row.created_at, title: row.title || 'Atividade', detail: safeJsonParse(row.metadata_json) }); }
 
           const clinicalPriority = computeClinicalPriority(latestCheckin, activeWeeklyPlan);
           const nextRecommendedAction = computeNextRecommendedAction(latestCheckin, activeWeeklyPlan);
@@ -461,6 +473,7 @@ export default {
               id, student_email, contact_type, reason, note, outcome, risk_level, next_action, due_date, resolution_status, created_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           ).bind(id, studentEmail, contactType, reason, note, outcome, riskLevel, nextAction, dueDate, resolutionStatus, createdAt).run();
+          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: 'FOLLOWUP_LOGGED', source: 'admin', title: 'Follow-up registrado', payload: { followup_id: id } });
 
           return json({
             ok: true,
@@ -643,6 +656,8 @@ export default {
             ).run();
           }
 
+          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: 'WEEKLY_PLAN_UPDATED', source: 'admin', title: 'Plano semanal atualizado', payload: { weekly_plan_id: id, week_ref: weekRef } });
+
           const saved = await env.DB.prepare(
             `SELECT id, student_email, week_ref, training_focus, cardio_target,
                     nutrition_focus, main_risk, coach_message, status, created_at, updated_at
@@ -715,6 +730,7 @@ export default {
             now
           ).run();
 
+          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: 'NUTRITION_PLAN_UPDATED', source: 'admin', title: 'Plano alimentar atualizado', payload: { nutrition_plan_id: id } });
           const saved = await getActiveNutritionPlanByEmail(env.DB, studentEmail);
           return json({ ok: true, data: saved });
         }
@@ -810,6 +826,8 @@ export default {
                  reviewed_by=?
              WHERE id=?`
           ).bind(coachReply, now, coachStatus, now, reviewedBy, id).run();
+          const studentEmailForActivity = await env.DB.prepare(`SELECT student_email FROM student_checkins WHERE id=? LIMIT 1`).bind(id).first();
+          await logActivityEvent(env.DB, { student_email: String(studentEmailForActivity?.student_email || '').toLowerCase(), event_type: 'COACH_REPLY_SENT', source: 'admin', title: 'Resposta do coach enviada', payload: { checkin_id: id, coach_status: coachStatus } });
 
           const updated = await env.DB.prepare(
             `SELECT id, coach_status, coach_reply, coach_reply_at, reviewed_at, reviewed_by
@@ -901,6 +919,7 @@ export default {
           const studentsWithoutNutritionPlan = Number(studentsWithoutNutritionPlanRow?.total || 0);
           const overdueFollowups = Number(overdueFollowupsRow?.total || 0);
           const pendingOnboarding = Number(pendingOnboardingRow?.total || 0);
+          const { results: recentActivitiesRaw = [] } = await env.DB.prepare(`SELECT student_email, event_type, title, created_at FROM activity_timeline ORDER BY datetime(created_at) DESC LIMIT 8`).all();
 
           const { results: pendingCheckinsListRaw = [] } = await env.DB.prepare(
             `SELECT sa.name,
@@ -1078,6 +1097,7 @@ export default {
               students_without_nutrition_plan_list: studentsWithoutNutritionPlanList,
               overdue_followups_list: overdueFollowupsList,
               pending_onboarding_list: pendingOnboardingList,
+              recent_activities: (recentActivitiesRaw || []).map((row) => ({ student_email: row.student_email, type: row.event_type, title: row.title, at: row.created_at, action_url: buildActionUrl(row.student_email) })),
               priority_message: priorityMessage,
               schema_audit: {
                 nutrition_plans_exists: hasNutritionPlans,
@@ -1735,6 +1755,20 @@ async function ensureSchema(db) {
     `CREATE INDEX IF NOT EXISTS idx_retention_actions_student_email ON retention_actions(student_email)`
   ).run();
 
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS activity_timeline (
+    id TEXT PRIMARY KEY,
+    student_email TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'system',
+    title TEXT NOT NULL,
+    metadata_json TEXT,
+    created_at TEXT NOT NULL
+  )`).run();
+
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_activity_timeline_student_created ON activity_timeline(student_email, created_at)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_activity_timeline_created ON activity_timeline(created_at)`).run();
+
   await db.prepare(`CREATE TABLE IF NOT EXISTS premium_anamnesis (
     id TEXT PRIMARY KEY,
     student_name TEXT NOT NULL,
@@ -1757,6 +1791,30 @@ async function ensureSchema(db) {
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_retention_actions_created_at ON retention_actions(created_at)`
   ).run();
+}
+
+
+async function logActivityEvent(db, event) {
+  const studentEmail = String(event?.student_email || '').trim().toLowerCase();
+  if (!studentEmail) return;
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  await db.prepare(
+    `INSERT INTO activity_timeline (id, student_email, event_type, source, title, metadata_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    id,
+    studentEmail,
+    String(event?.event_type || 'UNKNOWN'),
+    String(event?.source || 'system'),
+    String(event?.title || 'Atividade'),
+    JSON.stringify(event?.payload || {}),
+    now
+  ).run();
+}
+
+function safeJsonParse(value) {
+  try { return value ? JSON.parse(value) : null; } catch { return null; }
 }
 
 const RETENTION_ACTION_SUGGESTIONS = [
