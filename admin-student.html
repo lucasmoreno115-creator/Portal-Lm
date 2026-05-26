@@ -10,6 +10,7 @@
   <div class='container'>
     <a class='student-back-link' href='/admin-command-center.html'>⬅ Voltar para Action Center</a>
     <nav>
+      <button id='adminLogoutBtn' type='button'>Sair</button>
       <a href='/admin.html'>← Voltar ao Admin Hub</a>
       <a href='/admin-command-center.html'>Abrir Command Center</a>
       <a href='/admin-student.html'>Abrir Student 360</a>
@@ -108,8 +109,11 @@
   </div>
 
   <script src='/admin-auth.js'></script>
+  <script>window.LMAdminAuth.attachLogout('adminLogoutBtn');</script>
   <script>
     const tokenInput = document.getElementById('adminToken');
+    const adminSessionToken = window.LMAdminAuth.requireAdmin();
+    window.LMAdminAuth.hydrateAdminTokenInput('adminToken');
     const emailInput = document.getElementById('studentEmailInput');
     const loadBtn = document.getElementById('loadBtn');
     const replyBtn = document.getElementById('replyCheckinBtn');
@@ -411,7 +415,7 @@
       hydrateLinks(initialEmail);
     }
 
-    const savedToken = window.LMAdminAuth?.getAdminToken?.() || '';
+    const savedToken = adminSessionToken || window.LMAdminAuth?.getAdminToken?.() || '';
     if (initialEmail && savedToken) {
       tokenInput.value = savedToken;
       loadStudent360();

@@ -8,6 +8,7 @@
 </head>
 <body>
   <div class='container'>
+    <div class='student-action-row'><button id='adminLogoutBtn' type='button'>Sair</button></div>
     <section class='card hero'>
       <p class='eyebrow'>Consultoria LM • Painel interno</p>
       <h1>Plano da Semana LM</h1>
@@ -74,6 +75,11 @@
   </div>
 
   <script src='/admin-auth.js'></script>
+  <script>
+window.LMAdminAuth.requireAdmin();
+window.LMAdminAuth.hydrateAdminTokenInput('adminToken');
+window.LMAdminAuth.attachLogout('adminLogoutBtn');
+</script>
 <script>
     const form = document.getElementById('weeklyPlanForm');
     const submitBtn = document.getElementById('submitBtn');

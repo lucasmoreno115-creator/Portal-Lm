@@ -9,6 +9,7 @@
 <body class='command-center-page'>
   <div class='container'>
     <nav>
+      <button id='adminLogoutBtn' type='button'>Sair</button>
       <a href='/admin.html'>← Voltar ao Admin Hub</a>
       <a href='/admin-command-center.html'>Abrir Command Center</a>
       <a href='/admin-student.html'>Abrir Student 360</a>
@@ -121,8 +122,11 @@
   </div>
 
   <script src='/admin-auth.js'></script>
+  <script>window.LMAdminAuth.attachLogout('adminLogoutBtn');</script>
 <script>
     const tokenInput = document.getElementById('token');
+    const adminSessionToken = window.LMAdminAuth.requireAdmin();
+    window.LMAdminAuth.hydrateAdminTokenInput('token');
     const loadBtn = document.getElementById('loadBtn');
     const statusEl = document.getElementById('status');
 
@@ -195,6 +199,7 @@
     }
 
     loadBtn.addEventListener('click', loadCommandCenter);
+    if (adminSessionToken) loadCommandCenter();
   </script>
 </body>
 </html>

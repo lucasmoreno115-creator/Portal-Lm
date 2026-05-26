@@ -1,4 +1,10 @@
-<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Admin • Anamneses Premium</title><link rel='stylesheet' href='portal.css'></head><body><div class='container'><section class='card hero'><p class='eyebrow'>Consultoria LM • Admin Hub</p><h1>Anamnese Premium</h1><p class='hero-title'>Visualize avaliações recebidas e marque como analisadas.</p></section><section class='card'><label>Token admin<input id='adminToken' type='password' required></label><button id='loadBtn'>Carregar anamneses</button><p id='status' class='status muted'>Insira o token para listar.</p></section><section class='card'><h2>Recebidas</h2><div id='list'></div></section><section class='card'><h2>Detalhes</h2><div id='details' class='muted'>Selecione uma anamnese da lista.</div></section></div><script src='/admin-auth.js'></script>
+<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Admin • Anamneses Premium</title><link rel='stylesheet' href='portal.css'></head><body><div class='container'>
+    <div class='student-action-row'><button id='adminLogoutBtn' type='button'>Sair</button></div><section class='card hero'><p class='eyebrow'>Consultoria LM • Admin Hub</p><h1>Anamnese Premium</h1><p class='hero-title'>Visualize avaliações recebidas e marque como analisadas.</p></section><section class='card'><label>Token admin<input id='adminToken' type='password' required></label><button id='loadBtn'>Carregar anamneses</button><p id='status' class='status muted'>Insira o token para listar.</p></section><section class='card'><h2>Recebidas</h2><div id='list'></div></section><section class='card'><h2>Detalhes</h2><div id='details' class='muted'>Selecione uma anamnese da lista.</div></section></div><script src='/admin-auth.js'></script>
+  <script>
+window.LMAdminAuth.requireAdmin();
+window.LMAdminAuth.hydrateAdminTokenInput('adminToken');
+window.LMAdminAuth.attachLogout('adminLogoutBtn');
+</script>
 <script>
 const loadBtn=document.getElementById('loadBtn'),status=document.getElementById('status'),list=document.getElementById('list'),details=document.getElementById('details'),adminToken=document.getElementById('adminToken');let items=[];
 const emptyLabel='Não informado';
