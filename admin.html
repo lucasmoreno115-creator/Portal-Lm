@@ -9,6 +9,7 @@
 <body>
   <div class='container'>
     <section class='card hero'>
+      <div class='student-action-row'><a class='secondary-link' href='/admin-login.html'>Login Admin</a> <button id='adminLogoutBtn' type='button'>Sair</button></div>
       <p class='eyebrow'>Consultoria LM • Painel interno</p>
       <h1>Admin Hub LM</h1>
       <p class='hero-title'>O centro operacional da Consultoria LM. Comece pelo Command Center e resolva a maior parte das ações pelo Student 360.</p>
@@ -109,5 +110,7 @@
       </ol>
     </section>
   </div>
+  <script src='/admin-auth.js'></script>
+  <script>window.LMAdminAuth.attachLogout('adminLogoutBtn');</script>
 </body>
 </html>
