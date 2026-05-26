@@ -117,6 +117,10 @@
           <h3>🔄 Follow-ups vencidos</h3>
           <div id='overdueFollowupsList' class='action-list'></div>
         </article>
+        <article class='action-section'>
+          <h3>🕒 Últimas atividades</h3>
+          <div id='recentActivitiesList' class='action-list'></div>
+        </article>
       </div>
     </section>
   </div>
@@ -189,6 +193,13 @@
         renderActionList('withoutNutritionPlanList', data.students_without_nutrition_plan_list);
         renderActionList('overdueFollowupsList', data.overdue_followups_list);
         renderActionList('pendingOnboardingList', data.pending_onboarding_list);
+        renderActionList('recentActivitiesList', (data.recent_activities || []).map((item) => ({
+          name: item.title || item.type || 'Atividade',
+          email: item.student_email || '-',
+          reason: item.type || '',
+          last_event_at: item.at || null,
+          action_url: item.action_url || '#'
+        })));
         document.getElementById('priorityMsg').textContent = data.priority_message || 'Operação em dia.';
         statusEl.textContent = 'Operação carregada com sucesso.';
       } catch (error) {
