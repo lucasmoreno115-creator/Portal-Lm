@@ -157,6 +157,21 @@
         </article>`;
       }).join('');
     }
+    function getTimelineEventView(event) {
+      const type = String(event?.type || event?.event_type || '').toUpperCase();
+      const map = {
+        ANAMNESE_SUBMITTED: { icon: '📝', title: 'Anamnese enviada', description: 'O aluno enviou a Anamnese Premium LM.', category: 'onboarding' },
+        CHECKIN_SUBMITTED: { icon: '✅', title: 'Check-in enviado', description: 'O aluno enviou o check-in semanal.', category: 'checkins' },
+        COACH_REPLY_SENT: { icon: '📩', title: 'Check-in respondido', description: 'O coach respondeu o check-in do aluno.', category: 'checkins' },
+        PROGRESSION_LOG_SUBMITTED: { icon: '🏋️', title: 'Progressão registrada', description: 'O aluno registrou uma atualização de treino.', category: 'treino' },
+        FOLLOWUP_LOGGED: { icon: '💬', title: 'Follow-up registrado', description: 'Uma ação de acompanhamento foi registrada.', category: 'comunicação' },
+        WEEKLY_PLAN_UPDATED: { icon: '📋', title: 'Plano semanal atualizado', description: 'O planejamento estratégico da semana foi criado ou revisado.', category: 'planos' },
+        NUTRITION_PLAN_UPDATED: { icon: '🥗', title: 'Plano alimentar atualizado', description: 'O plano alimentar ativo foi criado ou revisado.', category: 'planos' },
+        STUDENT_INACTIVATED: { icon: '⚫', title: 'Aluno inativado', description: 'O aluno foi removido da operação ativa.', category: 'lifecycle' },
+        STUDENT_REACTIVATED: { icon: '🟢', title: 'Aluno reativado', description: 'O aluno voltou para a operação ativa.', category: 'lifecycle' }
+      };
+      return map[type] || { icon: '🕒', title: 'Atividade registrada', description: 'Um evento operacional foi registrado no sistema.', category: 'outros' };
+    }
 
     async function loadCommandCenter() {
       const token = tokenInput.value.trim();
@@ -193,13 +208,15 @@
         renderActionList('withoutNutritionPlanList', data.students_without_nutrition_plan_list);
         renderActionList('overdueFollowupsList', data.overdue_followups_list);
         renderActionList('pendingOnboardingList', data.pending_onboarding_list);
-        renderActionList('recentActivitiesList', (data.recent_activities || []).map((item) => ({
-          name: item.title || item.type || 'Atividade',
+        renderActionList('recentActivitiesList', (data.recent_activities || []).map((item) => {
+          const view = getTimelineEventView(item);
+          return ({
+          name: `${view.icon} ${view.title}`,
           email: item.student_email || '-',
-          reason: item.type || '',
+          reason: view.description,
           last_event_at: item.at || null,
           action_url: item.action_url || '#'
-        })));
+        })}));
         document.getElementById('priorityMsg').textContent = data.priority_message || 'Operação em dia.';
         statusEl.textContent = 'Operação carregada com sucesso.';
       } catch (error) {
