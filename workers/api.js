@@ -265,6 +265,39 @@ export default {
         }
 
 
+        if (url.pathname === '/api/admin/students' && method === 'GET') {
+          const search = String(url.searchParams.get('search') || '').trim().toLowerCase();
+          const where = [];
+          const params = [];
+          if (search) {
+            where.push(`(lower(name) LIKE ? OR lower(email) LIKE ? OR lower(COALESCE(whatsapp, '')) LIKE ?)`);
+            const term = `%${search}%`;
+            params.push(term, term, term);
+          }
+
+          const query = `SELECT name, email, status, plan_type, whatsapp
+             FROM student_access
+             ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+             ORDER BY CASE upper(status)
+               WHEN 'ACTIVE' THEN 0
+               WHEN 'PENDING_ONBOARDING' THEN 1
+               WHEN 'INACTIVE' THEN 2
+               ELSE 3
+             END,
+             lower(name) ASC
+             LIMIT 100`;
+          const { results = [] } = await env.DB.prepare(query).bind(...params).all();
+
+          return json((results || []).map((student) => ({
+            name: student.name || '',
+            email: student.email || '',
+            status: student.status || '',
+            plan_type: student.plan_type || '',
+            whatsapp: student.whatsapp || ''
+          })));
+        }
+
+
         if (url.pathname === '/api/admin/student-360' && method === 'GET') {
           const email = String(url.searchParams.get('email') || '').trim().toLowerCase();
           if (!email) {

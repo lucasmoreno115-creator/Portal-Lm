@@ -29,6 +29,11 @@
         <label id='adminTokenWrap'>Token admin
           <input id='adminToken' type='password' autocomplete='off' placeholder='Cole o x-admin-token'>
         </label>
+        <label>Selecionar aluno
+          <select id='studentSelect'>
+            <option value=''>Selecionar aluno cadastrado...</option>
+          </select>
+        </label>
         <label>Email do aluno
           <input id='studentEmailInput' type='email' placeholder='aluno@email.com'>
         </label>
@@ -180,6 +185,7 @@
     const adminSessionToken = window.LMAdminAuth.requireAdmin();
     window.LMAdminAuth.hydrateAdminTokenInput('adminToken');
     const emailInput = document.getElementById('studentEmailInput');
+    const studentSelect = document.getElementById('studentSelect');
     const loadBtn = document.getElementById('loadBtn');
     const replyBtn = document.getElementById('replyCheckinBtn');
     const savePlanBtn = document.getElementById('saveWeeklyPlanBtn');
@@ -294,6 +300,44 @@
     function parseAnamnesisAnswers(anamnesis) {
       if (!anamnesis?.answers_json) return {};
       try { return JSON.parse(anamnesis.answers_json) || {}; } catch (_) { return {}; }
+    }
+
+    function formatStudentOption(student) {
+      const name = student?.name || 'Aluno sem nome';
+      const email = student?.email || 'email não informado';
+      const status = student?.status || 'SEM_STATUS';
+      return `${name} • ${email} • ${status}`;
+    }
+
+    function populateStudentSelect(students) {
+      const currentEmail = emailInput.value.trim().toLowerCase();
+      studentSelect.innerHTML = `<option value=''>Selecionar aluno cadastrado...</option>`;
+      (students || []).forEach((student) => {
+        const email = String(student?.email || '').trim().toLowerCase();
+        if (!email) return;
+        const option = document.createElement('option');
+        option.value = email;
+        option.textContent = formatStudentOption(student);
+        if (email === currentEmail) option.selected = true;
+        studentSelect.appendChild(option);
+      });
+    }
+
+    async function loadStudentSelect() {
+      const token = tokenInput.value.trim();
+      if (!token || !studentSelect) return;
+      studentSelect.disabled = true;
+      try {
+        const res = await fetch('/api/admin/students', { headers: { 'x-admin-token': token } });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload?.error || 'Falha ao listar alunos.');
+        const students = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : []);
+        populateStudentSelect(students);
+      } catch (error) {
+        statusBox.textContent = error.message || 'Erro ao listar alunos cadastrados.';
+      } finally {
+        studentSelect.disabled = false;
+      }
     }
 
     function hydrateLinks(email) {
@@ -700,6 +744,18 @@
     }
 
     loadBtn.addEventListener('click', loadStudent360);
+    studentSelect.addEventListener('change', () => {
+      const email = studentSelect.value.trim().toLowerCase();
+      if (!email) return;
+      emailInput.value = email;
+      hydrateLinks(email);
+      if (tokenInput.value.trim()) loadStudent360();
+    });
+    emailInput.addEventListener('input', () => {
+      const email = emailInput.value.trim().toLowerCase();
+      hydrateLinks(email);
+      if (studentSelect.value && studentSelect.value !== email) studentSelect.value = '';
+    });
     quickReplyCheckinBtn.addEventListener('click', () => byId('coachReplyInput').focus());
     openWeeklyPlanBtn.addEventListener('click', () => byId('weeklyPlan').scrollIntoView({ behavior: 'smooth', block: 'start' }));
     editWeeklyPlanBtn.addEventListener('click', () => byId('planWeekRef').focus());
@@ -871,8 +927,10 @@
 
     const savedToken = adminSessionToken || window.LMAdminAuth?.getAdminToken?.() || '';
     if (savedToken) {
+      tokenInput.value = savedToken;
       tokenWrap.hidden = true;
       adminSessionStatus.hidden = false;
+      loadStudentSelect();
     }
     const collapseKeys = ['anamnesis', 'weeklyPlan', 'nutritionPlan', 'timeline'];
     const savedCollapse = JSON.parse(localStorage.getItem('student360Collapsible') || '{}');
@@ -894,7 +952,6 @@
       });
     });
     if (initialEmail && savedToken) {
-      tokenInput.value = savedToken;
       loadStudent360();
     }
   </script>
