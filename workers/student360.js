@@ -4,6 +4,8 @@ export function buildStudentSummary({ studentAccess, latestAnamnesis, latestChec
     email,
     whatsapp: studentAccess?.whatsapp || latestAnamnesis?.student_phone || null,
     plan_type: studentAccess?.plan_type || 'Não cadastrado',
-    status: studentAccess?.status || 'Sem acesso criado'
+    status: studentAccess?.status || 'Sem acesso criado',
+    access_token: studentAccess?.access_token || null,
+    token: studentAccess?.access_token || null
   };
 }

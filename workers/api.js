@@ -71,9 +71,16 @@ export default {
         ).run();
         await logActivityEvent(env.DB, { student_email: studentEmail, event_type: EVENT_TYPES.ANAMNESE_SUBMITTED, source: 'portal', title: 'Anamnese enviada', payload: { anamnesis_id: id, status } });
 
+        const normalizedWhatsapp = normalizeWhatsapp(studentPhone);
         const existingAccess = await env.DB.prepare(
-          `SELECT id FROM student_access WHERE lower(email)=? LIMIT 1`
+          `SELECT id, name, email, access_token, status, plan_type, whatsapp
+           FROM student_access
+           WHERE lower(email)=?
+           LIMIT 1`
         ).bind(studentEmail).first();
+
+        let accessCreated = false;
+        let accessStatus = 'PENDING_ONBOARDING';
 
         if (!existingAccess) {
           await env.DB.prepare(
@@ -85,12 +92,28 @@ export default {
             studentName,
             studentEmail,
             generateAccessToken(),
-            normalizeWhatsapp(studentPhone),
+            normalizedWhatsapp,
             now
+          ).run();
+          accessCreated = true;
+        } else {
+          const ensuredToken = nullableTrimmed(existingAccess.access_token) || generateAccessToken();
+          accessStatus = nullableTrimmed(existingAccess.status) || 'PENDING_ONBOARDING';
+          await env.DB.prepare(
+            `UPDATE student_access
+             SET name=?, access_token=?, status=?, plan_type=?, whatsapp=?
+             WHERE id=?`
+          ).bind(
+            nullableTrimmed(existingAccess.name) || studentName,
+            ensuredToken,
+            accessStatus,
+            nullableTrimmed(existingAccess.plan_type) || 'PREMIUM',
+            nullableTrimmed(existingAccess.whatsapp) || normalizedWhatsapp,
+            existingAccess.id
           ).run();
         }
 
-        return json({ ok: true, data: { id, created_at: now } });
+        return json({ ok: true, data: { id, created_at: now, access_created: accessCreated, access_status: accessStatus } });
       }
 
       if (url.pathname === '/api/portal/login' && method === 'POST') {
@@ -249,7 +272,7 @@ export default {
           }
 
           const studentAccess = await env.DB.prepare(
-            `SELECT name, email, whatsapp, plan_type, status
+            `SELECT name, email, whatsapp, plan_type, status, access_token
              FROM student_access
              WHERE lower(email)=?
              LIMIT 1`
@@ -397,6 +420,70 @@ export default {
               whatsapp
             }
           });
+        }
+
+        if (url.pathname === '/api/admin/student-access/token' && method === 'POST') {
+          const body = await safeJson(request);
+          const email = String(body?.email || '').trim().toLowerCase();
+          if (!email) {
+            return json({ ok: false, error: 'email é obrigatório.' }, 400);
+          }
+
+          const existing = await env.DB.prepare(
+            `SELECT id FROM student_access WHERE lower(email)=? LIMIT 1`
+          ).bind(email).first();
+
+          if (!existing) {
+            return json({ ok: false, error: 'Aluno não encontrado no student_access.' }, 404);
+          }
+
+          const accessToken = generateAccessToken();
+          await env.DB.prepare(
+            `UPDATE student_access SET access_token=? WHERE id=?`
+          ).bind(accessToken, existing.id).run();
+
+          await logActivityEvent(env.DB, {
+            student_email: email,
+            event_type: EVENT_TYPES.STUDENT_TOKEN_UPDATED,
+            source: 'admin',
+            title: 'Token de acesso atualizado',
+            payload: { reason: 'Token regenerado pelo Student 360' }
+          });
+
+          return json({ ok: true, data: { email, access_token: accessToken, token: accessToken } });
+        }
+
+        if (url.pathname === '/api/admin/student-access/activate' && method === 'POST') {
+          const body = await safeJson(request);
+          const email = String(body?.email || '').trim().toLowerCase();
+          if (!email) {
+            return json({ ok: false, error: 'email é obrigatório.' }, 400);
+          }
+
+          const existing = await env.DB.prepare(
+            `SELECT id, status FROM student_access WHERE lower(email)=? LIMIT 1`
+          ).bind(email).first();
+
+          if (!existing) {
+            return json({ ok: false, error: 'Aluno não encontrado no student_access.' }, 404);
+          }
+
+          await env.DB.prepare(
+            `UPDATE student_access SET status='ACTIVE' WHERE id=?`
+          ).bind(existing.id).run();
+
+          const previousStatus = String(existing.status || '').toUpperCase();
+          if (previousStatus !== 'ACTIVE') {
+            await logActivityEvent(env.DB, {
+              student_email: email,
+              event_type: EVENT_TYPES.STUDENT_REACTIVATED,
+              source: 'admin',
+              title: 'Acesso liberado',
+              payload: { previous_status: previousStatus || null, new_status: 'ACTIVE', reason: 'Liberação manual pelo Student 360' }
+            });
+          }
+
+          return json({ ok: true, data: { email, status: 'ACTIVE' } });
         }
 
         if (url.pathname === '/api/admin/student-access/status' && method === 'POST') {
