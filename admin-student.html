@@ -64,6 +64,17 @@
         </div>
       </article>
 
+      <article class='card student-360-card' id='studentAccessCard'>
+        <h2>🔐 Acesso do aluno</h2>
+        <div id='studentAccessDetails'></div>
+        <div class='student-action-grid'>
+          <button id='copyAccessBtn' type='button'>📋 Copiar acesso</button>
+          <button id='rotateTokenBtn' type='button'>🔐 Trocar senha</button>
+          <button id='activateAccessCardBtn' type='button'>🚀 Liberar acesso</button>
+          <button id='toggleStudentStatusCardBtn' type='button'>🚫 Inativar/Reativar</button>
+        </div>
+      </article>
+
       <article class='card student-360-card'>
         <h2>Resumo do aluno</h2>
         <div id='studentSummary'></div>
@@ -181,6 +192,10 @@
     const quickReplyCheckinBtn = document.getElementById('quickReplyCheckinBtn');
     const editWeeklyPlanBtn = document.getElementById('editWeeklyPlanBtn');
     const copyAccessMessageBtn = document.getElementById('copyAccessMessageBtn');
+    const copyAccessBtn = document.getElementById('copyAccessBtn');
+    const rotateTokenBtn = document.getElementById('rotateTokenBtn');
+    const activateAccessCardBtn = document.getElementById('activateAccessCardBtn');
+    const toggleStudentStatusCardBtn = document.getElementById('toggleStudentStatusCardBtn');
     const openAccessWhatsappBtn = document.getElementById('openAccessWhatsappBtn');
     const copyWhatsappBtn = document.getElementById('copyWhatsappBtn');
     const copyEmailBtn = document.getElementById('copyEmailBtn');
@@ -222,7 +237,7 @@
       return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString('pt-BR');
     }
 
-    function pickFirst(obj, paths) {
+    function pickFirstDeep(obj, paths) {
       if (!obj || !Array.isArray(paths)) return null;
       for (const path of paths) {
         const keys = String(path || '').split('.').filter(Boolean);
@@ -234,9 +249,31 @@
           }
           cur = cur[key];
         }
-        if (cur != null && String(cur).trim() !== '') return cur;
+        if (cur == null) continue;
+        if (Array.isArray(cur)) {
+          if (cur.length) return cur.join(', ');
+          continue;
+        }
+        if (typeof cur === 'object') {
+          if (Object.keys(cur).length) return Object.values(cur).filter((value) => value != null && String(value).trim() !== '').join(' • ');
+          continue;
+        }
+        if (String(cur).trim() !== '') return cur;
       }
       return null;
+    }
+
+    const SUMMARY_PATHS = {
+      mainObjective: ['objetivo_principal', 'objetivoPrincipal', 'goals.main_goal', 'goals.objective', 'objectives.main_goal', 'objectives.primary_goal', 'objetivo', 'objective', 'main_goal'],
+      mainLimiter: ['principal_limitador', 'principalLimitador', 'limiting_factor', 'main_limit', 'difficulty', 'maior_dificuldade', 'goals.difficulty', 'adherence.consistency_barrier', 'adherence.biggest_difficulty', 'nutrition.biggest_difficulty', 'routine.organization_barrier'],
+      foodOrganization: ['organizacao_alimentar', 'organizacaoAlimentar', 'nutrition.organization', 'nutrition.organizacao', 'nutrition.self_evaluation', 'nutrition.meals_per_day', 'nutrition.defined_schedule', 'rotina_alimentar', 'meals.organization', 'meals_per_day'],
+      trainingFrequency: ['frequencia_treino', 'frequenciaTreino', 'training.frequency', 'training.days', 'training.days_per_week', 'training.weekly_frequency', 'treino_frequencia', 'days', 'workout_days'],
+      sleepQuality: ['qualidade_sono', 'qualidadeSono', 'sleep.quality', 'sleep.sleep_quality', 'sleep_quality', 'sono', 'recovery.sleep', 'recovery.sleep_quality'],
+      dropoutRisk: ['risco_abandono', 'riscoAbandono', 'dropout_risk', 'adherence.risk', 'risk.dropout', 'abandono_risco', 'adherence.change_readiness', 'adherence.consistency_barrier']
+    };
+
+    function pickFirst(obj, paths) {
+      return pickFirstDeep(obj, paths);
     }
 
     function field(label, value, highlight) {
@@ -282,6 +319,7 @@
       const hasToken = !!(currentStudent?.token || currentStudent?.access_token);
       copyAccessMessageBtn.disabled = !hasToken;
       openAccessWhatsappBtn.disabled = !hasToken;
+      copyAccessBtn.disabled = !hasToken;
       const title = hasToken ? '' : 'Token do aluno indisponível';
       copyAccessMessageBtn.title = title;
       openAccessWhatsappBtn.title = title;
@@ -292,9 +330,9 @@
       const nextAction = currentStudent?.next_recommended_action?.label || currentStudent?.next_recommended_action?.reason || 'Sem próxima ação definida';
       return [
         `Resumo Estratégico — ${currentStudent?.name || 'Aluno(a)'}`,
-        `• Objetivo: ${pickFirst(answers, ['objetivo_principal', 'goals.main_goal', 'objetivo']) || 'Não informado'}`,
-        `• Frequência treino: ${pickFirst(answers, ['frequencia_treino', 'training.frequency', 'treino_frequencia']) || 'Não informado'}`,
-        `• Sono: ${pickFirst(answers, ['qualidade_sono', 'sleep.quality', 'sono']) || checkin.sleep_quality || 'Não informado'}`,
+        `• Objetivo: ${pickFirstDeep(answers, SUMMARY_PATHS.mainObjective) || 'Não informado'}`,
+        `• Frequência treino: ${pickFirstDeep(answers, SUMMARY_PATHS.trainingFrequency) || 'Não informado'}`,
+        `• Sono: ${pickFirstDeep(answers, SUMMARY_PATHS.sleepQuality) || checkin.sleep_quality || 'Não informado'}`,
         `• Principal dificuldade: ${checkin.main_difficulty || pickFirst(answers, ['maior_dificuldade_alimentar', 'nutrition.main_difficulty', 'dificuldade_alimentar']) || 'Não informado'}`,
         `• Próxima ação: ${nextAction}`
       ].join('\n');
@@ -323,20 +361,31 @@
         field('WhatsApp', student?.whatsapp),
         field('Plano', student?.plan_type, true),
         field('Status', student?.status, true),
-        field('Objetivo principal', pickFirst(answers, ['objetivo_principal', 'goals.main_goal', 'objetivo'])),
-        field('Principal limitador', pickFirst(answers, ['principal_limitador', 'limiting_factor', 'dificuldade_principal'])),
-        field('Organização alimentar', pickFirst(answers, ['organizacao_alimentar', 'nutrition.organization', 'rotina_alimentar'])),
-        field('Frequência de treino', pickFirst(answers, ['frequencia_treino', 'training.frequency', 'treino_frequencia'])),
-        field('Qualidade do sono', pickFirst(answers, ['qualidade_sono', 'sleep.quality', 'sono'])),
-        field('Risco de abandono', pickFirst(answers, ['risco_abandono', 'dropout_risk', 'adherence.risk']))
+        field('Objetivo principal', pickFirstDeep(answers, SUMMARY_PATHS.mainObjective)),
+        field('Principal limitador', pickFirstDeep(answers, SUMMARY_PATHS.mainLimiter)),
+        field('Organização alimentar', pickFirstDeep(answers, SUMMARY_PATHS.foodOrganization)),
+        field('Frequência de treino', pickFirstDeep(answers, SUMMARY_PATHS.trainingFrequency)),
+        field('Qualidade do sono', pickFirstDeep(answers, SUMMARY_PATHS.sleepQuality)),
+        field('Risco de abandono', pickFirstDeep(answers, SUMMARY_PATHS.dropoutRisk))
       ]);
       byId('studentSummary').innerHTML = html;
     }
+    function renderStudentAccess(student) {
+      const token = student?.access_token || student?.token || '';
+      byId('studentAccessDetails').innerHTML = renderFields([
+        field('Email', student?.email),
+        field('Token', token || 'Não informado', true),
+        field('Status', student?.status, true),
+        field('Plano', student?.plan_type),
+        field('WhatsApp', student?.whatsapp)
+      ]);
+    }
+
     function renderExecutiveSummary(student, answers, action) {
       byId('executiveSummary').innerHTML = renderFields([
         field('Aluno', student?.name, true),
         field('Status', student?.status, true),
-        field('Objetivo', pickFirst(answers, ['objetivo_principal', 'goals.main_goal', 'objetivo'])),
+        field('Objetivo', pickFirstDeep(answers, SUMMARY_PATHS.mainObjective)),
         field('Prioridade', currentStudent?.clinical_priority?.message || currentStudent?.clinical_priority?.level),
         field('Próxima ação', action?.label || action?.reason)
       ]);
@@ -349,7 +398,7 @@
       }
       byId('latestAnamnesis').innerHTML = renderFields([
         field('Data de envio', formatDate(anamnesis.created_at), true),
-        field('Objetivo principal', pickFirst(answers, ['objetivo_principal', 'goals.main_goal', 'objetivo'])),
+        field('Objetivo principal', pickFirstDeep(answers, SUMMARY_PATHS.mainObjective)),
         field('O que mais incomoda', pickFirst(answers, ['o_que_mais_incomoda', 'incômodo_principal', 'pain_point'])),
         field('Maior dificuldade alimentar', pickFirst(answers, ['maior_dificuldade_alimentar', 'nutrition.main_difficulty', 'dificuldade_alimentar'])),
         field('Rotina', pickFirst(answers, ['rotina', 'routine', 'routine_context'])),
@@ -415,7 +464,7 @@
       const meals = Array.isArray(plan.meals) ? plan.meals.length : (Array.isArray(plan.plan_json?.meals) ? plan.plan_json.meals.length : null);
       byId('nutritionPlan').innerHTML = renderFields([
         field('Título', plan.title, true),
-        field('Objetivo', plan.objective),
+        field('Objetivo', pickFirstDeep(plan, ['objective', 'goal', 'objetivo', 'strategy_goal', 'plan_json.objective', 'plan_json.goal'])),
         field('Estratégia', plan.strategy),
         field('Status', plan.status || 'ACTIVE'),
         field('Última atualização', formatDate(plan.updated_at || plan.created_at)),
@@ -482,7 +531,8 @@
         WEEKLY_PLAN_UPDATED: { icon: '📋', title: 'Plano semanal atualizado', description: 'O planejamento estratégico da semana foi criado ou revisado.', category: 'planos' },
         NUTRITION_PLAN_UPDATED: { icon: '🥗', title: 'Plano alimentar atualizado', description: 'O plano alimentar ativo foi criado ou revisado.', category: 'planos' },
         STUDENT_INACTIVATED: { icon: '⚫', title: 'Aluno inativado', description: 'O aluno foi removido da operação ativa.', category: 'lifecycle' },
-        STUDENT_REACTIVATED: { icon: '🟢', title: 'Aluno reativado', description: 'O aluno voltou para a operação ativa.', category: 'lifecycle' }
+        STUDENT_REACTIVATED: { icon: '🟢', title: 'Aluno reativado', description: 'O aluno voltou para a operação ativa.', category: 'lifecycle' },
+        STUDENT_TOKEN_UPDATED: { icon: '🔐', title: 'Token de acesso atualizado', description: 'O token/senha de acesso do aluno foi alterado.', category: 'lifecycle' }
       };
       return map[type] || { icon: '🕒', title: 'Atividade registrada', description: 'Um evento operacional foi registrado no sistema.', category: 'outros' };
     }
@@ -508,7 +558,7 @@
         planos: ['WEEKLY_PLAN_UPDATED', 'NUTRITION_PLAN_UPDATED'],
         onboarding: ['ANAMNESE_SUBMITTED', 'ACCESS_CREATED', 'ACCESS_ACTIVATED', 'PENDING_ONBOARDING'],
         comunicação: ['FOLLOWUP_LOGGED', 'COACH_REPLY_SENT'],
-        lifecycle: ['STUDENT_INACTIVATED', 'STUDENT_REACTIVATED'],
+        lifecycle: ['STUDENT_INACTIVATED', 'STUDENT_REACTIVATED', 'STUDENT_TOKEN_UPDATED'],
         treino: ['PROGRESSION_LOG_SUBMITTED']
       };
       return (filters[filterKey] || []).includes(type);
@@ -536,10 +586,14 @@
           : '🟡 Aguardando liberação';
       byId('onboardingStatus').innerHTML = renderFields([field('Status do onboarding', label, true)]);
       activateAccessBtn.disabled = status === 'ACTIVE';
+      activateAccessCardBtn.disabled = status === 'ACTIVE';
       const canInactivate = status === 'ACTIVE' || status === 'PENDING_ONBOARDING';
       const canReactivate = status === 'INACTIVE';
       toggleStudentStatusBtn.disabled = !canInactivate && !canReactivate;
+      toggleStudentStatusCardBtn.disabled = !canInactivate && !canReactivate;
       toggleStudentStatusBtn.textContent = canReactivate ? '🔁 Reativar aluno' : '🚫 Inativar aluno';
+      toggleStudentStatusCardBtn.textContent = canReactivate ? '🔁 Reativar aluno' : '🚫 Inativar aluno';
+      rotateTokenBtn.disabled = !student?.email;
     }
     function renderOperationalDiagnosis(data) {
       const student = data?.student || {};
@@ -579,7 +633,7 @@
         return;
       }
       loadBtn.disabled = true;
-      document.querySelectorAll('#studentSummary,#latestAnamnesis,#latestCheckin,#weeklyPlan,#nutritionPlan,#timeline,#executiveSummary').forEach((el) => el.classList.add('skeleton'));
+      document.querySelectorAll('#studentSummary,#studentAccessDetails,#latestAnamnesis,#latestCheckin,#weeklyPlan,#nutritionPlan,#timeline,#executiveSummary').forEach((el) => el.classList.add('skeleton'));
       statusBox.textContent = 'Carregando dados do aluno...';
       try {
         const res = await fetch(`/api/admin/student-360?email=${encodeURIComponent(email)}`, { headers: { 'x-admin-token': token } });
@@ -610,6 +664,7 @@
         setText('studentStatus', `Status: ${student.status || '-'}`);
 
         renderSummary(student, answers);
+        renderStudentAccess(student);
         renderAnamnesis(anamnesis, answers);
         renderCheckin(checkin);
         latestCheckinId = checkin?.id || null;
@@ -717,6 +772,35 @@
         showToast('✅ Check-in respondido');
       } finally { replyBtn.disabled = false; }
     });
+    copyAccessBtn.addEventListener('click', async () => {
+      const text = getAccessMessage();
+      await navigator.clipboard.writeText(text);
+      byId('accessMessageOutput').value = text;
+      showToast('✅ Acesso copiado');
+    });
+    rotateTokenBtn.addEventListener('click', async () => {
+      const token = tokenInput.value.trim();
+      const email = emailInput.value.trim().toLowerCase();
+      if (!token || !email) return;
+      if (!window.confirm('Trocar o token/senha de acesso deste aluno? O token anterior deixará de funcionar.')) return;
+      rotateTokenBtn.disabled = true;
+      try {
+        const res = await fetch('/api/admin/student-access/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+          body: JSON.stringify({ email })
+        });
+        const payload = await res.json();
+        if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao trocar token');
+        await loadStudent360();
+        showToast('✅ Token atualizado');
+      } catch (error) {
+        statusBox.textContent = error.message || 'Erro ao trocar token.';
+      } finally {
+        rotateTokenBtn.disabled = false;
+      }
+    });
+
     activateAccessBtn.addEventListener('click', async () => {
       const token = tokenInput.value.trim();
       const email = emailInput.value.trim().toLowerCase();
@@ -733,6 +817,8 @@
         await loadStudent360();
       } finally { activateAccessBtn.disabled = false; }
     });
+    activateAccessCardBtn.addEventListener('click', () => activateAccessBtn.click());
+    toggleStudentStatusCardBtn.addEventListener('click', () => toggleStudentStatusBtn.click());
     toggleStudentStatusBtn.addEventListener('click', async () => {
       const token = tokenInput.value.trim();
       const email = emailInput.value.trim().toLowerCase();
