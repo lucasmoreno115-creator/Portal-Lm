@@ -33,12 +33,7 @@ export default {
         const studentEmail = providedEmail;
         const status = nullableTrimmed(body?.status) || 'RECEBIDA';
         const answers = body?.answers && typeof body.answers === 'object' ? body.answers : {};
-        const internalScores = body?.internal_scores && typeof body.internal_scores === 'object' ? body.internal_scores : {
-          adherence_score: null,
-          risk_score: null,
-          routine_score: null,
-          recovery_score: null
-        };
+        const internalScores = calculateAnamnesisInternalScores(answers);
 
         if (!studentName) {
           return json({ ok: false, error: 'student_name é obrigatório.' }, 400);
@@ -2153,6 +2148,212 @@ async function getActiveNutritionPlanByEmail(db, email) {
     created_at: row.created_at,
     updated_at: row.updated_at
   };
+}
+
+
+function calculateAnamnesisInternalScores(answers) {
+  const source = answers && typeof answers === 'object' ? answers : {};
+
+  return {
+    adherence_score: averageScore([
+      scoreNumber(pickAnamnesisValue(source, ['adherence.change_readiness', 'adherence.readiness', 'change_readiness']), { min: 0, max: 10 }),
+      scoreBarrier(pickAnamnesisValue(source, ['adherence.consistency_barrier', 'adherence.difficulty', 'consistency_barrier']), { invert: true }),
+      scoreTriedBefore(pickAnamnesisValue(source, ['adherence.tried_before', 'adherence.previous_attempts', 'tried_before'])),
+      scoreFrequency(pickAnamnesisValue(source, ['nutrition.weighs_food', 'weighs_food']), { positive: true }),
+      scoreOrganization(pickAnamnesisValue(source, ['nutrition.self_evaluation', 'self_evaluation'])),
+      scoreFrequency(pickAnamnesisValue(source, ['nutrition.off_plan_frequency', 'off_plan_frequency']), { positive: false }),
+      scoreFrequency(pickAnamnesisValue(source, ['nutrition.stress_eating', 'stress_eating']), { positive: false }),
+      scoreFrequency(pickAnamnesisValue(source, ['nutrition.binge_episodes', 'binge_episodes']), { positive: false })
+    ], 2),
+    risk_score: averageScore([
+      scoreFrequency(pickAnamnesisValue(source, ['nutrition.binge_episodes', 'binge_episodes']), { positive: true }),
+      scoreFrequency(pickAnamnesisValue(source, ['nutrition.stress_eating', 'stress_eating']), { positive: true }),
+      scoreNumber(pickAnamnesisValue(source, ['recovery.stress_level', 'stress_level']), { min: 0, max: 10 }),
+      scoreSleepQuality(pickAnamnesisValue(source, ['recovery.sleep_quality', 'sleep.sleep_quality', 'sleep_quality']), { invert: true }),
+      scoreBarrier(pickAnamnesisValue(source, ['adherence.consistency_barrier', 'adherence.difficulty', 'consistency_barrier']), { invert: false }),
+      scoreMedicalText(pickAnamnesisValue(source, ['training.injuries_pain', 'injuries_pain'])),
+      scoreMedicalText(pickAnamnesisValue(source, ['health.conditions', 'clinical.conditions', 'conditions'])),
+      scoreMedicalText(pickAnamnesisValue(source, ['health.medications', 'clinical.medications', 'medications'])),
+      scoreMedicalText(pickAnamnesisValue(source, ['health.hormones', 'clinical.hormones', 'hormones']))
+    ], 2),
+    routine_score: averageScore([
+      scoreYesNo(pickAnamnesisValue(source, ['routine.allows_planning', 'routine.availability', 'allows_planning']), { yes: 10, no: 2 }),
+      scoreWorkHours(pickAnamnesisValue(source, ['routine.work_hours', 'work_hours'])),
+      scoreRoutineFlow(pickAnamnesisValue(source, ['routine.flow', 'routine.routine_flow', 'flow'])),
+      scoreBarrier(pickAnamnesisValue(source, ['routine.organization_barrier', 'organization_barrier']), { invert: true }),
+      scoreYesNo(pickAnamnesisValue(source, ['routine.prepares_meals', 'prepares_meals']), { yes: 10, no: 3, sometimes: 6 }),
+      scoreYesNo(pickAnamnesisValue(source, ['nutrition.defined_schedule', 'defined_schedule']), { yes: 10, no: 2 }),
+      scoreMealsPerDay(pickAnamnesisValue(source, ['nutrition.meals_per_day', 'meals_per_day']))
+    ], 2),
+    recovery_score: averageScore([
+      scoreSleepQuality(pickAnamnesisValue(source, ['recovery.sleep_quality', 'sleep.sleep_quality', 'sleep_quality'])),
+      scoreSleepHours(pickAnamnesisValue(source, ['recovery.sleep_hours', 'sleep.hours', 'sleep_hours'])),
+      scoreNumber(pickAnamnesisValue(source, ['recovery.stress_level', 'stress_level']), { min: 0, max: 10, invert: true }),
+      scoreNumber(pickAnamnesisValue(source, ['recovery.daily_energy', 'daily_energy']), { min: 0, max: 10 }),
+      scoreYesNo(pickAnamnesisValue(source, ['recovery.wakes_rested', 'wakes_rested']), { yes: 10, no: 2, sometimes: 6 })
+    ], 2)
+  };
+}
+
+function pickAnamnesisValue(source, paths) {
+  for (const path of paths) {
+    const value = path.split('.').reduce((current, key) => current?.[key], source);
+    if (hasAnamnesisValue(value)) return value;
+  }
+  return null;
+}
+
+function hasAnamnesisValue(value) {
+  if (value === null || value === undefined) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'string') return value.trim() !== '';
+  return true;
+}
+
+function averageScore(values, minimumSignals = 2) {
+  const valid = values.filter((value) => Number.isFinite(value));
+  if (valid.length < minimumSignals) return null;
+  const average = valid.reduce((sum, value) => sum + value, 0) / valid.length;
+  return Math.max(0, Math.min(10, Math.round(average)));
+}
+
+function scoreNumber(value, { min = 0, max = 10, invert = false } = {}) {
+  if (!hasAnamnesisValue(value)) return null;
+  const parsed = typeof value === 'number' ? value : Number(String(value).replace(',', '.'));
+  if (!Number.isFinite(parsed)) return null;
+  const normalized = ((parsed - min) / (max - min)) * 10;
+  const score = invert ? 10 - normalized : normalized;
+  return clampScore(score);
+}
+
+function scoreYesNo(value, { yes = 10, no = 0, sometimes = 5 } = {}) {
+  const text = normalizeScoreText(value);
+  if (!text) return null;
+  if (text.includes('as vezes') || text.includes('às vezes') || text.includes('parcial') || text.includes('medio')) return sometimes;
+  if (text.includes('sim') || text.includes('tenho') || text.includes('consigo')) return yes;
+  if (text.includes('nao') || text.includes('não') || text.includes('nunca')) return no;
+  return null;
+}
+
+function scoreFrequency(value, { positive = true } = {}) {
+  const text = normalizeScoreText(value);
+  if (!text) return null;
+  let risk;
+  if (text.includes('quase nunca') || text.includes('nunca') || text.includes('nao') || text.includes('não')) risk = 0;
+  else if (text.includes('as vezes') || text.includes('às vezes') || text.includes('1-2') || text.includes('1 a 2') || text.includes('pouco')) risk = 3;
+  else if (text.includes('sim')) risk = 8;
+  else if (text.includes('3-4') || text.includes('3 a 4') || text.includes('moderad') || text.includes('razoavel')) risk = 6;
+  else if (text.includes('5 ou mais') || text.includes('frequent') || text.includes('sempre') || text.includes('muito')) risk = 9;
+  else return null;
+  return positive ? risk : 10 - risk;
+}
+
+function scoreOrganization(value) {
+  const text = normalizeScoreText(value);
+  if (!text) return null;
+  if (text.includes('muito desorganizada')) return 1;
+  if (text.includes('pouco organizada')) return 3;
+  if (text.includes('razoavelmente organizada')) return 6;
+  if (text.includes('bem organizada')) return 8;
+  if (text.includes('muito organizada')) return 10;
+  return scoreBarrier(value, { invert: true });
+}
+
+function scoreSleepQuality(value, { invert = false } = {}) {
+  const text = normalizeScoreText(value);
+  if (!text) return null;
+  let score = null;
+  if (text.includes('muito ruim') || text.includes('pessim') || text.includes('péssim')) score = 1;
+  else if (text.includes('ruim')) score = 3;
+  else if (text.includes('regular') || text.includes('razoavel') || text.includes('razoável')) score = 5;
+  else if (text.includes('boa') || text.includes('bom')) score = 8;
+  else if (text.includes('excelente') || text.includes('muito boa')) score = 10;
+  return score === null ? null : invert ? 10 - score : score;
+}
+
+function scoreSleepHours(value) {
+  const text = String(value ?? '').toLowerCase();
+  const match = text.match(/\d+(?:[,.]\d+)?/);
+  if (!match) return null;
+  const hours = Number(match[0].replace(',', '.'));
+  if (!Number.isFinite(hours)) return null;
+  if (hours >= 7 && hours <= 9) return 10;
+  if (hours >= 6 && hours < 7) return 7;
+  if (hours >= 5 && hours < 6) return 4;
+  if (hours > 9 && hours <= 10) return 7;
+  return 2;
+}
+
+function scoreMealsPerDay(value) {
+  const text = normalizeScoreText(value);
+  if (!text) return null;
+  if (text.includes('1-2') || text.includes('1 a 2')) return 3;
+  if (text.includes('3 refei')) return 7;
+  if (text.includes('4 refei') || text.includes('5 refei')) return 10;
+  if (text.includes('6 ou mais')) return 8;
+  return null;
+}
+
+function scoreWorkHours(value) {
+  const text = normalizeScoreText(value);
+  if (!text) return null;
+  const numbers = [...text.matchAll(/\d+(?:[,.]\d+)?/g)].map((match) => Number(match[0].replace(',', '.'))).filter(Number.isFinite);
+  const hours = numbers.length ? Math.max(...numbers) : null;
+  if (hours !== null) {
+    if (hours <= 8) return 9;
+    if (hours <= 10) return 7;
+    if (hours <= 12) return 5;
+    return 3;
+  }
+  if (text.includes('flexivel') || text.includes('flexível') || text.includes('tranquil')) return 9;
+  if (text.includes('plantao') || text.includes('plantão') || text.includes('escala') || text.includes('muito')) return 4;
+  return null;
+}
+
+function scoreRoutineFlow(value) {
+  const text = normalizeScoreText(value);
+  if (!text) return null;
+  if (text.includes('organizada') || text.includes('previsivel') || text.includes('previsível') || text.includes('tranquil')) return 9;
+  if (text.includes('corrida') || text.includes('imprevisivel') || text.includes('imprevisível') || text.includes('caotica') || text.includes('caótica')) return 3;
+  if (text.includes('razoavel') || text.includes('razoável') || text.includes('regular')) return 6;
+  return null;
+}
+
+function scoreBarrier(value, { invert = false } = {}) {
+  const text = normalizeScoreText(value);
+  if (!text) return null;
+  let barrier;
+  if (text.includes('nenhum') || text.includes('sem barreira') || text.includes('nao tenho') || text.includes('não tenho')) barrier = 0;
+  else if (text.includes('pouco') || text.includes('pequeno')) barrier = 3;
+  else if (text.includes('tempo') || text.includes('rotina') || text.includes('organiz') || text.includes('ansiedade') || text.includes('estresse')) barrier = 6;
+  else if (text.includes('muito') || text.includes('sempre') || text.includes('compuls') || text.includes('lesao') || text.includes('lesão')) barrier = 8;
+  else barrier = 5;
+  return invert ? 10 - barrier : barrier;
+}
+
+function scoreTriedBefore(value) {
+  const text = normalizeScoreText(value);
+  if (!text) return null;
+  if (text.includes('nunca') || text.includes('nao') || text.includes('não')) return 6;
+  return 7;
+}
+
+function scoreMedicalText(value) {
+  const text = normalizeScoreText(value);
+  if (!text) return null;
+  if (text.includes('nenhum') || text.includes('nao') || text.includes('não') || text.includes('sem ')) return 0;
+  if (text.includes('grave') || text.includes('cron') || text.includes('crôn') || text.includes('lesao') || text.includes('lesão') || text.includes('dor')) return 8;
+  return 5;
+}
+
+function clampScore(score) {
+  if (!Number.isFinite(score)) return null;
+  return Math.max(0, Math.min(10, score));
+}
+
+function normalizeScoreText(value) {
+  if (!hasAnamnesisValue(value)) return '';
+  return String(Array.isArray(value) ? value.join(' ') : value).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 function safeJsonParseArray(raw) {
