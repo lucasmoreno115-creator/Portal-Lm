@@ -8,7 +8,11 @@
 </head>
 <body>
   <div class='container'>
-    <div class='student-action-row'><button id='adminLogoutBtn' type='button'>Sair</button></div>
+    <nav>
+      <button id='adminLogoutBtn' type='button'>Sair</button>
+      <a id='backToStudent360Link' href='/admin-student.html'>← Voltar ao Student 360</a>
+      <a href='/admin.html'>← Voltar ao Admin Hub</a>
+    </nav>
     <section class='card hero'>
       <p class='eyebrow'>Consultoria LM • Painel interno</p>
       <h1>Plano alimentar do aluno</h1>
@@ -54,7 +58,8 @@
 
     <section class='card'>
       <p id='statusBox' class='status muted'>Informe token e email para carregar ou salvar o plano.</p>
-      <a class='secondary-link' href='admin.html'>Voltar</a>
+      <a class='secondary-link' id='footerBackToStudent360Link' href='/admin-student.html'>← Voltar ao Student 360</a>
+      <a class='secondary-link' href='/admin.html'>← Voltar ao Admin Hub</a>
     </section>
   </div>
 
@@ -73,11 +78,25 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
     const equivalencesContainer = document.getElementById('equivalencesContainer');
     const resetEquivalencesBtn = document.getElementById('resetEquivalencesBtn');
     const statusBox = document.getElementById('statusBox');
+    const studentEmailInput = document.getElementById('studentEmail');
+    const backToStudent360Link = document.getElementById('backToStudent360Link');
+    const footerBackToStudent360Link = document.getElementById('footerBackToStudent360Link');
 
     function setStatus(message, type) {
       statusBox.textContent = message;
       statusBox.className = 'status';
       statusBox.classList.add(type || 'muted');
+    }
+
+    function getStudent360Url(email) {
+      const cleanEmail = String(email || '').trim().toLowerCase();
+      return cleanEmail ? `/admin-student.html?email=${encodeURIComponent(cleanEmail)}` : '/admin-student.html';
+    }
+
+    function hydrateStudent360Links(email) {
+      const href = getStudent360Url(email);
+      backToStudent360Link.href = href;
+      footerBackToStudent360Link.href = href;
     }
 
     function sanitizeText(value) {
@@ -270,10 +289,11 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
       return payload;
     }
 
-    loadBtn.addEventListener('click', async () => {
-      const email = document.getElementById('studentEmail').value.trim().toLowerCase();
+    async function loadNutritionPlan() {
+      const email = studentEmailInput.value.trim().toLowerCase();
       if (!email) return setStatus('Informe o email do aluno.', 'error');
 
+      hydrateStudent360Links(email);
       loadBtn.disabled = true;
       setStatus('Carregando plano...', 'muted');
       try {
@@ -285,6 +305,12 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
       } finally {
         loadBtn.disabled = false;
       }
+    }
+
+    loadBtn.addEventListener('click', loadNutritionPlan);
+
+    studentEmailInput.addEventListener('input', () => {
+      hydrateStudent360Links(studentEmailInput.value);
     });
 
     form.addEventListener('submit', async (event) => {
@@ -322,6 +348,17 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
     clearMealBlocks();
     addMealBlock();
     renderEquivalenceEditor(cloneDefaultEquivalences());
+
+    const params = new URLSearchParams(window.location.search);
+    const initialEmail = (params.get('email') || '').trim().toLowerCase();
+    if (initialEmail) {
+      studentEmailInput.value = initialEmail;
+    }
+    hydrateStudent360Links(studentEmailInput.value);
+
+    if (initialEmail && document.getElementById('adminToken').value.trim()) {
+      loadNutritionPlan();
+    }
   </script>
 </body>
 </html>

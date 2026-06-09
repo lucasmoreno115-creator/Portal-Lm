@@ -340,10 +340,19 @@
       }
     }
 
+    function getCurrentStudentEmail() {
+      return String(currentStudent?.email || emailInput.value || '').trim().toLowerCase();
+    }
+
+    function getNutritionPlanUrl(email) {
+      const query = encodeURIComponent(email || '');
+      return `/admin-nutrition-plan.html?email=${query}`;
+    }
+
     function hydrateLinks(email) {
       const query = encodeURIComponent(email || '');
       byId('openAnamnesis').href = `/admin-anamneses.html?email=${query}`;
-      byId('editNutritionPlan').href = `/admin-nutrition-plan.html?email=${query}`;
+      byId('editNutritionPlan').href = getNutritionPlanUrl(email);
     }
     function getWhatsappLink(raw) {
       const digits = String(raw || '').replace(/\D/g, '');
@@ -759,7 +768,17 @@
     quickReplyCheckinBtn.addEventListener('click', () => byId('coachReplyInput').focus());
     openWeeklyPlanBtn.addEventListener('click', () => byId('weeklyPlan').scrollIntoView({ behavior: 'smooth', block: 'start' }));
     editWeeklyPlanBtn.addEventListener('click', () => byId('planWeekRef').focus());
-    openNutritionPlanBtn.addEventListener('click', () => byId('nutritionPlan').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    openNutritionPlanBtn.addEventListener('click', () => {
+      const email = getCurrentStudentEmail();
+      if (!email) {
+        statusBox.textContent = 'Informe ou carregue um aluno antes de abrir o plano alimentar.';
+        statusBox.className = 'status error';
+        emailInput.focus();
+        return;
+      }
+
+      window.location.href = getNutritionPlanUrl(email);
+    });
     openWhatsappBtn.addEventListener('click', () => {
       const link = getWhatsappLink(currentStudent?.whatsapp || '');
       if (link) window.open(link, '_blank', 'noopener');
@@ -922,7 +941,7 @@
     if (initialEmail) {
       emailInput.value = initialEmail;
       hydrateLinks(initialEmail);
-      byId('editNutritionPlan').href = `/admin-nutrition-plan.html?email=${encodeURIComponent(initialEmail)}`;
+      byId('editNutritionPlan').href = getNutritionPlanUrl(initialEmail);
     }
 
     const savedToken = adminSessionToken || window.LMAdminAuth?.getAdminToken?.() || '';
