@@ -8,7 +8,11 @@
 </head>
 <body>
   <div class='container'>
-    <div class='student-action-row'><button id='adminLogoutBtn' type='button'>Sair</button></div>
+    <nav>
+      <button id='adminLogoutBtn' type='button'>Sair</button>
+      <a id='backToStudent360Link' href='/admin-student.html'>← Voltar ao Student 360</a>
+      <a href='/admin.html'>← Voltar ao Admin Hub</a>
+    </nav>
     <section class='card hero'>
       <p class='eyebrow'>Consultoria LM • Painel interno</p>
       <h1>Plano alimentar do aluno</h1>
@@ -35,11 +39,21 @@
         <div class='equivalence-admin-header'>
           <div>
             <label>Guia de Equival&ecirc;ncias Alimentares</label>
-            <small class='muted'>Template LM edit&aacute;vel antes de salvar o plano do aluno.</small>
+            <small class='muted'>Categorias, refer&ecirc;ncias e substitui&ccedil;&otilde;es edit&aacute;veis antes de salvar o plano do aluno.</small>
           </div>
           <button id='resetEquivalencesBtn' type='button' class='secondary-action'>Restaurar template LM</button>
         </div>
         <div id='equivalencesContainer' class='equivalence-admin-list'></div>
+        <button id='addEquivalenceGroupBtn' type='button' class='secondary-action'>+ Adicionar grupo de equival&ecirc;ncia</button>
+
+        <div class='equivalence-admin-header'>
+          <div>
+            <label>Op&ccedil;&otilde;es de jantar pr&aacute;tico</label>
+            <small class='muted'>Op&ccedil;&otilde;es salvas como categoria compat&iacute;vel em substitui&ccedil;&otilde;es.</small>
+          </div>
+        </div>
+        <div id='practicalDinnerContainer' class='equivalence-admin-list'></div>
+        <button id='addPracticalDinnerBtn' type='button' class='secondary-action'>+ Adicionar op&ccedil;&atilde;o</button>
 
         <label>Regras de adesão</label>
         <small class='muted'>Texto livre. Nenhum parser automático será aplicado.</small>
@@ -54,7 +68,8 @@
 
     <section class='card'>
       <p id='statusBox' class='status muted'>Informe token e email para carregar ou salvar o plano.</p>
-      <a class='secondary-link' href='admin.html'>Voltar</a>
+      <a class='secondary-link' id='footerBackToStudent360Link' href='/admin-student.html'>← Voltar ao Student 360</a>
+      <a class='secondary-link' href='/admin.html'>← Voltar ao Admin Hub</a>
     </section>
   </div>
 
@@ -71,13 +86,30 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
     const addMealBtn = document.getElementById('addMealBtn');
     const mealsContainer = document.getElementById('mealsContainer');
     const equivalencesContainer = document.getElementById('equivalencesContainer');
+    const addEquivalenceGroupBtn = document.getElementById('addEquivalenceGroupBtn');
+    const practicalDinnerContainer = document.getElementById('practicalDinnerContainer');
+    const addPracticalDinnerBtn = document.getElementById('addPracticalDinnerBtn');
     const resetEquivalencesBtn = document.getElementById('resetEquivalencesBtn');
     const statusBox = document.getElementById('statusBox');
+    const studentEmailInput = document.getElementById('studentEmail');
+    const backToStudent360Link = document.getElementById('backToStudent360Link');
+    const footerBackToStudent360Link = document.getElementById('footerBackToStudent360Link');
 
     function setStatus(message, type) {
       statusBox.textContent = message;
       statusBox.className = 'status';
       statusBox.classList.add(type || 'muted');
+    }
+
+    function getStudent360Url(email) {
+      const cleanEmail = String(email || '').trim().toLowerCase();
+      return cleanEmail ? `/admin-student.html?email=${encodeURIComponent(cleanEmail)}` : '/admin-student.html';
+    }
+
+    function hydrateStudent360Links(email) {
+      const href = getStudent360Url(email);
+      backToStudent360Link.href = href;
+      footerBackToStudent360Link.href = href;
     }
 
     function sanitizeText(value) {
@@ -90,43 +122,76 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
         .trim();
     }
 
+    const PRACTICAL_DINNER_CATEGORY = 'Jantar prático';
+    const PRACTICAL_DINNER_ICON = '🍽️';
+    const PRACTICAL_DINNER_REFERENCE = 'Opções práticas para última refeição';
+
     const foodEquivalences = [
-      { category: 'Prote\u00ednas', icon: '\uD83C\uDF57', reference: '3 bifes de frango ou carne magra (~150g)', items: ['150g de frango', '150g de carne magra', '170g de peixe', '1 lata grande de atum', '4 ovos + 4 claras', '2 iogurtes proteicos'] },
-      { category: 'Carboidratos', icon: '\uD83C\uDF5A', reference: '4 colheres de arroz branco (~120-140g)', items: ['200g de batata inglesa', '150g de batata-doce', '130g de mandioca', '120g de macarr\u00e3o', '140g de cuscuz', '1 Rap10', '1 p\u00e3o franc\u00eas', '2 fatias de p\u00e3o integral'] },
-      { category: 'Gorduras boas', icon: '\uD83E\uDD5C', reference: '5g de azeite', items: ['15g de pasta de amendoim', '15g de castanhas', '15g de amendoim', '60g de abacate'] },
-      { category: 'Frutas', icon: '\uD83C\uDF4C', reference: '1 por\u00e7\u00e3o de fruta', items: ['1 banana m\u00e9dia', '1 ma\u00e7\u00e3 m\u00e9dia', '1 pera m\u00e9dia', '1 laranja', '2 fatias de abacaxi', '2 fatias de mel\u00e3o', '2 fatias grandes de melancia'] },
-      { category: 'Jantar pr\u00e1tico', icon: '\uD83C\uDF7D\uFE0F', reference: '3 colheres de arroz + 3 bifes', items: ['wrap com frango', 'sandu\u00edche estruturado', 'omelete + p\u00e3o', 'carne + batata', 'frango + mandioca'] }
+      { category: 'Proteínas', icon: '🍗', reference: '150g de frango ou carne magra', items: ['150g de frango', '150g de carne magra', '170g de peixe', '1 lata grande de atum', '4 ovos + 4 claras', '2 iogurtes proteicos'] },
+      { category: 'Carboidratos', icon: '🍚', reference: '120g arroz cozido', items: ['150g batata inglesa', '120g mandioca', '100g macarrão', '140g cuscuz', '1 Rap10', '1 pão francês', '2 fatias de pão integral'] },
+      { category: 'Gorduras boas', icon: '🥜', reference: '5g de azeite', items: ['15g de pasta de amendoim', '15g de castanhas', '15g de amendoim', '60g de abacate'] },
+      { category: 'Frutas', icon: '🍌', reference: '1 porção de fruta', items: ['1 banana média', '1 maçã média', '1 pera média', '1 laranja', '2 fatias de abacaxi', '2 fatias de melão', '2 fatias grandes de melancia'] }
+    ];
+
+    const defaultPracticalDinners = [
+      { title: 'Wrap proteico', description: '1 Rap10\n120g frango desfiado\nsalada à vontade\nmolho leve' },
+      { title: 'Omelete prático', description: '3 ovos\n1 fatia pão integral\nsalada' },
+      { title: 'Sanduíche estruturado', description: '2 fatias de pão integral\n120g frango ou atum\nfolhas e tomate\n1 fio de azeite' },
+      { title: 'Carne + carboidrato simples', description: '150g carne magra\n120g arroz cozido ou 150g batata\nsalada à vontade' }
     ];
 
     function cloneDefaultEquivalences() {
       return foodEquivalences.map((category) => ({ category: category.category, icon: category.icon, reference: category.reference, items: [...category.items] }));
     }
 
+    function cloneDefaultPracticalDinners() {
+      return defaultPracticalDinners.map((option) => ({ title: option.title, description: option.description }));
+    }
+
+    function isPracticalDinnerCategory(category) {
+      return String(category || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === 'jantar pratico';
+    }
+
     function normalizeEquivalences(substitutions) {
       if (!Array.isArray(substitutions) || !substitutions.length) return cloneDefaultEquivalences();
       const isModern = substitutions.every((item) => item && typeof item === 'object' && 'category' in item && 'reference' in item);
       if (!isModern) return cloneDefaultEquivalences();
-      return substitutions.map((item) => ({ category: item.category || '', icon: item.icon || '', reference: item.reference || '', items: Array.isArray(item.items) ? item.items : [] }));
+      const equivalences = substitutions
+        .filter((item) => !isPracticalDinnerCategory(item.category))
+        .map((item) => ({ category: item.category || '', icon: item.icon || '', reference: item.reference || '', items: Array.isArray(item.items) ? item.items : [] }));
+      return equivalences.length ? equivalences : cloneDefaultEquivalences();
+    }
+
+    function normalizePracticalDinners(substitutions) {
+      if (!Array.isArray(substitutions) || !substitutions.length) return cloneDefaultPracticalDinners();
+      const dinnerItems = substitutions
+        .filter((item) => item && typeof item === 'object' && isPracticalDinnerCategory(item.category))
+        .flatMap((item) => Array.isArray(item.items) ? item.items : []);
+      if (!dinnerItems.length) return [];
+      return dinnerItems.map((item) => {
+        const lines = String(item || '').split('\n');
+        const title = lines.shift() || '';
+        return { title: title.trim(), description: lines.join('\n').trim() };
+      }).filter((option) => option.title || option.description);
     }
 
     function createEquivalenceBlock(category = {}) {
       const wrapper = document.createElement('article');
       wrapper.className = 'equivalence-admin-card';
       wrapper.innerHTML = `
-        <div class='grid'>
-          <label>T&iacute;tulo da categoria
-            <input type='text' class='equivalence-category' placeholder='Ex: Prote&iacute;nas'>
-          </label>
-          <label>&Iacute;cone
-            <input type='text' class='equivalence-icon' placeholder='Ex: &#127831;'>
-          </label>
-        </div>
-        <label>Refer&ecirc;ncia principal
-          <input type='text' class='equivalence-reference' placeholder='Ex: 3 bifes (~150g)'>
+        <input type='hidden' class='equivalence-icon'>
+        <label>T&iacute;tulo/Categoria
+          <input type='text' class='equivalence-category' placeholder='Ex: Carboidratos'>
         </label>
-        <label>Lista de equival&ecirc;ncias</label>
+        <label>Refer&ecirc;ncia
+          <input type='text' class='equivalence-reference' placeholder='Ex: 120g arroz cozido'>
+        </label>
+        <label>Substitui&ccedil;&otilde;es</label>
         <div class='equivalence-items'></div>
-        <button type='button' class='addEquivalenceItemBtn secondary-action'>+ Adicionar item</button>
+        <div class='student-action-row'>
+          <button type='button' class='addEquivalenceItemBtn secondary-action'>+ Adicionar substitui&ccedil;&atilde;o</button>
+          <button type='button' class='removeEquivalenceGroupBtn'>Remover grupo de equival&ecirc;ncia</button>
+        </div>
       `;
       wrapper.querySelector('.equivalence-category').value = category.category || '';
       wrapper.querySelector('.equivalence-icon').value = category.icon || '';
@@ -136,35 +201,75 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
         const row = document.createElement('div');
         row.className = 'equivalence-item-row';
         row.innerHTML = `
-          <input type='text' class='equivalence-item' placeholder='Ex: 150g de frango'>
-          <button type='button' class='removeEquivalenceItemBtn' aria-label='Remover item'>Remover</button>
+          <input type='text' class='equivalence-item' placeholder='Ex: 150g batata inglesa'>
+          <button type='button' class='removeEquivalenceItemBtn' aria-label='Remover substitui&ccedil;&atilde;o'>Remover substitui&ccedil;&atilde;o</button>
         `;
         row.querySelector('.equivalence-item').value = value;
-        row.querySelector('.removeEquivalenceItemBtn').addEventListener('click', () => { row.remove(); if (!itemsContainer.children.length) addItem(); });
+        row.querySelector('.removeEquivalenceItemBtn').addEventListener('click', () => { row.remove(); });
         itemsContainer.appendChild(row);
       }
       const items = Array.isArray(category.items) && category.items.length ? category.items : [''];
       items.forEach((item) => addItem(item));
       wrapper.querySelector('.addEquivalenceItemBtn').addEventListener('click', () => addItem());
+      wrapper.querySelector('.removeEquivalenceGroupBtn').addEventListener('click', () => { wrapper.remove(); });
       equivalencesContainer.appendChild(wrapper);
+    }
+
+    function createPracticalDinnerBlock(option = {}) {
+      const wrapper = document.createElement('article');
+      wrapper.className = 'equivalence-admin-card practical-dinner-card';
+      wrapper.innerHTML = `
+        <label>T&iacute;tulo da op&ccedil;&atilde;o
+          <input type='text' class='practical-dinner-title' placeholder='Ex: Wrap proteico'>
+        </label>
+        <label>Descri&ccedil;&atilde;o
+          <textarea class='practical-dinner-description' rows='5' placeholder='Ex: 1 Rap10\n120g frango desfiado\nsalada à vontade\nmolho leve'></textarea>
+        </label>
+        <button type='button' class='removePracticalDinnerBtn'>Remover op&ccedil;&atilde;o</button>
+      `;
+      wrapper.querySelector('.practical-dinner-title').value = option.title || '';
+      wrapper.querySelector('.practical-dinner-description').value = option.description || '';
+      wrapper.querySelector('.removePracticalDinnerBtn').addEventListener('click', () => { wrapper.remove(); });
+      practicalDinnerContainer.appendChild(wrapper);
     }
 
     function renderEquivalenceEditor(categories) {
       equivalencesContainer.innerHTML = '';
       normalizeEquivalences(categories).forEach((category) => createEquivalenceBlock(category));
+      practicalDinnerContainer.innerHTML = '';
+      normalizePracticalDinners(categories).forEach((option) => createPracticalDinnerBlock(option));
     }
 
-    function collectFoodEquivalences() {
+    function collectEquivalenceGroups() {
       const blocks = Array.from(equivalencesContainer.querySelectorAll('.equivalence-admin-card'));
       return blocks.map((block, index) => {
         const category = sanitizeText(block.querySelector('.equivalence-category')?.value || '');
         const icon = sanitizeText(block.querySelector('.equivalence-icon')?.value || '');
         const reference = sanitizeText(block.querySelector('.equivalence-reference')?.value || '');
         const items = Array.from(block.querySelectorAll('.equivalence-item')).map((input) => sanitizeText(input.value || '')).filter(Boolean);
-        if (!category || !reference) throw new Error(`Preencha t\u00edtulo e refer\u00eancia da categoria ${index + 1}.`);
-        if (!items.length) throw new Error(`Adicione ao menos um item na categoria ${category}.`);
+        const hasAnyValue = category || icon || reference || items.length;
+        if (!hasAnyValue || !category) return null;
+        if (isPracticalDinnerCategory(category)) return null;
+        if (!reference) throw new Error(`Preencha a referência da categoria ${category || index + 1}.`);
+        if (!items.length) throw new Error(`Adicione ao menos uma substituição na categoria ${category}.`);
         return { category, icon, reference, items };
-      });
+      }).filter(Boolean);
+    }
+
+    function collectPracticalDinners() {
+      const items = Array.from(practicalDinnerContainer.querySelectorAll('.practical-dinner-card')).map((block) => {
+        const title = sanitizeText(block.querySelector('.practical-dinner-title')?.value || '');
+        const description = String(block.querySelector('.practical-dinner-description')?.value || '').trim();
+        if (!title && !description) return '';
+        if (!title || !description) throw new Error('Preencha título e descrição das opções de jantar prático ou remova o bloco incompleto.');
+        return sanitizeText(`${title}\n${description}`);
+      }).filter(Boolean);
+
+      return items.length ? [{ category: PRACTICAL_DINNER_CATEGORY, icon: PRACTICAL_DINNER_ICON, reference: PRACTICAL_DINNER_REFERENCE, items }] : [];
+    }
+
+    function collectFoodEquivalences() {
+      return [...collectEquivalenceGroups(), ...collectPracticalDinners()];
     }
 
     function createMealBlock(meal = {}) {
@@ -249,7 +354,9 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
     }
 
     addMealBtn.addEventListener('click', () => addMealBlock());
-    resetEquivalencesBtn.addEventListener('click', () => renderEquivalenceEditor(cloneDefaultEquivalences()));
+    addEquivalenceGroupBtn.addEventListener('click', () => createEquivalenceBlock());
+    addPracticalDinnerBtn.addEventListener('click', () => createPracticalDinnerBlock());
+    resetEquivalencesBtn.addEventListener('click', () => renderEquivalenceEditor());
     async function authedRequest(path, options = {}) {
       const adminToken = document.getElementById('adminToken').value.trim();
       if (!adminToken) throw new Error('Token admin obrigatório.');
@@ -270,10 +377,11 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
       return payload;
     }
 
-    loadBtn.addEventListener('click', async () => {
-      const email = document.getElementById('studentEmail').value.trim().toLowerCase();
+    async function loadNutritionPlan() {
+      const email = studentEmailInput.value.trim().toLowerCase();
       if (!email) return setStatus('Informe o email do aluno.', 'error');
 
+      hydrateStudent360Links(email);
       loadBtn.disabled = true;
       setStatus('Carregando plano...', 'muted');
       try {
@@ -285,6 +393,12 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
       } finally {
         loadBtn.disabled = false;
       }
+    }
+
+    loadBtn.addEventListener('click', loadNutritionPlan);
+
+    studentEmailInput.addEventListener('input', () => {
+      hydrateStudent360Links(studentEmailInput.value);
     });
 
     form.addEventListener('submit', async (event) => {
@@ -321,7 +435,18 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
     });
     clearMealBlocks();
     addMealBlock();
-    renderEquivalenceEditor(cloneDefaultEquivalences());
+    renderEquivalenceEditor();
+
+    const params = new URLSearchParams(window.location.search);
+    const initialEmail = (params.get('email') || '').trim().toLowerCase();
+    if (initialEmail) {
+      studentEmailInput.value = initialEmail;
+    }
+    hydrateStudent360Links(studentEmailInput.value);
+
+    if (initialEmail && document.getElementById('adminToken').value.trim()) {
+      loadNutritionPlan();
+    }
   </script>
 </body>
 </html>
