@@ -186,31 +186,19 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
         <label>Refer&ecirc;ncia
           <input type='text' class='equivalence-reference' placeholder='Ex: 120g arroz cozido'>
         </label>
-        <label>Substitui&ccedil;&otilde;es</label>
-        <div class='equivalence-items'></div>
-        <div class='student-action-row'>
-          <button type='button' class='addEquivalenceItemBtn secondary-action'>+ Adicionar substitui&ccedil;&atilde;o</button>
-          <button type='button' class='removeEquivalenceGroupBtn'>Remover grupo de equival&ecirc;ncia</button>
-        </div>
+        <label>Substitui&ccedil;&otilde;es
+          <textarea class='equivalence-substitutions' rows='6' placeholder='150g batata inglesa
+120g mandioca
+100g macarrão
+140g cuscuz'></textarea>
+        </label>
+        <button type='button' class='removeEquivalenceGroupBtn'>Remover grupo de equival&ecirc;ncia</button>
       `;
       wrapper.querySelector('.equivalence-category').value = category.category || '';
       wrapper.querySelector('.equivalence-icon').value = category.icon || '';
       wrapper.querySelector('.equivalence-reference').value = category.reference || '';
-      const itemsContainer = wrapper.querySelector('.equivalence-items');
-      function addItem(value = '') {
-        const row = document.createElement('div');
-        row.className = 'equivalence-item-row';
-        row.innerHTML = `
-          <input type='text' class='equivalence-item' placeholder='Ex: 150g batata inglesa'>
-          <button type='button' class='removeEquivalenceItemBtn' aria-label='Remover substitui&ccedil;&atilde;o'>Remover substitui&ccedil;&atilde;o</button>
-        `;
-        row.querySelector('.equivalence-item').value = value;
-        row.querySelector('.removeEquivalenceItemBtn').addEventListener('click', () => { row.remove(); });
-        itemsContainer.appendChild(row);
-      }
-      const items = Array.isArray(category.items) && category.items.length ? category.items : [''];
-      items.forEach((item) => addItem(item));
-      wrapper.querySelector('.addEquivalenceItemBtn').addEventListener('click', () => addItem());
+      const substitutions = Array.isArray(category.items) ? category.items.join('\n') : '';
+      wrapper.querySelector('.equivalence-substitutions').value = substitutions;
       wrapper.querySelector('.removeEquivalenceGroupBtn').addEventListener('click', () => { wrapper.remove(); });
       equivalencesContainer.appendChild(wrapper);
     }
@@ -246,7 +234,10 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
         const category = sanitizeText(block.querySelector('.equivalence-category')?.value || '');
         const icon = sanitizeText(block.querySelector('.equivalence-icon')?.value || '');
         const reference = sanitizeText(block.querySelector('.equivalence-reference')?.value || '');
-        const items = Array.from(block.querySelectorAll('.equivalence-item')).map((input) => sanitizeText(input.value || '')).filter(Boolean);
+        const items = String(block.querySelector('.equivalence-substitutions')?.value || '')
+          .split('\n')
+          .map((item) => sanitizeText(item.trim()))
+          .filter(Boolean);
         const hasAnyValue = category || icon || reference || items.length;
         if (!hasAnyValue || !category) return null;
         if (isPracticalDinnerCategory(category)) return null;
