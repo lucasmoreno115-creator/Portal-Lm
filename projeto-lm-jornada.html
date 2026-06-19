@@ -15,8 +15,8 @@
       <p class='hero-subtext'>Seu plano para começar e continuar mesmo nos dias difíceis.</p>
     </section>
     <section class='top-cards-grid' aria-label='Resumo da jornada'>
-      <article class='card dashboard-card'><h2>Seu foco atual</h2><p>Manter o básico bem feito hoje.</p></article>
-      <article class='card dashboard-card'><h2>Próxima vitória</h2><p>Concluir uma ação simples que mantém você em movimento.</p></article>
+      <article class='card dashboard-card'><h2>Seu foco atual</h2><p id='projectLmCurrentFocus'>Manter o básico bem feito hoje.</p></article>
+      <article class='card dashboard-card'><h2>Próxima vitória</h2><p id='projectLmNextWin'>Concluir uma ação simples que mantém você em movimento.</p></article>
       <article class='card dashboard-card'><h2>Taxa de consistência</h2><p>Em breve: acompanhamento diário de consistência.</p></article>
       <article class='card dashboard-card'><h2>Próxima aula</h2><p>Em breve: trilha de aulas do Projeto LM.</p></article>
     </section>
@@ -30,6 +30,40 @@
   </main>
   <script src='public/assets/js/lm-access.js'></script>
   <script src='portal-shared.js'></script>
-  <script>requireAuth();redirectIfNoAccess('minha-jornada');document.getElementById('nav').innerHTML=nav();</script>
+  <script>
+    requireAuth();
+    redirectIfNoAccess('minha-jornada');
+    redirectProjectLmOnboardingIfNeeded().catch(() => {});
+    document.getElementById('nav').innerHTML = nav();
+
+    const projectLmGoalMessages = {
+      emagrecer_com_consistencia: 'Emagrecer com mais constância, sem depender de extremos.',
+      voltar_a_treinar: 'Voltar a se movimentar com regularidade.',
+      melhorar_alimentacao: 'Organizar escolhas simples na alimentação.',
+      mais_energia: 'Recuperar energia com ações básicas e consistentes.',
+      recomecar_sem_extremos: 'Recomeçar com um plano leve, claro e possível.'
+    };
+
+    const projectLmDifficultyMessages = {
+      falta_de_tempo: 'Cumprir uma ação mínima mesmo em um dia corrido.',
+      alimentacao_desorganizada: 'Fazer uma refeição com proteína hoje.',
+      cansaco: 'Escolher uma ação leve para manter movimento.',
+      falta_de_constancia: 'Repetir uma ação simples por 2 dias seguidos.',
+      abandono: 'Usar o Modo Dia Difícil antes de desistir.',
+      nao_sei_por_onde_comecar: 'Escolher apenas uma ação para hoje.'
+    };
+
+    (async () => {
+      if (!isProjectLm()) return;
+      try {
+        const profile = await getProjectLmProfile();
+        if (!profile) return;
+        document.getElementById('projectLmCurrentFocus').textContent = projectLmGoalMessages[profile.goal] || 'Manter o básico bem feito hoje.';
+        document.getElementById('projectLmNextWin').textContent = projectLmDifficultyMessages[profile.mainDifficulty || profile.main_difficulty] || 'Concluir uma ação simples que mantém você em movimento.';
+      } catch (error) {
+        // Mantém o conteúdo padrão se a personalização falhar.
+      }
+    })();
+  </script>
 </body>
 </html>

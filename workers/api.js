@@ -149,6 +149,39 @@ export default {
           return json({ ok: true, data: auth.student });
         }
 
+        if (url.pathname === '/api/portal/project-lm/profile' && method === 'GET') {
+          const profile = await getProjectLmProfile(env.DB, studentEmail);
+          return json({ ok: true, data: profile });
+        }
+
+        if (url.pathname === '/api/portal/project-lm/profile' && method === 'POST') {
+          const body = await safeJson(request);
+          const goal = sanitizeProjectLmValue(body?.goal);
+          const mainDifficulty = sanitizeProjectLmValue(body?.mainDifficulty);
+
+          if (!PROJECT_LM_GOALS.has(goal)) {
+            return json({ ok: false, error: 'goal inválido.' }, 400);
+          }
+          if (!PROJECT_LM_DIFFICULTIES.has(mainDifficulty)) {
+            return json({ ok: false, error: 'mainDifficulty inválido.' }, 400);
+          }
+
+          const now = new Date().toISOString();
+          await env.DB.prepare(
+            `INSERT INTO project_lm_profile (
+              student_email, goal, main_difficulty, onboarding_completed, created_at, updated_at
+            ) VALUES (?, ?, ?, 1, ?, ?)
+            ON CONFLICT(student_email) DO UPDATE SET
+              goal=excluded.goal,
+              main_difficulty=excluded.main_difficulty,
+              onboarding_completed=1,
+              updated_at=excluded.updated_at`
+          ).bind(studentEmail, goal, mainDifficulty, now, now).run();
+
+          const profile = await getProjectLmProfile(env.DB, studentEmail);
+          return json({ ok: true, data: profile });
+        }
+
         if (url.pathname === '/api/portal/weekly-plan' && method === 'GET') {
           const weeklyPlan = await env.DB.prepare(
             `SELECT training_focus, cardio_target, nutrition_focus, main_risk, coach_message
@@ -1808,6 +1841,15 @@ async function ensureSchema(db) {
   await ensureColumn(db, 'student_access', 'whatsapp', 'TEXT');
   await ensureColumn(db, 'student_access', 'plan', "TEXT DEFAULT 'premium'");
 
+  await db.prepare(`CREATE TABLE IF NOT EXISTS project_lm_profile (
+    student_email TEXT PRIMARY KEY,
+    goal TEXT,
+    main_difficulty TEXT,
+    onboarding_completed INTEGER DEFAULT 0,
+    created_at TEXT,
+    updated_at TEXT
+  )`).run();
+
   await db.prepare(`CREATE TABLE IF NOT EXISTS followup_logs (
     id TEXT PRIMARY KEY,
     student_email TEXT NOT NULL,
@@ -2396,6 +2438,52 @@ function corsResponse() {
 
 function generateAccessToken() {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+}
+
+
+const PROJECT_LM_GOALS = new Set([
+  'emagrecer_com_consistencia',
+  'voltar_a_treinar',
+  'melhorar_alimentacao',
+  'mais_energia',
+  'recomecar_sem_extremos'
+]);
+
+const PROJECT_LM_DIFFICULTIES = new Set([
+  'falta_de_tempo',
+  'alimentacao_desorganizada',
+  'cansaco',
+  'falta_de_constancia',
+  'abandono',
+  'nao_sei_por_onde_comecar'
+]);
+
+function sanitizeProjectLmValue(value) {
+  return nullableTrimmed(value);
+}
+
+function mapProjectLmProfile(row) {
+  if (!row) return null;
+  return {
+    student_email: row.student_email,
+    goal: row.goal,
+    main_difficulty: row.main_difficulty,
+    mainDifficulty: row.main_difficulty,
+    onboarding_completed: Number(row.onboarding_completed || 0),
+    onboardingCompleted: Number(row.onboarding_completed || 0),
+    created_at: row.created_at,
+    updated_at: row.updated_at
+  };
+}
+
+async function getProjectLmProfile(db, studentEmail) {
+  const row = await db.prepare(
+    `SELECT student_email, goal, main_difficulty, onboarding_completed, created_at, updated_at
+     FROM project_lm_profile
+     WHERE lower(student_email)=?
+     LIMIT 1`
+  ).bind(String(studentEmail || '').trim().toLowerCase()).first();
+  return mapProjectLmProfile(row);
 }
 
 function buildFallbackAnamnesisEmail(studentName, studentPhone) {

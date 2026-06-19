@@ -127,6 +127,14 @@
     document.getElementById('hello').textContent = `Olá, ${localStorage.getItem('lm_student_name') || 'Aluno'}`;
 
     const currentPlan = getUserPlan();
+    if (currentPlan === 'projeto_lm') {
+      redirectProjectLmOnboardingIfNeeded().catch(() => {
+        const notice = document.createElement('div');
+        notice.className = 'card status error';
+        notice.textContent = 'Não foi possível verificar seu onboarding agora. Você pode continuar acessando o dashboard.';
+        document.querySelector('.home-main')?.prepend(notice);
+      });
+    }
     const quickLinksEl = document.getElementById('quickLinks');
 
     function renderQuickLinksForPlan() {
