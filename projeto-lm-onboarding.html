@@ -6,35 +6,41 @@
   <title>Onboarding — Projeto LM</title>
   <link rel='stylesheet' href='portal.css'>
 </head>
-<body class='portal-home-v7'>
+<body class='portal-home-v7 lm-onboarding-page'>
   <main class='container home-main'>
-    <section class='card hero hero-premium'>
+    <section class='card hero hero-premium onboarding-intro-card'>
       <p class='eyebrow'>Projeto LM</p>
       <h1>Vamos criar sua direção inicial</h1>
       <p class='hero-subtext'>Responda duas perguntas rápidas para montar seu primeiro passo dentro do Projeto LM.</p>
     </section>
 
-    <form id='projectLmOnboardingForm' class='card dashboard-card' aria-label='Onboarding Projeto LM'>
-      <fieldset>
+    <form id='projectLmOnboardingForm' class='onboarding-form' aria-label='Onboarding Projeto LM'>
+      <fieldset class='card dashboard-card onboarding-question-card'>
         <legend>Como você quer se sentir daqui a alguns meses?</legend>
-        <label><input type='radio' name='goal' value='emagrecer_com_consistencia' required> Emagrecer com consistência</label>
-        <label><input type='radio' name='goal' value='voltar_a_treinar'> Voltar a treinar regularmente</label>
-        <label><input type='radio' name='goal' value='melhorar_alimentacao'> Melhorar minha alimentação</label>
-        <label><input type='radio' name='goal' value='mais_energia'> Ganhar mais energia e disposição</label>
-        <label><input type='radio' name='goal' value='recomecar_sem_extremos'> Recomeçar sem extremismos</label>
+        <div class='onboarding-options'>
+          <label class='onboarding-radio-card'><input type='radio' name='goal' value='emagrecer_com_consistencia' required> <span>Emagrecer com consistência</span></label>
+          <label class='onboarding-radio-card'><input type='radio' name='goal' value='voltar_a_treinar'> <span>Voltar a treinar regularmente</span></label>
+          <label class='onboarding-radio-card'><input type='radio' name='goal' value='melhorar_alimentacao'> <span>Melhorar minha alimentação</span></label>
+          <label class='onboarding-radio-card'><input type='radio' name='goal' value='mais_energia'> <span>Ganhar mais energia e disposição</span></label>
+          <label class='onboarding-radio-card'><input type='radio' name='goal' value='recomecar_sem_extremos'> <span>Recomeçar sem extremismos</span></label>
+        </div>
       </fieldset>
 
-      <fieldset>
+      <fieldset class='card dashboard-card onboarding-question-card'>
         <legend>O que mais atrapalha você hoje?</legend>
-        <label><input type='radio' name='mainDifficulty' value='falta_de_tempo' required> Falta de tempo</label>
-        <label><input type='radio' name='mainDifficulty' value='alimentacao_desorganizada'> Alimentação desorganizada</label>
-        <label><input type='radio' name='mainDifficulty' value='cansaco'> Cansaço</label>
-        <label><input type='radio' name='mainDifficulty' value='falta_de_constancia'> Falta de constância</label>
-        <label><input type='radio' name='mainDifficulty' value='abandono'> Começo bem e abandono</label>
-        <label><input type='radio' name='mainDifficulty' value='nao_sei_por_onde_comecar'> Não sei por onde começar</label>
+        <div class='onboarding-options'>
+          <label class='onboarding-radio-card'><input type='radio' name='mainDifficulty' value='falta_de_tempo' required> <span>Falta de tempo</span></label>
+          <label class='onboarding-radio-card'><input type='radio' name='mainDifficulty' value='alimentacao_desorganizada'> <span>Alimentação desorganizada</span></label>
+          <label class='onboarding-radio-card'><input type='radio' name='mainDifficulty' value='cansaco'> <span>Cansaço</span></label>
+          <label class='onboarding-radio-card'><input type='radio' name='mainDifficulty' value='falta_de_constancia'> <span>Falta de constância</span></label>
+          <label class='onboarding-radio-card'><input type='radio' name='mainDifficulty' value='abandono'> <span>Começo bem e abandono</span></label>
+          <label class='onboarding-radio-card'><input type='radio' name='mainDifficulty' value='nao_sei_por_onde_comecar'> <span>Não sei por onde começar</span></label>
+        </div>
       </fieldset>
 
-      <button id='submitProjectLmOnboarding' class='primary-cta' type='submit'>Criar minha jornada</button>
+      <div class='onboarding-submit-card'>
+        <button id='submitProjectLmOnboarding' class='primary-cta onboarding-submit-button' type='submit'>Criar minha jornada</button>
+      </div>
       <p id='onboardingStatus' class='muted' role='status' aria-live='polite'></p>
     </form>
   </main>
