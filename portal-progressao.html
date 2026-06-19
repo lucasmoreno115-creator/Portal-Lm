@@ -32,6 +32,7 @@
     <div class='card'><h2>Histórico</h2><div id='hist'></div></div>
   </div>
 
+  <script src='public/assets/js/lm-access.js'></script>
   <script src='portal-shared.js'></script>
   <script>
     const navEl = document.getElementById('nav');
@@ -46,6 +47,7 @@
     const executionQuality = document.getElementById('executionQuality');
 
     requireAuth();
+    redirectIfNoAccess('progressao');
     navEl.innerHTML = nav();
 
     let current = null;

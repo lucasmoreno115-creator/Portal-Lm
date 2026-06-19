@@ -121,7 +121,7 @@ export default {
         }
 
         const student = await env.DB.prepare(
-          `SELECT name, email, plan_type FROM student_access WHERE lower(email)=? AND access_token=? AND status='ACTIVE'`
+          `SELECT name, email, plan_type, plan FROM student_access WHERE lower(email)=? AND access_token=? AND status='ACTIVE'`
         ).bind(email, token).first();
 
         if (!student) {
@@ -133,7 +133,8 @@ export default {
           data: {
             name: student.name,
             email: student.email,
-            planType: student.plan_type || 'START'
+            planType: student.plan_type || 'PREMIUM',
+            plan: normalizeStudentPlan(student.plan)
           }
         });
       }
@@ -1799,11 +1800,13 @@ async function ensureSchema(db) {
     access_token TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'ACTIVE',
     plan_type TEXT,
+    plan TEXT DEFAULT 'premium',
     whatsapp TEXT,
     created_at TEXT NOT NULL
   )`).run();
 
   await ensureColumn(db, 'student_access', 'whatsapp', 'TEXT');
+  await ensureColumn(db, 'student_access', 'plan', "TEXT DEFAULT 'premium'");
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS followup_logs (
     id TEXT PRIMARY KEY,
@@ -2516,6 +2519,14 @@ function isAdminAuthorized(request, env) {
   );
 }
 
+
+function normalizeStudentPlan(plan) {
+  if (!plan) return 'premium';
+  const normalized = String(plan).trim().toLowerCase();
+  if (normalized === 'premium' || normalized === 'projeto_lm') return normalized;
+  return 'projeto_lm';
+}
+
 async function validateStudent(request, db) {
   const email = String(request.headers.get('x-student-email') || '').trim().toLowerCase();
   const token = String(request.headers.get('x-student-token') || '').trim();
@@ -2525,7 +2536,7 @@ async function validateStudent(request, db) {
   }
 
   const student = await db.prepare(
-    `SELECT name, email, plan_type
+    `SELECT name, email, plan_type, plan
      FROM student_access
      WHERE lower(email)=?
        AND access_token=?
@@ -2541,7 +2552,8 @@ async function validateStudent(request, db) {
     student: {
       name: student.name,
       email: student.email,
-      planType: student.plan_type || 'START'
+      planType: student.plan_type || 'PREMIUM',
+      plan: normalizeStudentPlan(student.plan)
     }
   };
 }
