@@ -25,9 +25,11 @@
     </section>
   </div>
 
+  <script src='public/assets/js/lm-access.js'></script>
   <script src='portal-shared.js'></script>
   <script>
     requireAuth();
+    redirectIfNoAccess('plano-alimentar');
     document.getElementById('nav').innerHTML = nav();
 
     const statusText = document.getElementById('statusText');

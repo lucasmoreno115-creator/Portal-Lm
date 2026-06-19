@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Modo Dia Difícil — Projeto LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body class='portal-home-v7'>
+  <main class='container home-main'>
+    <div id='nav' class='mobile-nav'></div>
+    <section class='card hero hero-premium'>
+      <p class='eyebrow'>Projeto LM</p>
+      <h1>Modo Dia Difícil</h1>
+      <p class='hero-subtext'>Hoje não é dia de buscar perfeição. É dia de manter o básico.</p>
+    </section>
+    <section class='card dashboard-card'>
+      <h2>Checklist mínimo</h2>
+      <ul class='mission-list'>
+        <li>Beber água</li>
+        <li>Fazer uma refeição com proteína</li>
+        <li>Caminhar 10 minutos</li>
+        <li>Planejar a próxima refeição</li>
+      </ul>
+      <button id='doneBtn' class='primary-cta' type='button'>Cumpri o mínimo de hoje</button>
+      <p id='doneMsg' class='muted'></p>
+    </section>
+  </main>
+  <script src='public/assets/js/lm-access.js'></script>
+  <script src='portal-shared.js'></script>
+  <script>requireAuth();redirectIfNoAccess('modo-dia-dificil');document.getElementById('nav').innerHTML=nav();document.getElementById('doneBtn').onclick=()=>{document.getElementById('doneMsg').textContent='Vitória registrada para hoje. Em breve isso entrará no checklist diário.';};</script>
+</body>
+</html>

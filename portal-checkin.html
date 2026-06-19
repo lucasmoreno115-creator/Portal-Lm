@@ -82,6 +82,7 @@
     </div>
   </div>
 
+  <script src='public/assets/js/lm-access.js'></script>
   <script src='portal-shared.js'></script>
   <script>
     const navEl = document.getElementById('nav');
@@ -91,6 +92,7 @@
     const hist = document.getElementById('hist');
 
     requireAuth();
+    redirectIfNoAccess('checkin');
     navEl.innerHTML = nav();
 
     send.onclick = async () => {

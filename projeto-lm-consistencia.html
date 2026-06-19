@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Consistência — Projeto LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body class='portal-home-v7'>
+  <main class='container home-main'>
+    <div id='nav' class='mobile-nav'></div>
+    <section class='card hero hero-premium'>
+      <p class='eyebrow'>Projeto LM</p>
+      <h1>Consistência</h1>
+      <p class='hero-subtext'>Pequenas ações repetidas vencem dias perfeitos isolados.</p>
+    </section>
+    <section class='top-cards-grid' aria-label='Resumo de consistência'>
+      <article class='card dashboard-card'><h2>Sequência atual</h2><p>Em breve, sua sequência diária aparecerá aqui.</p></article>
+      <article class='card dashboard-card'><h2>Vitórias da semana</h2><p>Registre pequenas ações para manter o processo em movimento.</p></article>
+      <article class='card dashboard-card'><h2>Última ação concluída</h2><p>Use o Modo Dia Difícil quando precisar manter o mínimo.</p></article>
+      <article class='card dashboard-card'><h2>Plano para hoje</h2><p>Escolha uma ação simples e execute antes de buscar perfeição.</p></article>
+    </section>
+    <section class='card dashboard-card'>
+      <h2>Próxima ação</h2>
+      <p>Se hoje estiver pesado, não negocie com a perfeição: mantenha o mínimo.</p>
+      <a class='primary-cta' href='projeto-lm-dia-dificil.html'>Abrir Modo Dia Difícil</a>
+    </section>
+  </main>
+  <script src='public/assets/js/lm-access.js'></script>
+  <script src='portal-shared.js'></script>
+  <script>requireAuth();redirectIfNoAccess('consistencia');document.getElementById('nav').innerHTML=nav();</script>
+</body>
+</html>

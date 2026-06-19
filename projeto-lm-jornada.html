@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Minha Jornada — Projeto LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body class='portal-home-v7'>
+  <main class='container home-main'>
+    <div id='nav' class='mobile-nav'></div>
+    <section class='card hero hero-premium'>
+      <p class='eyebrow'>Projeto LM</p>
+      <h1>Minha Jornada</h1>
+      <p class='hero-subtext'>Seu plano para começar e continuar mesmo nos dias difíceis.</p>
+    </section>
+    <section class='top-cards-grid' aria-label='Resumo da jornada'>
+      <article class='card dashboard-card'><h2>Seu foco atual</h2><p>Manter o básico bem feito hoje.</p></article>
+      <article class='card dashboard-card'><h2>Próxima vitória</h2><p>Concluir uma ação simples que mantém você em movimento.</p></article>
+      <article class='card dashboard-card'><h2>Taxa de consistência</h2><p>Em breve: acompanhamento diário de consistência.</p></article>
+      <article class='card dashboard-card'><h2>Próxima aula</h2><p>Em breve: trilha de aulas do Projeto LM.</p></article>
+    </section>
+    <section class='card dashboard-card'>
+      <h2>Evoluções previstas</h2>
+      <ul class='mission-list'>
+        <li>Checklist diário</li><li>Calculadora de consistência</li><li>Plano B</li><li>Mapa de pontos de atenção</li><li>Jornada de 21 dias</li>
+      </ul>
+      <a class='primary-cta' href='projeto-lm-dia-dificil.html'>Ir para Modo Dia Difícil</a>
+    </section>
+  </main>
+  <script src='public/assets/js/lm-access.js'></script>
+  <script src='portal-shared.js'></script>
+  <script>requireAuth();redirectIfNoAccess('minha-jornada');document.getElementById('nav').innerHTML=nav();</script>
+</body>
+</html>

@@ -18,9 +18,9 @@
       </div>
       <div class='hero-content'>
         <h1 id='hello'>Olá, Aluno</h1>
-        <p class='hero-title'>Seu próximo passo está aqui.</p>
-        <p class='hero-subtext'>Consistência antes da intensidade. Use esta área para acompanhar sua semana, enviar seu check-in e manter clareza sobre o próximo passo.</p>
-        <p class='hero-badge'>Seu acompanhamento está ativo</p>
+        <p id='heroTitle' class='hero-title'>Seu próximo passo está aqui.</p>
+        <p id='heroSubtext' class='hero-subtext'>Consistência antes da intensidade. Use esta área para acompanhar sua semana, enviar seu check-in e manter clareza sobre o próximo passo.</p>
+        <p id='planBadge' class='hero-badge'>Seu acompanhamento está ativo</p>
       </div>
   </section>
 
@@ -29,9 +29,9 @@
 
     <section class='top-cards-grid'>
       <article class='card dashboard-card action-card-v6 next-action-section'>
-        <h2>⚡ Próxima ação</h2>
+        <h2 id='nextTitle'>⚡ Próxima ação</h2>
         <p id='nextMsg'>Quando puder, envie seu check-in para que eu consiga acompanhar sua evolução com mais precisão.</p>
-        <a id='nextBtn' class='primary-cta' href='portal-checkin.html'>Enviar check-in</a>
+        <a id='nextBtn' class='primary-cta' href='portal-checkin.html' data-feature='checkin'>Enviar check-in</a>
         <p class='action-helper'>Leva cerca de 2 minutos.</p>
       </article>
 
@@ -39,11 +39,11 @@
         <div>
           <h2>📊 Status da semana</h2>
           <ul class='status-lines'>
-            <li><span>Check-in semanal</span><span id='checkStatus' class='badge badge-warning'>Pendente</span></li>
-            <li><span>Plano alimentar</span><span class='status-pill neutral'>Em andamento</span></li>
-            <li><span>Treinos</span><span class='status-pill neutral'>Em acompanhamento</span></li>
-            <li><span>Cardio</span><span class='status-pill neutral'>Em acompanhamento</span></li>
-            <li><span>Foco da semana</span><strong id='weeklyFocus'>Constância antes de novos ajustes</strong></li>
+            <li><span id='statusLabel1'>Check-in semanal</span><span id='checkStatus' class='badge badge-warning'>Pendente</span></li>
+            <li><span id='statusLabel2'>Plano alimentar</span><span id='statusValue2' class='status-pill neutral'>Em andamento</span></li>
+            <li><span id='statusLabel3'>Treinos</span><span id='statusValue3' class='status-pill neutral'>Em acompanhamento</span></li>
+            <li><span id='statusLabel4'>Cardio</span><span id='statusValue4' class='status-pill neutral'>Em acompanhamento</span></li>
+            <li><span id='statusLabel5'>Foco da semana</span><strong id='weeklyFocus'>Constância antes de novos ajustes</strong></li>
           </ul>
         </div>
         <div class='status-summary' aria-live='polite'>
@@ -88,7 +88,7 @@
 
     <section class='card dashboard-card journey-card-v6'>
       <h2>🗺 Jornada LM</h2>
-      <ul class='journey-list'>
+      <ul id='journeyList' class='journey-list'>
         <li><span>Diagnóstico</span><span class='journey-done'>concluído</span></li>
         <li><span>Planejamento</span><span class='journey-done'>concluído</span></li>
         <li><span>Execução</span><span class='journey-done'>concluído</span></li>
@@ -99,23 +99,102 @@
 
     <section class='card dashboard-card quick-access-v6 quick-access'>
       <h2>🚀 Acesso rápido</h2>
-      <div class='quick-links'>
+      <div id='quickLinks' class='quick-links'>
+        <a class='secondary-link' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'><span class='quick-icon'>🏋</span><span>MFIT</span></a>
+        <a class='secondary-link' href='portal-checkin.html' data-feature='checkin'><span class='quick-icon'>✅</span><span>Check-in semanal</span></a>
+        <a class='secondary-link' href='projeto-lm-consistencia.html' data-feature='consistencia'><span class='quick-icon'>📈</span><span>Consistência</span></a>
+        <a class='secondary-link' href='projeto-lm-dia-dificil.html' data-feature='modo-dia-dificil'><span class='quick-icon'>🧭</span><span>Modo Dia Difícil</span></a>
+        <a class='secondary-link' href='portal-plano-alimentar.html' data-feature='plano-alimentar'><span class='quick-icon'>🥗</span><span>Plano Alimentar</span></a>
+        <a class='secondary-link' href='portal-biblioteca.html' data-feature='biblioteca'><span class='quick-icon'>📚</span><span>Biblioteca LM</span></a>
+      </div>
+    </section>
+  </main>
+
+  <script src='public/assets/js/lm-access.js'></script>
+  <script src='portal-shared.js'></script>
+  <script>
+    requireAuth();
+    redirectIfNoAccess('dashboard');
+    const accessMessage = sessionStorage.getItem('lm_access_message');
+    if (accessMessage) {
+      sessionStorage.removeItem('lm_access_message');
+      const notice = document.createElement('div');
+      notice.className = 'card status error';
+      notice.textContent = accessMessage;
+      document.querySelector('.home-main')?.prepend(notice);
+    }
+    document.getElementById('nav').innerHTML = nav();
+    document.getElementById('hello').textContent = `Olá, ${localStorage.getItem('lm_student_name') || 'Aluno'}`;
+
+    const currentPlan = getUserPlan();
+    const quickLinksEl = document.getElementById('quickLinks');
+
+    function renderQuickLinksForPlan() {
+      if (currentPlan === 'projeto_lm') {
+        quickLinksEl.innerHTML = `
+          <a class='secondary-link' href='projeto-lm-jornada.html'><span class='quick-icon'>🗺</span><span>Minha Jornada</span></a>
+          <a class='secondary-link' href='projeto-lm-consistencia.html'><span class='quick-icon'>📈</span><span>Consistência</span></a>
+          <a class='secondary-link' href='projeto-lm-dia-dificil.html'><span class='quick-icon'>🧭</span><span>Modo Dia Difícil</span></a>
+          <a class='secondary-link' href='portal-biblioteca.html'><span class='quick-icon'>📚</span><span>Biblioteca</span></a>
+        `;
+        return;
+      }
+
+      quickLinksEl.innerHTML = `
         <a class='secondary-link' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'><span class='quick-icon'>🏋</span><span>MFIT</span></a>
         <a class='secondary-link' href='portal-checkin.html'><span class='quick-icon'>✅</span><span>Check-in semanal</span></a>
         <a class='secondary-link' href='portal-progressao.html'><span class='quick-icon'>📈</span><span>Progressão de carga</span></a>
         <a class='secondary-link' href='portal-plano-alimentar.html'><span class='quick-icon'>🥗</span><span>Plano Alimentar</span></a>
         <a class='secondary-link' href='portal-biblioteca.html'><span class='quick-icon'>📚</span><span>Biblioteca LM</span></a>
-      </div>
-    </section>
-  </main>
+        <a class='secondary-link' href='projeto-lm-jornada.html'><span class='quick-icon'>🗺</span><span>Minha Jornada</span></a>
+        <a class='secondary-link' href='projeto-lm-dia-dificil.html'><span class='quick-icon'>🧭</span><span>Modo Dia Difícil</span></a>
+      `;
+    }
 
-  <script src='portal-shared.js'></script>
-  <script>
-    requireAuth();
-    document.getElementById('nav').innerHTML = nav();
-    document.getElementById('hello').textContent = `Olá, ${localStorage.getItem('lm_student_name') || 'Aluno'}`;
+    function applyProjectDashboard() {
+      document.getElementById('planBadge').textContent = 'PROJETO LM';
+      document.getElementById('heroTitle').textContent = 'Como começar e continuar mesmo nos dias difíceis.';
+      document.getElementById('heroSubtext').textContent = 'Seu próximo passo é manter o básico bem feito hoje.';
+      document.getElementById('nextTitle').textContent = 'Modo Dia Difícil';
+      document.getElementById('nextMsg').textContent = 'Quando o dia ficar difícil, use o mínimo viável para continuar em movimento.';
+      document.getElementById('nextBtn').textContent = 'Abrir Modo Dia Difícil';
+      document.getElementById('nextBtn').href = 'projeto-lm-dia-dificil.html';
+      document.getElementById('nextBtn').dataset.feature = 'modo-dia-dificil';
+      document.getElementById('statusLabel1').textContent = 'Foco do dia';
+      document.getElementById('checkStatus').textContent = 'Manter o básico';
+      document.getElementById('checkStatus').className = 'status-pill neutral';
+      document.getElementById('statusLabel2').textContent = 'Vitória mínima';
+      document.getElementById('statusValue2').textContent = 'Uma ação concluída';
+      document.getElementById('statusLabel3').textContent = 'Sequência de consistência';
+      document.getElementById('statusValue3').textContent = 'Em construção';
+      document.getElementById('statusLabel4').textContent = 'Próxima ação';
+      document.getElementById('statusValue4').textContent = 'Abrir Modo Dia Difícil';
+      document.getElementById('statusLabel5').textContent = 'Foco atual';
+      document.getElementById('weeklyFocus').textContent = 'Manter o básico';
+      document.getElementById('weeklyStatusText').textContent = 'Projeto LM ativo.';
+      document.getElementById('weeklyInsight').textContent = 'Não busque um dia perfeito. Busque uma ação concluída.';
+      document.getElementById('journeyList').innerHTML = `
+        <li><span>Começo</span><span class='journey-done'>ativo</span></li>
+        <li><span>Primeira vitória</span><span class='journey-current'>etapa atual</span></li>
+        <li><span>Consistência</span><span class='journey-next'>em construção</span></li>
+        <li><span>Dia difícil</span><span class='journey-next'>ferramenta disponível</span></li>
+        <li><span>Próximo passo</span><span class='journey-next'>próxima etapa</span></li>
+      `;
+    }
+
+    function applyPremiumDashboard() {
+      document.getElementById('planBadge').textContent = 'CONSULTORIA PREMIUM LM · Acompanhamento completo.';
+    }
+
+    renderQuickLinksForPlan();
+    if (currentPlan === 'projeto_lm') {
+      applyProjectDashboard();
+    } else {
+      applyPremiumDashboard();
+    }
 
     (async () => {
+      if (currentPlan === 'projeto_lm') return;
       const checkStatusEl = document.querySelector('#checkStatus');
       const nextMsgEl = document.querySelector('#nextMsg');
       const nextBtnEl = document.querySelector('#nextBtn');
