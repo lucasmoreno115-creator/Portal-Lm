@@ -6,24 +6,41 @@
   <title>Modo Dia Difícil — Projeto LM</title>
   <link rel='stylesheet' href='portal.css'>
 </head>
-<body class='portal-home-v7'>
+<body class='portal-home-v7 projeto-lm-hard-day-page'>
   <main class='container home-main'>
     <div id='nav' class='mobile-nav'></div>
-    <section class='card hero hero-premium'>
+
+    <section class='card hero hero-premium hard-day-hero'>
       <p class='eyebrow'>Projeto LM</p>
       <h1>Modo Dia Difícil</h1>
-      <p class='hero-subtext'>Hoje não é dia de buscar perfeição. É dia de manter o básico.</p>
+      <p class='hero-subtext'>Hoje não é dia de vencer.</p>
+      <p class='hero-subtext'>É dia de não desistir.</p>
+      <p class='hard-day-hero-focus'>Seu único objetivo agora:<br>proteger o processo.</p>
     </section>
-    <section class='card dashboard-card'>
+
+    <section class='card dashboard-card hard-day-reminder-card'>
+      <h2>🧠 Lembrete</h2>
+      <p>Um dia difícil não destrói seus resultados.</p>
+      <p>O que destrói resultados é transformar<br>um dia difícil em uma semana difícil.</p>
+    </section>
+
+    <section id='hardDayChecklistCard' class='card dashboard-card hard-day-checklist-card'>
       <h2>Checklist mínimo</h2>
-      <ul class='mission-list'>
-        <li>Beber água</li>
-        <li>Fazer uma refeição com proteína</li>
-        <li>Caminhar 10 minutos</li>
-        <li>Planejar a próxima refeição</li>
+      <ul class='hard-day-checklist'>
+        <li>✔ Beber água</li>
+        <li>✔ Fazer uma refeição com proteína</li>
+        <li>✔ Caminhar 10 minutos</li>
+        <li>✔ Encerrar o dia sem desistir</li>
       </ul>
       <button id='doneBtn' class='primary-cta' type='button'>Cumpri o mínimo de hoje</button>
-      <p id='doneMsg' class='muted'></p>
+      <p id='doneMsg' class='muted' role='status'></p>
+    </section>
+
+    <section class='card dashboard-card hard-day-next-step-card'>
+      <h2>📍 Próximo passo</h2>
+      <p>Amanhã você volta para o plano normal.</p>
+      <p>Hoje era apenas sobre continuar.</p>
+      <a class='primary-cta' href='projeto-lm-jornada.html'>Ver Minha Jornada →</a>
     </section>
   </main>
   <script src='public/assets/js/lm-access.js'></script>
@@ -35,16 +52,28 @@
 
     const doneBtn = document.getElementById('doneBtn');
     const doneMsg = document.getElementById('doneMsg');
+    const checklistCard = document.getElementById('hardDayChecklistCard');
+
+    function renderSuccess() {
+      checklistCard.classList.add('hard-day-success-card');
+      checklistCard.innerHTML = `
+        <h2>✅ Vitória registrada</h2>
+        <p>Você protegeu o processo hoje.</p>
+        <p>Não foi um dia perfeito.</p>
+        <p>Foi um dia vencido.</p>
+        <p class='hard-day-journey-note'>Etapa concluída na sua jornada.</p>
+      `;
+    }
 
     doneBtn.onclick = async () => {
       doneBtn.disabled = true;
+      doneMsg.textContent = '';
       try {
         await api('/portal/project-lm/daily-actions', {
           method: 'POST',
           body: JSON.stringify({ actionType: 'modo_dia_dificil' })
         });
-        doneBtn.textContent = 'Mínimo concluído hoje ✅';
-        doneMsg.textContent = 'Mínimo concluído hoje ✅';
+        renderSuccess();
       } catch (error) {
         doneBtn.disabled = false;
         doneMsg.textContent = error.message || 'Não foi possível registrar o mínimo de hoje agora.';
