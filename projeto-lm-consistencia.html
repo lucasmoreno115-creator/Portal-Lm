@@ -30,7 +30,7 @@
         <p class='muted'>Sua sequência ativa de dias com ação registrada.</p>
       </article>
       <article class='card dashboard-card consistency-metric-card'>
-        <h2>Melhor sequência</h2>
+        <h2>Seu recorde</h2>
         <p id='bestStreakValue' class='consistency-metric-value'>—</p>
         <p class='muted'>Sua maior sequência registrada até agora.</p>
       </article>
@@ -55,8 +55,14 @@
     </section>
 
     <section class='card dashboard-card consistency-cta-card'>
-      <h2>Ação mínima</h2>
-      <p>Quando o dia apertar, não tente ser perfeito. Mantenha o mínimo.</p>
+      <h2>Plano B</h2>
+      <p>Quando o dia apertar:</p>
+      <ul class='consistency-plan-b-list'>
+        <li>✓ Beber água</li>
+        <li>✓ Fazer uma refeição com proteína</li>
+        <li>✓ Caminhar 10 minutos</li>
+      </ul>
+      <p>Isso já conta.</p>
       <a class='primary-cta' href='projeto-lm-dia-dificil.html'>Abrir Modo Dia Difícil</a>
     </section>
   </main>
@@ -76,12 +82,23 @@
     const emptyStateEl = document.getElementById('emptyState');
 
     function getMomentText(currentStreak) {
-      if (currentStreak === 0) return 'Hoje é uma boa oportunidade para recomeçar sem carregar culpa.';
-      if (currentStreak === 1) return 'Você começou. Agora o foco é manter o movimento amanhã.';
-      if (currentStreak >= 2 && currentStreak < 3) return 'Você está criando os primeiros sinais de consistência.';
-      if (currentStreak >= 3 && currentStreak < 7) return 'Você está construindo consistência. Continue no básico.';
-      if (currentStreak >= 7 && currentStreak < 14) return 'Sua rotina está ficando mais sólida.';
-      return 'Você está provando para si mesmo que consegue continuar.';
+      if (currentStreak === 0) return `Você não precisa compensar o que ficou para trás.
+
+Precisa apenas recomeçar pelo próximo passo.`;
+      if (currentStreak === 1) return `Você já começou.
+
+Agora seu objetivo não é fazer mais.
+É apenas repetir amanhã.`;
+      if (currentStreak >= 2 && currentStreak < 3) return `Os primeiros dias costumam ser os mais difíceis.
+
+Continue acumulando pequenas vitórias.`;
+      if (currentStreak >= 3 && currentStreak < 7) return `Você está construindo consistência.
+
+Proteja o básico e continue avançando.`;
+      if (currentStreak >= 7 && currentStreak < 14) return `Sua rotina está ficando mais forte.
+
+Não subestime o que você já construiu.`;
+      return 'Você está provando para si mesmo que consegue continuar mesmo sem depender de motivação.';
     }
 
     function normalizeCalendar(calendar) {

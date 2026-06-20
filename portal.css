@@ -884,7 +884,7 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 }
 .consistency-page .consistency-calendar-grid{
   display:grid;
-  grid-template-columns:repeat(30,minmax(14px,1fr));
+  grid-template-columns:repeat(7,1fr);
   gap:8px;
   align-items:center;
   margin-top:18px;
@@ -927,6 +927,20 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
   min-width:14px;
   height:14px;
 }
+
+.consistency-page .consistency-moment-card p,
+.consistency-page .consistency-cta-card p{
+  white-space:pre-line;
+}
+.consistency-page .consistency-plan-b-list{
+  list-style:none;
+  display:grid;
+  gap:8px;
+  margin:12px 0;
+  padding:0;
+  color:#f0d47a;
+  font-weight:700;
+}
 .consistency-page .consistency-cta-card{
   border-color:rgba(212,175,55,.45);
 }
@@ -935,8 +949,13 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 }
 
 @media (max-width:900px){
-  .consistency-page .consistency-metric-grid{grid-template-columns:1fr}
-  .consistency-page .consistency-calendar-grid{grid-template-columns:repeat(10,minmax(16px,1fr))}
+  .consistency-page .consistency-metric-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+.projeto-lm-journey-page .journey-next-win-cta{
+  margin-top:14px;
 }
 .projeto-lm-journey-page .journey-next-win-cta{
   margin-top:14px;
