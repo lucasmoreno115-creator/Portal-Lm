@@ -3,29 +3,36 @@
 <head>
   <meta charset='utf-8'>
   <meta name='viewport' content='width=device-width,initial-scale=1'>
-  <title>Minha Jornada — Projeto LM</title>
+  <title>Projeto LM — Minha Jornada</title>
   <link rel='stylesheet' href='portal.css'>
 </head>
-<body class='portal-home-v7'>
+<body class='portal-home-v7 projeto-lm-journey-page'>
   <main class='container home-main'>
     <div id='nav' class='mobile-nav'></div>
-    <section class='card hero hero-premium'>
-      <p class='eyebrow'>Projeto LM</p>
-      <h1>Minha Jornada</h1>
-      <p class='hero-subtext'>Seu plano para começar e continuar mesmo nos dias difíceis.</p>
+    <section class='card hero hero-premium journey-hero'>
+      <p class='eyebrow'>ETAPA 1 DE 5</p>
+      <h1>Projeto LM</h1>
+      <p class='journey-hero-title'>Seu primeiro passo já começou</p>
+      <p id='projectLmHeroSubtext' class='hero-subtext'>Você não precisa fazer tudo perfeito.<br>Seu foco agora é apenas o próximo passo.</p>
+      <span class='hero-badge'>✅ Direção definida</span>
     </section>
-    <section class='top-cards-grid' aria-label='Resumo da jornada'>
-      <article class='card dashboard-card'><h2>Seu foco atual</h2><p id='projectLmCurrentFocus'>Manter o básico bem feito hoje.</p></article>
-      <article class='card dashboard-card'><h2>Próxima vitória</h2><p id='projectLmNextWin'>Concluir uma ação simples que mantém você em movimento.</p></article>
-      <article class='card dashboard-card'><h2>Taxa de consistência</h2><p>Em breve: acompanhamento diário de consistência.</p></article>
-      <article class='card dashboard-card'><h2>Próxima aula</h2><p>Em breve: trilha de aulas do Projeto LM.</p></article>
+
+    <section class='card dashboard-card journey-progress-card' aria-label='Progresso da jornada'>
+      <h2>Sua Jornada</h2>
+      <ol class='journey-progress-list'>
+        <li class='is-complete'><span class='journey-step-marker'>✅</span><span>Direção definida</span></li>
+        <li><span class='journey-step-marker'>⬜</span><span>Cumprir sua primeira ação</span></li>
+        <li><span class='journey-step-marker'>⬜</span><span>Usar o Modo Dia Difícil</span></li>
+        <li><span class='journey-step-marker'>⬜</span><span>Construir consistência</span></li>
+        <li><span class='journey-step-marker'>⬜</span><span>Consolidar sua rotina</span></li>
+      </ol>
     </section>
-    <section class='card dashboard-card'>
-      <h2>Evoluções previstas</h2>
-      <ul class='mission-list'>
-        <li>Checklist diário</li><li>Calculadora de consistência</li><li>Plano B</li><li>Mapa de pontos de atenção</li><li>Jornada de 21 dias</li>
-      </ul>
-      <a class='primary-cta' href='projeto-lm-dia-dificil.html'>Ir para Modo Dia Difícil</a>
+
+    <section class='top-cards-grid journey-cards-grid' aria-label='Resumo da jornada'>
+      <article class='card dashboard-card'><h2>🎯 Seu foco atual</h2><p id='projectLmCurrentFocus'>Manter o básico bem feito hoje.</p></article>
+      <article class='card dashboard-card'><h2>🏆 Próxima vitória</h2><p class='journey-card-subtitle'>Comece pelo menor passo possível.</p><p id='projectLmNextWin'>Concluir uma ação simples que mantém você em movimento.</p></article>
+      <article class='card dashboard-card consistency-card'><h2>📈 Consistência</h2><p class='journey-card-subtitle'>Dia 1</p><p>Toda transformação começa acumulando pequenas vitórias.</p></article>
+      <article class='card dashboard-card next-step-card'><h2>📚 Próximo passo</h2><p>Aprender como continuar mesmo nos dias difíceis.</p><a class='primary-cta' href='projeto-lm-dia-dificil.html'>Abrir Modo Dia Difícil</a></article>
     </section>
   </main>
   <script src='public/assets/js/lm-access.js'></script>
@@ -58,7 +65,9 @@
       try {
         const profile = await getProjectLmProfile();
         if (!profile) return;
-        document.getElementById('projectLmCurrentFocus').textContent = projectLmGoalMessages[profile.goal] || 'Manter o básico bem feito hoje.';
+        const goalMessage = projectLmGoalMessages[profile.goal] || 'Manter o básico bem feito hoje.';
+        document.getElementById('projectLmHeroSubtext').textContent = goalMessage;
+        document.getElementById('projectLmCurrentFocus').textContent = goalMessage;
         document.getElementById('projectLmNextWin').textContent = projectLmDifficultyMessages[profile.mainDifficulty || profile.main_difficulty] || 'Concluir uma ação simples que mantém você em movimento.';
       } catch (error) {
         // Mantém o conteúdo padrão se a personalização falhar.
