@@ -69,6 +69,25 @@
     const firstActionStep = document.getElementById('journeyStepFirstAction');
     let firstVictoryCompletedVisual = false;
 
+    function auditFirstVictoryElements(context) {
+      const buttons = document.querySelectorAll('#projectLmFirstVictoryBtn');
+      const nextWins = document.querySelectorAll('#projectLmNextWin');
+      const firstActionSteps = document.querySelectorAll('#journeyStepFirstAction');
+
+      console.log(`PROJECT_LM_AUDIT_${context}_projectLmFirstVictoryBtn_COUNT`, buttons.length);
+      console.log(`PROJECT_LM_AUDIT_${context}_projectLmNextWin_COUNT`, nextWins.length);
+      console.log(`PROJECT_LM_AUDIT_${context}_journeyStepFirstAction_COUNT`, firstActionSteps.length);
+      console.log(`PROJECT_LM_AUDIT_${context}_CAPTURED_MATCHES_VISIBLE`, {
+        firstVictoryBtnMatches: Array.from(buttons).includes(firstVictoryBtn),
+        nextWinTextMatches: Array.from(nextWins).includes(nextWinText),
+        firstActionStepMatches: Array.from(firstActionSteps).includes(firstActionStep)
+      });
+
+      return { buttons, nextWins, firstActionSteps };
+    }
+
+    auditFirstVictoryElements('INITIAL');
+
     function isFirstVictoryCompleted(summary) {
       return summary?.firstVictoryCompleted === true
         || summary?.firstVictoryCompleted === 1
@@ -79,13 +98,31 @@
     }
 
     function markFirstVictoryComplete() {
+      console.log('MARK_FIRST_VICTORY_RUNNING');
+      console.log(firstVictoryBtn);
+      console.log(nextWinText);
+      console.log(firstActionStep);
+
+      const { buttons, nextWins, firstActionSteps } = auditFirstVictoryElements('MARK');
       firstVictoryCompletedVisual = true;
-      nextWinText.textContent = 'Primeira vitória concluída ✅';
-      firstVictoryBtn.textContent = 'Primeira vitória concluída ✅';
-      firstVictoryBtn.disabled = true;
-      document.querySelector('#journeyStepDirection .journey-step-marker').textContent = '✅';
-      firstActionStep.classList.add('is-complete');
-      firstActionStep.querySelector('.journey-step-marker').textContent = '✅';
+
+      nextWins.forEach((element) => {
+        element.textContent = 'Primeira vitória concluída ✅';
+      });
+
+      buttons.forEach((element) => {
+        element.textContent = 'Primeira vitória concluída ✅';
+        element.disabled = true;
+      });
+
+      document.querySelectorAll('#journeyStepDirection .journey-step-marker').forEach((element) => {
+        element.textContent = '✅';
+      });
+
+      firstActionSteps.forEach((element) => {
+        element.classList.add('is-complete');
+        element.querySelector('.journey-step-marker').textContent = '✅';
+      });
     }
 
     function renderConsistency(summary) {
