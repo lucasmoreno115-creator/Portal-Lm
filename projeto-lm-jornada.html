@@ -69,25 +69,6 @@
     const firstActionStep = document.getElementById('journeyStepFirstAction');
     let firstVictoryCompletedVisual = false;
 
-    function auditFirstVictoryElements(context) {
-      const buttons = document.querySelectorAll('#projectLmFirstVictoryBtn');
-      const nextWins = document.querySelectorAll('#projectLmNextWin');
-      const firstActionSteps = document.querySelectorAll('#journeyStepFirstAction');
-
-      console.log(`PROJECT_LM_AUDIT_${context}_projectLmFirstVictoryBtn_COUNT`, buttons.length);
-      console.log(`PROJECT_LM_AUDIT_${context}_projectLmNextWin_COUNT`, nextWins.length);
-      console.log(`PROJECT_LM_AUDIT_${context}_journeyStepFirstAction_COUNT`, firstActionSteps.length);
-      console.log(`PROJECT_LM_AUDIT_${context}_CAPTURED_MATCHES_VISIBLE`, {
-        firstVictoryBtnMatches: Array.from(buttons).includes(firstVictoryBtn),
-        nextWinTextMatches: Array.from(nextWins).includes(nextWinText),
-        firstActionStepMatches: Array.from(firstActionSteps).includes(firstActionStep)
-      });
-
-      return { buttons, nextWins, firstActionSteps };
-    }
-
-    auditFirstVictoryElements('INITIAL');
-
     function isFirstVictoryCompleted(summary) {
       return summary?.firstVictoryCompleted === true
         || summary?.firstVictoryCompleted === 1
@@ -98,12 +79,10 @@
     }
 
     function markFirstVictoryComplete() {
-      console.log('MARK_FIRST_VICTORY_RUNNING');
-      console.log(firstVictoryBtn);
-      console.log(nextWinText);
-      console.log(firstActionStep);
+      const buttons = document.querySelectorAll('#projectLmFirstVictoryBtn');
+      const nextWins = document.querySelectorAll('#projectLmNextWin');
+      const firstActionSteps = document.querySelectorAll('#journeyStepFirstAction');
 
-      const { buttons, nextWins, firstActionSteps } = auditFirstVictoryElements('MARK');
       firstVictoryCompletedVisual = true;
 
       nextWins.forEach((element) => {
@@ -167,11 +146,8 @@
         const summaryResponse = await api('/portal/project-lm/daily-actions/summary');
         summary = summaryResponse?.data || summaryResponse;
         firstVictoryDone = isFirstVictoryCompleted(summary);
-        console.log('PROJECT_LM_SUMMARY', summary);
-        console.log('PROJECT_LM_FIRST_VICTORY_DONE', firstVictoryDone);
         if (firstVictoryDone) markFirstVictoryComplete();
       } catch (error) {
-        // Mantém o conteúdo padrão se o resumo ainda não estiver disponível.
       }
 
       try {
@@ -188,13 +164,11 @@
           }
         }
       } catch (error) {
-        // Mantém o conteúdo padrão se a personalização falhar.
       }
 
       try {
         renderConsistency(summary);
       } catch (error) {
-        // Mantém o conteúdo atual se a hidratação final falhar.
       }
     })();
   </script>
