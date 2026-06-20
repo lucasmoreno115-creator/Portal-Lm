@@ -163,6 +163,15 @@ export default {
           return json({ ok: true, data: summary });
         }
 
+        if (url.pathname === '/api/portal/project-lm/consistency' && method === 'GET') {
+          if (!canUseProjectLmProgress(auth.student)) {
+            return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM ou Premium.' }, 403);
+          }
+
+          const consistency = await getProjectLmConsistency(env.DB, studentEmail);
+          return json({ ok: true, data: consistency });
+        }
+
         if (url.pathname === '/api/portal/project-lm/daily-actions' && method === 'POST') {
           if (!canUseProjectLmProgress(auth.student)) {
             return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM ou Premium.' }, 403);
@@ -2540,6 +2549,61 @@ function shiftDateOnly(dateOnly, days) {
   const date = new Date(`${dateOnly}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return formatDateOnly(date);
+}
+
+async function getProjectLmConsistency(db, studentEmail, today = new Date()) {
+  const normalizedEmail = String(studentEmail || '').trim().toLowerCase();
+  const { results } = await db.prepare(
+    `SELECT DISTINCT action_date
+     FROM project_lm_daily_actions
+     WHERE lower(student_email)=? AND completed=1
+     ORDER BY action_date ASC`
+  ).bind(normalizedEmail).all();
+
+  return buildProjectLmConsistency(results || [], today);
+}
+
+export function buildProjectLmConsistency(rows, today = new Date()) {
+  const todayDate = formatDateOnly(today);
+  const completedDates = new Set(
+    (rows || [])
+      .map((row) => row?.action_date || row?.date)
+      .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(String(date || '')))
+  );
+
+  const sortedDates = [...completedDates].sort();
+  let bestStreak = 0;
+  let runningStreak = 0;
+  let previousDate = null;
+
+  for (const actionDate of sortedDates) {
+    runningStreak = previousDate && shiftDateOnly(previousDate, 1) === actionDate ? runningStreak + 1 : 1;
+    bestStreak = Math.max(bestStreak, runningStreak);
+    previousDate = actionDate;
+  }
+
+  let currentStreak = 0;
+  let cursor = todayDate;
+  while (completedDates.has(cursor)) {
+    currentStreak += 1;
+    cursor = shiftDateOnly(cursor, -1);
+  }
+
+  const calendar = [];
+  for (let daysAgo = 29; daysAgo >= 0; daysAgo -= 1) {
+    const date = shiftDateOnly(todayDate, -daysAgo);
+    calendar.push({
+      date,
+      completed: completedDates.has(date)
+    });
+  }
+
+  return {
+    activeDays: completedDates.size,
+    currentStreak,
+    bestStreak,
+    calendar
+  };
 }
 
 async function getProjectLmDailyActionsSummary(db, studentEmail) {
