@@ -938,3 +938,9 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
   .consistency-page .consistency-metric-grid{grid-template-columns:1fr}
   .consistency-page .consistency-calendar-grid{grid-template-columns:repeat(10,minmax(16px,1fr))}
 }
+.projeto-lm-journey-page .journey-next-win-cta{
+  margin-top:14px;
+}
+.projeto-lm-journey-page .journey-next-win-cta .primary-cta{
+  width:100%;
+}
