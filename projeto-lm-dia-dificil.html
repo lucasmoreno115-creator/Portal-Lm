@@ -28,6 +28,28 @@
   </main>
   <script src='public/assets/js/lm-access.js'></script>
   <script src='portal-shared.js'></script>
-  <script>requireAuth();redirectIfNoAccess('modo-dia-dificil');document.getElementById('nav').innerHTML=nav();document.getElementById('doneBtn').onclick=()=>{document.getElementById('doneMsg').textContent='Vitória registrada para hoje. Em breve isso entrará no checklist diário.';};</script>
+  <script>
+    requireAuth();
+    redirectIfNoAccess('modo-dia-dificil');
+    document.getElementById('nav').innerHTML = nav();
+
+    const doneBtn = document.getElementById('doneBtn');
+    const doneMsg = document.getElementById('doneMsg');
+
+    doneBtn.onclick = async () => {
+      doneBtn.disabled = true;
+      try {
+        await api('/portal/project-lm/daily-actions', {
+          method: 'POST',
+          body: JSON.stringify({ actionType: 'modo_dia_dificil' })
+        });
+        doneBtn.textContent = 'Mínimo concluído hoje ✅';
+        doneMsg.textContent = 'Mínimo concluído hoje ✅';
+      } catch (error) {
+        doneBtn.disabled = false;
+        doneMsg.textContent = error.message || 'Não foi possível registrar o mínimo de hoje agora.';
+      }
+    };
+  </script>
 </body>
 </html>

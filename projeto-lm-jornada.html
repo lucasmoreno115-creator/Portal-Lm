@@ -20,8 +20,8 @@
     <section class='card dashboard-card journey-progress-card' aria-label='Progresso da jornada'>
       <h2>Sua Jornada</h2>
       <ol class='journey-progress-list'>
-        <li class='is-complete'><span class='journey-step-marker'>✅</span><span>Direção definida</span></li>
-        <li><span class='journey-step-marker'>⬜</span><span>Cumprir sua primeira ação</span></li>
+        <li id='journeyStepDirection' class='is-complete'><span class='journey-step-marker'>✅</span><span>Direção definida</span></li>
+        <li id='journeyStepFirstAction'><span class='journey-step-marker'>⬜</span><span>Cumprir sua primeira ação</span></li>
         <li><span class='journey-step-marker'>⬜</span><span>Usar o Modo Dia Difícil</span></li>
         <li><span class='journey-step-marker'>⬜</span><span>Construir consistência</span></li>
         <li><span class='journey-step-marker'>⬜</span><span>Consolidar sua rotina</span></li>
@@ -30,8 +30,8 @@
 
     <section class='top-cards-grid journey-cards-grid' aria-label='Resumo da jornada'>
       <article class='card dashboard-card'><h2>🎯 Seu foco atual</h2><p id='projectLmCurrentFocus'>Manter o básico bem feito hoje.</p></article>
-      <article class='card dashboard-card'><h2>🏆 Próxima vitória</h2><p class='journey-card-subtitle'>Comece pelo menor passo possível.</p><p id='projectLmNextWin'>Concluir uma ação simples que mantém você em movimento.</p></article>
-      <article class='card dashboard-card consistency-card'><h2>📈 Consistência</h2><p class='journey-card-subtitle'>Dia 1</p><p>Toda transformação começa acumulando pequenas vitórias.</p></article>
+      <article class='card dashboard-card'><h2>🏆 Próxima vitória</h2><p class='journey-card-subtitle'>Comece pelo menor passo possível.</p><p id='projectLmNextWin'>Concluir uma ação simples que mantém você em movimento.</p><button id='projectLmFirstVictoryBtn' class='primary-cta' type='button'>Concluir minha primeira vitória</button></article>
+      <article class='card dashboard-card consistency-card'><h2>📈 Consistência</h2><p id='projectLmConsistencyTitle' class='journey-card-subtitle'>Dia 1</p><p id='projectLmConsistencyText'>Toda transformação começa acumulando pequenas vitórias.</p></article>
       <article class='card dashboard-card next-step-card'><h2>📚 Próximo passo</h2><p>Aprender como continuar mesmo nos dias difíceis.</p><a class='primary-cta' href='projeto-lm-dia-dificil.html'>Abrir Modo Dia Difícil</a></article>
     </section>
   </main>
@@ -60,15 +60,64 @@
       nao_sei_por_onde_comecar: 'Escolher apenas uma ação para hoje.'
     };
 
-    (async () => {
-      if (!isProjectLm()) return;
+    const firstVictoryBtn = document.getElementById('projectLmFirstVictoryBtn');
+    const nextWinText = document.getElementById('projectLmNextWin');
+    const consistencyTitle = document.getElementById('projectLmConsistencyTitle');
+    const consistencyText = document.getElementById('projectLmConsistencyText');
+    const firstActionStep = document.getElementById('journeyStepFirstAction');
+
+    function markFirstVictoryComplete() {
+      nextWinText.textContent = 'Primeira vitória concluída ✅';
+      firstVictoryBtn.textContent = 'Primeira vitória concluída ✅';
+      firstVictoryBtn.disabled = true;
+      document.querySelector('#journeyStepDirection .journey-step-marker').textContent = '✅';
+      firstActionStep.classList.add('is-complete');
+      firstActionStep.querySelector('.journey-step-marker').textContent = '✅';
+    }
+
+    function renderConsistency(summary) {
+      if (!summary || Number(summary.completedDays || 0) === 0) {
+        consistencyTitle.textContent = 'Dia 1';
+        consistencyText.textContent = 'Toda transformação começa acumulando pequenas vitórias.';
+        return;
+      }
+      consistencyTitle.textContent = `Sequência atual: ${summary.currentStreak || 0} dia(s)`;
+      consistencyText.textContent = `${summary.completedDays || 0} vitória(s) registrada(s)`;
+      if (summary.firstVictoryCompleted) markFirstVictoryComplete();
+    }
+
+    async function loadDailyActionsSummary() {
+      const response = await api('/portal/project-lm/daily-actions/summary');
+      renderConsistency(response?.data);
+    }
+
+    firstVictoryBtn.addEventListener('click', async () => {
+      firstVictoryBtn.disabled = true;
       try {
-        const profile = await getProjectLmProfile();
-        if (!profile) return;
-        const goalMessage = projectLmGoalMessages[profile.goal] || 'Manter o básico bem feito hoje.';
-        document.getElementById('projectLmHeroSubtext').textContent = goalMessage;
-        document.getElementById('projectLmCurrentFocus').textContent = goalMessage;
-        document.getElementById('projectLmNextWin').textContent = projectLmDifficultyMessages[profile.mainDifficulty || profile.main_difficulty] || 'Concluir uma ação simples que mantém você em movimento.';
+        await api('/portal/project-lm/daily-actions', {
+          method: 'POST',
+          body: JSON.stringify({ actionType: 'primeira_vitoria' })
+        });
+        markFirstVictoryComplete();
+        await loadDailyActionsSummary();
+      } catch (error) {
+        firstVictoryBtn.disabled = false;
+        alert(error.message || 'Não foi possível registrar sua primeira vitória agora.');
+      }
+    });
+
+    (async () => {
+      try {
+        if (isProjectLm()) {
+          const profile = await getProjectLmProfile();
+          if (profile) {
+            const goalMessage = projectLmGoalMessages[profile.goal] || 'Manter o básico bem feito hoje.';
+            document.getElementById('projectLmHeroSubtext').textContent = goalMessage;
+            document.getElementById('projectLmCurrentFocus').textContent = goalMessage;
+            nextWinText.textContent = projectLmDifficultyMessages[profile.mainDifficulty || profile.main_difficulty] || 'Concluir uma ação simples que mantém você em movimento.';
+          }
+        }
+        await loadDailyActionsSummary();
       } catch (error) {
         // Mantém o conteúdo padrão se a personalização falhar.
       }
