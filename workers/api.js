@@ -154,6 +154,50 @@ export default {
           return json({ ok: true, data: profile });
         }
 
+        if (url.pathname === '/api/portal/project-lm/daily-actions/summary' && method === 'GET') {
+          if (!canUseProjectLmProgress(auth.student)) {
+            return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM ou Premium.' }, 403);
+          }
+
+          const summary = await getProjectLmDailyActionsSummary(env.DB, studentEmail);
+          return json({ ok: true, data: summary });
+        }
+
+        if (url.pathname === '/api/portal/project-lm/daily-actions' && method === 'POST') {
+          if (!canUseProjectLmProgress(auth.student)) {
+            return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM ou Premium.' }, 403);
+          }
+
+          const body = await safeJson(request);
+          const actionType = nullableTrimmed(body?.actionType);
+
+          if (!PROJECT_LM_DAILY_ACTION_TYPES.has(actionType)) {
+            return json({ ok: false, error: 'actionType inválido.' }, 400);
+          }
+
+          const actionDate = formatDateOnly(new Date());
+          const existing = await env.DB.prepare(
+            `SELECT id, created_at
+             FROM project_lm_daily_actions
+             WHERE lower(student_email)=? AND action_date=? AND action_type=?
+             LIMIT 1`
+          ).bind(studentEmail.toLowerCase(), actionDate, actionType).first();
+
+          if (existing) {
+            return json({ ok: true, data: { id: existing.id, actionDate, actionType, alreadyCompleted: true } });
+          }
+
+          const id = crypto.randomUUID();
+          const now = new Date().toISOString();
+          await env.DB.prepare(
+            `INSERT INTO project_lm_daily_actions (
+              id, student_email, action_date, action_type, completed, created_at
+            ) VALUES (?, ?, ?, ?, 1, ?)`
+          ).bind(id, studentEmail, actionDate, actionType, now).run();
+
+          return json({ ok: true, data: { id, actionDate, actionType, alreadyCompleted: false } });
+        }
+
         if (url.pathname === '/api/portal/project-lm/profile' && method === 'POST') {
           const body = await safeJson(request);
           const goal = sanitizeProjectLmValue(body?.goal);
@@ -1850,6 +1894,25 @@ async function ensureSchema(db) {
     updated_at TEXT
   )`).run();
 
+  await db.prepare(`CREATE TABLE IF NOT EXISTS project_lm_daily_actions (
+    id TEXT PRIMARY KEY,
+    student_email TEXT NOT NULL,
+    action_date TEXT NOT NULL,
+    action_type TEXT NOT NULL,
+    completed INTEGER DEFAULT 1,
+    created_at TEXT
+  )`).run();
+
+  await db.prepare(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_project_lm_daily_actions_unique
+     ON project_lm_daily_actions(student_email, action_date, action_type)`
+  ).run();
+
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_project_lm_daily_actions_student_date
+     ON project_lm_daily_actions(student_email, action_date)`
+  ).run();
+
   await db.prepare(`CREATE TABLE IF NOT EXISTS followup_logs (
     id TEXT PRIMARY KEY,
     student_email TEXT NOT NULL,
@@ -2457,6 +2520,58 @@ const PROJECT_LM_DIFFICULTIES = new Set([
   'abandono',
   'nao_sei_por_onde_comecar'
 ]);
+
+const PROJECT_LM_DAILY_ACTION_TYPES = new Set([
+  'primeira_vitoria',
+  'modo_dia_dificil',
+  'acao_minima'
+]);
+
+function canUseProjectLmProgress(student) {
+  const plan = normalizeStudentPlan(student?.plan || student?.planType);
+  return plan === 'projeto_lm' || plan === 'premium';
+}
+
+function formatDateOnly(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function shiftDateOnly(dateOnly, days) {
+  const date = new Date(`${dateOnly}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return formatDateOnly(date);
+}
+
+async function getProjectLmDailyActionsSummary(db, studentEmail) {
+  const normalizedEmail = String(studentEmail || '').trim().toLowerCase();
+  const { results } = await db.prepare(
+    `SELECT action_date, action_type
+     FROM project_lm_daily_actions
+     WHERE lower(student_email)=? AND completed=1
+     ORDER BY action_date DESC, created_at DESC`
+  ).bind(normalizedEmail).all();
+
+  const actions = results || [];
+  const completedDates = new Set(actions.map((action) => action.action_date).filter(Boolean));
+  const lastActionDate = completedDates.size ? [...completedDates].sort().at(-1) : null;
+  const firstVictoryCompleted = actions.some((action) => action.action_type === 'primeira_vitoria');
+
+  let currentStreak = 0;
+  if (lastActionDate) {
+    let cursor = lastActionDate;
+    while (completedDates.has(cursor)) {
+      currentStreak += 1;
+      cursor = shiftDateOnly(cursor, -1);
+    }
+  }
+
+  return {
+    completedDays: completedDates.size,
+    currentStreak,
+    firstVictoryCompleted,
+    lastActionDate
+  };
+}
 
 function sanitizeProjectLmValue(value) {
   return nullableTrimmed(value);
