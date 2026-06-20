@@ -60,6 +60,8 @@
       nao_sei_por_onde_comecar: 'Escolher apenas uma ação para hoje.'
     };
 
+    const projectLmHeroSubtext = document.getElementById('projectLmHeroSubtext');
+    const projectLmCurrentFocus = document.getElementById('projectLmCurrentFocus');
     const firstVictoryBtn = document.getElementById('projectLmFirstVictoryBtn');
     const nextWinText = document.getElementById('projectLmNextWin');
     const consistencyTitle = document.getElementById('projectLmConsistencyTitle');
@@ -70,8 +72,10 @@
     function isFirstVictoryCompleted(summary) {
       return summary?.firstVictoryCompleted === true
         || summary?.firstVictoryCompleted === 1
+        || summary?.firstVictoryCompleted === 'true'
         || summary?.first_victory_completed === true
-        || summary?.first_victory_completed === 1;
+        || summary?.first_victory_completed === 1
+        || summary?.first_victory_completed === 'true';
     }
 
     function markFirstVictoryComplete() {
@@ -101,7 +105,6 @@
       const response = await api('/portal/project-lm/daily-actions/summary');
       const summary = response?.data || response;
       renderConsistency(summary);
-      if (isFirstVictoryCompleted(summary)) markFirstVictoryComplete();
     }
 
     firstVictoryBtn.addEventListener('click', async () => {
@@ -120,14 +123,29 @@
     });
 
     (async () => {
+      let summary = null;
+      let firstVictoryDone = false;
+
+      try {
+        const summaryResponse = await api('/portal/project-lm/daily-actions/summary');
+        summary = summaryResponse?.data || summaryResponse;
+        firstVictoryDone = isFirstVictoryCompleted(summary);
+        console.log('PROJECT_LM_SUMMARY', summary);
+        console.log('PROJECT_LM_FIRST_VICTORY_DONE', firstVictoryDone);
+        if (firstVictoryDone) markFirstVictoryComplete();
+      } catch (error) {
+        // Mantém o conteúdo padrão se o resumo ainda não estiver disponível.
+      }
+
       try {
         if (isProjectLm()) {
           const profile = await getProjectLmProfile();
           if (profile) {
             const goalMessage = projectLmGoalMessages[profile.goal] || 'Manter o básico bem feito hoje.';
-            document.getElementById('projectLmHeroSubtext').textContent = goalMessage;
-            document.getElementById('projectLmCurrentFocus').textContent = goalMessage;
-            if (!firstVictoryCompletedVisual) {
+            projectLmHeroSubtext.textContent = goalMessage;
+            projectLmCurrentFocus.textContent = goalMessage;
+
+            if (!firstVictoryDone && !firstVictoryCompletedVisual) {
               nextWinText.textContent = projectLmDifficultyMessages[profile.mainDifficulty || profile.main_difficulty] || 'Concluir uma ação simples que mantém você em movimento.';
             }
           }
@@ -137,19 +155,11 @@
       }
 
       try {
-        await loadDailyActionsSummary();
-      } catch (error) {
-        // Mantém o conteúdo padrão se o resumo ainda não estiver disponível.
-      }
-    })();
-
-    window.addEventListener('load', async () => {
-      try {
-        await loadDailyActionsSummary();
+        renderConsistency(summary);
       } catch (error) {
         // Mantém o conteúdo atual se a hidratação final falhar.
       }
-    });
+    })();
   </script>
 </body>
 </html>
