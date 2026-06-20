@@ -5,6 +5,14 @@
   <meta name='viewport' content='width=device-width,initial-scale=1'>
   <title>LM Portal</title>
   <link rel='stylesheet' href='portal.css'>
+  <script src='public/assets/js/lm-access.js'></script>
+  <script src='portal-shared.js'></script>
+  <script>
+    requireAuth();
+    if (getUserPlan() === 'projeto_lm') {
+      window.location.replace('projeto-lm-jornada.html');
+    }
+  </script>
 </head>
 <body class="portal-home-v7">
   <section class='hero hero-premium hero-app'>
@@ -110,10 +118,7 @@
     </section>
   </main>
 
-  <script src='public/assets/js/lm-access.js'></script>
-  <script src='portal-shared.js'></script>
   <script>
-    requireAuth();
     redirectIfNoAccess('dashboard');
     const accessMessage = sessionStorage.getItem('lm_access_message');
     if (accessMessage) {
@@ -127,14 +132,6 @@
     document.getElementById('hello').textContent = `Olá, ${localStorage.getItem('lm_student_name') || 'Aluno'}`;
 
     const currentPlan = getUserPlan();
-    if (currentPlan === 'projeto_lm') {
-      redirectProjectLmOnboardingIfNeeded().catch(() => {
-        const notice = document.createElement('div');
-        notice.className = 'card status error';
-        notice.textContent = 'Não foi possível verificar seu onboarding agora. Você pode continuar acessando o dashboard.';
-        document.querySelector('.home-main')?.prepend(notice);
-      });
-    }
     const quickLinksEl = document.getElementById('quickLinks');
 
     function renderQuickLinksForPlan() {
