@@ -65,6 +65,7 @@
     const consistencyTitle = document.getElementById('projectLmConsistencyTitle');
     const consistencyText = document.getElementById('projectLmConsistencyText');
     const firstActionStep = document.getElementById('journeyStepFirstAction');
+    let firstVictoryCompletedVisual = false;
 
     function isFirstVictoryCompleted(summary) {
       return summary?.firstVictoryCompleted === true
@@ -74,6 +75,7 @@
     }
 
     function markFirstVictoryComplete() {
+      firstVictoryCompletedVisual = true;
       nextWinText.textContent = 'Primeira vitória concluída ✅';
       firstVictoryBtn.textContent = 'Primeira vitória concluída ✅';
       firstVictoryBtn.disabled = true;
@@ -83,14 +85,16 @@
     }
 
     function renderConsistency(summary) {
+      const firstVictoryCompleted = isFirstVictoryCompleted(summary);
       if (!summary || Number(summary.completedDays || 0) === 0) {
         consistencyTitle.textContent = 'Dia 1';
         consistencyText.textContent = 'Toda transformação começa acumulando pequenas vitórias.';
+        if (firstVictoryCompleted) markFirstVictoryComplete();
         return;
       }
       consistencyTitle.textContent = `Sequência atual: ${summary.currentStreak || 0} dia(s)`;
       consistencyText.textContent = `${summary.completedDays || 0} vitória(s) registrada(s)`;
-      if (isFirstVictoryCompleted(summary)) markFirstVictoryComplete();
+      if (firstVictoryCompleted) markFirstVictoryComplete();
     }
 
     async function loadDailyActionsSummary() {
@@ -123,7 +127,7 @@
             const goalMessage = projectLmGoalMessages[profile.goal] || 'Manter o básico bem feito hoje.';
             document.getElementById('projectLmHeroSubtext').textContent = goalMessage;
             document.getElementById('projectLmCurrentFocus').textContent = goalMessage;
-            if (!firstVictoryBtn.disabled) {
+            if (!firstVictoryCompletedVisual) {
               nextWinText.textContent = projectLmDifficultyMessages[profile.mainDifficulty || profile.main_difficulty] || 'Concluir uma ação simples que mantém você em movimento.';
             }
           }
