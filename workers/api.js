@@ -2619,6 +2619,7 @@ async function getProjectLmDailyActionsSummary(db, studentEmail) {
   const completedDates = new Set(actions.map((action) => action.action_date).filter(Boolean));
   const lastActionDate = completedDates.size ? [...completedDates].sort().at(-1) : null;
   const firstVictoryCompleted = actions.some((action) => action.action_type === 'primeira_vitoria');
+  const hardDayModeCompleted = actions.some((action) => action.action_type === 'modo_dia_dificil');
 
   let currentStreak = 0;
   if (lastActionDate) {
@@ -2633,6 +2634,7 @@ async function getProjectLmDailyActionsSummary(db, studentEmail) {
     completedDays: completedDates.size,
     currentStreak,
     firstVictoryCompleted,
+    hardDayModeCompleted,
     lastActionDate
   };
 }
