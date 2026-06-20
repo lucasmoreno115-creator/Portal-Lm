@@ -70,8 +70,18 @@ function redirectIfNoAccess(feature) {
   return false;
 }
 
+function getMenuItemsForPlan(plan) {
+  const normalizedPlan = normalizeUserPlan(plan);
+  const allowedFeatures = LM_ACCESS[normalizedPlan] || LM_ACCESS.projeto_lm;
+
+  return LM_MENU_ITEMS.filter((item) => {
+    if (normalizedPlan === 'projeto_lm' && item.feature === 'dashboard') return false;
+    return allowedFeatures.includes(item.feature);
+  });
+}
+
 function renderPlanAwareMenu(target) {
-  const html = `<nav>${LM_MENU_ITEMS.filter((item) => hasAccess(item.feature))
+  const html = `<nav>${getMenuItemsForPlan(getUserPlan())
     .map((item) => `<a href='${item.href}' data-feature='${item.feature}'>${item.label}</a>`)
     .join('')}<button onclick='logout()'>Sair</button></nav>`;
 
