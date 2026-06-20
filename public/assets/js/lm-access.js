@@ -1,6 +1,5 @@
 const LM_ACCESS = {
   projeto_lm: [
-    'dashboard',
     'minha-jornada',
     'consistencia',
     'modo-dia-dificil',
@@ -67,7 +66,7 @@ function hasAccess(feature) {
 function redirectIfNoAccess(feature) {
   if (hasAccess(feature)) return true;
   sessionStorage.setItem('lm_access_message', LM_ACCESS_DENIED_MESSAGE);
-  window.location.href = 'portal.html';
+  window.location.href = getUserPlan() === 'projeto_lm' ? 'projeto-lm-jornada.html' : 'portal.html';
   return false;
 }
 

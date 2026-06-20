@@ -40,6 +40,14 @@
   <script>
     requireAuth();
     redirectIfNoAccess('minha-jornada');
+    const accessMessage = sessionStorage.getItem('lm_access_message');
+    if (accessMessage) {
+      sessionStorage.removeItem('lm_access_message');
+      const notice = document.createElement('div');
+      notice.className = 'card status error';
+      notice.textContent = accessMessage;
+      document.querySelector('.home-main')?.prepend(notice);
+    }
     redirectProjectLmOnboardingIfNeeded().catch(() => {});
     document.getElementById('nav').innerHTML = nav();
 
