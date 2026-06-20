@@ -1045,4 +1045,59 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 @media (max-width:720px){
   .projeto-lm-hard-day-page .hard-day-hero{padding:22px}
   .projeto-lm-hard-day-page .hard-day-checklist li{padding:12px}
+}.projeto-lm-library-page .library-hero,
+.projeto-lm-content-page .content-hero{
+  min-height:auto;
+  height:auto;
+  padding:clamp(26px,5vw,52px);
+  border-color:rgba(212,175,55,.45);
+  background:radial-gradient(circle at 84% 18%,rgba(212,175,55,.2),transparent 34%),linear-gradient(145deg,#181818 0%,#101010 62%,#171207 100%);
 }
+.projeto-lm-library-page .library-hero::before,
+.projeto-lm-content-page .content-hero::before{display:none}
+.library-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:18px;
+}
+.library-card{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  border-color:rgba(212,175,55,.28);
+}
+.library-card h2,
+.projeto-lm-content-page .dashboard-card h2{margin:0;color:#fff}
+.library-card p,
+.projeto-lm-content-page .dashboard-card p{margin:0;color:#dcdcdc;line-height:1.6}
+.library-card-status{color:#f0d47a!important;font-weight:800}
+.library-card-completed{color:#f0d47a!important;font-weight:900}
+.library-card .primary-cta{margin-top:auto;text-align:center}
+.library-card.is-locked{opacity:.76;border-color:rgba(255,255,255,.12)}
+.library-card.is-locked .primary-cta{cursor:not-allowed;filter:grayscale(.6);opacity:.7}
+.content-video-placeholder{
+  display:grid;
+  place-items:center;
+  min-height:260px;
+  border:1px solid rgba(212,175,55,.28);
+  border-radius:18px;
+  background:linear-gradient(145deg,#111,#17140d);
+  color:#f0d47a;
+  font-weight:900;
+  text-align:center;
+  padding:24px;
+}
+.content-video-placeholder iframe{width:100%;min-height:320px;border:0;border-radius:14px}
+.content-complete-card{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.secondary-cta{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(212,175,55,.35);
+  border-radius:999px;
+  padding:13px 18px;
+  color:#f0d47a;
+  text-decoration:none;
+  font-weight:800;
+}
+@media (max-width:900px){.library-grid{grid-template-columns:1fr}.content-video-placeholder{min-height:200px}}

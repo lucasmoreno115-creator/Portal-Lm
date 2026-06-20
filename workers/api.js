@@ -172,6 +172,45 @@ export default {
           return json({ ok: true, data: consistency });
         }
 
+
+        if (url.pathname === '/api/portal/project-lm/library' && method === 'GET') {
+          if (!canUseProjectLmProgress(auth.student)) {
+            return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM ou Premium.' }, 403);
+          }
+
+          const library = await getProjectLmLibrary(env.DB, studentEmail);
+          return json({ ok: true, data: library });
+        }
+
+        if (/^\/api\/portal\/project-lm\/library\/[^/]+$/.test(url.pathname) && method === 'GET') {
+          if (!canUseProjectLmProgress(auth.student)) {
+            return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM ou Premium.' }, 403);
+          }
+
+          const slug = decodeURIComponent(url.pathname.split('/').at(-1) || '').trim();
+          const content = await getProjectLmLibraryContent(env.DB, studentEmail, slug);
+          if (!content) return json({ ok: false, error: 'Conteúdo não encontrado.' }, 404);
+          if (content.locked) return json({ ok: false, error: 'Conteúdo bloqueado para o seu momento atual.', data: content }, 403);
+          return json({ ok: true, data: content });
+        }
+
+        if (url.pathname === '/api/portal/project-lm/library/complete' && method === 'POST') {
+          if (!canUseProjectLmProgress(auth.student)) {
+            return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM ou Premium.' }, 403);
+          }
+
+          const body = await safeJson(request);
+          const slug = nullableTrimmed(body?.slug);
+          if (!slug) return json({ ok: false, error: 'slug é obrigatório.' }, 400);
+
+          const content = await getProjectLmLibraryContent(env.DB, studentEmail, slug);
+          if (!content) return json({ ok: false, error: 'Conteúdo não encontrado.' }, 404);
+          if (content.locked) return json({ ok: false, error: 'Conteúdo bloqueado para o seu momento atual.' }, 403);
+
+          const completed = await completeProjectLmLibraryContent(env.DB, studentEmail, slug);
+          return json({ ok: true, data: completed });
+        }
+
         if (url.pathname === '/api/portal/project-lm/daily-actions' && method === 'POST') {
           if (!canUseProjectLmProgress(auth.student)) {
             return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM ou Premium.' }, 403);
@@ -1922,6 +1961,45 @@ async function ensureSchema(db) {
      ON project_lm_daily_actions(student_email, action_date)`
   ).run();
 
+  await db.prepare(`CREATE TABLE IF NOT EXISTS project_lm_library_content (
+    id TEXT PRIMARY KEY,
+    slug TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    description TEXT,
+    video_url TEXT,
+    summary TEXT,
+    action_text TEXT,
+    unlock_rule TEXT NOT NULL DEFAULT 'always',
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT
+  )`).run();
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS project_lm_library_progress (
+    id TEXT PRIMARY KEY,
+    student_email TEXT NOT NULL,
+    content_slug TEXT NOT NULL,
+    completed INTEGER DEFAULT 0,
+    completed_at TEXT
+  )`).run();
+
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_project_lm_library_content_sort
+     ON project_lm_library_content(sort_order)`
+  ).run();
+
+  await db.prepare(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_project_lm_library_progress_unique
+     ON project_lm_library_progress(student_email, content_slug)`
+  ).run();
+
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_project_lm_library_progress_student
+     ON project_lm_library_progress(student_email)`
+  ).run();
+
+  await seedProjectLmLibraryContent(db);
+
+
   await db.prepare(`CREATE TABLE IF NOT EXISTS followup_logs (
     id TEXT PRIMARY KEY,
     student_email TEXT NOT NULL,
@@ -2512,6 +2590,166 @@ function generateAccessToken() {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 12);
 }
 
+
+const PROJECT_LM_LIBRARY_UNLOCK_RULES = new Set([
+  'always',
+  'first_victory',
+  'hard_day_mode',
+  'streak_3',
+  'streak_7',
+  'streak_14',
+  'streak_21',
+  'streak_30',
+  'streak_45',
+  'streak_60'
+]);
+
+const PROJECT_LM_LIBRARY_SEED = [
+  ['como-comecar-e-continuar', 'Como começar e continuar', 'O primeiro passo para sair do ciclo de recomeços e proteger o básico.', 'always'],
+  ['a-regra-do-minimo', 'A Regra do Mínimo', 'Como transformar dias difíceis em dias válidos, sem depender de perfeição.', 'always'],
+  ['o-erro-de-recomecar-toda-segunda', 'O Erro de Recomeçar Toda Segunda', 'Por que esperar a próxima segunda enfraquece sua consistência.', 'first_victory'],
+  ['consistencia-vence-intensidade', 'Consistência Vence Intensidade', 'Aprenda a construir resultado repetindo o possível.', 'hard_day_mode'],
+  ['como-recomecar-sem-culpa', 'Como Recomeçar Sem Culpa', 'Um caminho simples para voltar sem compensação e sem extremos.', 'streak_3'],
+  ['pare-de-procurar-a-dieta-perfeita', 'Pare de Procurar a Dieta Perfeita', 'Organização e aderência antes de trocar de método.', 'streak_7'],
+  ['o-processo-acima-do-resultado', 'O Processo Acima do Resultado', 'Como medir evolução antes da balança confirmar.', 'streak_14'],
+  ['como-nao-abandonar-depois-de-uma-semana-ruim', 'Como Não Abandonar Depois de uma Semana Ruim', 'Estratégia para manter identidade e direção após uma semana instável.', 'streak_21'],
+  ['o-que-fazer-quando-a-motivacao-sumir', 'O Que Fazer Quando a Motivação Sumir', 'Como continuar quando a vontade não aparece.', 'streak_30'],
+  ['a-pessoa-que-voce-esta-se-tornando', 'A Pessoa Que Você Está Se Tornando', 'Consolide a visão de longo prazo construída pelas pequenas ações.', 'streak_45']
+];
+
+function mapProjectLmLibraryRow(row, progress, unlockContext) {
+  const completed = Boolean(progress?.has(row.slug));
+  const unlocked = isProjectLmLibraryUnlocked(row.unlock_rule, unlockContext);
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    description: row.description,
+    video_url: row.video_url || '',
+    videoUrl: row.video_url || '',
+    summary: row.summary || '',
+    action_text: row.action_text || '',
+    actionText: row.action_text || '',
+    unlock_rule: row.unlock_rule || 'always',
+    unlockRule: row.unlock_rule || 'always',
+    sort_order: Number(row.sort_order || 0),
+    sortOrder: Number(row.sort_order || 0),
+    created_at: row.created_at,
+    unlocked,
+    locked: !unlocked,
+    completed
+  };
+}
+
+function isProjectLmLibraryUnlocked(rule, context = {}) {
+  const normalizedRule = PROJECT_LM_LIBRARY_UNLOCK_RULES.has(rule) ? rule : 'always';
+  if (normalizedRule === 'always') return true;
+  if (normalizedRule === 'first_victory') return Boolean(context.firstVictoryCompleted);
+  if (normalizedRule === 'hard_day_mode') return Boolean(context.hardDayModeCompleted);
+  const streakMatch = normalizedRule.match(/^streak_(\d+)$/);
+  if (streakMatch) return Number(context.bestStreak || context.currentStreak || 0) >= Number(streakMatch[1]);
+  return false;
+}
+
+async function getProjectLmLibraryUnlockContext(db, studentEmail) {
+  const [summary, consistency] = await Promise.all([
+    getProjectLmDailyActionsSummary(db, studentEmail),
+    getProjectLmConsistency(db, studentEmail)
+  ]);
+  return {
+    firstVictoryCompleted: Boolean(summary.firstVictoryCompleted),
+    hardDayModeCompleted: Boolean(summary.hardDayModeCompleted),
+    currentStreak: Number(consistency.currentStreak || summary.currentStreak || 0),
+    bestStreak: Number(consistency.bestStreak || summary.currentStreak || 0)
+  };
+}
+
+async function getProjectLmLibraryProgress(db, studentEmail) {
+  const { results = [] } = await db.prepare(
+    `SELECT content_slug, completed_at
+     FROM project_lm_library_progress
+     WHERE lower(student_email)=? AND completed=1`
+  ).bind(String(studentEmail || '').trim().toLowerCase()).all();
+  return new Map((results || []).map((row) => [row.content_slug, row.completed_at]));
+}
+
+async function getProjectLmLibrary(db, studentEmail) {
+  const { results = [] } = await db.prepare(
+    `SELECT id, slug, title, description, video_url, summary, action_text, unlock_rule, sort_order, created_at
+     FROM project_lm_library_content
+     ORDER BY sort_order ASC, title ASC`
+  ).all();
+  const [progress, unlockContext] = await Promise.all([
+    getProjectLmLibraryProgress(db, studentEmail),
+    getProjectLmLibraryUnlockContext(db, studentEmail)
+  ]);
+  return (results || []).map((row) => mapProjectLmLibraryRow(row, progress, unlockContext));
+}
+
+async function getProjectLmLibraryContent(db, studentEmail, slug) {
+  const row = await db.prepare(
+    `SELECT id, slug, title, description, video_url, summary, action_text, unlock_rule, sort_order, created_at
+     FROM project_lm_library_content
+     WHERE slug=?
+     LIMIT 1`
+  ).bind(String(slug || '').trim()).first();
+  if (!row) return null;
+  const [progress, unlockContext] = await Promise.all([
+    getProjectLmLibraryProgress(db, studentEmail),
+    getProjectLmLibraryUnlockContext(db, studentEmail)
+  ]);
+  return mapProjectLmLibraryRow(row, progress, unlockContext);
+}
+
+async function completeProjectLmLibraryContent(db, studentEmail, slug) {
+  const normalizedEmail = String(studentEmail || '').trim().toLowerCase();
+  const normalizedSlug = String(slug || '').trim();
+  const now = new Date().toISOString();
+  const existing = await db.prepare(
+    `SELECT id, completed_at
+     FROM project_lm_library_progress
+     WHERE lower(student_email)=? AND content_slug=?
+     LIMIT 1`
+  ).bind(normalizedEmail, normalizedSlug).first();
+
+  if (existing) {
+    await db.prepare(
+      `UPDATE project_lm_library_progress
+       SET completed=1, completed_at=COALESCE(completed_at, ?)
+       WHERE id=?`
+    ).bind(now, existing.id).run();
+    return { id: existing.id, slug: normalizedSlug, completed: true, completed_at: existing.completed_at || now, alreadyCompleted: Boolean(existing.completed_at) };
+  }
+
+  const id = crypto.randomUUID();
+  await db.prepare(
+    `INSERT INTO project_lm_library_progress (id, student_email, content_slug, completed, completed_at)
+     VALUES (?, ?, ?, 1, ?)`
+  ).bind(id, normalizedEmail, normalizedSlug, now).run();
+  return { id, slug: normalizedSlug, completed: true, completed_at: now, alreadyCompleted: false };
+}
+
+async function seedProjectLmLibraryContent(db) {
+  const now = new Date().toISOString();
+  for (const [index, item] of PROJECT_LM_LIBRARY_SEED.entries()) {
+    const [slug, title, description, unlockRule] = item;
+    await db.prepare(
+      `INSERT OR IGNORE INTO project_lm_library_content (
+        id, slug, title, description, video_url, summary, action_text, unlock_rule, sort_order, created_at
+      ) VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, ?)`
+    ).bind(
+      `project-lm-library-${String(index + 1).padStart(2, '0')}`,
+      slug,
+      title,
+      description,
+      `Resumo inicial preparado para o conteúdo “${title}”. O vídeo será cadastrado em uma etapa futura.`,
+      'Escolha uma ação mínima relacionada ao tema e registre como você vai aplicá-la hoje.',
+      unlockRule,
+      index + 1,
+      now
+    ).run();
+  }
+}
 
 const PROJECT_LM_GOALS = new Set([
   'emagrecer_com_consistencia',

@@ -28,7 +28,7 @@ const LM_MENU_ITEMS = [
   { feature: 'minha-jornada', label: 'Minha Jornada', href: 'projeto-lm-jornada.html' },
   { feature: 'consistencia', label: 'Consistência', href: 'projeto-lm-consistencia.html' },
   { feature: 'modo-dia-dificil', label: 'Modo Dia Difícil', href: 'projeto-lm-dia-dificil.html' },
-  { feature: 'biblioteca', label: 'Biblioteca', href: 'portal-biblioteca.html' },
+  { feature: 'biblioteca', label: 'Biblioteca', href: 'projeto-lm-biblioteca.html' },
   { feature: 'plano-alimentar', label: 'Plano Alimentar', href: 'portal-plano-alimentar.html' },
   { feature: 'progressao', label: 'Progressão', href: 'portal-progressao.html' },
   { feature: 'plano-da-semana', label: 'Plano da Semana', href: 'portal.html#weekly-plan-section' },
