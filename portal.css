@@ -949,7 +949,13 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 }
 
 @media (max-width:900px){
-  .consistency-page .consistency-metric-grid{grid-template-columns:1fr}
+  .consistency-page .consistency-metric-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+.projeto-lm-journey-page .journey-next-win-cta{
+  margin-top:14px;
 }
 .projeto-lm-journey-page .journey-next-win-cta{
   margin-top:14px;
