@@ -66,6 +66,13 @@
     const consistencyText = document.getElementById('projectLmConsistencyText');
     const firstActionStep = document.getElementById('journeyStepFirstAction');
 
+    function isFirstVictoryCompleted(summary) {
+      return summary?.firstVictoryCompleted === true
+        || summary?.firstVictoryCompleted === 1
+        || summary?.first_victory_completed === true
+        || summary?.first_victory_completed === 1;
+    }
+
     function markFirstVictoryComplete() {
       nextWinText.textContent = 'Primeira vitória concluída ✅';
       firstVictoryBtn.textContent = 'Primeira vitória concluída ✅';
@@ -83,12 +90,14 @@
       }
       consistencyTitle.textContent = `Sequência atual: ${summary.currentStreak || 0} dia(s)`;
       consistencyText.textContent = `${summary.completedDays || 0} vitória(s) registrada(s)`;
-      if (summary.firstVictoryCompleted) markFirstVictoryComplete();
+      if (isFirstVictoryCompleted(summary)) markFirstVictoryComplete();
     }
 
     async function loadDailyActionsSummary() {
       const response = await api('/portal/project-lm/daily-actions/summary');
-      renderConsistency(response?.data);
+      const summary = response?.data || response;
+      renderConsistency(summary);
+      if (isFirstVictoryCompleted(summary)) markFirstVictoryComplete();
     }
 
     firstVictoryBtn.addEventListener('click', async () => {
@@ -114,12 +123,19 @@
             const goalMessage = projectLmGoalMessages[profile.goal] || 'Manter o básico bem feito hoje.';
             document.getElementById('projectLmHeroSubtext').textContent = goalMessage;
             document.getElementById('projectLmCurrentFocus').textContent = goalMessage;
-            nextWinText.textContent = projectLmDifficultyMessages[profile.mainDifficulty || profile.main_difficulty] || 'Concluir uma ação simples que mantém você em movimento.';
+            if (!firstVictoryBtn.disabled) {
+              nextWinText.textContent = projectLmDifficultyMessages[profile.mainDifficulty || profile.main_difficulty] || 'Concluir uma ação simples que mantém você em movimento.';
+            }
           }
         }
-        await loadDailyActionsSummary();
       } catch (error) {
         // Mantém o conteúdo padrão se a personalização falhar.
+      }
+
+      try {
+        await loadDailyActionsSummary();
+      } catch (error) {
+        // Mantém o conteúdo padrão se o resumo ainda não estiver disponível.
       }
     })();
   </script>
