@@ -13,7 +13,7 @@
       <p class='eyebrow'>ETAPA 1 DE 5</p>
       <h1>Projeto LM</h1>
       <p class='journey-hero-title'>Seu primeiro passo já começou</p>
-      <p id='projectLmHeroSubtext' class='hero-subtext'>Você não precisa fazer tudo perfeito.<br>Seu foco agora é apenas o próximo passo.</p>
+      <p id='projectLmHeroSubtext' class='hero-subtext'>Você não precisa fazer tudo perfeito.<br>Seu foco agora é apenas o passo de hoje.</p>
       <span class='hero-badge'>✅ Direção definida</span>
     </section>
 
@@ -34,8 +34,29 @@
       </div>
     </section>
 
+    <section class='card dashboard-card' aria-label='Próxima vitória'>
+      <h2>🏆 Próxima Vitória</h2>
+      <p class='journey-card-subtitle'>Comece pelo menor passo possível.</p>
+      <p id='projectLmNextWin'>Concluir sua primeira vitória.</p>
+      <div id='projectLmNextWinCta' class='journey-next-win-cta'>
+        <button class='primary-cta' type='button'>Concluir minha primeira vitória</button>
+      </div>
+    </section>
+
+    <section class='card dashboard-card consistency-card' aria-label='Consistência'>
+      <h2>📈 Consistência</h2>
+      <p id='projectLmConsistencyTitle' class='journey-card-subtitle'>Sequência atual: 0 dia(s)</p>
+      <p id='projectLmConsistencyText'>Hoje é uma boa oportunidade para recomeçar.</p>
+    </section>
+
+    <section class='card dashboard-card journey-achievements-card' aria-label='Marcos da jornada'>
+      <h2>🏅 Marcos da Jornada</h2>
+      <p id='projectLmAchievementsText'>Cada marco representa uma prova de que você continua avançando.</p>
+      <a class='primary-cta' href='projeto-lm-conquistas.html'>Ver conquistas</a>
+    </section>
+
     <section class='card dashboard-card journey-progress-card' aria-label='Progresso da jornada'>
-      <h2>Sua Jornada</h2>
+      <h2>🗺 Sua Jornada</h2>
       <ol id='journeySteps' class='journey-progress-list'>
         <li class='is-complete'><span class='journey-step-marker'>✅</span><span>Direção definida</span></li>
         <li><span class='journey-step-marker'>⬜</span><span>Primeira vitória</span></li>
@@ -45,14 +66,6 @@
         <li><span class='journey-step-marker'>⬜</span><span>14 dias de consistência</span></li>
         <li><span class='journey-step-marker'>⬜</span><span>Consolidar rotina</span></li>
       </ol>
-    </section>
-
-    <section class='top-cards-grid journey-cards-grid' aria-label='Resumo da jornada'>
-      <article class='card dashboard-card'><h2>🎯 Seu foco atual</h2><p id='projectLmCurrentFocus'>Manter o básico bem feito hoje.</p></article>
-      <article class='card dashboard-card'><h2>🏆 Próxima vitória</h2><p class='journey-card-subtitle'>Comece pelo menor passo possível.</p><p id='projectLmNextWin'>Concluir sua primeira vitória.</p><div id='projectLmNextWinCta' class='journey-next-win-cta'><button class='primary-cta' type='button'>Concluir minha primeira vitória</button></div></article>
-      <article class='card dashboard-card consistency-card'><h2>📈 Consistência</h2><p id='projectLmConsistencyTitle' class='journey-card-subtitle'>Sequência atual: 0 dia(s)</p><p id='projectLmConsistencyText'>Hoje é uma boa oportunidade para recomeçar.</p></article>
-      <article class='card dashboard-card journey-achievements-card'><h2>🏅 Marcos da Jornada</h2><p id='projectLmAchievementsText'>Cada marco representa uma prova de que você continua avançando.</p><a class='primary-cta' href='projeto-lm-conquistas.html'>Ver conquistas</a><a class='journey-secondary-link' href='projeto-lm-estatisticas.html'>📊 Estatísticas</a></article>
-      <article class='card dashboard-card next-step-card'><h2>📚 Próximo passo</h2><p>Aprender como continuar mesmo nos dias difíceis.</p><a class='primary-cta' href='projeto-lm-dia-dificil.html'>Abrir Modo Dia Difícil</a></article>
     </section>
   </main>
   <script src='public/assets/js/lm-access.js'></script>
@@ -81,7 +94,6 @@
 
     const journeyStepsEl = document.getElementById('journeySteps');
     const projectLmHeroSubtext = document.getElementById('projectLmHeroSubtext');
-    const projectLmCurrentFocus = document.getElementById('projectLmCurrentFocus');
     const nextWinText = document.getElementById('projectLmNextWin');
     const nextWinCta = document.getElementById('projectLmNextWinCta');
     const consistencyTitle = document.getElementById('projectLmConsistencyTitle');
@@ -286,7 +298,6 @@
       if (profile) {
         const goalMessage = projectLmGoalMessages[profile.goal] || 'Manter o básico bem feito hoje.';
         projectLmHeroSubtext.textContent = goalMessage;
-        projectLmCurrentFocus.textContent = goalMessage;
       }
     }
 
