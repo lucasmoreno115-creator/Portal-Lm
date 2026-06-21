@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Projeto LM — Conquistas LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body class='portal-home-v7 achievements-page'>
+  <main class='container home-main'>
+    <div id='nav' class='mobile-nav'></div>
+
+    <section class='card hero hero-premium achievements-hero'>
+      <p class='eyebrow'>Projeto LM</p>
+      <h1>Conquistas LM</h1>
+      <p class='hero-subtext'>Cada marco mostra que você está construindo uma nova forma de continuar.</p>
+    </section>
+
+    <section class='card dashboard-card achievements-summary-card' aria-live='polite'>
+      <p class='section-kicker'>Seu progresso</p>
+      <h2 id='achievementsProgress'>0 de 8 conquistas desbloqueadas</h2>
+      <p id='achievementsStatus' class='muted'>Carregando suas conquistas...</p>
+    </section>
+
+    <section id='achievementGrid' class='achievement-grid' aria-label='Lista de conquistas LM'></section>
+  </main>
+  <script src='public/assets/js/lm-access.js'></script>
+  <script src='portal-shared.js'></script>
+  <script>
+    requireAuth();
+    redirectIfNoAccess('consistencia');
+    redirectProjectLmOnboardingIfNeeded().catch(() => {});
+    document.getElementById('nav').innerHTML = nav();
+
+    const achievementGrid = document.getElementById('achievementGrid');
+    const achievementsProgress = document.getElementById('achievementsProgress');
+    const achievementsStatus = document.getElementById('achievementsStatus');
+
+    function isTruthy(value) {
+      return value === true || value === 1 || value === 'true';
+    }
+
+    function isFirstVictoryCompleted(summary) {
+      return isTruthy(summary?.firstVictoryCompleted) || isTruthy(summary?.first_victory_completed);
+    }
+
+    function isHardDayModeCompleted(summary) {
+      return isTruthy(summary?.hardDayModeCompleted) || isTruthy(summary?.hard_day_mode_completed);
+    }
+
+    function getCompletedCount(library = {}) {
+      const directCount = Number(library?.completedCount ?? library?.completed_count);
+      if (Number.isFinite(directCount)) return directCount;
+
+      const contents = Array.isArray(library?.contents)
+        ? library.contents
+        : Array.isArray(library?.items)
+          ? library.items
+          : Array.isArray(library)
+            ? library
+            : [];
+
+      return contents.filter((item) => isTruthy(item?.completed)).length;
+    }
+
+    function buildAchievements(summary = {}, consistency = {}, library = {}) {
+      const currentStreak = Number(consistency?.currentStreak ?? summary?.currentStreak ?? 0) || 0;
+      const completedCount = getCompletedCount(library);
+
+      return [
+        { icon: '🏅', title: 'Primeira Vitória', unlocked: isFirstVictoryCompleted(summary), message: 'Você provou para si mesmo que consegue agir.' },
+        { icon: '🛡', title: 'Protegi o Processo', unlocked: isHardDayModeCompleted(summary), message: 'Você não desistiu em um dia difícil. Isso importa mais do que parece.' },
+        { icon: '🔥', title: '3 Dias Seguidos', unlocked: currentStreak >= 3, message: 'Os primeiros dias são os mais difíceis.' },
+        { icon: '⚡', title: '7 Dias Seguidos', unlocked: currentStreak >= 7, message: 'Você começou a construir consistência.' },
+        { icon: '🚀', title: '14 Dias Seguidos', unlocked: currentStreak >= 14, message: 'Sua rotina está ficando mais forte.' },
+        { icon: '🏆', title: '21 Dias Seguidos', unlocked: currentStreak >= 21, message: 'Você consolidou um novo padrão.' },
+        { icon: '📚', title: 'Primeiro Conteúdo Concluído', unlocked: completedCount >= 1, message: 'Você começou a estudar a metodologia LM.' },
+        { icon: '🎓', title: 'Biblioteca Inicial Concluída', unlocked: completedCount >= 5, message: 'Você concluiu a base inicial do Projeto LM.' }
+      ];
+    }
+
+    function renderAchievements(achievements) {
+      const unlockedCount = achievements.filter((achievement) => achievement.unlocked).length;
+      achievementsProgress.textContent = `${unlockedCount} de ${achievements.length} conquistas desbloqueadas`;
+      achievementsStatus.textContent = unlockedCount === achievements.length
+        ? 'Você desbloqueou todas as conquistas iniciais do Projeto LM.'
+        : 'Continue avançando: cada ação simples também conta.';
+
+      achievementGrid.innerHTML = achievements.map((achievement) => `
+        <article class='achievement-card ${achievement.unlocked ? 'is-unlocked' : 'is-locked'}'>
+          <div class='achievement-card-top'>
+            <span class='achievement-icon' aria-hidden='true'>${achievement.icon}</span>
+            <span class='achievement-status'>${achievement.unlocked ? 'Desbloqueada' : 'Bloqueada'}</span>
+          </div>
+          <h2>${achievement.title}</h2>
+          <p>${achievement.message}</p>
+        </article>
+      `).join('');
+    }
+
+    async function fetchSafe(path) {
+      try {
+        const response = await api(path);
+        return response?.data || response || null;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    async function loadAchievements() {
+      const [summary, consistency, library] = await Promise.all([
+        fetchSafe('/portal/project-lm/daily-actions/summary'),
+        fetchSafe('/portal/project-lm/consistency'),
+        fetchSafe('/portal/project-lm/library')
+      ]);
+
+      renderAchievements(buildAchievements(summary || {}, consistency || {}, library || {}));
+    }
+
+    loadAchievements();
+  </script>
+</body>
+</html>
