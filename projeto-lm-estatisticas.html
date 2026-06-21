@@ -1,0 +1,141 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Projeto LM — Suas Estatísticas</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body class='portal-home-v7 stats-page'>
+  <main class='container home-main'>
+    <div id='nav' class='mobile-nav'></div>
+
+    <section class='card hero hero-premium stats-hero'>
+      <p class='eyebrow'>Projeto LM</p>
+      <h1>Suas Estatísticas</h1>
+      <p class='hero-subtext'>Acompanhe os sinais de que você está construindo consistência.</p>
+    </section>
+
+    <section id='statsGrid' class='stats-grid' aria-label='Estatísticas pessoais do Projeto LM'></section>
+
+    <section class='card stats-insight-card' aria-live='polite'>
+      <h2>O que esses números mostram?</h2>
+      <p id='statsInsight'>Carregando sua leitura de progresso...</p>
+    </section>
+
+    <section class='stats-actions' aria-label='Ações rápidas'>
+      <a class='primary-cta' href='projeto-lm-jornada.html'>Ver Minha Jornada</a>
+      <a class='primary-cta' href='projeto-lm-dia-dificil.html'>Abrir Modo Dia Difícil</a>
+    </section>
+  </main>
+  <script src='public/assets/js/lm-access.js'></script>
+  <script src='portal-shared.js'></script>
+  <script>
+    requireAuth();
+    redirectIfNoAccess('consistencia');
+    redirectProjectLmOnboardingIfNeeded().catch(() => {});
+    document.getElementById('nav').innerHTML = nav();
+
+    const statsGrid = document.getElementById('statsGrid');
+    const statsInsight = document.getElementById('statsInsight');
+
+    function isTruthy(value) {
+      return value === true || value === 1 || value === 'true';
+    }
+
+    function isFirstVictoryCompleted(summary) {
+      return isTruthy(summary?.firstVictoryCompleted) || isTruthy(summary?.first_victory_completed);
+    }
+
+    function isHardDayModeCompleted(summary) {
+      return isTruthy(summary?.hardDayModeCompleted) || isTruthy(summary?.hard_day_mode_completed);
+    }
+
+    function getCompletedCount(library = {}) {
+      const directCount = Number(library?.completedCount ?? library?.completed_count);
+      if (Number.isFinite(directCount)) return directCount;
+
+      const contents = Array.isArray(library?.contents)
+        ? library.contents
+        : Array.isArray(library?.items)
+          ? library.items
+          : Array.isArray(library)
+            ? library
+            : [];
+
+      return contents.filter((item) => isTruthy(item?.completed)).length;
+    }
+
+    function getUnlockedAchievementsCount(summary = {}, consistency = {}, completedCount = 0) {
+      const currentStreak = Number(consistency?.currentStreak ?? summary?.currentStreak ?? 0) || 0;
+      return [
+        isFirstVictoryCompleted(summary),
+        isHardDayModeCompleted(summary),
+        currentStreak >= 3,
+        currentStreak >= 7,
+        currentStreak >= 14,
+        currentStreak >= 21,
+        completedCount >= 1,
+        completedCount >= 5
+      ].filter(Boolean).length;
+    }
+
+    function getInsightText(activeDays, currentStreak) {
+      if (activeDays === 0) return 'Você ainda está no começo. O próximo passo é registrar sua primeira ação simples.';
+      if (currentStreak === 0 && activeDays > 0) return 'Você já começou antes. Agora o foco é retomar sem culpa.';
+      if (currentStreak >= 1 && currentStreak < 3) return 'Você está criando os primeiros sinais de consistência.';
+      if (currentStreak >= 3 && currentStreak < 7) return 'Você está entrando em ritmo. Continue protegendo o básico.';
+      if (currentStreak >= 7 && currentStreak < 14) return 'Você já construiu uma semana sólida. Agora o foco é manter o padrão.';
+      return 'Você está consolidando uma nova forma de continuar.';
+    }
+
+    function renderStats(summary = {}, consistency = {}, library = {}) {
+      const activeDays = Number(consistency?.activeDays ?? 0) || 0;
+      const currentStreak = Number(consistency?.currentStreak ?? summary?.currentStreak ?? 0) || 0;
+      const bestStreak = Number(consistency?.bestStreak ?? 0) || 0;
+      const completedCount = getCompletedCount(library);
+      const unlockedAchievements = getUnlockedAchievementsCount(summary, consistency, completedCount);
+      const hardDayModeText = isHardDayModeCompleted(summary) ? 'Usado' : 'Ainda não usado';
+
+      const cards = [
+        { title: 'Dias ativos', value: activeDays, text: 'Dias em que você manteve o processo em movimento.' },
+        { title: 'Sequência atual', value: `${currentStreak} dia(s)`, text: 'Sua sequência ativa de dias com ação registrada.' },
+        { title: 'Seu recorde', value: `${bestStreak} dia(s)`, text: 'Sua maior sequência registrada até agora.' },
+        { title: 'Modo Dia Difícil', value: hardDayModeText, text: 'Ferramenta para proteger o processo nos dias difíceis.' },
+        { title: 'Conteúdos concluídos', value: completedCount, text: 'Aulas concluídas na Biblioteca LM.' },
+        { title: 'Marcos conquistados', value: `${unlockedAchievements} de 8`, text: 'Conquistas desbloqueadas na sua jornada.' }
+      ];
+
+      statsGrid.innerHTML = cards.map((card) => `
+        <article class='card stats-card'>
+          <h2>${card.title}</h2>
+          <p class='stats-value'>${card.value}</p>
+          <p>${card.text}</p>
+        </article>
+      `).join('');
+      statsInsight.textContent = getInsightText(activeDays, currentStreak);
+    }
+
+    async function fetchSafe(path) {
+      try {
+        const response = await api(path);
+        return response?.data || response || null;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    async function loadStats() {
+      const [summary, consistency, library] = await Promise.all([
+        fetchSafe('/portal/project-lm/daily-actions/summary'),
+        fetchSafe('/portal/project-lm/consistency'),
+        fetchSafe('/portal/project-lm/library')
+      ]);
+
+      renderStats(summary || {}, consistency || {}, library || {});
+    }
+
+    loadStats();
+  </script>
+</body>
+</html>
