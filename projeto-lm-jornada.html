@@ -34,6 +34,7 @@
       <article class='card dashboard-card'><h2>🎯 Seu foco atual</h2><p id='projectLmCurrentFocus'>Manter o básico bem feito hoje.</p></article>
       <article class='card dashboard-card'><h2>🏆 Próxima vitória</h2><p class='journey-card-subtitle'>Comece pelo menor passo possível.</p><p id='projectLmNextWin'>Concluir sua primeira vitória.</p><div id='projectLmNextWinCta' class='journey-next-win-cta'><button class='primary-cta' type='button'>Concluir minha primeira vitória</button></div></article>
       <article class='card dashboard-card consistency-card'><h2>📈 Consistência</h2><p id='projectLmConsistencyTitle' class='journey-card-subtitle'>Sequência atual: 0 dia(s)</p><p id='projectLmConsistencyText'>Hoje é uma boa oportunidade para recomeçar.</p></article>
+      <article class='card dashboard-card journey-achievements-card'><h2>🏅 Conquistas</h2><p id='projectLmAchievementsText'>Continue avançando para desbloquear conquistas.</p><a class='primary-cta' href='projeto-lm-conquistas.html'>Ver conquistas</a></article>
       <article class='card dashboard-card next-step-card'><h2>📚 Próximo passo</h2><p>Aprender como continuar mesmo nos dias difíceis.</p><a class='primary-cta' href='projeto-lm-dia-dificil.html'>Abrir Modo Dia Difícil</a></article>
     </section>
   </main>
@@ -68,6 +69,7 @@
     const nextWinCta = document.getElementById('projectLmNextWinCta');
     const consistencyTitle = document.getElementById('projectLmConsistencyTitle');
     const consistencyText = document.getElementById('projectLmConsistencyText');
+    const achievementsText = document.getElementById('projectLmAchievementsText');
 
     function isTruthy(value) {
       return value === true || value === 1 || value === 'true';
@@ -83,6 +85,36 @@
 
     function getStreak(consistency, summary) {
       return Number(consistency?.currentStreak ?? summary?.currentStreak ?? 0) || 0;
+    }
+
+    function getCompletedCount(library = {}) {
+      const directCount = Number(library?.completedCount ?? library?.completed_count);
+      if (Number.isFinite(directCount)) return directCount;
+
+      const contents = Array.isArray(library?.contents)
+        ? library.contents
+        : Array.isArray(library?.items)
+          ? library.items
+          : Array.isArray(library)
+            ? library
+            : [];
+
+      return contents.filter((item) => isTruthy(item?.completed)).length;
+    }
+
+    function getUnlockedAchievementsCount(summary = {}, consistency = {}, library = {}) {
+      const currentStreak = getStreak(consistency, summary);
+      const completedCount = getCompletedCount(library);
+      return [
+        isFirstVictoryCompleted(summary),
+        isHardDayModeCompleted(summary),
+        currentStreak >= 3,
+        currentStreak >= 7,
+        currentStreak >= 14,
+        currentStreak >= 21,
+        completedCount >= 1,
+        completedCount >= 5
+      ].filter(Boolean).length;
     }
 
     function setNextWinButton({ text, href, disabled = false }) {
@@ -166,6 +198,16 @@
         : `${activeDays} dias ativos registrados.`;
     }
 
+    function renderAchievementsCard(summary = {}, consistency = {}, library = {}, hasError = false) {
+      if (hasError) {
+        achievementsText.textContent = 'Continue avançando para desbloquear conquistas.';
+        return;
+      }
+
+      const unlockedCount = getUnlockedAchievementsCount(summary, consistency, library);
+      achievementsText.textContent = `${unlockedCount} de 8 conquistas desbloqueadas.`;
+    }
+
     async function registerFirstVictory() {
       const button = nextWinCta.querySelector('button');
       if (button) button.disabled = true;
@@ -192,13 +234,20 @@
     }
 
     async function loadJourney() {
-      const summary = await fetchSafe('/portal/project-lm/daily-actions/summary') || {};
-      const consistency = await fetchSafe('/portal/project-lm/consistency') || {};
+      const [summaryResult, consistencyResult, libraryResult] = await Promise.all([
+        fetchSafe('/portal/project-lm/daily-actions/summary'),
+        fetchSafe('/portal/project-lm/consistency'),
+        fetchSafe('/portal/project-lm/library')
+      ]);
+      const summary = summaryResult || {};
+      const consistency = consistencyResult || {};
+      const library = libraryResult || {};
       const profile = isProjectLm() ? await fetchSafe('/portal/project-lm/profile') : null;
 
       renderJourney(summary, consistency);
       renderNextWin(summary, consistency);
       renderConsistencyCard(consistency);
+      renderAchievementsCard(summary, consistency, library, !summaryResult || !consistencyResult || !libraryResult);
 
       if (profile) {
         const goalMessage = projectLmGoalMessages[profile.goal] || 'Manter o básico bem feito hoje.';
