@@ -17,28 +17,46 @@
     </section>
 
     <section class='card dashboard-card planning-card' aria-labelledby='planningTrainingTitle'>
-      <h2 id='planningTrainingTitle'>🏋️ Treino da Semana</h2>
-      <p class='planning-card-label'>Objetivo:</p>
-      <p>Movimentar o corpo.</p>
-      <p class='planning-card-label'>Sugestões:</p>
+      <h2 id='planningTrainingTitle'>🏋️ Treino</h2>
+      <p class='planning-card-label'>Checklist de Hoje</p>
+      <p class='planning-card-label'>Opção Academia</p>
+      <p class='planning-card-label'>Treino A:</p>
       <ul class='planning-list'>
-        <li>🔹 Caminhada 20 minutos</li>
-        <li>🔹 Treino A</li>
-        <li>🔹 Treino B</li>
-        <li>🔹 Treino C</li>
+        <li>🔹 Agachamento</li>
+        <li>🔹 Supino ou máquina</li>
+        <li>🔹 Remada</li>
+        <li>🔹 Desenvolvimento</li>
+        <li>🔹 Caminhada 10 min</li>
+      </ul>
+      <p class='planning-card-label'>Treino B:</p>
+      <ul class='planning-list'>
+        <li>🔹 Leg press</li>
+        <li>🔹 Puxada</li>
+        <li>🔹 Cadeira extensora</li>
+        <li>🔹 Elevação lateral</li>
+        <li>🔹 Caminhada 10 min</li>
+      </ul>
+      <p class='planning-card-label'>Opção Casa:</p>
+      <ul class='planning-list'>
+        <li>🔹 Sentar e levantar da cadeira</li>
+        <li>🔹 Flexão na parede</li>
+        <li>🔹 Agachamento livre</li>
+        <li>🔹 Caminhada 15 min</li>
       </ul>
       <button id='trainingDoneBtn' class='primary-cta' type='button'>☑ Treinei hoje</button>
       <p id='trainingDoneMsg' class='muted' role='status'></p>
     </section>
 
     <section class='card dashboard-card planning-card' aria-labelledby='planningNutritionTitle'>
-      <h2 id='planningNutritionTitle'>🍽 Alimentação da Semana</h2>
+      <h2 id='planningNutritionTitle'>🍽 Alimentação</h2>
+      <p class='planning-card-label'>Checklist de Hoje</p>
       <ul class='planning-list'>
-        <li>🔹 Fazer café da manhã</li>
-        <li>🔹 Comer proteína em 2 refeições</li>
-        <li>🔹 Beber mais água</li>
+        <li>🔹 Proteína no almoço e jantar</li>
+        <li>🔹 Beber 2 litros de água</li>
+        <li>🔹 Comer 1 fruta por dia</li>
+        <li>🔹 Montar almoço e jantar com proteína + carboidrato + vegetais</li>
       </ul>
-      <button id='nutritionDoneBtn' class='primary-cta' type='button'>☑ Fiz o básico da alimentação hoje</button>
+      <button id='nutritionDoneBtn' class='primary-cta' type='button'>☑ Segui o plano alimentar hoje</button>
       <p id='nutritionDoneMsg' class='muted' role='status'></p>
     </section>
 
@@ -46,25 +64,11 @@
       <h2 id='planningPlanBTitle'>🧭 Plano B</h2>
       <p>Nem todos os dias serão perfeitos.</p>
       <p>Quando a rotina apertar,<br>use o Plano B.</p>
-      <a class='primary-cta' href='projeto-lm-dia-dificil.html'>ABRIR PLANO B</a>
+      <button id='planBDoneBtn' class='primary-cta' type='button'>☑ Hoje usei o Plano B</button>
+      <p id='planBDoneMsg' class='muted' role='status'></p>
+      <a class='secondary-link' href='projeto-lm-dia-dificil.html'>Abrir Checklist Plano B</a>
     </section>
 
-    <section class='card weekly-mission-card planning-mission-card' aria-label='Sua missão da semana'>
-      <p class='weekly-mission-kicker'>🎯 Sua Missão da Semana</p>
-      <p id='weeklyMissionWeek' class='journey-card-subtitle'>Semana 1 de 4</p>
-      <h2 id='weeklyMissionTitle' class='weekly-mission-title'>Pare de Recomeçar</h2>
-      <p id='weeklyMissionDescription'>Seu objetivo nesta semana não é emagrecer rápido. É criar movimento.</p>
-      <div class='weekly-mission-grid'>
-        <article class='weekly-mission-box'>
-          <strong>Missão:</strong>
-          <p id='weeklyMissionMain'>Cumprir 3 ações mínimas.</p>
-        </article>
-        <article class='weekly-mission-box'>
-          <strong>Para avançar:</strong>
-          <p id='weeklyMissionSuccess'>3 ações registradas.</p>
-        </article>
-      </div>
-    </section>
   </main>
 
   <script src='public/assets/js/lm-access.js'></script>
@@ -74,22 +78,6 @@
     redirectIfNoAccess('meu-planejamento');
     redirectProjectLmOnboardingIfNeeded().catch(() => {});
     document.getElementById('nav').innerHTML = nav();
-
-    const weeklyMissionWeek = document.getElementById('weeklyMissionWeek');
-    const weeklyMissionTitle = document.getElementById('weeklyMissionTitle');
-    const weeklyMissionDescription = document.getElementById('weeklyMissionDescription');
-    const weeklyMissionMain = document.getElementById('weeklyMissionMain');
-    const weeklyMissionSuccess = document.getElementById('weeklyMissionSuccess');
-
-    function renderWeeklyMission(mission = {}) {
-      const week = Math.min(4, Math.max(1, Number(mission.week || 1) || 1));
-      weeklyMissionWeek.textContent = `Semana ${week} de 4`;
-      weeklyMissionTitle.textContent = mission.title || 'Pare de Recomeçar';
-      weeklyMissionDescription.textContent = mission.description || 'Seu objetivo nesta semana não é emagrecer rápido. É criar movimento.';
-      weeklyMissionMain.textContent = mission.mainMission || 'Cumprir 3 ações mínimas.';
-      weeklyMissionSuccess.textContent = mission.successCriteria || '3 ações registradas.';
-    }
-
     async function registerPlanningAction(actionType, button, messageElement, successText) {
       button.disabled = true;
       messageElement.textContent = '';
@@ -106,24 +94,17 @@
       }
     }
 
-    async function loadMission() {
-      try {
-        const response = await api('/portal/project-lm/current-mission');
-        renderWeeklyMission(response?.data || response || {});
-      } catch (error) {
-        renderWeeklyMission();
-      }
-    }
-
     document.getElementById('trainingDoneBtn').addEventListener('click', (event) => {
       registerPlanningAction('treino', event.currentTarget, document.getElementById('trainingDoneMsg'), 'Treino de hoje registrado.');
     });
 
     document.getElementById('nutritionDoneBtn').addEventListener('click', (event) => {
-      registerPlanningAction('alimentacao', event.currentTarget, document.getElementById('nutritionDoneMsg'), 'Básico da alimentação registrado.');
+      registerPlanningAction('alimentacao', event.currentTarget, document.getElementById('nutritionDoneMsg'), 'Plano alimentar de hoje registrado.');
     });
 
-    loadMission();
+    document.getElementById('planBDoneBtn').addEventListener('click', (event) => {
+      registerPlanningAction('modo_dia_dificil', event.currentTarget, document.getElementById('planBDoneMsg'), 'Plano B de hoje registrado.');
+    });
   </script>
 </body>
 </html>
