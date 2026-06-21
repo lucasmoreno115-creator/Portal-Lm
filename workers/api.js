@@ -154,6 +154,15 @@ export default {
           return json({ ok: true, data: profile });
         }
 
+        if (url.pathname === '/api/portal/project-lm/current-mission' && method === 'GET') {
+          if (!canUseProjectLmProgress(auth.student)) {
+            return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM ou Premium.' }, 403);
+          }
+
+          const mission = await getProjectLmCurrentMission(env.DB, studentEmail);
+          return json({ ok: true, data: mission });
+        }
+
         if (url.pathname === '/api/portal/project-lm/daily-actions/summary' && method === 'GET') {
           if (!canUseProjectLmProgress(auth.student)) {
             return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM ou Premium.' }, 403);
@@ -1982,6 +1991,14 @@ async function ensureSchema(db) {
     completed_at TEXT
   )`).run();
 
+  await db.prepare(`CREATE TABLE IF NOT EXISTS project_lm_weekly_missions (
+    week_number INTEGER PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    main_mission TEXT NOT NULL,
+    success_criteria TEXT NOT NULL
+  )`).run();
+
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_project_lm_library_content_sort
      ON project_lm_library_content(sort_order)`
@@ -1998,6 +2015,7 @@ async function ensureSchema(db) {
   ).run();
 
   await seedProjectLmLibraryContent(db);
+  await seedProjectLmWeeklyMissions(db);
 
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS followup_logs (
@@ -2617,6 +2635,13 @@ const PROJECT_LM_LIBRARY_SEED = [
   ['a-pessoa-que-voce-esta-se-tornando', 'A Pessoa Que Você Está Se Tornando', 'Consolide a visão de longo prazo construída pelas pequenas ações.', 'streak_45']
 ];
 
+const PROJECT_LM_WEEKLY_MISSIONS_SEED = [
+  [1, 'Pare de Recomeçar', 'Seu objetivo nesta semana não é emagrecer rápido. É criar movimento.', 'Cumprir 3 ações mínimas.', '3 ações registradas.'],
+  [2, 'Proteja os Dias Difíceis', 'Aprenda a continuar mesmo quando a rotina apertar.', 'Utilizar o Modo Dia Difícil pelo menos uma vez.', '1 utilização registrada.'],
+  [3, 'Construa Repetição', 'O foco agora é repetir comportamentos simples.', 'Completar 5 dias ativos.', '5 registros de consistência.'],
+  [4, 'Pensar Como Alguém Consistente', 'Consolidar tudo que foi construído.', 'Concluir a jornada inicial.', 'Finalizar as 4 semanas.']
+];
+
 function mapProjectLmLibraryRow(row, progress, unlockContext) {
   const completed = Boolean(progress?.has(row.slug));
   const unlocked = isProjectLmLibraryUnlocked(row.unlock_rule, unlockContext);
@@ -2748,6 +2773,16 @@ async function seedProjectLmLibraryContent(db) {
       index + 1,
       now
     ).run();
+  }
+}
+
+async function seedProjectLmWeeklyMissions(db) {
+  for (const mission of PROJECT_LM_WEEKLY_MISSIONS_SEED) {
+    await db.prepare(
+      `INSERT OR REPLACE INTO project_lm_weekly_missions (
+        week_number, title, description, main_mission, success_criteria
+      ) VALUES (?, ?, ?, ?, ?)`
+    ).bind(...mission).run();
   }
 }
 
@@ -2903,6 +2938,51 @@ async function getProjectLmProfile(db, studentEmail) {
      LIMIT 1`
   ).bind(String(studentEmail || '').trim().toLowerCase()).first();
   return mapProjectLmProfile(row);
+}
+
+function getProjectLmWeekFromCreatedAt(createdAt, now = new Date()) {
+  const createdDate = createdAt ? new Date(createdAt) : null;
+  if (!createdDate || Number.isNaN(createdDate.getTime())) return 1;
+
+  const elapsedMs = now.getTime() - createdDate.getTime();
+  const elapsedDays = Math.max(0, Math.floor(elapsedMs / 86400000));
+
+  if (elapsedDays <= 6) return 1;
+  if (elapsedDays <= 13) return 2;
+  if (elapsedDays <= 20) return 3;
+  return 4;
+}
+
+function mapProjectLmMission(row, fallbackWeek = 1) {
+  const fallback = PROJECT_LM_WEEKLY_MISSIONS_SEED.find(([weekNumber]) => weekNumber === fallbackWeek) || PROJECT_LM_WEEKLY_MISSIONS_SEED[0];
+  const source = row || {
+    week_number: fallback[0],
+    title: fallback[1],
+    description: fallback[2],
+    main_mission: fallback[3],
+    success_criteria: fallback[4]
+  };
+
+  return {
+    week: Number(source.week_number || fallbackWeek),
+    title: source.title,
+    description: source.description,
+    mainMission: source.main_mission,
+    successCriteria: source.success_criteria
+  };
+}
+
+async function getProjectLmCurrentMission(db, studentEmail) {
+  const profile = await getProjectLmProfile(db, studentEmail);
+  const week = getProjectLmWeekFromCreatedAt(profile?.created_at);
+  const row = await db.prepare(
+    `SELECT week_number, title, description, main_mission, success_criteria
+     FROM project_lm_weekly_missions
+     WHERE week_number=?
+     LIMIT 1`
+  ).bind(week).first();
+
+  return mapProjectLmMission(row, week);
 }
 
 function buildFallbackAnamnesisEmail(studentName, studentPhone) {

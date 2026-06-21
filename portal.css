@@ -264,6 +264,55 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
   border-color:rgba(212,175,55,.38);
   background:linear-gradient(180deg,#17140d 0%,#141414 34%,#101010 100%);
 }
+.projeto-lm-journey-page .weekly-mission-card{
+  border-color:rgba(212,175,55,.46);
+  background:
+    radial-gradient(circle at 92% 8%,rgba(212,175,55,.14),transparent 34%),
+    linear-gradient(155deg,#17140d 0%,#141414 48%,#0f0f0f 100%);
+  box-shadow:0 20px 42px rgba(0,0,0,.45),inset 0 0 0 1px rgba(212,175,55,.12);
+}
+.projeto-lm-journey-page .weekly-mission-kicker{
+  margin:0 0 10px;
+  color:#f0d47a;
+  font-size:.88rem;
+  font-weight:900;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+.projeto-lm-journey-page .weekly-mission-title{
+  margin:0 0 10px;
+  color:#fff;
+  font-size:clamp(1.5rem,3vw,2.35rem);
+  line-height:1.08;
+}
+.projeto-lm-journey-page .weekly-mission-card > p:not(.weekly-mission-kicker):not(.journey-card-subtitle){
+  margin:0 0 18px;
+  color:#e2e2e2;
+  font-size:1.04rem;
+  line-height:1.6;
+}
+.projeto-lm-journey-page .weekly-mission-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+.projeto-lm-journey-page .weekly-mission-box{
+  min-width:0;
+  padding:16px;
+  border:1px solid rgba(212,175,55,.28);
+  border-radius:14px;
+  background:rgba(8,8,8,.45);
+}
+.projeto-lm-journey-page .weekly-mission-box strong{
+  display:block;
+  margin-bottom:8px;
+  color:#f0d47a;
+}
+.projeto-lm-journey-page .weekly-mission-box p{
+  margin:0;
+  color:#f3f3f3;
+  line-height:1.55;
+}
 .projeto-lm-journey-page .journey-progress-list{
   position:relative;
   list-style:none;
@@ -468,6 +517,7 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
   .portal-home-v7 .hero-app .hero-title{font-size:clamp(1.8rem,8vw,2.4rem)}
   .portal-home-v7 .hero-app .hero-subtext{font-size:.95rem}
   .projeto-lm-journey-page .journey-cards-grid{grid-template-columns:1fr}
+  .projeto-lm-journey-page .weekly-mission-grid{grid-template-columns:1fr}
   .projeto-lm-journey-page .journey-hero{padding:22px}
   .portal-home-v7 .quick-links{grid-template-columns:1fr}
 }

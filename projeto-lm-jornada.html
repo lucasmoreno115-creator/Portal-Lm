@@ -17,6 +17,23 @@
       <span class='hero-badge'>✅ Direção definida</span>
     </section>
 
+    <section class='card weekly-mission-card' aria-label='Sua missão da semana'>
+      <p class='weekly-mission-kicker'>🎯 Sua Missão da Semana</p>
+      <p id='weeklyMissionWeek' class='journey-card-subtitle'>Semana 1 de 4</p>
+      <h2 id='weeklyMissionTitle' class='weekly-mission-title'>Pare de Recomeçar</h2>
+      <p id='weeklyMissionDescription'>Seu objetivo nesta semana não é emagrecer rápido. É criar movimento.</p>
+      <div class='weekly-mission-grid'>
+        <article class='weekly-mission-box'>
+          <strong>Missão:</strong>
+          <p id='weeklyMissionMain'>Cumprir 3 ações mínimas.</p>
+        </article>
+        <article class='weekly-mission-box'>
+          <strong>Para avançar:</strong>
+          <p id='weeklyMissionSuccess'>3 ações registradas.</p>
+        </article>
+      </div>
+    </section>
+
     <section class='card dashboard-card journey-progress-card' aria-label='Progresso da jornada'>
       <h2>Sua Jornada</h2>
       <ol id='journeySteps' class='journey-progress-list'>
@@ -70,6 +87,11 @@
     const consistencyTitle = document.getElementById('projectLmConsistencyTitle');
     const consistencyText = document.getElementById('projectLmConsistencyText');
     const achievementsText = document.getElementById('projectLmAchievementsText');
+    const weeklyMissionWeek = document.getElementById('weeklyMissionWeek');
+    const weeklyMissionTitle = document.getElementById('weeklyMissionTitle');
+    const weeklyMissionDescription = document.getElementById('weeklyMissionDescription');
+    const weeklyMissionMain = document.getElementById('weeklyMissionMain');
+    const weeklyMissionSuccess = document.getElementById('weeklyMissionSuccess');
 
     function isTruthy(value) {
       return value === true || value === 1 || value === 'true';
@@ -208,6 +230,15 @@
       achievementsText.textContent = `${unlockedCount} de 8 conquistas desbloqueadas.`;
     }
 
+    function renderWeeklyMission(mission = {}) {
+      const week = Math.min(4, Math.max(1, Number(mission.week || 1) || 1));
+      weeklyMissionWeek.textContent = `Semana ${week} de 4`;
+      weeklyMissionTitle.textContent = mission.title || 'Pare de Recomeçar';
+      weeklyMissionDescription.textContent = mission.description || 'Seu objetivo nesta semana não é emagrecer rápido. É criar movimento.';
+      weeklyMissionMain.textContent = mission.mainMission || 'Cumprir 3 ações mínimas.';
+      weeklyMissionSuccess.textContent = mission.successCriteria || '3 ações registradas.';
+    }
+
     async function registerFirstVictory() {
       const button = nextWinCta.querySelector('button');
       if (button) button.disabled = true;
@@ -234,20 +265,23 @@
     }
 
     async function loadJourney() {
-      const [summaryResult, consistencyResult, libraryResult] = await Promise.all([
+      const [summaryResult, consistencyResult, libraryResult, missionResult] = await Promise.all([
         fetchSafe('/portal/project-lm/daily-actions/summary'),
         fetchSafe('/portal/project-lm/consistency'),
-        fetchSafe('/portal/project-lm/library')
+        fetchSafe('/portal/project-lm/library'),
+        fetchSafe('/portal/project-lm/current-mission')
       ]);
       const summary = summaryResult || {};
       const consistency = consistencyResult || {};
       const library = libraryResult || {};
+      const mission = missionResult || {};
       const profile = isProjectLm() ? await fetchSafe('/portal/project-lm/profile') : null;
 
       renderJourney(summary, consistency);
       renderNextWin(summary, consistency);
       renderConsistencyCard(consistency);
       renderAchievementsCard(summary, consistency, library, !summaryResult || !consistencyResult || !libraryResult);
+      if (missionResult) renderWeeklyMission(mission);
 
       if (profile) {
         const goalMessage = projectLmGoalMessages[profile.goal] || 'Manter o básico bem feito hoje.';
