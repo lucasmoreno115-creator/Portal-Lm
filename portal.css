@@ -351,9 +351,6 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
   border:1px solid rgba(212,175,55,.35);
   z-index:1;
 }
-.projeto-lm-journey-page .journey-cards-grid{
-  grid-template-columns:repeat(2,minmax(0,1fr));
-}
 .projeto-lm-journey-page .journey-card-subtitle{
   margin:0 0 10px;
   color:#d4b257;
@@ -365,12 +362,6 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
   font-size:clamp(2.4rem,5vw,3.6rem);
   font-weight:900;
   line-height:1;
-}
-.projeto-lm-journey-page .next-step-card{
-  border-color:rgba(212,175,55,.42);
-}
-.projeto-lm-journey-page .next-step-card .primary-cta{
-  margin-top:10px;
 }
 .portal-home-v7 .action-card-v6{display:grid;gap:12px;align-content:start;border-color:rgba(212,175,55,.4)}
 .portal-home-v7 .action-helper{margin:0;color:#d4b257;font-size:.95rem}
@@ -516,7 +507,6 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
   .portal-home-v7 .hero-app .hero-content{min-height:300px;padding:72px 20px 20px}
   .portal-home-v7 .hero-app .hero-title{font-size:clamp(1.8rem,8vw,2.4rem)}
   .portal-home-v7 .hero-app .hero-subtext{font-size:.95rem}
-  .projeto-lm-journey-page .journey-cards-grid{grid-template-columns:1fr}
   .projeto-lm-journey-page .weekly-mission-grid{grid-template-columns:1fr}
   .projeto-lm-journey-page .journey-hero{padding:22px}
   .portal-home-v7 .quick-links{grid-template-columns:1fr}
@@ -1315,24 +1305,6 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
   background:linear-gradient(180deg,#1a1a1a,#101010);
   color:#f0d47a;
 }
-.journey-secondary-link{
-  display:inline-flex;
-  justify-content:center;
-  align-items:center;
-  width:100%;
-  margin-top:10px;
-  padding:12px 18px;
-  border:1px solid rgba(212,175,55,.45);
-  border-radius:14px;
-  background:linear-gradient(180deg,rgba(212,175,55,.14),rgba(212,175,55,.06));
-  color:#f0d47a;
-  font-size:.95rem;
-  font-weight:800;
-  text-decoration:none;
-  box-shadow:0 10px 24px rgba(0,0,0,.22);
-}
-.journey-secondary-link:hover{border-color:rgba(212,175,55,.72);transform:translateY(-1px)}
-
 @media (max-width:1024px){
   .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
