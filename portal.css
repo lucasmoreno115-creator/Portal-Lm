@@ -1316,3 +1316,114 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
   .stats-actions{grid-template-columns:1fr}
   .stats-actions .primary-cta{width:100%;min-width:0}
 }
+
+.projeto-lm-initial-plan-page .initial-plan-hero{
+  min-height:auto;
+  height:auto;
+  padding:clamp(28px,5vw,54px);
+  border-color:rgba(212,175,55,.5);
+  background:
+    radial-gradient(circle at 82% 18%,rgba(212,175,55,.22),transparent 34%),
+    linear-gradient(145deg,#181818 0%,#101010 60%,#1b1407 100%);
+}
+.projeto-lm-initial-plan-page .initial-plan-hero::before{display:none}
+.projeto-lm-initial-plan-page .initial-plan-hero h1{
+  margin:0 0 12px;
+  font-size:clamp(2.25rem,5vw,4.5rem);
+  line-height:1.02;
+  color:#fff;
+}
+.projeto-lm-initial-plan-page .initial-plan-hero .hero-subtext{
+  margin:0;
+  max-width:680px;
+  color:#f1f1f1;
+  font-size:clamp(1.08rem,2vw,1.45rem);
+}
+.projeto-lm-initial-plan-page .initial-plan-card{
+  border-color:rgba(212,175,55,.34);
+  background:linear-gradient(180deg,#151515,#101010);
+}
+.projeto-lm-initial-plan-page .initial-plan-card h2,
+.projeto-lm-initial-plan-page .initial-plan-option-card h3,
+.projeto-lm-initial-plan-page .initial-workout-grid h4{
+  margin:0 0 12px;
+  color:#fff;
+}
+.projeto-lm-initial-plan-page .initial-plan-kicker{
+  margin:0 0 8px;
+  color:#f0d47a;
+  font-size:.82rem;
+  font-weight:900;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.projeto-lm-initial-plan-page .initial-plan-split,
+.projeto-lm-initial-plan-page .initial-workout-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:16px;
+}
+.projeto-lm-initial-plan-page .initial-plan-option-card{
+  padding:18px;
+  border:1px solid rgba(212,175,55,.22);
+  border-radius:18px;
+  background:linear-gradient(180deg,#17140d,#111);
+}
+.projeto-lm-initial-plan-page .initial-plan-highlight,
+.projeto-lm-initial-plan-page .initial-plan-goal{
+  margin:0 0 16px;
+  color:#f0d47a;
+  font-weight:900;
+  line-height:1.45;
+}
+.projeto-lm-initial-plan-page .initial-plan-goal{
+  margin:18px 0 0;
+  padding:14px 16px;
+  border:1px solid rgba(212,175,55,.32);
+  border-radius:16px;
+  background:rgba(212,175,55,.09);
+}
+.projeto-lm-initial-plan-page .initial-plan-list,
+.projeto-lm-initial-plan-page .initial-checklist{
+  display:grid;
+  gap:10px;
+  margin:0;
+  padding:0;
+  list-style:none;
+}
+.projeto-lm-initial-plan-page .initial-plan-list li,
+.projeto-lm-initial-plan-page .initial-checklist li{
+  padding:12px 14px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  background:#131313;
+  color:#ededed;
+  font-weight:700;
+  line-height:1.4;
+}
+.projeto-lm-initial-plan-page .initial-plan-list li::before{
+  content:'•';
+  margin-right:8px;
+  color:#f0d47a;
+}
+.projeto-lm-initial-plan-page .initial-plan-rules{
+  margin-top:16px;
+}
+.projeto-lm-initial-plan-page .initial-checklist-card{
+  border-color:rgba(212,175,55,.5);
+}
+.projeto-lm-initial-plan-page .initial-checklist{
+  margin-top:16px;
+}
+.projeto-lm-initial-plan-page .initial-checklist li{
+  border-color:rgba(212,175,55,.2);
+  font-size:1.05rem;
+}
+@media (max-width:900px){
+  .projeto-lm-initial-plan-page .initial-plan-split,
+  .projeto-lm-initial-plan-page .initial-workout-grid{grid-template-columns:1fr}
+}
+@media (max-width:720px){
+  .projeto-lm-initial-plan-page .initial-plan-hero{padding:22px}
+  .projeto-lm-initial-plan-page .initial-plan-option-card{padding:16px}
+}
