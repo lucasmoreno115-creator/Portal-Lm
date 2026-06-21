@@ -1419,6 +1419,22 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
   border-color:rgba(212,175,55,.2);
   font-size:1.05rem;
 }
+
+.projeto-lm-journey-page .weekly-mission-plan-link{
+  margin-top:16px;
+}
+.projeto-lm-initial-plan-page .initial-plan-closing-card{
+  display:grid;
+  gap:14px;
+}
+.projeto-lm-initial-plan-page .initial-plan-closing-card p{
+  margin:0;
+  color:#ededed;
+  line-height:1.6;
+}
+.projeto-lm-initial-plan-page .initial-plan-closing-card .primary-cta{
+  justify-self:start;
+}
 @media (max-width:900px){
   .projeto-lm-initial-plan-page .initial-plan-split,
   .projeto-lm-initial-plan-page .initial-workout-grid{grid-template-columns:1fr}
