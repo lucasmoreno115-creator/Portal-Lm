@@ -1,6 +1,7 @@
 const LM_ACCESS = {
   projeto_lm: [
     'minha-jornada',
+    'plano-inicial',
     'consistencia',
     'modo-dia-dificil',
     'biblioteca'
@@ -8,6 +9,7 @@ const LM_ACCESS = {
   premium: [
     'dashboard',
     'minha-jornada',
+    'plano-inicial',
     'consistencia',
     'modo-dia-dificil',
     'biblioteca',
@@ -26,6 +28,7 @@ const LM_ACCESS_DENIED_MESSAGE = 'Essa área está disponível na Consultoria Pr
 const LM_MENU_ITEMS = [
   { feature: 'dashboard', label: 'Dashboard', href: 'portal.html' },
   { feature: 'minha-jornada', label: 'Minha Jornada', href: 'projeto-lm-jornada.html' },
+  { feature: 'plano-inicial', label: '📋 Plano Inicial', href: 'projeto-lm-plano-inicial.html' },
   { feature: 'consistencia', label: 'Consistência', href: 'projeto-lm-consistencia.html' },
   { feature: 'modo-dia-dificil', label: 'Modo Dia Difícil', href: 'projeto-lm-dia-dificil.html' },
   { feature: 'biblioteca', label: 'Biblioteca', href: 'projeto-lm-biblioteca.html' },
