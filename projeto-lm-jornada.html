@@ -37,7 +37,7 @@
 
     <section class='card dashboard-card' aria-label='Próximo marco'>
       <h2>🏅 Próximo Marco</h2>
-      <p id='projectLmNextMilestone' class='journey-card-subtitle'>Faltam 0 dias para o próximo marco.</p>
+      <p id='projectLmNextMilestone' class='journey-card-subtitle'>🏅 Primeira Vitória</p>
       <a class='primary-cta' href='projeto-lm-conquistas.html'>Ver todos os marcos</a>
     </section>
 
@@ -47,8 +47,8 @@
       <a class='primary-cta' href='projeto-lm-biblioteca.html'>Assistir</a>
     </section>
 
-    <section class='card dashboard-card' aria-label='Próxima vitória'>
-      <h2>🏆 Próxima Vitória</h2>
+    <section class='card dashboard-card' aria-label='Sua ação de hoje'>
+      <h2>🎯 Sua Ação de Hoje</h2>
       <p class='journey-card-subtitle'>Comece pelo menor passo possível.</p>
       <p id='projectLmNextWin'>Concluir sua primeira vitória.</p>
       <div id='projectLmNextWinCta' class='journey-next-win-cta'>
@@ -216,19 +216,19 @@
       }
 
       if (!hardDayModeCompleted) {
-        nextWinText.textContent = 'Usar o Plano B pelo menos uma vez.';
+        nextWinText.textContent = 'Usar o Plano B quando necessário.';
         setNextWinButton({ text: 'Abrir Plano B', href: 'projeto-lm-dia-dificil.html' });
         return;
       }
 
       if (currentStreak < 3) {
-        nextWinText.textContent = 'Construir 3 dias de consistência.';
+        nextWinText.textContent = 'Continuar sua sequência de consistência.';
       } else if (currentStreak < 7) {
-        nextWinText.textContent = 'Chegar a 7 dias de consistência.';
+        nextWinText.textContent = 'Continuar sua sequência de consistência.';
       } else if (currentStreak < 14) {
-        nextWinText.textContent = 'Chegar a 14 dias de consistência.';
+        nextWinText.textContent = 'Continuar sua sequência de consistência.';
       } else if (currentStreak < 21) {
-        nextWinText.textContent = 'Consolidar sua rotina por 21 dias.';
+        nextWinText.textContent = 'Continuar sua sequência de consistência.';
       } else {
         nextWinText.textContent = 'Você consolidou sua rotina inicial. Continue protegendo o básico.';
       }
@@ -249,16 +249,21 @@
 
     function renderNextMilestone(summary = {}, consistency = {}) {
       const firstVictoryCompleted = isFirstVictoryCompleted(summary);
-      const hardDayModeCompleted = isHardDayModeCompleted(summary);
       const currentStreak = getStreak(consistency, summary);
-      let daysToNextMilestone = 0;
 
-      if (firstVictoryCompleted && hardDayModeCompleted) {
-        const nextStreakTarget = [3, 7, 14, 21].find((target) => currentStreak < target);
-        daysToNextMilestone = nextStreakTarget ? nextStreakTarget - currentStreak : 0;
+      if (!firstVictoryCompleted) {
+        nextMilestoneText.textContent = '🏅 Primeira Vitória';
+      } else if (currentStreak >= 21) {
+        nextMilestoneText.textContent = '🏅 Rotina consolidada';
+      } else if (currentStreak >= 14) {
+        nextMilestoneText.textContent = '🏅 Consolidar rotina';
+      } else if (currentStreak >= 7) {
+        nextMilestoneText.textContent = '🏅 14 dias de consistência';
+      } else if (currentStreak >= 3) {
+        nextMilestoneText.textContent = '🏅 7 dias de consistência';
+      } else {
+        nextMilestoneText.textContent = '🏅 3 dias de consistência';
       }
-
-      nextMilestoneText.textContent = `Faltam ${daysToNextMilestone} dias para o próximo marco.`;
     }
 
     function renderAchievementsCard(summary = {}, consistency = {}, library = {}, hasError = false) {
