@@ -11,21 +11,22 @@
     <div id='nav' class='mobile-nav'></div>
 
     <section class='card hero hero-premium stats-hero'>
-      <p class='eyebrow'>Projeto LM</p>
+      <span class='stats-badge'>📊 Evolução acumulada</span>
       <h1>Suas Estatísticas</h1>
-      <p class='hero-subtext'>Acompanhe os sinais de que você está construindo consistência.</p>
+      <p class='hero-subtext'>Pequenos passos repetidos criam resultados duradouros.</p>
     </section>
 
     <section id='statsGrid' class='stats-grid' aria-label='Estatísticas pessoais do Projeto LM'></section>
 
     <section class='card stats-insight-card' aria-live='polite'>
-      <h2>O que esses números mostram?</h2>
+      <h2>O que seus números mostram?</h2>
       <p id='statsInsight'>Carregando sua leitura de progresso...</p>
     </section>
 
     <section class='stats-actions' aria-label='Ações rápidas'>
       <a class='primary-cta' href='projeto-lm-jornada.html'>Ver Minha Jornada</a>
       <a class='primary-cta' href='projeto-lm-dia-dificil.html'>Abrir Modo Dia Difícil</a>
+      <a class='primary-cta stats-secondary-link' href='projeto-lm-biblioteca.html'>📚 Biblioteca LM</a>
     </section>
   </main>
   <script src='public/assets/js/lm-access.js'></script>
@@ -98,19 +99,18 @@
       const hardDayModeText = isHardDayModeCompleted(summary) ? 'Usado' : 'Ainda não usado';
 
       const cards = [
-        { title: 'Dias ativos', value: activeDays, text: 'Dias em que você manteve o processo em movimento.' },
-        { title: 'Sequência atual', value: `${currentStreak} dia(s)`, text: 'Sua sequência ativa de dias com ação registrada.' },
-        { title: 'Seu recorde', value: `${bestStreak} dia(s)`, text: 'Sua maior sequência registrada até agora.' },
-        { title: 'Modo Dia Difícil', value: hardDayModeText, text: 'Ferramenta para proteger o processo nos dias difíceis.' },
-        { title: 'Conteúdos concluídos', value: completedCount, text: 'Aulas concluídas na Biblioteca LM.' },
-        { title: 'Marcos conquistados', value: `${unlockedAchievements} de 8`, text: 'Conquistas desbloqueadas na sua jornada.' }
+        { title: 'Dias ativos', value: activeDays },
+        { title: 'Sequência atual', value: `${currentStreak} dia(s)` },
+        { title: 'Melhor sequência', value: `${bestStreak} dia(s)` },
+        { title: 'Marcos da Jornada', value: `${unlockedAchievements} de 8` },
+        { title: 'Conteúdos concluídos', value: completedCount },
+        { title: 'Proteções do Processo', value: hardDayModeText }
       ];
 
       statsGrid.innerHTML = cards.map((card) => `
         <article class='card stats-card'>
           <h2>${card.title}</h2>
           <p class='stats-value'>${card.value}</p>
-          <p>${card.text}</p>
         </article>
       `).join('');
       statsInsight.textContent = getInsightText(activeDays, currentStreak);
