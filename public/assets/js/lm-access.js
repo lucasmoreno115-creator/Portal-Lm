@@ -109,24 +109,25 @@ function isProjectLm() {
 }
 
 async function getProjectLmProfile() {
-  const response = await api('/portal/project-lm/profile');
-  return response?.data || null;
+  const response = await api('/project-lm/profile');
+  return response?.profile || response?.data || null;
 }
 
 async function shouldShowProjectOnboarding() {
   if (!isProjectLm()) return false;
   const profile = await getProjectLmProfile();
-  return !profile || Number(profile.onboarding_completed ?? profile.onboardingCompleted ?? 0) !== 1;
+  return !profile || !profile.sex;
 }
 
 async function redirectProjectLmOnboardingIfNeeded() {
   if (!isProjectLm()) return false;
-  if (window.location.pathname.endsWith('/projeto-lm-onboarding.html') || window.location.pathname.endsWith('projeto-lm-onboarding.html')) {
+  const path = window.location.pathname;
+  if (path.endsWith('/project-lm-profile.html') || path.endsWith('project-lm-profile.html')) {
     return false;
   }
   const shouldRedirect = await shouldShowProjectOnboarding();
   if (shouldRedirect) {
-    window.location.href = 'projeto-lm-onboarding.html';
+    window.location.href = 'project-lm-profile.html';
     return true;
   }
   return false;

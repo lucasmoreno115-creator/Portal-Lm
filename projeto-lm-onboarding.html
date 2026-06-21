@@ -3,84 +3,11 @@
 <head>
   <meta charset='utf-8'>
   <meta name='viewport' content='width=device-width,initial-scale=1'>
-  <title>Onboarding — Projeto LM</title>
-  <link rel='stylesheet' href='portal.css'>
+  <title>Projeto LM</title>
+  <meta http-equiv='refresh' content='0; url=project-lm-profile.html'>
 </head>
-<body class='portal-home-v7 lm-onboarding-page'>
-  <main class='container home-main'>
-    <section class='card hero hero-premium onboarding-intro-card'>
-      <p class='eyebrow'>Projeto LM</p>
-      <h1>Vamos criar sua direção inicial</h1>
-      <p class='hero-subtext'>Responda duas perguntas rápidas para montar seu primeiro passo dentro do Projeto LM.</p>
-    </section>
-
-    <form id='projectLmOnboardingForm' class='onboarding-form' aria-label='Onboarding Projeto LM'>
-      <fieldset class='card dashboard-card onboarding-question-card'>
-        <legend>Como você quer se sentir daqui a alguns meses?</legend>
-        <div class='onboarding-options'>
-          <label class='onboarding-radio-card'><input type='radio' name='goal' value='emagrecer_com_consistencia' required> <span>Emagrecer com consistência</span></label>
-          <label class='onboarding-radio-card'><input type='radio' name='goal' value='voltar_a_treinar'> <span>Voltar a treinar regularmente</span></label>
-          <label class='onboarding-radio-card'><input type='radio' name='goal' value='melhorar_alimentacao'> <span>Melhorar minha alimentação</span></label>
-          <label class='onboarding-radio-card'><input type='radio' name='goal' value='mais_energia'> <span>Ganhar mais energia e disposição</span></label>
-          <label class='onboarding-radio-card'><input type='radio' name='goal' value='recomecar_sem_extremos'> <span>Recomeçar sem extremismos</span></label>
-        </div>
-      </fieldset>
-
-      <fieldset class='card dashboard-card onboarding-question-card'>
-        <legend>O que mais atrapalha você hoje?</legend>
-        <div class='onboarding-options'>
-          <label class='onboarding-radio-card'><input type='radio' name='mainDifficulty' value='falta_de_tempo' required> <span>Falta de tempo</span></label>
-          <label class='onboarding-radio-card'><input type='radio' name='mainDifficulty' value='alimentacao_desorganizada'> <span>Alimentação desorganizada</span></label>
-          <label class='onboarding-radio-card'><input type='radio' name='mainDifficulty' value='cansaco'> <span>Cansaço</span></label>
-          <label class='onboarding-radio-card'><input type='radio' name='mainDifficulty' value='falta_de_constancia'> <span>Falta de constância</span></label>
-          <label class='onboarding-radio-card'><input type='radio' name='mainDifficulty' value='abandono'> <span>Começo bem e abandono</span></label>
-          <label class='onboarding-radio-card'><input type='radio' name='mainDifficulty' value='nao_sei_por_onde_comecar'> <span>Não sei por onde começar</span></label>
-        </div>
-      </fieldset>
-
-      <div class='onboarding-submit-card'>
-        <button id='submitProjectLmOnboarding' class='primary-cta onboarding-submit-button' type='submit'>Criar minha jornada</button>
-      </div>
-      <p id='onboardingStatus' class='muted' role='status' aria-live='polite'></p>
-    </form>
-  </main>
-
-  <script src='public/assets/js/lm-access.js'></script>
-  <script src='portal-shared.js'></script>
-  <script>
-    requireAuth();
-
-    if (!isProjectLm()) {
-      window.location.href = 'portal.html';
-    }
-
-    const form = document.getElementById('projectLmOnboardingForm');
-    const submitButton = document.getElementById('submitProjectLmOnboarding');
-    const statusEl = document.getElementById('onboardingStatus');
-
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const formData = new FormData(form);
-      const goal = formData.get('goal');
-      const mainDifficulty = formData.get('mainDifficulty');
-
-      submitButton.disabled = true;
-      statusEl.textContent = 'Criando sua jornada...';
-
-      try {
-        await api('/portal/project-lm/profile', {
-          method: 'POST',
-          body: JSON.stringify({ goal, mainDifficulty })
-        });
-        statusEl.textContent = 'Sua jornada foi criada.';
-        window.setTimeout(() => {
-          window.location.href = 'projeto-lm-jornada.html';
-        }, 600);
-      } catch (error) {
-        statusEl.textContent = error.message || 'Não foi possível criar sua jornada agora.';
-        submitButton.disabled = false;
-      }
-    });
-  </script>
+<body>
+  <script>window.location.replace('project-lm-profile.html');</script>
+  <p>Redirecionando para o Projeto LM...</p>
 </body>
 </html>

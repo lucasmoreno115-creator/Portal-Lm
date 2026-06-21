@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Perfil — Projeto LM</title>
+  <link rel='stylesheet' href='portal.css'>
+  <link rel='stylesheet' href='project-lm.css'>
+</head>
+<body class='portal-home-v7 projeto-lm-profile-page'>
+  <main class='container home-main'>
+    <section class='card hero hero-premium onboarding-intro-card'>
+      <p class='eyebrow'>Projeto LM</p>
+      <h1>Bem-vindo ao Projeto LM</h1>
+      <p class='hero-subtext'>Para liberar seu planejamento, escolha a opção que melhor representa você.</p>
+    </section>
+
+    <form id='projectLmProfileForm' class='profile-choice-form' aria-label='Perfil Projeto LM'>
+      <section class='card dashboard-card'>
+        <label class='profile-choice-card'><input type='radio' name='sex' value='female' required> <span>Mulher</span></label>
+        <label class='profile-choice-card'><input type='radio' name='sex' value='male'> <span>Homem</span></label>
+      </section>
+      <div class='profile-submit-card'>
+        <button id='submitProjectLmProfile' class='primary-cta' type='submit'>Continuar</button>
+        <p id='profileStatus' class='muted' role='status' aria-live='polite'></p>
+      </div>
+    </form>
+  </main>
+  <script src='public/assets/js/lm-access.js'></script>
+  <script src='portal-shared.js'></script>
+  <script src='project-lm-profile.js'></script>
+</body>
+</html>

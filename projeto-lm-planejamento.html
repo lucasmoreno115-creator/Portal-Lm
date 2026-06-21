@@ -5,6 +5,7 @@
   <meta name='viewport' content='width=device-width,initial-scale=1'>
   <title>Meu Planejamento — Projeto LM</title>
   <link rel='stylesheet' href='portal.css'>
+  <link rel='stylesheet' href='project-lm.css'>
 </head>
 <body class='portal-home-v7 projeto-lm-planning-page'>
   <main class='container home-main'>
@@ -16,46 +17,23 @@
       <p class='hero-subtext'>Você não precisa fazer tudo.<br>Precisa executar o básico.</p>
     </section>
 
+    <section class='card dashboard-card planning-card planning-summary' aria-labelledby='planningSummaryTitle'>
+      <h2 id='planningSummaryTitle'>🎯 Plano Inicial</h2>
+      <div id='planningProfileSummary'>Carregando planejamento...</div>
+    </section>
+
     <section class='card dashboard-card planning-card' aria-labelledby='planningTrainingTitle'>
       <h2 id='planningTrainingTitle'>🏋️ Treino</h2>
-      <p class='planning-card-label'>Checklist de Hoje</p>
-<p class='planning-card-label'>Opção Academia</p>
-<p class='planning-card-label'>Treino A:</p>
-      <ul class='planning-list'>
-        <li>🔹 Agachamento</li>
-        <li>🔹 Supino ou máquina</li>
-        <li>🔹 Remada</li>
-        <li>🔹 Desenvolvimento</li>
-        <li>🔹 Caminhada 10 min</li>
-      </ul>
-      <p class='planning-card-label'>Treino B:</p>
-      <ul class='planning-list'>
-        <li>🔹 Leg press</li>
-        <li>🔹 Puxada</li>
-        <li>🔹 Cadeira extensora</li>
-        <li>🔹 Elevação lateral</li>
-        <li>🔹 Caminhada 10 min</li>
-      </ul>
-      <p class='planning-card-label'>Opção Casa:</p>
-      <ul class='planning-list'>
-        <li>🔹 Sentar e levantar da cadeira</li>
-        <li>🔹 Flexão na parede</li>
-        <li>🔹 Agachamento livre</li>
-        <li>🔹 Caminhada 15 min</li>
-      </ul>
+      <p class='planning-card-label'>Divisão semanal</p>
+      <div id='weeklyTrainingPlan'>Carregando treino...</div>
       <button id='trainingDoneBtn' class='primary-cta' type='button'>☑ Treinei hoje</button>
       <p id='trainingDoneMsg' class='muted' role='status'></p>
     </section>
 
     <section class='card dashboard-card planning-card' aria-labelledby='planningNutritionTitle'>
       <h2 id='planningNutritionTitle'>🍽 Alimentação</h2>
-      <p class='planning-card-label'>Checklist de Hoje</p>
-      <ul class='planning-list'>
-        <li>🔹 Proteína no almoço e jantar</li>
-        <li>🔹 Beber 2 litros de água</li>
-        <li>🔹 Comer 1 fruta por dia</li>
-        <li>🔹 Montar almoço e jantar com proteína + carboidrato + vegetais</li>
-      </ul>
+      <p class='planning-card-label'>Estrutura alimentar</p>
+      <div id='nutritionPlan'>Carregando alimentação...</div>
       <button id='nutritionDoneBtn' class='primary-cta' type='button'>☑ Segui o plano alimentar hoje</button>
       <p id='nutritionDoneMsg' class='muted' role='status'></p>
     </section>
@@ -73,6 +51,7 @@
 
   <script src='public/assets/js/lm-access.js'></script>
   <script src='portal-shared.js'></script>
+  <script src='project-lm-planning.js'></script>
   <script>
     requireAuth();
     redirectIfNoAccess('meu-planejamento');

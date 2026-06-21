@@ -246,7 +246,6 @@
       const consistency = consistencyResult || {};
       const library = libraryResult || {};
       const mission = missionResult || {};
-      const profile = isProjectLm() ? await fetchSafe('/portal/project-lm/profile') : null;
 
       renderJourney(summary, consistency);
       renderNextMilestone(summary, consistency);
@@ -254,10 +253,6 @@
       renderAchievementsCard(summary, consistency, library, !summaryResult || !consistencyResult || !libraryResult);
       if (missionResult) renderWeeklyMission(mission);
 
-      if (profile) {
-        const goalMessage = projectLmGoalMessages[profile.goal] || 'Manter o básico bem feito hoje.';
-        projectLmHeroSubtext.textContent = goalMessage;
-      }
     }
 
     loadJourney();
