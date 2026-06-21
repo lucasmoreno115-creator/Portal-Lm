@@ -1,0 +1,12 @@
+/* Projeto LM only: profile selection and planning content */
+.projeto-lm-profile-page .profile-choice-form{display:grid;gap:18px}
+.projeto-lm-profile-page .profile-choice-card{display:block;cursor:pointer}
+.projeto-lm-profile-page .profile-choice-card input{position:absolute;opacity:0;pointer-events:none}
+.projeto-lm-profile-page .profile-choice-card span{display:block;padding:18px;border:1px solid rgba(244,215,128,.35);border-radius:18px;background:rgba(255,255,255,.04);font-weight:800;color:#fff;text-align:center}
+.projeto-lm-profile-page .profile-choice-card:has(input:checked) span{border-color:#f4d780;background:rgba(244,215,128,.14);box-shadow:0 0 0 2px rgba(244,215,128,.18)}
+.projeto-lm-profile-page .profile-submit-card{display:grid;gap:10px}
+.projeto-lm-planning-page .planning-summary{display:grid;gap:10px}
+.projeto-lm-planning-page .planning-summary strong{color:#f4d780}
+.projeto-lm-planning-page .planning-day{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.10)}
+.projeto-lm-planning-page .planning-day:first-child{margin-top:0;padding-top:0;border-top:0}
+.projeto-lm-planning-page .planning-day-title{margin:0 0 8px;color:#f4d780;font-weight:800}

@@ -139,7 +139,7 @@ export default {
         });
       }
 
-      if (url.pathname.startsWith('/api/portal/')) {
+      if (url.pathname.startsWith('/api/portal/') || url.pathname.startsWith('/api/project-lm/')) {
         const auth = await validateStudent(request, env.DB);
         if (!auth.ok) return json({ ok: false, error: auth.error }, 401);
 
@@ -149,9 +149,9 @@ export default {
           return json({ ok: true, data: auth.student });
         }
 
-        if (url.pathname === '/api/portal/project-lm/profile' && method === 'GET') {
-          const profile = await getProjectLmProfile(env.DB, studentEmail);
-          return json({ ok: true, data: profile });
+        if ((url.pathname === '/api/project-lm/profile' || url.pathname === '/api/portal/project-lm/profile') && method === 'GET') {
+          const profile = await getProjectLmProfile(env.DB, auth.student.id);
+          return json({ success: true, ok: true, profile, data: profile });
         }
 
         if (url.pathname === '/api/portal/project-lm/current-mission' && method === 'GET') {
@@ -255,32 +255,31 @@ export default {
           return json({ ok: true, data: { id, actionDate, actionType, alreadyCompleted: false } });
         }
 
-        if (url.pathname === '/api/portal/project-lm/profile' && method === 'POST') {
-          const body = await safeJson(request);
-          const goal = sanitizeProjectLmValue(body?.goal);
-          const mainDifficulty = sanitizeProjectLmValue(body?.mainDifficulty);
-
-          if (!PROJECT_LM_GOALS.has(goal)) {
-            return json({ ok: false, error: 'goal inválido.' }, 400);
+        if ((url.pathname === '/api/project-lm/profile' || url.pathname === '/api/portal/project-lm/profile') && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) {
+            return json({ success: false, ok: false, error: 'Recurso disponível apenas para Projeto LM.' }, 403);
           }
-          if (!PROJECT_LM_DIFFICULTIES.has(mainDifficulty)) {
-            return json({ ok: false, error: 'mainDifficulty inválido.' }, 400);
+
+          const body = await safeJson(request);
+          const sex = nullableTrimmed(body?.sex);
+
+          if (!PROJECT_LM_PROFILE_SEXES.has(sex)) {
+            return json({ success: false, ok: false, error: 'sex inválido.' }, 400);
+          }
+
+          const existing = await getProjectLmProfile(env.DB, auth.student.id);
+          if (existing) {
+            return json({ success: true, ok: true, profile: existing, data: existing });
           }
 
           const now = new Date().toISOString();
           await env.DB.prepare(
-            `INSERT INTO project_lm_profile (
-              student_email, goal, main_difficulty, onboarding_completed, created_at, updated_at
-            ) VALUES (?, ?, ?, 1, ?, ?)
-            ON CONFLICT(student_email) DO UPDATE SET
-              goal=excluded.goal,
-              main_difficulty=excluded.main_difficulty,
-              onboarding_completed=1,
-              updated_at=excluded.updated_at`
-          ).bind(studentEmail, goal, mainDifficulty, now, now).run();
+            `INSERT INTO project_lm_profiles (user_id, sex, created_at, updated_at)
+             VALUES (?, ?, ?, ?)`
+          ).bind(auth.student.id, sex, now, now).run();
 
-          const profile = await getProjectLmProfile(env.DB, studentEmail);
-          return json({ ok: true, data: profile });
+          const profile = await getProjectLmProfile(env.DB, auth.student.id);
+          return json({ success: true, ok: true, profile, data: profile });
         }
 
         if (url.pathname === '/api/portal/weekly-plan' && method === 'GET') {
@@ -1951,6 +1950,17 @@ async function ensureSchema(db) {
     updated_at TEXT
   )`).run();
 
+  await db.prepare(`CREATE TABLE IF NOT EXISTS project_lm_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    sex TEXT NOT NULL CHECK (sex IN ('female', 'male')),
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+
+  await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_project_lm_profiles_user_id
+    ON project_lm_profiles(user_id)`).run();
+
   await db.prepare(`CREATE TABLE IF NOT EXISTS project_lm_daily_actions (
     id TEXT PRIMARY KEY,
     student_email TEXT NOT NULL,
@@ -2803,6 +2813,8 @@ const PROJECT_LM_DIFFICULTIES = new Set([
   'nao_sei_por_onde_comecar'
 ]);
 
+const PROJECT_LM_PROFILE_SEXES = new Set(['female', 'male']);
+
 const PROJECT_LM_DAILY_ACTION_TYPES = new Set([
   'primeira_vitoria',
   'modo_dia_dificil',
@@ -2810,6 +2822,10 @@ const PROJECT_LM_DAILY_ACTION_TYPES = new Set([
   'treino',
   'alimentacao'
 ]);
+
+function isProjectLmPlan(student) {
+  return normalizeStudentPlan(student?.plan) === 'projeto_lm';
+}
 
 function canUseProjectLmProgress(student) {
   const plan = normalizeStudentPlan(student?.plan || student?.planType);
@@ -2932,14 +2948,14 @@ function mapProjectLmProfile(row) {
   };
 }
 
-async function getProjectLmProfile(db, studentEmail) {
+async function getProjectLmProfile(db, userId) {
   const row = await db.prepare(
-    `SELECT student_email, goal, main_difficulty, onboarding_completed, created_at, updated_at
-     FROM project_lm_profile
-     WHERE lower(student_email)=?
+    `SELECT sex, created_at, updated_at
+     FROM project_lm_profiles
+     WHERE user_id=?
      LIMIT 1`
-  ).bind(String(studentEmail || '').trim().toLowerCase()).first();
-  return mapProjectLmProfile(row);
+  ).bind(userId).first();
+  return row ? { sex: row.sex, created_at: row.created_at, updated_at: row.updated_at } : null;
 }
 
 function getProjectLmWeekFromCreatedAt(createdAt, now = new Date()) {
@@ -3125,7 +3141,7 @@ async function validateStudent(request, db) {
   }
 
   const student = await db.prepare(
-    `SELECT name, email, plan_type, plan
+    `SELECT id, name, email, plan_type, plan
      FROM student_access
      WHERE lower(email)=?
        AND access_token=?
@@ -3139,6 +3155,7 @@ async function validateStudent(request, db) {
   return {
     ok: true,
     student: {
+      id: student.id,
       name: student.name,
       email: student.email,
       planType: student.plan_type || 'PREMIUM',
