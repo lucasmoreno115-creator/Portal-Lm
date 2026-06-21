@@ -2806,7 +2806,9 @@ const PROJECT_LM_DIFFICULTIES = new Set([
 const PROJECT_LM_DAILY_ACTION_TYPES = new Set([
   'primeira_vitoria',
   'modo_dia_dificil',
-  'acao_minima'
+  'acao_minima',
+  'treino',
+  'alimentacao'
 ]);
 
 function canUseProjectLmProgress(student) {
