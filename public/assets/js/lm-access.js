@@ -4,6 +4,7 @@ const LM_ACCESS = {
     'plano-inicial',
     'consistencia',
     'modo-dia-dificil',
+    'marcos',
     'biblioteca'
   ],
   premium: [
@@ -12,6 +13,7 @@ const LM_ACCESS = {
     'plano-inicial',
     'consistencia',
     'modo-dia-dificil',
+    'marcos',
     'biblioteca',
     'plano-alimentar',
     'treinos',
@@ -30,7 +32,8 @@ const LM_MENU_ITEMS = [
   { feature: 'minha-jornada', label: '🗺 Minha Jornada', href: 'projeto-lm-jornada.html' },
   { feature: 'plano-inicial', label: '📋 Plano Inicial', href: 'projeto-lm-plano-inicial.html' },
   { feature: 'consistencia', label: '📈 Consistência', href: 'projeto-lm-consistencia.html' },
-  { feature: 'modo-dia-dificil', label: '🧭 Modo Dia Difícil', href: 'projeto-lm-dia-dificil.html' },
+  { feature: 'modo-dia-dificil', label: '🧭 Plano B', href: 'projeto-lm-dia-dificil.html' },
+  { feature: 'marcos', label: '🏅 Marcos', href: 'projeto-lm-conquistas.html' },
   { feature: 'biblioteca', label: '📚 Biblioteca', href: 'projeto-lm-biblioteca.html' },
   { feature: 'plano-alimentar', label: 'Plano Alimentar', href: 'portal-plano-alimentar.html' },
   { feature: 'progressao', label: 'Progressão', href: 'portal-progressao.html' },
@@ -79,6 +82,7 @@ function getMenuItemsForPlan(plan) {
 
   return LM_MENU_ITEMS.filter((item) => {
     if (normalizedPlan === 'projeto_lm' && item.feature === 'dashboard') return false;
+    if (['plano-inicial', 'consistencia'].includes(item.feature)) return false;
     return allowedFeatures.includes(item.feature);
   });
 }

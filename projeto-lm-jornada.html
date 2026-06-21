@@ -35,6 +35,18 @@
       <a class='secondary-link weekly-mission-plan-link' href='projeto-lm-plano-inicial.html'>📋 Ver Plano Inicial</a>
     </section>
 
+    <section class='card dashboard-card' aria-label='Próximo marco'>
+      <h2>🏅 Próximo Marco</h2>
+      <p id='projectLmNextMilestone' class='journey-card-subtitle'>Faltam 0 dias para o próximo marco.</p>
+      <a class='primary-cta' href='projeto-lm-conquistas.html'>Ver todos os marcos</a>
+    </section>
+
+    <section class='card dashboard-card' aria-label='Conteúdo da semana'>
+      <h2>📚 Conteúdo da Semana</h2>
+      <p class='journey-card-subtitle'>Pare de Recomeçar</p>
+      <a class='primary-cta' href='projeto-lm-biblioteca.html'>Assistir</a>
+    </section>
+
     <section class='card dashboard-card' aria-label='Próxima vitória'>
       <h2>🏆 Próxima Vitória</h2>
       <p class='journey-card-subtitle'>Comece pelo menor passo possível.</p>
@@ -61,7 +73,7 @@
       <ol id='journeySteps' class='journey-progress-list'>
         <li class='is-complete'><span class='journey-step-marker'>✅</span><span>Direção definida</span></li>
         <li><span class='journey-step-marker'>⬜</span><span>Primeira vitória</span></li>
-        <li><span class='journey-step-marker'>⬜</span><span>Modo Dia Difícil utilizado</span></li>
+        <li><span class='journey-step-marker'>⬜</span><span>Plano B utilizado</span></li>
         <li><span class='journey-step-marker'>⬜</span><span>3 dias de consistência</span></li>
         <li><span class='journey-step-marker'>⬜</span><span>7 dias de consistência</span></li>
         <li><span class='journey-step-marker'>⬜</span><span>14 dias de consistência</span></li>
@@ -95,6 +107,7 @@
 
     const journeyStepsEl = document.getElementById('journeySteps');
     const projectLmHeroSubtext = document.getElementById('projectLmHeroSubtext');
+    const nextMilestoneText = document.getElementById('projectLmNextMilestone');
     const nextWinText = document.getElementById('projectLmNextWin');
     const nextWinCta = document.getElementById('projectLmNextWinCta');
     const consistencyTitle = document.getElementById('projectLmConsistencyTitle');
@@ -176,7 +189,7 @@
       const steps = [
         { label: 'Direção definida', complete: true },
         { label: 'Primeira vitória', complete: firstVictoryCompleted },
-        { label: 'Modo Dia Difícil utilizado', complete: hardDayModeCompleted },
+        { label: 'Plano B utilizado', complete: hardDayModeCompleted },
         { label: '3 dias de consistência', complete: currentStreak >= 3 },
         { label: '7 dias de consistência', complete: currentStreak >= 7 },
         { label: '14 dias de consistência', complete: currentStreak >= 14 },
@@ -203,8 +216,8 @@
       }
 
       if (!hardDayModeCompleted) {
-        nextWinText.textContent = 'Usar o Modo Dia Difícil pelo menos uma vez.';
-        setNextWinButton({ text: 'Abrir Modo Dia Difícil', href: 'projeto-lm-dia-dificil.html' });
+        nextWinText.textContent = 'Usar o Plano B pelo menos uma vez.';
+        setNextWinButton({ text: 'Abrir Plano B', href: 'projeto-lm-dia-dificil.html' });
         return;
       }
 
@@ -220,7 +233,7 @@
         nextWinText.textContent = 'Você consolidou sua rotina inicial. Continue protegendo o básico.';
       }
 
-      setNextWinButton({ text: 'Abrir Modo Dia Difícil', href: 'projeto-lm-dia-dificil.html' });
+      setNextWinButton({ text: 'Abrir Plano B', href: 'projeto-lm-dia-dificil.html' });
     }
 
     function renderConsistencyCard(consistency = {}) {
@@ -231,6 +244,21 @@
       consistencyText.textContent = currentStreak === 0
         ? 'Hoje é uma boa oportunidade para recomeçar.'
         : `${activeDays} dias ativos registrados.`;
+    }
+
+
+    function renderNextMilestone(summary = {}, consistency = {}) {
+      const firstVictoryCompleted = isFirstVictoryCompleted(summary);
+      const hardDayModeCompleted = isHardDayModeCompleted(summary);
+      const currentStreak = getStreak(consistency, summary);
+      let daysToNextMilestone = 0;
+
+      if (firstVictoryCompleted && hardDayModeCompleted) {
+        const nextStreakTarget = [3, 7, 14, 21].find((target) => currentStreak < target);
+        daysToNextMilestone = nextStreakTarget ? nextStreakTarget - currentStreak : 0;
+      }
+
+      nextMilestoneText.textContent = `Faltam ${daysToNextMilestone} dias para o próximo marco.`;
     }
 
     function renderAchievementsCard(summary = {}, consistency = {}, library = {}, hasError = false) {
@@ -292,6 +320,7 @@
 
       renderJourney(summary, consistency);
       renderNextWin(summary, consistency);
+      renderNextMilestone(summary, consistency);
       renderConsistencyCard(consistency);
       renderAchievementsCard(summary, consistency, library, !summaryResult || !consistencyResult || !libraryResult);
       if (missionResult) renderWeeklyMission(mission);
