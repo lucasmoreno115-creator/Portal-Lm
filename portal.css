@@ -1483,3 +1483,129 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
   .projeto-lm-initial-plan-page .initial-plan-hero{padding:22px}
   .projeto-lm-initial-plan-page .initial-plan-option-card{padding:16px}
 }
+
+.projeto-lm-planning-page .planning-hero{
+  min-height:auto;
+  height:auto;
+  padding:clamp(28px,5vw,54px);
+  border-color:rgba(212,175,55,.5);
+  background:
+    radial-gradient(circle at 82% 18%,rgba(212,175,55,.22),transparent 34%),
+    linear-gradient(145deg,#181818 0%,#101010 60%,#1b1407 100%);
+}
+.projeto-lm-planning-page .planning-hero::before{display:none}
+.projeto-lm-planning-page .planning-hero h1{
+  margin:0 0 12px;
+  font-size:clamp(2.25rem,5vw,4.5rem);
+  line-height:1.02;
+  color:#fff;
+}
+.projeto-lm-planning-page .planning-hero .hero-subtext{
+  margin:0;
+  max-width:680px;
+  color:#f1f1f1;
+  font-size:clamp(1.08rem,2vw,1.45rem);
+}
+.projeto-lm-planning-page .planning-card,
+.projeto-lm-planning-page .planning-mission-card{
+  border-color:rgba(212,175,55,.34);
+  background:linear-gradient(180deg,#151515,#101010);
+}
+.projeto-lm-planning-page .planning-card{
+  display:grid;
+  gap:14px;
+}
+.projeto-lm-planning-page .planning-card h2{
+  margin-bottom:0;
+}
+.projeto-lm-planning-page .planning-card p{
+  margin:0;
+  color:#e8e0cc;
+  line-height:1.7;
+}
+.projeto-lm-planning-page .planning-card-label{
+  color:#f0d47a;
+  font-weight:900;
+}
+.projeto-lm-planning-page .planning-list{
+  display:grid;
+  gap:10px;
+  margin:0;
+  padding:0;
+  list-style:none;
+}
+.projeto-lm-planning-page .planning-list li{
+  padding:12px 14px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  background:#131313;
+  color:#ededed;
+  font-weight:700;
+  line-height:1.4;
+}
+.projeto-lm-planning-page .planning-card .primary-cta{
+  justify-self:start;
+}
+.projeto-lm-planning-page .planning-plan-b-card{
+  border-color:rgba(212,175,55,.5);
+  background:
+    radial-gradient(circle at 12% 0%,rgba(212,175,55,.12),transparent 34%),
+    linear-gradient(180deg,#151515,#0f0f0f);
+}
+@media (max-width:720px){
+  .projeto-lm-planning-page .planning-hero{padding:22px}
+  .projeto-lm-planning-page .planning-card .primary-cta{width:100%}
+}
+
+.projeto-lm-planning-page .weekly-mission-card{
+  border-color:rgba(212,175,55,.46);
+  background:
+    radial-gradient(circle at 92% 8%,rgba(212,175,55,.14),transparent 34%),
+    linear-gradient(155deg,#17140d 0%,#141414 48%,#0f0f0f 100%);
+  box-shadow:0 20px 42px rgba(0,0,0,.45),inset 0 0 0 1px rgba(212,175,55,.12);
+}
+.projeto-lm-planning-page .weekly-mission-kicker{
+  margin:0 0 10px;
+  color:#f0d47a;
+  font-size:.88rem;
+  font-weight:900;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+.projeto-lm-planning-page .weekly-mission-title{
+  margin:0 0 10px;
+  color:#fff;
+  font-size:clamp(1.5rem,3vw,2.35rem);
+  line-height:1.08;
+}
+.projeto-lm-planning-page .weekly-mission-card > p:not(.weekly-mission-kicker):not(.journey-card-subtitle){
+  margin:0 0 18px;
+  color:#e2e2e2;
+  font-size:1.04rem;
+  line-height:1.6;
+}
+.projeto-lm-planning-page .weekly-mission-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+.projeto-lm-planning-page .weekly-mission-box{
+  min-width:0;
+  padding:16px;
+  border:1px solid rgba(212,175,55,.28);
+  border-radius:14px;
+  background:rgba(8,8,8,.45);
+}
+.projeto-lm-planning-page .weekly-mission-box strong{
+  display:block;
+  margin-bottom:8px;
+  color:#f0d47a;
+}
+.projeto-lm-planning-page .weekly-mission-box p{
+  margin:0;
+  color:#f3f3f3;
+  line-height:1.55;
+}
+@media (max-width:720px){
+  .projeto-lm-planning-page .weekly-mission-grid{grid-template-columns:1fr}
+}

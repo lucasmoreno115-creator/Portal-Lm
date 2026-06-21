@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Meu Planejamento — Projeto LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body class='portal-home-v7 projeto-lm-planning-page'>
+  <main class='container home-main'>
+    <div id='nav' class='mobile-nav'></div>
+
+    <section class='card hero hero-premium planning-hero'>
+      <p class='eyebrow'>Projeto LM</p>
+      <h1>Meu Planejamento</h1>
+      <p class='hero-subtext'>Você não precisa fazer tudo.<br>Precisa executar o básico.</p>
+    </section>
+
+    <section class='card dashboard-card planning-card' aria-labelledby='planningTrainingTitle'>
+      <h2 id='planningTrainingTitle'>🏋️ Treino da Semana</h2>
+      <p class='planning-card-label'>Objetivo:</p>
+      <p>Movimentar o corpo.</p>
+      <p class='planning-card-label'>Sugestões:</p>
+      <ul class='planning-list'>
+        <li>🔹 Caminhada 20 minutos</li>
+        <li>🔹 Treino A</li>
+        <li>🔹 Treino B</li>
+        <li>🔹 Treino C</li>
+      </ul>
+      <button id='trainingDoneBtn' class='primary-cta' type='button'>☑ Treinei hoje</button>
+      <p id='trainingDoneMsg' class='muted' role='status'></p>
+    </section>
+
+    <section class='card dashboard-card planning-card' aria-labelledby='planningNutritionTitle'>
+      <h2 id='planningNutritionTitle'>🍽 Alimentação da Semana</h2>
+      <ul class='planning-list'>
+        <li>🔹 Fazer café da manhã</li>
+        <li>🔹 Comer proteína em 2 refeições</li>
+        <li>🔹 Beber mais água</li>
+      </ul>
+      <button id='nutritionDoneBtn' class='primary-cta' type='button'>☑ Fiz o básico da alimentação hoje</button>
+      <p id='nutritionDoneMsg' class='muted' role='status'></p>
+    </section>
+
+    <section class='card dashboard-card planning-card planning-plan-b-card' aria-labelledby='planningPlanBTitle'>
+      <h2 id='planningPlanBTitle'>🧭 Plano B</h2>
+      <p>Nem todos os dias serão perfeitos.</p>
+      <p>Quando a rotina apertar,<br>use o Plano B.</p>
+      <a class='primary-cta' href='projeto-lm-dia-dificil.html'>ABRIR PLANO B</a>
+    </section>
+
+    <section class='card weekly-mission-card planning-mission-card' aria-label='Sua missão da semana'>
+      <p class='weekly-mission-kicker'>🎯 Sua Missão da Semana</p>
+      <p id='weeklyMissionWeek' class='journey-card-subtitle'>Semana 1 de 4</p>
+      <h2 id='weeklyMissionTitle' class='weekly-mission-title'>Pare de Recomeçar</h2>
+      <p id='weeklyMissionDescription'>Seu objetivo nesta semana não é emagrecer rápido. É criar movimento.</p>
+      <div class='weekly-mission-grid'>
+        <article class='weekly-mission-box'>
+          <strong>Missão:</strong>
+          <p id='weeklyMissionMain'>Cumprir 3 ações mínimas.</p>
+        </article>
+        <article class='weekly-mission-box'>
+          <strong>Para avançar:</strong>
+          <p id='weeklyMissionSuccess'>3 ações registradas.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script src='public/assets/js/lm-access.js'></script>
+  <script src='portal-shared.js'></script>
+  <script>
+    requireAuth();
+    redirectIfNoAccess('meu-planejamento');
+    redirectProjectLmOnboardingIfNeeded().catch(() => {});
+    document.getElementById('nav').innerHTML = nav();
+
+    const weeklyMissionWeek = document.getElementById('weeklyMissionWeek');
+    const weeklyMissionTitle = document.getElementById('weeklyMissionTitle');
+    const weeklyMissionDescription = document.getElementById('weeklyMissionDescription');
+    const weeklyMissionMain = document.getElementById('weeklyMissionMain');
+    const weeklyMissionSuccess = document.getElementById('weeklyMissionSuccess');
+
+    function renderWeeklyMission(mission = {}) {
+      const week = Math.min(4, Math.max(1, Number(mission.week || 1) || 1));
+      weeklyMissionWeek.textContent = `Semana ${week} de 4`;
+      weeklyMissionTitle.textContent = mission.title || 'Pare de Recomeçar';
+      weeklyMissionDescription.textContent = mission.description || 'Seu objetivo nesta semana não é emagrecer rápido. É criar movimento.';
+      weeklyMissionMain.textContent = mission.mainMission || 'Cumprir 3 ações mínimas.';
+      weeklyMissionSuccess.textContent = mission.successCriteria || '3 ações registradas.';
+    }
+
+    async function registerPlanningAction(actionType, button, messageElement, successText) {
+      button.disabled = true;
+      messageElement.textContent = '';
+
+      try {
+        await api('/portal/project-lm/daily-actions', {
+          method: 'POST',
+          body: JSON.stringify({ actionType })
+        });
+        messageElement.textContent = successText;
+      } catch (error) {
+        button.disabled = false;
+        messageElement.textContent = error.message || 'Não foi possível registrar sua ação agora.';
+      }
+    }
+
+    async function loadMission() {
+      try {
+        const response = await api('/portal/project-lm/current-mission');
+        renderWeeklyMission(response?.data || response || {});
+      } catch (error) {
+        renderWeeklyMission();
+      }
+    }
+
+    document.getElementById('trainingDoneBtn').addEventListener('click', (event) => {
+      registerPlanningAction('treino', event.currentTarget, document.getElementById('trainingDoneMsg'), 'Treino de hoje registrado.');
+    });
+
+    document.getElementById('nutritionDoneBtn').addEventListener('click', (event) => {
+      registerPlanningAction('alimentacao', event.currentTarget, document.getElementById('nutritionDoneMsg'), 'Básico da alimentação registrado.');
+    });
+
+    loadMission();
+  </script>
+</body>
+</html>

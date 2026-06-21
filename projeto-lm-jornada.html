@@ -47,13 +47,11 @@
       <a class='primary-cta' href='projeto-lm-biblioteca.html'>Assistir</a>
     </section>
 
-    <section class='card dashboard-card' aria-label='Sua ação de hoje'>
-      <h2>🎯 Sua Ação de Hoje</h2>
-      <p class='journey-card-subtitle'>Comece pelo menor passo possível.</p>
-      <p id='projectLmNextWin'>Concluir sua primeira vitória.</p>
-      <div id='projectLmNextWinCta' class='journey-next-win-cta'>
-        <button class='primary-cta' type='button'>Concluir minha primeira vitória</button>
-      </div>
+    <section class='card dashboard-card' aria-label='Meu planejamento'>
+      <h2>📋 Meu Planejamento</h2>
+      <p class='journey-card-subtitle'>Seu plano para esta semana.</p>
+      <p>Treino, alimentação e Plano B.</p>
+      <a class='primary-cta' href='projeto-lm-planejamento.html'>VER MEU PLANEJAMENTO</a>
     </section>
 
     <section class='card dashboard-card consistency-card' aria-label='Consistência'>
@@ -108,8 +106,6 @@
     const journeyStepsEl = document.getElementById('journeySteps');
     const projectLmHeroSubtext = document.getElementById('projectLmHeroSubtext');
     const nextMilestoneText = document.getElementById('projectLmNextMilestone');
-    const nextWinText = document.getElementById('projectLmNextWin');
-    const nextWinCta = document.getElementById('projectLmNextWinCta');
     const consistencyTitle = document.getElementById('projectLmConsistencyTitle');
     const consistencyText = document.getElementById('projectLmConsistencyText');
     const achievementsText = document.getElementById('projectLmAchievementsText');
@@ -165,23 +161,6 @@
       ].filter(Boolean).length;
     }
 
-    function setNextWinButton({ text, href, disabled = false }) {
-      nextWinCta.innerHTML = '';
-      const cta = href ? document.createElement('a') : document.createElement('button');
-      cta.className = 'primary-cta';
-      cta.textContent = text;
-
-      if (href) {
-        cta.href = href;
-      } else {
-        cta.type = 'button';
-        cta.disabled = disabled;
-        cta.addEventListener('click', registerFirstVictory);
-      }
-
-      nextWinCta.appendChild(cta);
-    }
-
     function renderJourney(summary = {}, consistency = {}) {
       const firstVictoryCompleted = isFirstVictoryCompleted(summary);
       const hardDayModeCompleted = isHardDayModeCompleted(summary);
@@ -202,38 +181,6 @@
           <span>${step.label}</span>
         </li>
       `).join('');
-    }
-
-    function renderNextWin(summary = {}, consistency = {}) {
-      const firstVictoryCompleted = isFirstVictoryCompleted(summary);
-      const hardDayModeCompleted = isHardDayModeCompleted(summary);
-      const currentStreak = getStreak(consistency, summary);
-
-      if (!firstVictoryCompleted) {
-        nextWinText.textContent = 'Concluir sua primeira vitória.';
-        setNextWinButton({ text: 'Concluir minha primeira vitória' });
-        return;
-      }
-
-      if (!hardDayModeCompleted) {
-        nextWinText.textContent = 'Usar o Plano B quando necessário.';
-        setNextWinButton({ text: 'Abrir Plano B', href: 'projeto-lm-dia-dificil.html' });
-        return;
-      }
-
-      if (currentStreak < 3) {
-        nextWinText.textContent = 'Continuar sua sequência de consistência.';
-      } else if (currentStreak < 7) {
-        nextWinText.textContent = 'Continuar sua sequência de consistência.';
-      } else if (currentStreak < 14) {
-        nextWinText.textContent = 'Continuar sua sequência de consistência.';
-      } else if (currentStreak < 21) {
-        nextWinText.textContent = 'Continuar sua sequência de consistência.';
-      } else {
-        nextWinText.textContent = 'Você consolidou sua rotina inicial. Continue protegendo o básico.';
-      }
-
-      setNextWinButton({ text: 'Abrir Plano B', href: 'projeto-lm-dia-dificil.html' });
     }
 
     function renderConsistencyCard(consistency = {}) {
@@ -285,22 +232,6 @@
       weeklyMissionSuccess.textContent = mission.successCriteria || '3 ações registradas.';
     }
 
-    async function registerFirstVictory() {
-      const button = nextWinCta.querySelector('button');
-      if (button) button.disabled = true;
-
-      try {
-        await api('/portal/project-lm/daily-actions', {
-          method: 'POST',
-          body: JSON.stringify({ actionType: 'primeira_vitoria' })
-        });
-        await loadJourney();
-      } catch (error) {
-        if (button) button.disabled = false;
-        alert(error.message || 'Não foi possível registrar sua primeira vitória agora.');
-      }
-    }
-
     async function fetchSafe(path) {
       try {
         const response = await api(path);
@@ -324,7 +255,6 @@
       const profile = isProjectLm() ? await fetchSafe('/portal/project-lm/profile') : null;
 
       renderJourney(summary, consistency);
-      renderNextWin(summary, consistency);
       renderNextMilestone(summary, consistency);
       renderConsistencyCard(consistency);
       renderAchievementsCard(summary, consistency, library, !summaryResult || !consistencyResult || !libraryResult);
