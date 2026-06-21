@@ -17,7 +17,8 @@
     </section>
 
     <section class='card dashboard-card planning-card' aria-labelledby='planningTrainingTitle'>
-      <h2 id='planningTrainingTitle'>🏋️ Treino da Semana</h2>
+      <h2 id='planningTrainingTitle'>🏋️ Treino</h2>
+      <p class='planning-card-label'>Checklist de Hoje</p>
       <p class='planning-card-label'>Objetivo:</p>
       <p>Movimentar o corpo.</p>
       <p class='planning-card-label'>Sugestões:</p>
@@ -32,13 +33,14 @@
     </section>
 
     <section class='card dashboard-card planning-card' aria-labelledby='planningNutritionTitle'>
-      <h2 id='planningNutritionTitle'>🍽 Alimentação da Semana</h2>
+      <h2 id='planningNutritionTitle'>🍽 Alimentação</h2>
+      <p class='planning-card-label'>Checklist de Hoje</p>
       <ul class='planning-list'>
         <li>🔹 Fazer café da manhã</li>
         <li>🔹 Comer proteína em 2 refeições</li>
         <li>🔹 Beber mais água</li>
       </ul>
-      <button id='nutritionDoneBtn' class='primary-cta' type='button'>☑ Fiz o básico da alimentação hoje</button>
+      <button id='nutritionDoneBtn' class='primary-cta' type='button'>☑ Segui o plano alimentar hoje</button>
       <p id='nutritionDoneMsg' class='muted' role='status'></p>
     </section>
 
@@ -46,7 +48,9 @@
       <h2 id='planningPlanBTitle'>🧭 Plano B</h2>
       <p>Nem todos os dias serão perfeitos.</p>
       <p>Quando a rotina apertar,<br>use o Plano B.</p>
-      <a class='primary-cta' href='projeto-lm-dia-dificil.html'>ABRIR PLANO B</a>
+      <button id='planBDoneBtn' class='primary-cta' type='button'>☑ Hoje usei o Plano B</button>
+      <p id='planBDoneMsg' class='muted' role='status'></p>
+      <a class='secondary-link' href='projeto-lm-dia-dificil.html'>Abrir Checklist Plano B</a>
     </section>
 
     <section class='card weekly-mission-card planning-mission-card' aria-label='Sua missão da semana'>
@@ -120,7 +124,11 @@
     });
 
     document.getElementById('nutritionDoneBtn').addEventListener('click', (event) => {
-      registerPlanningAction('alimentacao', event.currentTarget, document.getElementById('nutritionDoneMsg'), 'Básico da alimentação registrado.');
+      registerPlanningAction('alimentacao', event.currentTarget, document.getElementById('nutritionDoneMsg'), 'Plano alimentar de hoje registrado.');
+    });
+
+    document.getElementById('planBDoneBtn').addEventListener('click', (event) => {
+      registerPlanningAction('modo_dia_dificil', event.currentTarget, document.getElementById('planBDoneMsg'), 'Plano B de hoje registrado.');
     });
 
     loadMission();
