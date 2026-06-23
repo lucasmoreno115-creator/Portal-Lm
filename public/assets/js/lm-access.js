@@ -35,7 +35,7 @@ const LM_MENU_ITEMS = [
   { feature: 'progressao', label: 'Progressão de carga', href: 'portal-progressao.html' },
   { feature: 'plano-da-semana', label: 'Objetivo do planejamento', href: 'portal.html#weekly-plan-section' },
   { feature: 'checkin', label: 'Check-in semanal', href: 'portal-checkin.html' },
-  { feature: 'suporte', label: 'Preciso de ajuda', href: 'portal-checkin.html#supportNeeded' }
+  { feature: 'suporte', label: 'Preciso de ajuda', href: 'https://wa.me/5514991174500?text=Olá%20Lucas,%20preciso%20de%20ajuda.' }
 ];
 
 function getCurrentUser() {
