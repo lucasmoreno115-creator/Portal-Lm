@@ -1943,14 +1943,6 @@ async function ensureSchema(db) {
   await ensureColumn(db, 'student_access', 'whatsapp', 'TEXT');
   await ensureColumn(db, 'student_access', 'plan', "TEXT DEFAULT 'premium'");
 
-  await db.prepare(`CREATE TABLE IF NOT EXISTS project_lm_profile (
-    student_email TEXT PRIMARY KEY,
-    goal TEXT,
-    main_difficulty TEXT,
-    onboarding_completed INTEGER DEFAULT 0,
-    created_at TEXT,
-    updated_at TEXT
-  )`).run();
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS project_lm_profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
