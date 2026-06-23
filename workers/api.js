@@ -272,13 +272,13 @@ export default {
             return json({ success: true, ok: true, profile: existing, data: existing });
           }
 
-          const { name, goal, sex, weightKg, heightCm } = validation.profile;
-          const nutritionPlanCode = getNutritionPlanCode(sex, weightKg);
+          const { name, objective, goal, sex, weightKg, heightCm } = validation.profile;
+          const initialPlanCode = getInitialPlanCode(sex, weightKg);
           const now = new Date().toISOString();
           await env.DB.prepare(
-            `INSERT INTO project_lm_profiles (user_id, name, goal, sex, weight_kg, height_cm, nutrition_plan_code, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          ).bind(auth.student.id, name, goal, sex, weightKg, heightCm, nutritionPlanCode, now, now).run();
+            `INSERT INTO project_lm_profiles (user_id, name, goal, objective, sex, weight_kg, height_cm, nutrition_plan_code, initial_plan_code, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(auth.student.id, name, goal, objective, sex, weightKg, heightCm, initialPlanCode, initialPlanCode, now, now).run();
 
           const profile = await getProjectLmProfile(env.DB, auth.student.id);
           return json({ success: true, ok: true, profile, data: profile });
@@ -1965,11 +1965,14 @@ async function ensureSchema(db) {
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
   )`).run();
 
+
   await ensureColumn(db, 'project_lm_profiles', 'name', 'TEXT');
   await ensureColumn(db, 'project_lm_profiles', 'goal', 'TEXT');
+  await ensureColumn(db, 'project_lm_profiles', 'objective', 'TEXT');
   await ensureColumn(db, 'project_lm_profiles', 'weight_kg', 'REAL');
   await ensureColumn(db, 'project_lm_profiles', 'height_cm', 'REAL');
   await ensureColumn(db, 'project_lm_profiles', 'nutrition_plan_code', 'TEXT');
+  await ensureColumn(db, 'project_lm_profiles', 'initial_plan_code', 'TEXT');
 
   await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_project_lm_profiles_user_id
     ON project_lm_profiles(user_id)`).run();
@@ -2958,8 +2961,6 @@ function mapProjectLmProfile(row) {
   return {
     student_email: row.student_email,
     goal: row.goal,
-    main_difficulty: row.main_difficulty,
-    mainDifficulty: row.main_difficulty,
     onboarding_completed: Number(row.onboarding_completed || 0),
     onboardingCompleted: Number(row.onboarding_completed || 0),
     created_at: row.created_at,
@@ -2967,7 +2968,7 @@ function mapProjectLmProfile(row) {
   };
 }
 
-function getNutritionPlanCode(sex, weightKg) {
+function getInitialPlanCode(sex, weightKg) {
   if (sex === 'female') {
     if (weightKg < 70) return 'M1';
     if (weightKg < 90) return 'M2';
@@ -2983,38 +2984,62 @@ function getNutritionPlanCode(sex, weightKg) {
   return null;
 }
 
+function normalizeProjectLmSex(value) {
+  const sex = nullableTrimmed(value)?.toLowerCase();
+  if (['female', 'feminino', 'mulher'].includes(sex)) return 'female';
+  if (['male', 'masculino', 'homem'].includes(sex)) return 'male';
+  return sex || null;
+}
+
+function parsePositiveNumber(value) {
+  return Number(typeof value === 'string' ? value.replace(',', '.') : value);
+}
+
 function validateProjectLmProfilePayload(body) {
   const name = nullableTrimmed(body?.name);
-  const goal = nullableTrimmed(body?.goal);
-  const sex = nullableTrimmed(body?.sex);
-  const weightKg = Number(typeof body?.weightKg === 'string' ? body.weightKg.replace(',', '.') : body?.weightKg);
-  const heightCm = Number(typeof body?.heightCm === 'string' ? body.heightCm.replace(',', '.') : body?.heightCm);
+  const objective = nullableTrimmed(body?.objective ?? body?.goal);
+  const goal = objective;
+  const sex = normalizeProjectLmSex(body?.sex);
+  const weightKg = parsePositiveNumber(body?.weightKg ?? body?.weight_kg);
+  const heightCm = parsePositiveNumber(body?.heightCm ?? body?.height_cm);
 
   if (!name) return { ok: false, error: 'name é obrigatório.' };
-  if (!PROJECT_LM_PROFILE_GOALS.has(goal)) return { ok: false, error: 'goal inválido.' };
+  if (!objective) return { ok: false, error: 'objective é obrigatório.' };
+  if (!sex) return { ok: false, error: 'sex é obrigatório.' };
   if (!PROJECT_LM_PROFILE_SEXES.has(sex)) return { ok: false, error: 'sex inválido.' };
   if (!Number.isFinite(weightKg) || weightKg <= 30) return { ok: false, error: 'weightKg deve ser numérico e maior que 30.' };
   if (weightKg >= 250) return { ok: false, error: 'weightKg deve ser menor que 250.' };
   if (!Number.isFinite(heightCm) || heightCm <= 120) return { ok: false, error: 'heightCm deve ser numérico e maior que 120.' };
+  if (!Number.isInteger(heightCm)) {
+    return { ok: false, error: 'heightCm deve ser informado em centímetros, sem casas decimais.' };
+  }
   if (heightCm >= 230) return { ok: false, error: 'heightCm deve ser menor que 230.' };
 
-  return { ok: true, profile: { name, goal, sex, weightKg, heightCm } };
+  return { ok: true, profile: { name, objective, goal, sex, weightKg, heightCm } };
 }
 
 async function getProjectLmProfile(db, userId) {
   const row = await db.prepare(
-    `SELECT name, goal, sex, weight_kg, height_cm, nutrition_plan_code, created_at, updated_at
+    `SELECT name, goal, objective, sex, weight_kg, height_cm, nutrition_plan_code, initial_plan_code, created_at, updated_at
      FROM project_lm_profiles
      WHERE user_id=?
      LIMIT 1`
   ).bind(userId).first();
   return row ? {
     name: row.name,
-    goal: row.goal,
+    objective: row.objective || row.goal,
+    goal: row.goal || row.objective,
     sex: row.sex,
     weightKg: row.weight_kg,
     heightCm: row.height_cm,
-    nutritionPlanCode: row.nutrition_plan_code,
+    weight_kg: row.weight_kg,
+    height_cm: row.height_cm,
+    initial_plan_code: row.initial_plan_code || row.nutrition_plan_code,
+    initialPlanCode: row.initial_plan_code || row.nutrition_plan_code,
+    nutrition_plan_code: row.nutrition_plan_code || row.initial_plan_code,
+    nutritionPlanCode: row.nutrition_plan_code || row.initial_plan_code,
+    onboarding_completed: 1,
+    onboardingCompleted: 1,
     created_at: row.created_at,
     updated_at: row.updated_at
   } : null;

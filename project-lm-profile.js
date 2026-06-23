@@ -23,7 +23,7 @@ form.addEventListener('submit', async (event) => {
   const data = new FormData(form);
   const payload = {
     name: String(data.get('name') || '').trim(),
-    goal: String(data.get('goal') || '').trim(),
+    objective: String(data.get('objective') || '').trim(),
     sex: String(data.get('sex') || '').trim(),
     weightKg: parseDecimalInput(data.get('weightKg')),
     heightCm: parseDecimalInput(data.get('heightCm'))
