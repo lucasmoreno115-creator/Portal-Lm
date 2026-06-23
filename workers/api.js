@@ -1437,55 +1437,79 @@ export default {
              ORDER BY name ASC`
           ).all();
 
+          const { results: lastCheckins = [] } = await env.DB.prepare(
+            `SELECT email_key, created_at, week_ref
+             FROM (
+               SELECT
+                 lower(student_email) AS email_key,
+                 created_at,
+                 week_ref,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY lower(student_email)
+                   ORDER BY created_at DESC
+                 ) AS rn
+               FROM student_checkins
+             )
+             WHERE rn=1`
+          ).all();
+
+          const lastCheckinByEmail = new Map(
+            lastCheckins.map((row) => [row.email_key, row])
+          );
+
+          const { results: currentWeekCheckins = [] } = await env.DB.prepare(
+            `SELECT DISTINCT lower(student_email) AS email_key
+             FROM student_checkins
+             WHERE week_ref=?`
+          ).bind(currentWeekRef).all();
+
+          const currentWeekCheckinSet = new Set(
+            currentWeekCheckins.map((row) => row.email_key)
+          );
+
+          const { results: currentWeekPlans = [] } = await env.DB.prepare(
+            `SELECT DISTINCT lower(student_email) AS email_key
+             FROM weekly_plans
+             WHERE week_ref=?
+               AND status='ACTIVE'`
+          ).bind(currentWeekRef).all();
+
+          const currentWeekPlanSet = new Set(
+            currentWeekPlans.map((row) => row.email_key)
+          );
+
+          const { results: latestFollowups = [] } = await env.DB.prepare(
+            `SELECT email_key, created_at, outcome, risk_level, next_action, reason
+             FROM (
+               SELECT
+                 lower(student_email) AS email_key,
+                 created_at,
+                 outcome,
+                 risk_level,
+                 next_action,
+                 reason,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY lower(student_email)
+                   ORDER BY created_at DESC
+                 ) AS rn
+               FROM followup_logs
+             )
+             WHERE rn=1`
+          ).all();
+
+          const latestFollowupByEmail = new Map(
+            latestFollowups.map((row) => [row.email_key, row])
+          );
+
           const followupStudents = [];
 
           for (const student of activeStudents) {
             const normalizedEmail = String(student.email || '').toLowerCase();
             if (!normalizedEmail) continue;
 
-            const lastCheckinMeta = await env.DB.prepare(
-              `SELECT created_at, week_ref
-               FROM student_checkins
-               WHERE lower(student_email)=?
-               ORDER BY created_at DESC
-               LIMIT 1`
-            ).bind(normalizedEmail).first();
-
-            const currentWeekCheckin = await env.DB.prepare(
-              `SELECT 1
-               FROM student_checkins
-               WHERE lower(student_email)=?
-                 AND week_ref=?
-               LIMIT 1`
-            ).bind(normalizedEmail, currentWeekRef).first();
-
-            const currentWeekPlan = await env.DB.prepare(
-              `SELECT 1
-               FROM weekly_plans
-               WHERE lower(student_email)=?
-                 AND week_ref=?
-                 AND status='ACTIVE'
-               LIMIT 1`
-            ).bind(normalizedEmail, currentWeekRef).first();
-
-            const recentFollowup = await env.DB.prepare(
-              `SELECT created_at
-               FROM followup_logs
-               WHERE lower(student_email)=?
-                 AND datetime(created_at) >= datetime('now', '-5 days')
-               ORDER BY created_at DESC
-               LIMIT 1`
-            ).bind(normalizedEmail).first();
-
-            const latestFollowup = await env.DB.prepare(
-              `SELECT created_at, outcome, risk_level, next_action, reason
-               FROM followup_logs
-               WHERE lower(student_email)=?
-               ORDER BY created_at DESC
-               LIMIT 1`
-            ).bind(normalizedEmail).first();
-
-            const lastFollowupAt = recentFollowup?.created_at || latestFollowup?.created_at || null;
+            const lastCheckinMeta = lastCheckinByEmail.get(normalizedEmail);
+            const latestFollowup = latestFollowupByEmail.get(normalizedEmail);
+            const lastFollowupAt = latestFollowup?.created_at || null;
             const recentlyContacted = Boolean(lastFollowupAt);
 
             followupStudents.push({
@@ -1494,8 +1518,8 @@ export default {
               planType: student.plan_type || 'N/A',
               lastCheckin: lastCheckinMeta?.created_at || null,
               lastCheckinWeek: lastCheckinMeta?.week_ref || null,
-              hasCurrentWeekCheckin: Boolean(currentWeekCheckin),
-              hasCurrentWeekPlan: Boolean(currentWeekPlan),
+              hasCurrentWeekCheckin: currentWeekCheckinSet.has(normalizedEmail),
+              hasCurrentWeekPlan: currentWeekPlanSet.has(normalizedEmail),
               whatsapp: normalizeWhatsapp(student.whatsapp),
               recentlyContacted,
               lastFollowupAt,
