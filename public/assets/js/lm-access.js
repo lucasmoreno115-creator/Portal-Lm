@@ -10,12 +10,6 @@ const LM_ACCESS = {
   ],
   premium: [
     'dashboard',
-    'minha-jornada',
-    'plano-inicial',
-    'meu-planejamento',
-    'consistencia',
-    'modo-dia-dificil',
-    'marcos',
     'biblioteca',
     'plano-alimentar',
     'treinos',
