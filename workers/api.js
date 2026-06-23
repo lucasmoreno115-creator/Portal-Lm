@@ -1777,22 +1777,23 @@ Me responde aqui para ajustarmos o próximo passo e evitar que sua semana fique 
             missingWeeklyPlan.map((student) => String(student.email || '').toLowerCase())
           );
 
-          const checkinByEmail = new Map();
-
-          for (const student of activeStudents) {
-            const email = String(student.email || '').toLowerCase();
-            if (!email) continue;
-
-            const lastWeek = await env.DB.prepare(
-              `SELECT week_ref
+          const { results: latestCheckinWeeks = [] } = await env.DB.prepare(
+            `SELECT email_key, week_ref
+             FROM (
+               SELECT lower(student_email) AS email_key,
+                      week_ref,
+                      ROW_NUMBER() OVER (
+                        PARTITION BY lower(student_email)
+                        ORDER BY created_at DESC
+                      ) AS rn
                FROM student_checkins
-               WHERE lower(student_email)=?
-               ORDER BY created_at DESC
-               LIMIT 1`
-            ).bind(email).first();
+             )
+             WHERE rn=1`
+          ).all();
 
-            checkinByEmail.set(email, lastWeek?.week_ref || null);
-          }
+          const checkinByEmail = new Map(
+            latestCheckinWeeks.map((row) => [String(row.email_key || '').toLowerCase(), row.week_ref || null])
+          );
 
           const riskStudents = [];
 
