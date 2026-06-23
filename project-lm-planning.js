@@ -1,7 +1,6 @@
 const PROJECT_LM_PLANS = {
   female: {
-    label: 'Mulher',
-    objective: 'Emagrecimento com preservação de massa muscular.',
+    label: 'Projeto LM Mulher',
     calories: '1600 kcal',
     weeklyTraining: [
       ['Segunda', 'Lower A'],
@@ -18,8 +17,7 @@ const PROJECT_LM_PLANS = {
     }
   },
   male: {
-    label: 'Homem',
-    objective: 'Emagrecimento com preservação de massa muscular.',
+    label: 'Projeto LM Homem',
     calories: '2000 kcal',
     weeklyTraining: [
       ['Segunda', 'Upper A'],
@@ -49,21 +47,51 @@ function listItems(items) {
   return `<ul class='planning-list'>${items.map((item) => `<li>🔹 ${item}</li>`).join('')}</ul>`;
 }
 
+function getTodayTraining(weeklyTraining, today = new Date()) {
+  const weekday = today.getDay();
+  if (weekday === 0 || weekday === 6) return null;
+  return weeklyTraining[weekday - 1] || null;
+}
+
+function renderTodayTraining(plan) {
+  const weekdays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+  const today = new Date();
+  const todayTraining = getTodayTraining(plan.weeklyTraining, today);
+
+  if (!todayTraining) {
+    return `
+      <p class='planning-day-title'>Hoje é ${weekdays[today.getDay()]}</p>
+      <p>Hoje não tem treino obrigatório.</p>
+      <p>Se quiser manter o processo vivo, faça uma caminhada leve ou apenas siga o plano alimentar.</p>
+    `;
+  }
+
+  const [, workout] = todayTraining;
+  const todayWorkout = workout === 'Cardio' ? 'Cardio LM' : workout;
+  return `
+    <p class='planning-day-title'>Hoje é ${weekdays[today.getDay()]}</p>
+    <p class='planning-card-label'>Treino de hoje:</p>
+    <p class='planning-today-workout'>${todayWorkout}</p>
+  `;
+}
+
 function renderProjectLmPlanning(profile) {
   const plan = PROJECT_LM_PLANS[profile?.sex];
   if (!plan) return;
 
   document.getElementById('planningProfileSummary').innerHTML = `
-    <p><strong>Perfil:</strong> ${plan.label}</p>
-    <p><strong>Objetivo:</strong> ${plan.objective}</p>
-    <p><strong>Calorias:</strong> ${plan.calories}</p>
+    <p class='planning-profile-name'><strong>${plan.label} · ${plan.calories}</strong></p>
+    <p>Esse plano não precisa ser perfeito. Ele precisa ser executável.</p>
+    <p>A missão não é fazer tudo perfeito.<br>A missão é continuar.</p>
   `;
 
+  document.getElementById('todayTrainingPlan').innerHTML = renderTodayTraining(plan);
+
   document.getElementById('weeklyTrainingPlan').innerHTML = plan.weeklyTraining.map(([day, workout]) => `
-    <div class='planning-day'>
-      <p class='planning-day-title'>${day}: ${workout}</p>
+    <details class='planning-day'>
+      <summary class='planning-day-title'>${day} — ${workout}</summary>
       ${listItems(PROJECT_LM_WORKOUTS[workout] || [])}
-    </div>
+    </details>
   `).join('');
 
   document.getElementById('nutritionPlan').innerHTML = Object.entries(plan.meals).map(([meal, items]) => `

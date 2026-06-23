@@ -16,3 +16,18 @@
 .projeto-lm-planning-page .planning-day{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.10)}
 .projeto-lm-planning-page .planning-day:first-child{margin-top:0;padding-top:0;border-top:0}
 .projeto-lm-planning-page .planning-day-title{margin:0 0 8px;color:#f4d780;font-weight:800}
+.projeto-lm-planning-page .home-main{gap:16px;padding-bottom:36px}
+.projeto-lm-planning-page .planning-card{display:grid;gap:12px}
+.projeto-lm-planning-page .planning-card h2{margin-bottom:0}
+.projeto-lm-planning-page .planning-card p{margin:0;color:#e8e8e8;line-height:1.55}
+.projeto-lm-planning-page .planning-profile-name{font-size:1.08rem}
+.projeto-lm-planning-page .planning-card-label{color:#cfcfcf;font-weight:700}
+.projeto-lm-planning-page .planning-today-workout{font-size:clamp(1.6rem,4vw,2.25rem);font-weight:900;color:#f4d780;line-height:1.1}
+.projeto-lm-planning-page details.planning-day{cursor:pointer}
+.projeto-lm-planning-page details.planning-day summary{list-style:none}
+.projeto-lm-planning-page details.planning-day summary::-webkit-details-marker{display:none}
+.projeto-lm-planning-page details.planning-day summary::after{content:'Ver exercícios';display:block;margin-top:4px;color:#cfcfcf;font-size:.88rem;font-weight:700}
+.projeto-lm-planning-page details.planning-day[open] summary::after{content:'Ocultar exercícios'}
+.projeto-lm-planning-page .planning-list{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:6px;color:#e8e8e8}
+.projeto-lm-planning-page .planning-plan-b-close{font-weight:800;color:#fff}
+.projeto-lm-planning-page .planning-plan-b-card strong{color:#f4d780}
