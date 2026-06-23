@@ -11,15 +11,39 @@
   <main class='container home-main'>
     <section class='card hero hero-premium onboarding-intro-card'>
       <p class='eyebrow'>Projeto LM</p>
-      <h1>Nos próximos 30 dias,<br>o objetivo não é ser perfeito.</h1>
-      <p class='hero-subtext'>É continuar.</p>
-      <p class='hero-subtext'>Escolha uma opção para começar.</p>
+      <h1>Bem-vindo ao Projeto LM</h1>
+      <p class='hero-subtext'>Nos próximos 30 dias,<br>o objetivo não é ser perfeito.<br><br>É continuar.<br><br>Preencha seus dados iniciais para liberar seu planejamento.</p>
     </section>
 
     <form id='projectLmProfileForm' class='profile-choice-form' aria-label='Perfil Projeto LM'>
-      <section class='card dashboard-card'>
-        <label class='profile-choice-card'><input type='radio' name='sex' value='female' required> <span>Mulher</span></label>
-        <label class='profile-choice-card'><input type='radio' name='sex' value='male'> <span>Homem</span></label>
+      <section class='card dashboard-card profile-fields-card'>
+        <label class='profile-field'>
+          <span>Nome</span>
+          <input type='text' name='name' autocomplete='name' required>
+        </label>
+        <label class='profile-field'>
+          <span>Objetivo</span>
+          <select name='goal' required>
+            <option value=''>Selecione seu objetivo</option>
+            <option>Emagrecer com direção</option>
+            <option>Voltar a ter constância</option>
+            <option>Melhorar minha alimentação</option>
+            <option>Sair do ciclo de recomeçar</option>
+          </select>
+        </label>
+        <fieldset class='profile-sex-field'>
+          <legend>Sexo</legend>
+          <label class='profile-choice-card'><input type='radio' name='sex' value='female' required> <span>Mulher</span></label>
+          <label class='profile-choice-card'><input type='radio' name='sex' value='male'> <span>Homem</span></label>
+        </fieldset>
+        <label class='profile-field'>
+          <span>Peso (kg)</span>
+          <input type='text' name='weightKg' inputmode='decimal' placeholder='72,5' required>
+        </label>
+        <label class='profile-field'>
+          <span>Altura (cm)</span>
+          <input type='text' name='heightCm' inputmode='decimal' placeholder='170' required>
+        </label>
       </section>
       <div class='profile-submit-card'>
         <button id='submitProjectLmProfile' class='primary-cta' type='submit'>Continuar</button>

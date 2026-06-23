@@ -261,10 +261,10 @@ export default {
           }
 
           const body = await safeJson(request);
-          const sex = nullableTrimmed(body?.sex);
+          const validation = validateProjectLmProfilePayload(body);
 
-          if (!PROJECT_LM_PROFILE_SEXES.has(sex)) {
-            return json({ success: false, ok: false, error: 'sex inválido.' }, 400);
+          if (!validation.ok) {
+            return json({ success: false, ok: false, error: validation.error }, 400);
           }
 
           const existing = await getProjectLmProfile(env.DB, auth.student.id);
@@ -272,11 +272,13 @@ export default {
             return json({ success: true, ok: true, profile: existing, data: existing });
           }
 
+          const { name, goal, sex, weightKg, heightCm } = validation.profile;
+          const nutritionPlanCode = getNutritionPlanCode(sex, weightKg);
           const now = new Date().toISOString();
           await env.DB.prepare(
-            `INSERT INTO project_lm_profiles (user_id, sex, created_at, updated_at)
-             VALUES (?, ?, ?, ?)`
-          ).bind(auth.student.id, sex, now, now).run();
+            `INSERT INTO project_lm_profiles (user_id, name, goal, sex, weight_kg, height_cm, nutrition_plan_code, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(auth.student.id, name, goal, sex, weightKg, heightCm, nutritionPlanCode, now, now).run();
 
           const profile = await getProjectLmProfile(env.DB, auth.student.id);
           return json({ success: true, ok: true, profile, data: profile });
@@ -1953,10 +1955,21 @@ async function ensureSchema(db) {
   await db.prepare(`CREATE TABLE IF NOT EXISTS project_lm_profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
+    name TEXT,
+    goal TEXT,
     sex TEXT NOT NULL CHECK (sex IN ('female', 'male')),
+    weight_kg REAL,
+    height_cm REAL,
+    nutrition_plan_code TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
   )`).run();
+
+  await ensureColumn(db, 'project_lm_profiles', 'name', 'TEXT');
+  await ensureColumn(db, 'project_lm_profiles', 'goal', 'TEXT');
+  await ensureColumn(db, 'project_lm_profiles', 'weight_kg', 'REAL');
+  await ensureColumn(db, 'project_lm_profiles', 'height_cm', 'REAL');
+  await ensureColumn(db, 'project_lm_profiles', 'nutrition_plan_code', 'TEXT');
 
   await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_project_lm_profiles_user_id
     ON project_lm_profiles(user_id)`).run();
@@ -2814,6 +2827,12 @@ const PROJECT_LM_DIFFICULTIES = new Set([
 ]);
 
 const PROJECT_LM_PROFILE_SEXES = new Set(['female', 'male']);
+const PROJECT_LM_PROFILE_GOALS = new Set([
+  'Emagrecer com direção',
+  'Voltar a ter constância',
+  'Melhorar minha alimentação',
+  'Sair do ciclo de recomeçar'
+]);
 
 const PROJECT_LM_DAILY_ACTION_TYPES = new Set([
   'primeira_vitoria',
@@ -2948,14 +2967,57 @@ function mapProjectLmProfile(row) {
   };
 }
 
+function getNutritionPlanCode(sex, weightKg) {
+  if (sex === 'female') {
+    if (weightKg < 70) return 'M1';
+    if (weightKg < 90) return 'M2';
+    return 'M3';
+  }
+
+  if (sex === 'male') {
+    if (weightKg < 80) return 'H1';
+    if (weightKg < 100) return 'H2';
+    return 'H3';
+  }
+
+  return null;
+}
+
+function validateProjectLmProfilePayload(body) {
+  const name = nullableTrimmed(body?.name);
+  const goal = nullableTrimmed(body?.goal);
+  const sex = nullableTrimmed(body?.sex);
+  const weightKg = Number(typeof body?.weightKg === 'string' ? body.weightKg.replace(',', '.') : body?.weightKg);
+  const heightCm = Number(typeof body?.heightCm === 'string' ? body.heightCm.replace(',', '.') : body?.heightCm);
+
+  if (!name) return { ok: false, error: 'name é obrigatório.' };
+  if (!PROJECT_LM_PROFILE_GOALS.has(goal)) return { ok: false, error: 'goal inválido.' };
+  if (!PROJECT_LM_PROFILE_SEXES.has(sex)) return { ok: false, error: 'sex inválido.' };
+  if (!Number.isFinite(weightKg) || weightKg <= 30) return { ok: false, error: 'weightKg deve ser numérico e maior que 30.' };
+  if (weightKg >= 250) return { ok: false, error: 'weightKg deve ser menor que 250.' };
+  if (!Number.isFinite(heightCm) || heightCm <= 120) return { ok: false, error: 'heightCm deve ser numérico e maior que 120.' };
+  if (heightCm >= 230) return { ok: false, error: 'heightCm deve ser menor que 230.' };
+
+  return { ok: true, profile: { name, goal, sex, weightKg, heightCm } };
+}
+
 async function getProjectLmProfile(db, userId) {
   const row = await db.prepare(
-    `SELECT sex, created_at, updated_at
+    `SELECT name, goal, sex, weight_kg, height_cm, nutrition_plan_code, created_at, updated_at
      FROM project_lm_profiles
      WHERE user_id=?
      LIMIT 1`
   ).bind(userId).first();
-  return row ? { sex: row.sex, created_at: row.created_at, updated_at: row.updated_at } : null;
+  return row ? {
+    name: row.name,
+    goal: row.goal,
+    sex: row.sex,
+    weightKg: row.weight_kg,
+    heightCm: row.height_cm,
+    nutritionPlanCode: row.nutrition_plan_code,
+    created_at: row.created_at,
+    updated_at: row.updated_at
+  } : null;
 }
 
 function getProjectLmWeekFromCreatedAt(createdAt, now = new Date()) {
