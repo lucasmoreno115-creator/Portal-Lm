@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { normalizeStudentPlan } from '../workers/api.js';
+import { normalizeEmail, normalizeStudentPlan } from '../workers/api.js';
 
 const lmAccessSource = fs.readFileSync(new URL('../public/assets/js/lm-access.js', import.meta.url), 'utf8');
 const context = vm.createContext({
@@ -34,4 +34,14 @@ test('normalizeStudentPlan keeps valid plans and never maps unknown values to pr
   for (const [input, expected] of cases) {
     assert.equal(normalizeStudentPlan(input), expected);
   }
+});
+
+
+test('normalizeEmail trims and lowercases email-like values', () => {
+  assert.equal(
+    normalizeEmail(' Lucas@Email.COM '),
+    'lucas@email.com'
+  );
+  assert.equal(normalizeEmail(''), '');
+  assert.equal(normalizeEmail(null), '');
 });
