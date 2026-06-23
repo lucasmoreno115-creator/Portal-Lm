@@ -196,16 +196,20 @@ function renderProjectLmPlanning(profile) {
   const plan = PROJECT_LM_PLANS[profile?.sex];
   if (!plan) return;
 
-  const nutritionPlanCode = profile.nutritionPlanCode || profile.nutrition_plan_code || '';
+  const nutritionPlanCode = profile.initialPlanCode || profile.initial_plan_code || profile.nutritionPlanCode || profile.nutrition_plan_code || '';
   const nutritionPlan = PROJECT_LM_NUTRITION_PLANS[nutritionPlanCode];
   const studentName = escapeHtml(profile.name || 'Aluno');
-  const studentGoal = escapeHtml(profile.goal || 'Continuar por 30 dias');
+  const studentGoal = escapeHtml(profile.objective || profile.goal || 'Continuar por 30 dias');
   const safeNutritionPlanCode = escapeHtml(nutritionPlanCode || 'Não definido');
+  const safeWeightKg = escapeHtml(profile.weightKg || profile.weight_kg || 'Não informado');
+  const safeHeightCm = escapeHtml(profile.heightCm || profile.height_cm || 'Não informada');
   const calories = escapeHtml(nutritionPlan?.calories || 'Não definida');
 
   document.getElementById('planningProfileSummary').innerHTML = `
     <p><strong>Plano inicial de ${studentName}</strong></p>
     <p><strong>Objetivo:</strong> ${studentGoal}</p>
+    <p><strong>Peso:</strong> ${safeWeightKg} kg</p>
+    <p><strong>Altura:</strong> ${safeHeightCm} cm</p>
     <p><strong>Plano selecionado:</strong> ${safeNutritionPlanCode}</p>
     <p><strong>Faixa calórica:</strong> ${calories}</p>
   `;
