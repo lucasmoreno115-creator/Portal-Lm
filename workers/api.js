@@ -3025,7 +3025,13 @@ async function getProjectLmProfile(db, userId) {
      WHERE user_id=?
      LIMIT 1`
   ).bind(userId).first();
-  return row ? {
+  if (!row) return null;
+
+  const derivedPlanCode = row.sex && row.weight_kg
+    ? getInitialPlanCode(row.sex, Number(row.weight_kg))
+    : null;
+
+  return {
     name: row.name,
     objective: row.objective || row.goal,
     goal: row.goal || row.objective,
@@ -3034,15 +3040,15 @@ async function getProjectLmProfile(db, userId) {
     heightCm: row.height_cm,
     weight_kg: row.weight_kg,
     height_cm: row.height_cm,
-    initial_plan_code: row.initial_plan_code || row.nutrition_plan_code,
-    initialPlanCode: row.initial_plan_code || row.nutrition_plan_code,
-    nutrition_plan_code: row.nutrition_plan_code || row.initial_plan_code,
-    nutritionPlanCode: row.nutrition_plan_code || row.initial_plan_code,
+    initial_plan_code: row.initial_plan_code || row.nutrition_plan_code || derivedPlanCode,
+    initialPlanCode: row.initial_plan_code || row.nutrition_plan_code || derivedPlanCode,
+    nutrition_plan_code: row.nutrition_plan_code || row.initial_plan_code || derivedPlanCode,
+    nutritionPlanCode: row.nutrition_plan_code || row.initial_plan_code || derivedPlanCode,
     onboarding_completed: 1,
     onboardingCompleted: 1,
     created_at: row.created_at,
     updated_at: row.updated_at
-  } : null;
+  };
 }
 
 function getProjectLmWeekFromCreatedAt(createdAt, now = new Date()) {

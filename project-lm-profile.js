@@ -13,9 +13,18 @@ function parseDecimalInput(value) {
   return normalized ? Number(normalized) : NaN;
 }
 
+function isProjectLmProfileComplete(profile) {
+  return Boolean(
+    profile?.sex
+      && (profile.weightKg || profile.weight_kg)
+      && (profile.heightCm || profile.height_cm)
+      && (profile.initialPlanCode || profile.nutritionPlanCode || profile.initial_plan_code || profile.nutrition_plan_code)
+  );
+}
+
 async function redirectIfProfileExists() {
   const profile = await getProjectLmProfile();
-  if (profile?.sex) window.location.href = 'projeto-lm-jornada.html';
+  if (isProjectLmProfileComplete(profile)) window.location.href = 'projeto-lm-jornada.html';
 }
 
 form.addEventListener('submit', async (event) => {
