@@ -159,7 +159,7 @@ export default {
             return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM ou Premium.' }, 403);
           }
 
-          const mission = await getProjectLmCurrentMission(env.DB, studentEmail);
+          const mission = await getProjectLmCurrentMission(env.DB, auth.student.id);
           return json({ ok: true, data: mission });
         }
 
@@ -3083,8 +3083,8 @@ function mapProjectLmMission(row, fallbackWeek = 1) {
   };
 }
 
-async function getProjectLmCurrentMission(db, studentEmail) {
-  const profile = await getProjectLmProfile(db, studentEmail);
+export async function getProjectLmCurrentMission(db, userId) {
+  const profile = await getProjectLmProfile(db, userId);
   const week = getProjectLmWeekFromCreatedAt(profile?.created_at);
   const row = await db.prepare(
     `SELECT week_number, title, description, main_mission, success_criteria
@@ -3218,11 +3218,13 @@ function isAdminAuthorized(request, env) {
 }
 
 
-function normalizeStudentPlan(plan) {
-  if (!plan) return 'premium';
+const DEFAULT_STUDENT_PLAN = 'premium';
+
+export function normalizeStudentPlan(plan) {
+  if (!plan) return DEFAULT_STUDENT_PLAN;
   const normalized = String(plan).trim().toLowerCase();
   if (normalized === 'premium' || normalized === 'projeto_lm') return normalized;
-  return 'projeto_lm';
+  return DEFAULT_STUDENT_PLAN;
 }
 
 async function validateStudent(request, db) {

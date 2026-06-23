@@ -21,6 +21,7 @@ const LM_ACCESS = {
 };
 
 const LM_ACCESS_DENIED_MESSAGE = 'Essa área está disponível na Consultoria Premium LM.';
+const LM_DEFAULT_PLAN = 'premium';
 
 const LM_MENU_ITEMS = [
   { feature: 'dashboard', label: 'Página inicial', href: 'portal.html' },
@@ -47,11 +48,11 @@ function getCurrentUser() {
 }
 
 function normalizeUserPlan(plan) {
-  if (!plan) return 'premium';
+  if (!plan) return LM_DEFAULT_PLAN;
   const normalized = String(plan).trim().toLowerCase();
   if (normalized === 'premium') return 'premium';
   if (normalized === 'projeto_lm') return 'projeto_lm';
-  return 'projeto_lm';
+  return LM_DEFAULT_PLAN;
 }
 
 function getUserPlan() {
@@ -59,7 +60,7 @@ function getUserPlan() {
 }
 
 function hasAccess(feature) {
-  const allowedFeatures = LM_ACCESS[getUserPlan()] || LM_ACCESS.projeto_lm;
+  const allowedFeatures = LM_ACCESS[getUserPlan()] || LM_ACCESS[LM_DEFAULT_PLAN];
   return allowedFeatures.includes(feature);
 }
 
@@ -72,7 +73,7 @@ function redirectIfNoAccess(feature) {
 
 function getMenuItemsForPlan(plan) {
   const normalizedPlan = normalizeUserPlan(plan);
-  const allowedFeatures = LM_ACCESS[normalizedPlan] || LM_ACCESS.projeto_lm;
+  const allowedFeatures = LM_ACCESS[normalizedPlan] || LM_ACCESS[LM_DEFAULT_PLAN];
 
   if (normalizedPlan === 'premium') {
     const premiumMenuOrder = ['dashboard', 'checkin', 'plano-alimentar', 'progressao', 'suporte'];
