@@ -16,3 +16,14 @@
 .projeto-lm-planning-page .planning-day{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.10)}
 .projeto-lm-planning-page .planning-day:first-child{margin-top:0;padding-top:0;border-top:0}
 .projeto-lm-planning-page .planning-day-title{margin:0 0 8px;color:#f4d780;font-weight:800}
+.projeto-lm-profile-page .profile-fields-card{display:grid;gap:16px}
+.projeto-lm-profile-page .profile-field{display:grid;gap:8px;color:#fff;font-weight:800}
+.projeto-lm-profile-page .profile-field input,.projeto-lm-profile-page .profile-field select{width:100%;border:1px solid rgba(244,215,128,.35);border-radius:14px;background:rgba(255,255,255,.06);color:#fff;padding:14px 16px;font:inherit;outline:none}
+.projeto-lm-profile-page .profile-field select option{color:#111}
+.projeto-lm-profile-page .profile-field input:focus,.projeto-lm-profile-page .profile-field select:focus{border-color:#f4d780;box-shadow:0 0 0 2px rgba(244,215,128,.18)}
+.projeto-lm-profile-page .profile-sex-field{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;border:0;margin:0;padding:0}
+.projeto-lm-profile-page .profile-sex-field legend{grid-column:1/-1;margin-bottom:8px;color:#fff;font-weight:800}
+@media (max-width:640px){.projeto-lm-profile-page .profile-sex-field{grid-template-columns:1fr}}
+.projeto-lm-planning-page .planning-section-block{margin-top:18px;padding-top:18px;border-top:1px solid rgba(244,215,128,.18)}
+.projeto-lm-planning-page .planning-section-block h3{margin:0 0 10px;color:#fff;font-size:1.05rem}
+.projeto-lm-planning-page .planning-reference{margin:0 0 8px;color:#d8d8d8;font-size:.95rem}

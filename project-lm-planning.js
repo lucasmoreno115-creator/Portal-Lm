@@ -1,41 +1,122 @@
 const PROJECT_LM_PLANS = {
   female: {
     label: 'Mulher',
-    objective: 'Emagrecimento com preservação de massa muscular.',
-    calories: '1600 kcal',
     weeklyTraining: [
       ['Segunda', 'Lower A'],
       ['Terça', 'Upper A'],
       ['Quarta', 'Cardio'],
       ['Quinta', 'Lower B'],
       ['Sexta', 'Upper B']
-    ],
-    meals: {
-      'Café da manhã': ['2 ovos', '1 pão francês', 'Café sem açúcar'],
-      'Almoço': ['3 colheres arroz', '1 concha feijão', '1 filé de frango', 'Salada'],
-      'Lanche': ['Iogurte proteico', '1 fruta'],
-      'Jantar': ['3 colheres arroz', '1 concha feijão', '1 filé de frango', 'Salada']
-    }
+    ]
   },
   male: {
     label: 'Homem',
-    objective: 'Emagrecimento com preservação de massa muscular.',
-    calories: '2000 kcal',
     weeklyTraining: [
       ['Segunda', 'Upper A'],
       ['Terça', 'Lower A'],
       ['Quarta', 'Cardio'],
       ['Quinta', 'Upper B'],
       ['Sexta', 'Lower B']
-    ],
+    ]
+  }
+};
+
+const PROJECT_LM_NUTRITION_PLANS = {
+  M1: {
+    calories: '1400–1500 kcal',
     meals: {
-      'Café da manhã': ['3 ovos', '2 fatias pão integral', 'Café sem açúcar'],
-      'Almoço': ['4 colheres arroz', '1 concha feijão', '2 filés de frango', 'Salada'],
-      'Lanche': ['Iogurte proteico', '1 fruta'],
-      'Jantar': ['4 colheres arroz', '1 concha feijão', '2 filés de frango', 'Salada']
+      'Café da manhã': ['2 ovos', '1 pão francês', '1 fruta'],
+      'Lanche da manhã': ['Opção líquida: 170g iogurte proteico', 'Opção sólida: 1 fruta'],
+      'Almoço': ['100g arroz cozido', '100g feijão', '100g proteína', 'Salada à vontade'],
+      'Lanche da tarde': ['Opção líquida: 170g iogurte proteico', 'Opção sólida: 1 fruta'],
+      'Jantar': ['100g arroz cozido', '100g feijão', '100g proteína', 'Salada à vontade']
+    }
+  },
+  M2: {
+    calories: '1500–1600 kcal',
+    meals: {
+      'Café da manhã': ['2 ovos', '1 pão francês', '1 fruta'],
+      'Lanche da manhã': ['Opção líquida: 170g iogurte proteico', 'Opção sólida: 1 fruta'],
+      'Almoço': ['120g arroz cozido', '100g feijão', '120g proteína', 'Salada à vontade'],
+      'Lanche da tarde': ['Opção líquida: 170g iogurte proteico', 'Opção sólida: 1 fruta'],
+      'Jantar': ['120g arroz cozido', '100g feijão', '120g proteína', 'Salada à vontade']
+    }
+  },
+  M3: {
+    calories: '1600–1800 kcal',
+    meals: {
+      'Café da manhã': ['3 ovos', '1 pão francês', '1 fruta'],
+      'Lanche da manhã': ['Opção líquida: 170g iogurte proteico', 'Opção sólida: 1 fruta'],
+      'Almoço': ['150g arroz cozido', '100g feijão', '130g proteína', 'Salada à vontade'],
+      'Lanche da tarde': ['Opção líquida: 170g iogurte proteico', 'Opção sólida: 1 fruta'],
+      'Jantar': ['150g arroz cozido', '100g feijão', '130g proteína', 'Salada à vontade']
+    }
+  },
+  H1: {
+    calories: '1600–1800 kcal',
+    meals: {
+      'Café da manhã': ['3 ovos', '1 pão francês', '1 fruta'],
+      'Lanche da manhã': ['Opção líquida: 170g iogurte proteico', 'Opção sólida: 1 fruta'],
+      'Almoço': ['150g arroz cozido', '100g feijão', '130g proteína', 'Salada à vontade'],
+      'Lanche da tarde': ['Opção líquida: 170g iogurte proteico', 'Opção sólida: 1 fruta'],
+      'Jantar': ['150g arroz cozido', '100g feijão', '130g proteína', 'Salada à vontade']
+    }
+  },
+  H2: {
+    calories: '1800–2000 kcal',
+    meals: {
+      'Café da manhã': ['3 ovos', '1 pão francês', '1 fruta'],
+      'Lanche da manhã': ['Opção líquida: 170g iogurte proteico', 'Opção sólida: 1 fruta'],
+      'Almoço': ['180g arroz cozido', '100g feijão', '150g proteína', 'Salada à vontade'],
+      'Lanche da tarde': ['Opção líquida: 170g iogurte proteico', 'Opção sólida: 1 fruta'],
+      'Jantar': ['180g arroz cozido', '100g feijão', '150g proteína', 'Salada à vontade']
+    }
+  },
+  H3: {
+    calories: '2000–2200 kcal',
+    meals: {
+      'Café da manhã': ['4 ovos', '1 pão francês', '1 fruta'],
+      'Lanche da manhã': ['Opção líquida: 170g iogurte proteico', 'Opção sólida: 1 fruta'],
+      'Almoço': ['220g arroz cozido', '100g feijão', '180g proteína', 'Salada à vontade'],
+      'Lanche da tarde': ['Opção líquida: 170g iogurte proteico', 'Opção sólida: 1 fruta'],
+      'Jantar': ['220g arroz cozido', '100g feijão', '180g proteína', 'Salada à vontade']
     }
   }
 };
+
+const PROJECT_LM_NUTRITION_EQUIVALENCES = {
+  'Proteínas': {
+    reference: 'Referência: 100g peito de frango cru',
+    items: ['100g peito de frango', '100g patinho', '100g coxão mole', '120g peixe', '1 lata de atum', '3 ovos inteiros']
+  },
+  'Carboidratos': {
+    reference: 'Referência: 100g arroz cozido',
+    items: ['100g arroz cozido', '180g batata inglesa cozida', '130g batata-doce cozida', '100g macarrão cozido', '90g mandioca cozida', '80g cuscuz pronto', '2 fatias pão integral', '1 pão francês']
+  },
+  'Frutas': {
+    items: ['1 banana', '1 maçã', '1 pera', '1 laranja', '150g mamão', '150g melão', '200g melancia', '120g manga']
+  },
+  'Gorduras': {
+    reference: 'Referência: 10g azeite',
+    items: ['10g azeite', '15g castanhas', '15g pasta de amendoim', '50g abacate']
+  }
+};
+
+const PROJECT_LM_OFFICIAL_PLAN_B = [
+  'Garantir proteína em pelo menos 2 refeições.',
+  'Beber água.',
+  'Fazer pelo menos 10 minutos de caminhada.',
+  'Voltar ao plano na próxima refeição.'
+];
+
+const PROJECT_LM_ADHERENCE_RULES = [
+  'Não tente ser perfeito.',
+  'Não compense excessos ficando sem comer.',
+  'Não espere segunda-feira para recomeçar.',
+  'O Plano B faz parte do programa.',
+  'Feito é melhor que perfeito.',
+  'O objetivo é continuar.'
+];
 
 const PROJECT_LM_WORKOUTS = {
   'Lower A': ['Leg Press — 3x10-12', 'Mesa Flexora — 3x10-12', 'Cadeira Extensora — 3x12-15', 'Panturrilha Sentado — 3x12-15', 'Prancha — 3 séries'],
@@ -45,33 +126,82 @@ const PROJECT_LM_WORKOUTS = {
   'Cardio': ['Plano Principal: 30 minutos caminhada', 'ou 30 minutos bicicleta', 'Plano B: 10 minutos caminhada']
 };
 
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[char]));
+}
+
 function listItems(items) {
-  return `<ul class='planning-list'>${items.map((item) => `<li>🔹 ${item}</li>`).join('')}</ul>`;
+  return `<ul class='planning-list'>${items.map((item) => `<li>🔹 ${escapeHtml(item)}</li>`).join('')}</ul>`;
+}
+
+function renderNutritionMeals(nutritionPlan) {
+  return Object.entries(nutritionPlan.meals).map(([meal, items]) => `
+    <div class='planning-day'>
+      <p class='planning-day-title'>${escapeHtml(meal)}</p>
+      ${listItems(items)}
+    </div>
+  `).join('');
+}
+
+function renderNutritionEquivalences() {
+  return `
+    <div class='planning-section-block'>
+      <h3>Equivalências padrão</h3>
+      ${Object.entries(PROJECT_LM_NUTRITION_EQUIVALENCES).map(([group, data]) => `
+        <div class='planning-day'>
+          <p class='planning-day-title'>${escapeHtml(group)}</p>
+          ${data.reference ? `<p class='planning-reference'>${escapeHtml(data.reference)}</p>` : ''}
+          ${listItems(data.items)}
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 
 function renderProjectLmPlanning(profile) {
   const plan = PROJECT_LM_PLANS[profile?.sex];
   if (!plan) return;
 
+  const nutritionPlanCode = profile.nutritionPlanCode || profile.nutrition_plan_code || '';
+  const nutritionPlan = PROJECT_LM_NUTRITION_PLANS[nutritionPlanCode];
+  const studentName = escapeHtml(profile.name || 'Aluno');
+  const studentGoal = escapeHtml(profile.goal || 'Continuar por 30 dias');
+  const safeNutritionPlanCode = escapeHtml(nutritionPlanCode || 'Não definido');
+  const calories = escapeHtml(nutritionPlan?.calories || 'Não definida');
+
   document.getElementById('planningProfileSummary').innerHTML = `
-    <p><strong>Perfil:</strong> ${plan.label}</p>
-    <p><strong>Objetivo:</strong> ${plan.objective}</p>
-    <p><strong>Calorias:</strong> ${plan.calories}</p>
+    <p><strong>Plano inicial de ${studentName}</strong></p>
+    <p><strong>Objetivo:</strong> ${studentGoal}</p>
+    <p><strong>Plano selecionado:</strong> ${safeNutritionPlanCode}</p>
+    <p><strong>Faixa calórica:</strong> ${calories}</p>
   `;
 
   document.getElementById('weeklyTrainingPlan').innerHTML = plan.weeklyTraining.map(([day, workout]) => `
     <div class='planning-day'>
-      <p class='planning-day-title'>${day}: ${workout}</p>
+      <p class='planning-day-title'>${escapeHtml(day)}: ${escapeHtml(workout)}</p>
       ${listItems(PROJECT_LM_WORKOUTS[workout] || [])}
     </div>
   `).join('');
 
-  document.getElementById('nutritionPlan').innerHTML = Object.entries(plan.meals).map(([meal, items]) => `
-    <div class='planning-day'>
-      <p class='planning-day-title'>${meal}</p>
-      ${listItems(items)}
+  document.getElementById('nutritionPlan').innerHTML = nutritionPlan ? `
+    ${renderNutritionMeals(nutritionPlan)}
+    ${renderNutritionEquivalences()}
+    <div class='planning-section-block'>
+      <h3>Plano B oficial</h3>
+      <p class='planning-card-label'>Se o dia sair do controle:</p>
+      ${listItems(PROJECT_LM_OFFICIAL_PLAN_B)}
     </div>
-  `).join('');
+    <div class='planning-section-block'>
+      <h3>Regras de adesão</h3>
+      ${listItems(PROJECT_LM_ADHERENCE_RULES)}
+    </div>
+  ` : `<p class='muted'>Seu plano alimentar inicial ainda não foi definido. Refaça o acesso ou fale com o suporte.</p>`;
 }
 
 async function loadProjectLmPlanning() {
