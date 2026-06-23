@@ -14,37 +14,46 @@
     <section class='card hero hero-premium planning-hero'>
       <p class='eyebrow'>Projeto LM</p>
       <h1>Meu Planejamento</h1>
-      <p class='hero-subtext'>Você não precisa fazer tudo.<br>Precisa executar o básico.</p>
+      <p class='hero-subtext'>O que eu faço hoje?</p>
     </section>
 
     <section class='card dashboard-card planning-card planning-summary' aria-labelledby='planningSummaryTitle'>
-      <h2 id='planningSummaryTitle'>🎯 Plano Inicial</h2>
+      <h2 id='planningSummaryTitle'>Seu planejamento inicial</h2>
       <div id='planningProfileSummary'>Carregando planejamento...</div>
     </section>
 
+    <section class='card dashboard-card planning-card planning-today-card' aria-labelledby='planningTodayTitle'>
+      <h2 id='planningTodayTitle'>Hoje</h2>
+      <div id='todayTrainingPlan'>Carregando treino de hoje...</div>
+    </section>
+
     <section class='card dashboard-card planning-card' aria-labelledby='planningTrainingTitle'>
-      <h2 id='planningTrainingTitle'>🏋️ Treino</h2>
-      <p class='planning-card-label'>Divisão semanal</p>
+      <h2 id='planningTrainingTitle'>Treino da Semana</h2>
       <div id='weeklyTrainingPlan'>Carregando treino...</div>
       <button id='trainingDoneBtn' class='primary-cta' type='button'>☑ Treinei hoje</button>
       <p id='trainingDoneMsg' class='muted' role='status'></p>
     </section>
 
     <section class='card dashboard-card planning-card' aria-labelledby='planningNutritionTitle'>
-      <h2 id='planningNutritionTitle'>🍽 Alimentação</h2>
-      <p class='planning-card-label'>Estrutura alimentar</p>
+      <h2 id='planningNutritionTitle'>Plano Alimentar</h2>
       <div id='nutritionPlan'>Carregando alimentação...</div>
       <button id='nutritionDoneBtn' class='primary-cta' type='button'>☑ Segui o plano alimentar hoje</button>
       <p id='nutritionDoneMsg' class='muted' role='status'></p>
     </section>
 
     <section class='card dashboard-card planning-card planning-plan-b-card' aria-labelledby='planningPlanBTitle'>
-      <h2 id='planningPlanBTitle'>🧭 Plano B</h2>
-      <p>Nem todos os dias serão perfeitos.</p>
-      <p>Quando a rotina apertar,<br>use o Plano B.</p>
+      <h2 id='planningPlanBTitle'>Plano B</h2>
+      <div id='planBContent'>
+        <p><strong>Se o dia sair do controle:</strong></p>
+        <ul class='planning-list'>
+          <li>🔹 Garantir proteína em pelo menos 2 refeições.</li>
+          <li>🔹 Beber água.</li>
+          <li>🔹 Voltar ao plano na próxima refeição.</li>
+        </ul>
+        <p class='planning-plan-b-close'>Não compensar.<br>Não jejuar.<br>Não recomeçar na segunda-feira.</p>
+      </div>
       <button id='planBDoneBtn' class='primary-cta' type='button'>☑ Hoje usei o Plano B</button>
       <p id='planBDoneMsg' class='muted' role='status'></p>
-      <a class='secondary-link' href='projeto-lm-dia-dificil.html'>Abrir Checklist Plano B</a>
     </section>
 
   </main>

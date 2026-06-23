@@ -164,6 +164,34 @@ function renderNutritionEquivalences() {
   `;
 }
 
+function getTodayTraining(weeklyTraining, today = new Date()) {
+  const weekday = today.getDay();
+  if (weekday === 0 || weekday === 6) return null;
+  return weeklyTraining[weekday - 1] || null;
+}
+
+function renderTodayTraining(plan) {
+  const weekdays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+  const today = new Date();
+  const todayTraining = getTodayTraining(plan.weeklyTraining, today);
+
+  if (!todayTraining) {
+    return `
+      <p class='planning-day-title'>Hoje é ${weekdays[today.getDay()]}</p>
+      <p>Hoje não tem treino obrigatório.</p>
+      <p>Se quiser manter o processo vivo, faça uma caminhada leve ou apenas siga o plano alimentar.</p>
+    `;
+  }
+
+  const [, workout] = todayTraining;
+  const todayWorkout = workout === 'Cardio' ? 'Cardio LM' : workout;
+  return `
+    <p class='planning-day-title'>Hoje é ${weekdays[today.getDay()]}</p>
+    <p class='planning-card-label'>Treino de hoje:</p>
+    <p class='planning-today-workout'>${todayWorkout}</p>
+  `;
+}
+
 function renderProjectLmPlanning(profile) {
   const plan = PROJECT_LM_PLANS[profile?.sex];
   if (!plan) return;
@@ -182,11 +210,13 @@ function renderProjectLmPlanning(profile) {
     <p><strong>Faixa calórica:</strong> ${calories}</p>
   `;
 
+  document.getElementById('todayTrainingPlan').innerHTML = renderTodayTraining(plan);
+
   document.getElementById('weeklyTrainingPlan').innerHTML = plan.weeklyTraining.map(([day, workout]) => `
     <div class='planning-day'>
       <p class='planning-day-title'>${escapeHtml(day)}: ${escapeHtml(workout)}</p>
       ${listItems(PROJECT_LM_WORKOUTS[workout] || [])}
-    </div>
+    </details>
   `).join('');
 
   document.getElementById('nutritionPlan').innerHTML = nutritionPlan ? `
