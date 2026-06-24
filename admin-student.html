@@ -697,13 +697,99 @@
       ]);
     }
 
+    function getTimelineEventDate(event) {
+      const candidates = [event?.at, event?.created_at];
+      for (const value of candidates) {
+        if (!value) continue;
+        const date = new Date(value);
+        if (!Number.isNaN(date.getTime())) return date;
+      }
+      return null;
+    }
+
+    function getTimelineDayDiff(date) {
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const startOfEventDay = new Date(date.getTime());
+      startOfEventDay.setHours(0, 0, 0, 0);
+      return Math.floor((startOfToday.getTime() - startOfEventDay.getTime()) / 86400000);
+    }
+
+    function groupTimelineByPeriod(timeline) {
+      const groups = [
+        { key: 'today', title: 'Hoje', events: [] },
+        { key: 'yesterday', title: 'Ontem', events: [] },
+        { key: 'last7', title: 'Últimos 7 dias', events: [] },
+        { key: 'last30', title: 'Últimos 30 dias', events: [] },
+        { key: 'older', title: 'Mais antigos', events: [] },
+        { key: 'undated', title: 'Sem data', events: [] }
+      ];
+      const byKey = groups.reduce((acc, group) => {
+        acc[group.key] = group;
+        return acc;
+      }, {});
+
+      (Array.isArray(timeline) ? timeline : []).forEach((event) => {
+        const date = getTimelineEventDate(event);
+        if (!date) {
+          byKey.undated.events.push(event);
+          return;
+        }
+        const dayDiff = getTimelineDayDiff(date);
+        if (dayDiff === 0) byKey.today.events.push(event);
+        else if (dayDiff === 1) byKey.yesterday.events.push(event);
+        else if (dayDiff >= 2 && dayDiff <= 7) byKey.last7.events.push(event);
+        else if (dayDiff >= 8 && dayDiff <= 30) byKey.last30.events.push(event);
+        else byKey.older.events.push(event);
+      });
+
+      return groups.filter((group) => group.events.length);
+    }
+
+    function renderTimelineGroup(title, events) {
+      const groupLi = document.createElement('li');
+      groupLi.className = 'timeline-group';
+      groupLi.style.display = 'block';
+      groupLi.style.padding = '0';
+      groupLi.style.border = '0';
+      groupLi.style.background = 'transparent';
+
+      const heading = document.createElement('h3');
+      heading.className = 'timeline-group-title';
+      heading.textContent = title;
+      heading.style.margin = '12px 0 8px';
+      heading.style.fontSize = '1rem';
+      groupLi.appendChild(heading);
+
+      const list = document.createElement('ul');
+      list.className = 'student-timeline';
+      events.forEach((event) => {
+        const view = getTimelineEventView(event);
+        const eventDate = getTimelineEventDate(event);
+        const metadataLines = formatTimelineMetadata(event.detail || event.metadata || event.metadata_json || null);
+        const metadataHtml = metadataLines.length ? `<p>${metadataLines.map((line) => escapeHtml(line)).join('<br>')}</p>` : '';
+        const li = document.createElement('li');
+        li.innerHTML = `<div><strong>${escapeHtml(`${view.icon} ${view.title}`)}</strong><p>${escapeHtml(view.description)}</p>${metadataHtml}</div><span>${escapeHtml(eventDate ? formatRelativeDate(eventDate) : 'Sem data')}</span>`;
+        list.appendChild(li);
+      });
+      groupLi.appendChild(list);
+      return groupLi;
+    }
+
     function renderTimeline(timeline) {
       const timelineEl = byId('timeline');
       const filtersEl = byId('timelineFilters');
       const latestEl = byId('timelineLatestActivity');
       timelineEl.innerHTML = '';
       const items = [...(Array.isArray(timeline) ? timeline : [])];
-      items.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+      items.sort((a, b) => {
+        const dateA = getTimelineEventDate(a);
+        const dateB = getTimelineEventDate(b);
+        if (dateA && dateB) return dateB.getTime() - dateA.getTime();
+        if (dateA) return -1;
+        if (dateB) return 1;
+        return 0;
+      });
       const FILTERS = [
         { key: 'all', label: 'Todos' },
         { key: 'checkins', label: 'Check-ins' },
@@ -727,22 +813,18 @@
       const latest = items[0];
       if (latest) {
         const latestView = getTimelineEventView(latest);
-        latestEl.innerHTML = `<strong>Última atividade relevante</strong><p>${escapeHtml(`${latestView.icon} ${latestView.title}`)}</p><span>${escapeHtml(formatRelativeDate(latest.at))}</span>`;
+        const latestDate = getTimelineEventDate(latest);
+        latestEl.innerHTML = `<strong>Última atividade:</strong><p>${escapeHtml(`${latestView.icon} ${latestView.title}`)} — ${escapeHtml(latestDate ? formatRelativeDate(latestDate) : 'Sem data')}</p>`;
       } else {
-        latestEl.innerHTML = `<strong>Última atividade relevante</strong><p>Sem atividade recente.</p>`;
+        latestEl.innerHTML = `<strong>Última atividade:</strong><p>Sem atividade recente.</p>`;
       }
       const filteredItems = items.filter((event) => matchesTimelineFilter(event, currentFilter));
       if (!filteredItems.length) {
         timelineEl.innerHTML = `<li class='student-empty'>Sem eventos recentes.</li>`;
         return;
       }
-      filteredItems.forEach((event) => {
-        const view = getTimelineEventView(event);
-        const metadataLines = formatTimelineMetadata(event.detail || event.metadata || event.metadata_json || null);
-        const metadataHtml = metadataLines.length ? `<p>${metadataLines.map((line) => escapeHtml(line)).join('<br>')}</p>` : '';
-        const li = document.createElement('li');
-        li.innerHTML = `<div><strong>${escapeHtml(`${view.icon} ${view.title}`)}</strong><p>${escapeHtml(view.description)}</p>${metadataHtml}</div><span>${escapeHtml(formatDate(event.at))}</span>`;
-        timelineEl.appendChild(li);
+      groupTimelineByPeriod(filteredItems).forEach((group) => {
+        timelineEl.appendChild(renderTimelineGroup(group.title, group.events));
       });
     }
     function getTimelineEventView(event) {
@@ -757,7 +839,13 @@
         NUTRITION_PLAN_UPDATED: { icon: '🥗', title: 'Plano alimentar atualizado', description: 'O plano alimentar ativo foi criado ou revisado.', category: 'planos' },
         STUDENT_INACTIVATED: { icon: '⚫', title: 'Aluno inativado', description: 'O aluno foi removido da operação ativa.', category: 'lifecycle' },
         STUDENT_REACTIVATED: { icon: '🟢', title: 'Aluno reativado', description: 'O aluno voltou para a operação ativa.', category: 'lifecycle' },
-        STUDENT_TOKEN_UPDATED: { icon: '🔐', title: 'Token de acesso atualizado', description: 'O token/senha de acesso do aluno foi alterado.', category: 'lifecycle' }
+        STUDENT_TOKEN_UPDATED: { icon: '🔐', title: 'Token de acesso atualizado', description: 'O token/senha de acesso do aluno foi alterado.', category: 'lifecycle' },
+        REACTIVATION_CONTACT_SENT: { icon: '📲', title: 'Contato de reativação enviado', description: 'Uma tentativa de reativação foi registrada para o aluno.', category: 'comunicação' },
+        ANAMNESE_ENVIADA: { icon: '📝', title: 'Anamnese enviada', description: 'O aluno enviou a Anamnese Premium LM.', category: 'onboarding' },
+        CHECKIN_ENVIADO: { icon: '✅', title: 'Check-in enviado', description: 'O aluno enviou o check-in semanal.', category: 'checkins' },
+        RESPOSTA_COACH: { icon: '📩', title: 'Check-in respondido', description: 'O coach respondeu o check-in do aluno.', category: 'checkins' },
+        PLANO_SEMANAL_ATUALIZADO: { icon: '📋', title: 'Objetivo do planejamento atualizado', description: 'O planejamento estratégico da semana foi criado ou revisado.', category: 'planos' },
+        PLANO_ALIMENTAR_ATUALIZADO: { icon: '🥗', title: 'Plano alimentar atualizado', description: 'O plano alimentar ativo foi criado ou revisado.', category: 'planos' }
       };
       return map[type] || { icon: '🕒', title: 'Atividade registrada', description: 'Um evento operacional foi registrado no sistema.', category: 'outros' };
     }
@@ -777,12 +865,12 @@
     }
     function matchesTimelineFilter(event, filterKey) {
       if (!filterKey || filterKey === 'all') return true;
-      const type = String(event?.type || '').toUpperCase();
+      const type = String(event?.type || event?.event_type || '').toUpperCase();
       const filters = {
-        checkins: ['CHECKIN_SUBMITTED', 'COACH_REPLY_SENT'],
-        planos: ['WEEKLY_PLAN_UPDATED', 'NUTRITION_PLAN_UPDATED'],
-        onboarding: ['ANAMNESE_SUBMITTED', 'ACCESS_CREATED', 'ACCESS_ACTIVATED', 'PENDING_ONBOARDING'],
-        comunicação: ['FOLLOWUP_LOGGED', 'COACH_REPLY_SENT'],
+        checkins: ['CHECKIN_SUBMITTED', 'COACH_REPLY_SENT', 'CHECKIN_ENVIADO', 'RESPOSTA_COACH'],
+        planos: ['WEEKLY_PLAN_UPDATED', 'NUTRITION_PLAN_UPDATED', 'PLANO_SEMANAL_ATUALIZADO', 'PLANO_ALIMENTAR_ATUALIZADO'],
+        onboarding: ['ANAMNESE_SUBMITTED', 'ANAMNESE_ENVIADA', 'ACCESS_CREATED', 'ACCESS_ACTIVATED', 'PENDING_ONBOARDING'],
+        comunicação: ['FOLLOWUP_LOGGED', 'COACH_REPLY_SENT', 'REACTIVATION_CONTACT_SENT', 'RESPOSTA_COACH'],
         lifecycle: ['STUDENT_INACTIVATED', 'STUDENT_REACTIVATED', 'STUDENT_TOKEN_UPDATED'],
         treino: ['PROGRESSION_LOG_SUBMITTED']
       };
@@ -790,7 +878,9 @@
     }
     function formatRelativeDate(value) {
       if (!value) return 'Sem data';
-      const diff = Date.now() - new Date(value).getTime();
+      const date = value instanceof Date ? value : new Date(value);
+      if (Number.isNaN(date.getTime())) return 'Sem data';
+      const diff = Date.now() - date.getTime();
       const days = Math.floor(diff / 86400000);
       if (days <= 0) return 'hoje';
       if (days === 1) return 'há 1 dia';
