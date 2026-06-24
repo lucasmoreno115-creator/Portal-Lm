@@ -94,6 +94,11 @@
         <div id='executiveSummary'></div>
       </article>
 
+      <article class='card student-360-card'>
+        <h2>Pendências Inteligentes</h2>
+        <div id='smartPendingList'></div>
+      </article>
+
       <article class='card student-360-card collapsible-card' data-collapse-key='anamnesis'>
         <h2><button class='collapse-toggle' type='button' data-collapse-target='anamnesis'>Anamnese mais recente</button></h2>
         <div id='collapse-anamnesis'>
@@ -514,6 +519,103 @@
       ]);
     }
 
+    function getSmartPendingIcon(level) {
+      if (level === 'critical') return '🔴';
+      if (level === 'attention') return '🟡';
+      return '🟢';
+    }
+
+    function pushUniquePending(items, item) {
+      if (!item?.label || items.some((existing) => existing.label === item.label)) return;
+      items.push(item);
+    }
+
+    function hasWeeklyPlanContent(weeklyPlan) {
+      if (!weeklyPlan) return false;
+      return Boolean(
+        weeklyPlan.training_focus ||
+        weeklyPlan.nutrition_focus ||
+        weeklyPlan.main_risk ||
+        weeklyPlan.coach_message
+      );
+    }
+
+    function resolveSmartPendingItems(data) {
+      const items = [];
+      const student = data?.student || {};
+      const checkin = data?.latest_checkin || null;
+      const weeklyPlan = data?.active_weekly_plan || null;
+      const nutritionPlan = data?.active_nutrition_plan || null;
+      const clinicalPriority = data?.clinical_priority || {};
+      const nextAction = data?.next_recommended_action || {};
+      const studentStatus = String(student.status || '').toUpperCase();
+      const currentWeekRef = getCurrentWeekRef();
+
+      if (studentStatus === 'INACTIVE') {
+        pushUniquePending(items, { level: 'critical', label: 'Acesso inativo', detail: 'Reativar aluno antes de executar acompanhamento.' });
+      } else if (studentStatus === 'PENDING_ONBOARDING') {
+        pushUniquePending(items, { level: 'attention', label: 'Acesso pendente', detail: 'Liberar acesso do aluno.' });
+      } else if (studentStatus === 'ACTIVE') {
+        pushUniquePending(items, { level: 'ok', label: 'Acesso ativo' });
+      }
+
+      if (!checkin) {
+        pushUniquePending(items, { level: 'critical', label: 'Sem check-in registrado', detail: 'Solicitar primeiro check-in.' });
+      } else if (String(checkin.week_ref || '') !== currentWeekRef) {
+        pushUniquePending(items, { level: 'critical', label: 'Sem check-in esta semana', detail: `Último check-in: ${checkin.week_ref || formatDate(checkin.created_at)}` });
+      } else {
+        pushUniquePending(items, { level: 'ok', label: 'Check-in da semana recebido' });
+      }
+
+      if (checkin?.coach_reply) {
+        pushUniquePending(items, { level: 'ok', label: 'Check-in respondido' });
+      } else if (checkin) {
+        pushUniquePending(items, { level: 'attention', label: 'Check-in sem resposta', detail: 'Responder o check-in com direcionamento.' });
+      }
+
+      if (hasWeeklyPlanContent(weeklyPlan)) {
+        pushUniquePending(items, { level: 'ok', label: 'Objetivo do planejamento ativo' });
+      } else {
+        pushUniquePending(items, { level: 'attention', label: 'Sem objetivo do planejamento', detail: 'Criar objetivo da semana.' });
+      }
+
+      if (nutritionPlan) {
+        pushUniquePending(items, { level: 'ok', label: 'Plano alimentar ativo' });
+      } else {
+        pushUniquePending(items, { level: 'attention', label: 'Sem plano alimentar ativo', detail: 'Criar ou ativar plano alimentar.' });
+      }
+
+      const clinicalLevel = String(clinicalPriority.level || '').toUpperCase();
+      const clinicalMessage = clinicalPriority.message || '';
+      const clinicalDuplicatesMissingCheckin = !checkin && /check-?in/i.test(clinicalMessage);
+      if (clinicalLevel === 'CRITICAL' && !clinicalDuplicatesMissingCheckin) {
+        pushUniquePending(items, { level: 'critical', label: 'Prioridade clínica crítica', detail: clinicalMessage });
+      } else if (clinicalLevel === 'HIGH' && !clinicalDuplicatesMissingCheckin) {
+        pushUniquePending(items, { level: 'attention', label: 'Prioridade clínica alta', detail: clinicalMessage });
+      }
+
+      if (String(nextAction.code || '').trim()) {
+        pushUniquePending(items, { level: 'attention', label: 'Ação recomendada pendente', detail: nextAction.label || nextAction.reason });
+      }
+
+      return items;
+    }
+
+    function renderSmartPendingItems(data) {
+      const items = resolveSmartPendingItems(data);
+      const actionableItems = items.filter((item) => item.level !== 'ok');
+      if (!actionableItems.length) {
+        byId('smartPendingList').innerHTML = renderFields([field('Status', '🟢 Nenhuma pendência crítica no momento.', true)]);
+        return;
+      }
+      const html = actionableItems.map((item) => {
+        const label = `${getSmartPendingIcon(item.level)} ${item.label}`;
+        const detailHtml = item.detail ? `<strong class='${item.level === 'critical' ? 'student-highlight' : ''}'>${escapeHtml(item.detail)}</strong>` : '';
+        return `<li class='student-info-item'><span>${escapeHtml(label)}</span>${detailHtml}</li>`;
+      });
+      byId('smartPendingList').innerHTML = renderFields(html);
+    }
+
     function renderAnamnesis(anamnesis, answers) {
       if (!anamnesis) {
         byId('latestAnamnesis').innerHTML = renderEmpty('Sem anamnese registrada.');
@@ -786,7 +888,7 @@
         return;
       }
       loadBtn.disabled = true;
-      document.querySelectorAll('#studentSummary,#studentAccessDetails,#latestAnamnesis,#latestCheckin,#weeklyPlan,#nutritionPlan,#timeline,#executiveSummary').forEach((el) => el.classList.add('skeleton'));
+      document.querySelectorAll('#studentSummary,#studentAccessDetails,#latestAnamnesis,#latestCheckin,#weeklyPlan,#nutritionPlan,#timeline,#executiveSummary,#smartPendingList').forEach((el) => el.classList.add('skeleton'));
       statusBox.textContent = 'Carregando dados do aluno...';
       try {
         const res = await fetch(`/api/admin/student-360?email=${encodeURIComponent(email)}`, { headers: { 'x-admin-token': token } });
@@ -834,6 +936,7 @@
         renderNextAction(data.next_recommended_action || null);
         currentStudent.clinical_priority = data.clinical_priority || null;
         renderExecutiveSummary(data);
+        renderSmartPendingItems(data);
         renderOnboardingStatus(student);
         renderTimeline(data.timeline || []);
         renderOperationalDiagnosis(data);
