@@ -5,9 +5,14 @@ import assert from 'node:assert/strict';
 
 const rootDir = process.cwd();
 const apiPath = path.join(rootDir, 'workers/api.js');
+const healthCheckServicePath = path.join(rootDir, 'workers/services/health-check-service.js');
 
 async function readApiSource() {
   return readFile(apiPath, 'utf8');
+}
+
+async function readHealthCheckServiceSource() {
+  return readFile(healthCheckServicePath, 'utf8');
 }
 
 function extractFunctionSource(source, functionName) {
@@ -51,14 +56,14 @@ test('rota /api/admin/health-check exige autorização admin', async () => {
 });
 
 test('resposta do health-check não contém access_token', async () => {
-  const source = await readApiSource();
+  const source = await readHealthCheckServiceSource();
   const healthCheckSource = extractFunctionSource(source, 'buildD1HealthCheck');
 
   assert.doesNotMatch(healthCheckSource, /access_token/i);
 });
 
 test('resposta do health-check possui status healthy ou warning', async () => {
-  const source = await readApiSource();
+  const source = await readHealthCheckServiceSource();
   const healthCheckSource = extractFunctionSource(source, 'buildD1HealthCheck');
 
   assert.match(healthCheckSource, /'warning'/);
@@ -67,7 +72,7 @@ test('resposta do health-check possui status healthy ou warning', async () => {
 });
 
 test('health-check usa somente consultas de leitura', async () => {
-  const source = await readApiSource();
+  const source = await readHealthCheckServiceSource();
   const healthCheckSource = extractFunctionSource(source, 'buildD1HealthCheck');
 
   assert.doesNotMatch(healthCheckSource, /\b(INSERT|UPDATE|DELETE|ALTER)\b/i);

@@ -6,9 +6,14 @@ import assert from 'node:assert/strict';
 const rootDir = process.cwd();
 const apiPath = path.join(rootDir, 'workers/api.js');
 const docsPath = path.join(rootDir, 'docs/v4-route-inventory.md');
+const endpointUsageServicePath = path.join(rootDir, 'workers/services/endpoint-usage-service.js');
 
 async function readApiSource() {
   return readFile(apiPath, 'utf8');
+}
+
+async function readEndpointUsageServiceSource() {
+  return readFile(endpointUsageServicePath, 'utf8');
 }
 
 function extractFunctionSource(source, functionName) {
@@ -32,7 +37,7 @@ function extractFunctionSource(source, functionName) {
 }
 
 test('logEndpointUsage existe e usa logOperationalEvent com evento endpoint_used', async () => {
-  const source = await readApiSource();
+  const source = await readEndpointUsageServiceSource();
   const helperSource = extractFunctionSource(source, 'logEndpointUsage');
 
   assert.match(helperSource, /logOperationalEvent\(db, \{/);
@@ -42,7 +47,7 @@ test('logEndpointUsage existe e usa logOperationalEvent com evento endpoint_used
 });
 
 test('logEndpointUsage registra somente pathname, método, status e matched_route seguro', async () => {
-  const source = await readApiSource();
+  const source = await readEndpointUsageServiceSource();
   const helperSource = extractFunctionSource(source, 'logEndpointUsage');
 
   assert.match(helperSource, /const pathname = url\.pathname/);
@@ -55,7 +60,7 @@ test('logEndpointUsage registra somente pathname, método, status e matched_rout
 });
 
 test('logEndpointUsage resolve área por rota e não loga operational-logs nem health', async () => {
-  const source = await readApiSource();
+  const source = await readEndpointUsageServiceSource();
   const helperSource = extractFunctionSource(source, 'logEndpointUsage');
   const areaSource = extractFunctionSource(source, 'resolveEndpointUsageArea');
 
@@ -69,11 +74,12 @@ test('logEndpointUsage resolve área por rota e não loga operational-logs nem h
 });
 
 test('jsonWithUsage conecta respostas API bem-sucedidas ao helper de uso real', async () => {
-  const source = await readApiSource();
+  const apiSource = await readApiSource();
+  const source = await readEndpointUsageServiceSource();
   const wrapperSource = extractFunctionSource(source, 'jsonWithUsage');
 
-  assert.match(source, /const json = \(payload, status = 200, matchedRoute = null\) => jsonWithUsage\(payload, status, request, env, matchedRoute\)/);
-  assert.match(wrapperSource, /const response = json\(payload, status\)/);
+  assert.match(apiSource, /const json = \(payload, status = 200, matchedRoute = null\) => jsonWithUsage\(payload, status, request, env, matchedRoute, rawJson\)/);
+  assert.match(wrapperSource, /const response = responseFactory\(payload, status\)/);
   assert.match(wrapperSource, /logEndpointUsage\(env\?\.DB, request, response\.status, matchedRoute\)/);
 });
 
