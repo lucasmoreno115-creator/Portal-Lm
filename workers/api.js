@@ -9,6 +9,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const method = request.method;
+    const json = (payload, status = 200, matchedRoute = null) => jsonWithUsage(payload, status, request, env, matchedRoute);
 
     if (method === 'OPTIONS') return corsResponse();
 
@@ -422,6 +423,30 @@ export default {
             message: 'Tentativa admin não autorizada.'
           });
           return json({ ok: false, error: 'Unauthorized' }, 401);
+        }
+
+
+        if (url.pathname === '/api/admin/endpoint-usage' && method === 'GET') {
+          const daysRaw = Number(url.searchParams.get('days') || 14);
+          const days = Number.isFinite(daysRaw) ? Math.min(Math.max(Math.trunc(daysRaw), 1), 90) : 14;
+          const area = nullableTrimmed(url.searchParams.get('area'));
+          const route = nullableTrimmed(url.searchParams.get('route'));
+          const where = ["event='endpoint_used'", "datetime(created_at) >= datetime('now', ?)"];
+          const params = [`-${days} days`];
+
+          if (area) { where.push('area=?'); params.push(area); }
+          if (route) { where.push('route=?'); params.push(route); }
+
+          const { results = [] } = await env.DB.prepare(
+            `SELECT route, method, area, COUNT(*) AS hits, MAX(created_at) AS last_seen_at
+             FROM operational_logs
+             WHERE ${where.join(' AND ')}
+             GROUP BY route, method, area
+             ORDER BY hits ASC, datetime(last_seen_at) DESC
+             LIMIT 200`
+          ).bind(...params).all();
+
+          return json({ ok: true, data: { days, items: results || [] } });
         }
 
 
@@ -2333,6 +2358,49 @@ async function logActivityEvent(db, event) {
   ).run();
 }
 
+
+
+async function jsonWithUsage(payload, status = 200, request, env, matchedRoute = null) {
+  const response = json(payload, status);
+  await logEndpointUsage(env?.DB, request, response.status, matchedRoute);
+  return response;
+}
+
+async function logEndpointUsage(db, request, responseStatus, matchedRoute = null) {
+  try {
+    if (!db || !request) return;
+    const url = new URL(request.url);
+    const pathname = url.pathname;
+    const statusCode = Number(responseStatus || 0);
+
+    if (!pathname.startsWith('/api/')) return;
+    if (pathname === '/api/admin/operational-logs') return;
+    if (pathname === '/api/health') return;
+    if (statusCode < 200 || statusCode >= 400) return;
+
+    await logOperationalEvent(db, {
+      level: 'info',
+      area: resolveEndpointUsageArea(pathname),
+      event: 'endpoint_used',
+      route: pathname,
+      method: request.method,
+      message: 'Endpoint utilizado.',
+      metadata: {
+        status_code: statusCode,
+        ...(matchedRoute ? { matched_route: matchedRoute } : {})
+      }
+    });
+  } catch {
+    // Auditoria de uso nunca deve afetar a resposta da API.
+  }
+}
+
+function resolveEndpointUsageArea(pathname) {
+  if (pathname.startsWith('/api/admin/')) return 'admin';
+  if (pathname.startsWith('/api/project-lm/') || pathname.includes('project-lm')) return 'project_lm';
+  if (pathname.startsWith('/api/portal/')) return 'student';
+  return 'system';
+}
 
 async function logOperationalEvent(db, payload) {
   try {
