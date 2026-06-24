@@ -95,6 +95,16 @@
       <p id='priorityMsg'>Operação em dia.</p>
     </section>
 
+    <section class='card command-health-panel'>
+      <h2>Saúde do sistema</h2>
+      <p id='systemHealthStatus' class='status'>Informe o token admin para carregar a saúde do sistema.</p>
+      <p id='systemHealthDetails' class='muted'></p>
+      <h3>🔴 Erros recentes</h3>
+      <div id='systemErrorLogs' class='action-list'>
+        <p class='muted'>Aguardando carregamento dos logs.</p>
+      </div>
+    </section>
+
     <section class='card action-inbox'>
       <h2>Caixa de entrada operacional</h2>
       <div class='action-grid'>
@@ -181,6 +191,74 @@
     }
     function currencyBRL(value) {
       return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
+    }
+
+    function getHealthInconsistencyTotal(checks) {
+      return Object.values(checks || {}).reduce((total, check) => total + Number(check?.count || 0), 0);
+    }
+    function renderSystemErrorLogs(logs) {
+      const root = document.getElementById('systemErrorLogs');
+      const items = Array.isArray(logs) ? logs : [];
+      if (!items.length) {
+        root.innerHTML = "<p class='muted'>Nenhum erro crítico recente.</p>";
+        return;
+      }
+      root.innerHTML = '';
+      items.forEach((log) => {
+        const item = document.createElement('article');
+        item.className = 'action-item';
+        const content = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = `${log.created_at || '-'} • ${log.area || '-'} • ${log.event || '-'}`;
+        const route = document.createElement('p');
+        route.className = 'action-item-meta';
+        route.textContent = `Rota: ${log.route || '-'}`;
+        const message = document.createElement('p');
+        message.className = 'action-item-reason';
+        message.textContent = log.message || 'Erro operacional registrado.';
+        content.append(title, route, message);
+        item.appendChild(content);
+        root.appendChild(item);
+      });
+    }
+    async function loadSystemHealth(token) {
+      const healthStatus = document.getElementById('systemHealthStatus');
+      const healthDetails = document.getElementById('systemHealthDetails');
+      const errorLogs = document.getElementById('systemErrorLogs');
+      healthStatus.textContent = 'Carregando saúde do sistema...';
+      healthDetails.textContent = '';
+      errorLogs.innerHTML = "<p class='muted'>Carregando logs de erro...</p>";
+
+      try {
+        const [healthRes, logsRes] = await Promise.all([
+          fetch('/api/admin/health-check', { headers: { 'x-admin-token': token } }),
+          fetch('/api/admin/operational-logs?level=error&limit=5', { headers: { 'x-admin-token': token } })
+        ]);
+        const [healthPayload, logsPayload] = await Promise.all([healthRes.json(), logsRes.json()]);
+
+        if (!healthRes.ok || !healthPayload.ok || !logsRes.ok || !logsPayload.ok) {
+          throw new Error('Falha ao carregar saúde do sistema.');
+        }
+
+        const health = healthPayload.data || {};
+        if (health.status === 'healthy') {
+          healthStatus.textContent = 'Saúde do sistema: 🟢 Saudável';
+          healthDetails.textContent = '';
+        } else if (health.status === 'warning') {
+          const total = getHealthInconsistencyTotal(health.checks);
+          healthStatus.textContent = 'Saúde do sistema: 🟡 Atenção necessária';
+          healthDetails.textContent = `Total de inconsistências encontradas: ${total}`;
+        } else {
+          healthStatus.textContent = 'Saúde do sistema: 🟡 Atenção necessária';
+          healthDetails.textContent = 'Status de saúde inesperado recebido.';
+        }
+
+        renderSystemErrorLogs(logsPayload.data?.logs);
+      } catch (error) {
+        healthStatus.textContent = 'Não foi possível carregar a saúde do sistema.';
+        healthDetails.textContent = '';
+        errorLogs.innerHTML = "<p class='muted'>Não foi possível carregar os logs de erro.</p>";
+      }
     }
     function getReactivationMessage(student) {
       return `Oi, ${student.name || 'tudo bem'}! Sentimos sua falta na Consultoria LM.\n\nVi que sua conta ficou inativa há ${student.days_since_inactivation ?? '-'} dias${student.reason ? ` (${student.reason})` : ''}. Quero te ajudar a retomar com um plano simples e direto para essa semana.\n\nSe fizer sentido pra você, te reativo agora e já alinhamos seu próximo passo. 💪`;
@@ -274,6 +352,7 @@
           action_url: item.action_url || '#'
         })}));
         document.getElementById('priorityMsg').textContent = data.priority_message || 'Operação em dia.';
+        await loadSystemHealth(token);
         statusEl.textContent = 'Operação carregada com sucesso.';
       } catch (error) {
         statusEl.textContent = error.message || 'Erro ao carregar operação.';
