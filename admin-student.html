@@ -8,12 +8,13 @@
 </head>
 <body class='student-360-page'>
   <div class='container'>
-    <a class='student-back-link' href='/admin-command-center.html'>⬅ Voltar para Action Center</a>
+    <a class='student-back-link' href='/admin-command-center.html'>⬅ Voltar para Command Center</a>
     <nav>
+      <a href='/admin.html'>Admin Hub</a>
+      <a href='/admin-command-center.html'>Command Center</a>
+      <a href='/admin-student.html'>Student 360</a>
+      <a href='/admin-students.html'>Cadastro de aluno</a>
       <button id='adminLogoutBtn' type='button'>Sair</button>
-      <a href='/admin.html'>← Voltar ao Admin Hub</a>
-      <a href='/admin-command-center.html'>Abrir Command Center</a>
-      <a href='/admin-student.html'>Abrir Student 360</a>
     </nav>
 
     <section class='card student-hero'>
@@ -50,8 +51,8 @@
         <div class='student-action-grid'>
           <button id='sendAccessBtn' type='button'>📩 Enviar acesso</button>
           <button id='openWhatsappBtn' type='button'>💬 Abrir WhatsApp</button>
-          <button id='openWeeklyPlanBtn' type='button'>📋 Plano da Semana</button>
-          <button id='openNutritionPlanBtn' type='button'>🥗 Plano Alimentar</button>
+          <button id='openWeeklyPlanBtn' type='button'>📋 Resolver planejamento</button>
+          <button id='openNutritionPlanBtn' type='button'>🥗 Resolver plano alimentar</button>
           <button id='quickReplyCheckinBtn' type='button'>✅ Responder Check-in</button>
           <button id='activateAccessBtn' type='button'>🚀 Liberar Acesso</button>
           <button id='toggleStudentStatusBtn' type='button'>🚫 Inativar aluno</button>
@@ -103,7 +104,7 @@
         <h2><button class='collapse-toggle' type='button' data-collapse-target='anamnesis'>Anamnese mais recente</button></h2>
         <div id='collapse-anamnesis'>
           <div id='latestAnamnesis'></div>
-          <a class='secondary-link' id='openAnamnesis' href='/admin-anamneses.html'>Abrir Anamnese</a>
+          <a class='secondary-link' id='openAnamnesis' href='/admin-anamneses.html'>Abrir rota interna da anamnese</a>
         </div>
       </article>
 
@@ -142,7 +143,7 @@
         <h2><button class='collapse-toggle' type='button' data-collapse-target='nutritionPlan'>Plano alimentar</button></h2>
         <div id='collapse-nutritionPlan'>
           <div id='nutritionPlan'></div>
-          <a class='secondary-link' id='editNutritionPlan' href='/admin-nutrition-plan.html'>Editar</a>
+          <a class='secondary-link' id='editNutritionPlan' href='/admin-nutrition-plan.html'>Editar rota interna</a>
         </div>
       </article>
 
