@@ -85,6 +85,16 @@
         <div id='studentSummary'></div>
       </article>
 
+      <article class='card student-360-card'>
+        <h2>Status Operacional</h2>
+        <div id='operationalDiagnosis'></div>
+      </article>
+
+      <article class='card student-360-card'>
+        <h2>Próxima Ação Recomendada</h2>
+        <div id='nextAction'></div>
+      </article>
+
       <article class='card student-360-card collapsible-card' data-collapse-key='anamnesis'>
         <h2><button class='collapse-toggle' type='button' data-collapse-target='anamnesis'>Anamnese mais recente</button></h2>
         <div id='collapse-anamnesis'>
@@ -164,14 +174,6 @@
       <article class='card student-360-card'>
         <h2>Prioridade Clínica</h2>
         <div id='clinicalPriority'></div>
-      </article>
-      <article class='card student-360-card'>
-        <h2>Próxima Ação Recomendada</h2>
-        <div id='nextAction'></div>
-      </article>
-      <article class='card student-360-card'>
-        <h2>Diagnóstico Operacional</h2>
-        <div id='operationalDiagnosis'></div>
       </article>
     </section>
   </div>
@@ -628,7 +630,9 @@
       byId('clinicalPriority').innerHTML = priority ? renderFields([field('Nível', priority.level, true), field('Resumo', priority.message)]) : renderEmpty('Sem prioridade calculada.');
     }
     function renderNextAction(action) {
-      byId('nextAction').innerHTML = action ? renderFields([field('Ação', action.label, true), field('Motivo', action.reason), field('Código', action.code)]) : renderEmpty('Sem ação recomendada.');
+      byId('nextAction').innerHTML = action
+        ? renderFields([field('📌 Ação', action.label, true), field('Motivo', action.reason), field('Código', action.code)])
+        : renderEmpty('Nenhuma ação pendente.');
     }
     function renderOnboardingStatus(student) {
       const status = String(student?.status || '').toUpperCase();
@@ -648,34 +652,62 @@
       toggleStudentStatusCardBtn.textContent = canReactivate ? '🔁 Reativar aluno' : '🚫 Inativar aluno';
       rotateTokenBtn.disabled = !student?.email;
     }
-    function renderOperationalDiagnosis(data) {
+    function getCurrentWeekRef() {
+      const date = new Date();
+      const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      const weekNum = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+      return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+    }
+
+    function resolveOperationalStatus(data) {
       const student = data?.student || {};
-      const checkin = data?.latest_checkin || {};
-      const isActive = String(student.status || '').toUpperCase() === 'ACTIVE';
-      const hasWeekly = !!data?.active_weekly_plan;
-      const hasNutrition = !!data?.active_nutrition_plan;
-      const hasReply = !!checkin?.coach_reply;
-      let status = 'Operação Assistida';
-      let reason = 'Existem pendências de execução para manter consistência.';
-      let next = 'Concluir itens pendentes no Centro de Ação.';
-      if (!isActive) {
-        status = 'Aguardando ativação';
-        reason = 'Aluno ainda sem acesso ativo.';
-        next = 'Usar “🚀 Liberar Acesso”.';
-      } else if (!hasWeekly || !hasNutrition) {
-        status = 'Planejamento incompleto';
-        reason = 'Falta objetivo do planejamento e/ou plano alimentar atualizados.';
-        next = 'Atualizar planos usando os atalhos da Central de Ações.';
-      } else if (!hasReply) {
-        status = 'Follow-up pendente';
-        reason = 'Último check-in sem resposta do coach.';
-        next = 'Responder check-in com direcionamento objetivo.';
-      } else {
-        status = 'Operação em dia';
-        reason = 'Acesso ativo, planos em dia e check-in respondido.';
-        next = 'Executar follow-up de rotina em 24h.';
+      const checkin = data?.latest_checkin || null;
+      const clinicalPriority = data?.clinical_priority || {};
+      const nextAction = data?.next_recommended_action || {};
+      const studentStatus = String(student.status || '').toUpperCase();
+      const clinicalLevel = String(clinicalPriority.level || '').toUpperCase();
+      const hasWeeklyPlan = !!data?.active_weekly_plan;
+      const hasNutritionPlan = !!data?.active_nutrition_plan;
+      const hasCoachReply = !!checkin?.coach_reply;
+      const hasCurrentWeekCheckin = !!checkin && String(checkin.week_ref || '') === getCurrentWeekRef();
+      const hasRecommendedAction = !!String(nextAction.code || '').trim();
+
+      if (studentStatus === 'INACTIVE') {
+        return { level: 'critical', label: '🔴 Crítico', reason: 'Aluno inativo.', nextStep: 'Reativar o aluno antes de executar o acompanhamento.' };
       }
-      byId('operationalDiagnosis').innerHTML = renderFields([field('Status', status, true), field('Motivo', reason), field('Próxima ação', next)]);
+      if (clinicalLevel === 'CRITICAL') {
+        return { level: 'critical', label: '🔴 Crítico', reason: clinicalPriority.message || 'Prioridade clínica crítica identificada.', nextStep: 'Responder o check-in hoje e ajustar o planejamento.' };
+      }
+      if (!hasCurrentWeekCheckin && !hasWeeklyPlan) {
+        return { level: 'critical', label: '🔴 Crítico', reason: 'Aluno sem check-in da semana e sem objetivo do planejamento atual.', nextStep: 'Cobrar check-in e criar objetivo do planejamento.' };
+      }
+      if (!hasWeeklyPlan) {
+        return { level: 'attention', label: '🟡 Atenção', reason: 'Falta objetivo do planejamento da semana.', nextStep: 'Atualizar objetivo do planejamento.' };
+      }
+      if (!hasNutritionPlan) {
+        return { level: 'attention', label: '🟡 Atenção', reason: 'Falta plano alimentar ativo.', nextStep: 'Criar ou ativar o plano alimentar.' };
+      }
+      if (!hasCoachReply) {
+        return { level: 'attention', label: '🟡 Atenção', reason: 'Último check-in não possui resposta do coach.', nextStep: 'Responder check-in com direcionamento objetivo.' };
+      }
+      if (clinicalLevel === 'HIGH') {
+        return { level: 'attention', label: '🟡 Atenção', reason: clinicalPriority.message || 'Prioridade clínica alta.', nextStep: 'Revisar sinais clínicos e ajustar a condução.' };
+      }
+      if (hasRecommendedAction) {
+        return { level: 'attention', label: '🟡 Atenção', reason: nextAction.reason || 'Há uma ação recomendada pendente.', nextStep: nextAction.label || 'Executar próxima ação recomendada.' };
+      }
+      if (studentStatus !== 'ACTIVE') {
+        return { level: 'attention', label: '🟡 Atenção', reason: 'Aluno ainda não está ativo.', nextStep: 'Liberar acesso antes de executar a rotina operacional.' };
+      }
+      return { level: 'ok', label: '🟢 Em dia', reason: 'Aluno ativo, check-in respondido, objetivo da semana e plano alimentar ativos.', nextStep: 'Manter acompanhamento de rotina.' };
+    }
+
+    function renderOperationalDiagnosis(data) {
+      const status = resolveOperationalStatus(data);
+      byId('operationalDiagnosis').innerHTML = renderFields([field('Status', status.label, true), field('Motivo', status.reason), field('Próximo passo', status.nextStep)]);
     }
 
     async function loadStudent360() {
