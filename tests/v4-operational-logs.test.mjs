@@ -6,10 +6,15 @@ import { sanitizeOperationalMetadata } from '../workers/api.js';
 
 const rootDir = process.cwd();
 const apiPath = path.join(rootDir, 'workers/api.js');
+const operationalLogServicePath = path.join(rootDir, 'workers/services/operational-log-service.js');
 const migrationPath = path.join(rootDir, 'migrations/0017_operational_logs.sql');
 
 async function readApiSource() {
   return readFile(apiPath, 'utf8');
+}
+
+async function readOperationalLogServiceSource() {
+  return readFile(operationalLogServicePath, 'utf8');
 }
 
 function extractFunctionSource(source, functionName) {
@@ -123,7 +128,7 @@ test('sanitizeOperationalMetadata ignora objetos, arrays, null e undefined', () 
 });
 
 test('helper logOperationalEvent existe e possui try/catch interno', async () => {
-  const source = await readApiSource();
+  const source = await readOperationalLogServiceSource();
   const helper = extractFunctionSource(source, 'logOperationalEvent');
   assert.match(helper, /try\s*{/);
   assert.match(helper, /catch\s*{/);
@@ -131,7 +136,7 @@ test('helper logOperationalEvent existe e possui try/catch interno', async () =>
 });
 
 test('helper logOperationalEvent não registra termos sensíveis explícitos', async () => {
-  const source = await readApiSource();
+  const source = await readOperationalLogServiceSource();
   const helper = extractFunctionSource(source, 'logOperationalEvent');
   assert.doesNotMatch(helper, /access_token/i);
   assert.doesNotMatch(helper, /password/i);

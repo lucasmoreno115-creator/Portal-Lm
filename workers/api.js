@@ -4,12 +4,16 @@ import { buildBaseTimeline, appendActivityRows } from './timeline-engine.js';
 import { inferRiskLevelFromOutcome } from './student-lifecycle.js';
 import { buildActionUrl } from './command-center.js';
 import { buildStudentSummary } from './student360.js';
+import { logOperationalEvent } from './services/operational-log-service.js';
+export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
+import { buildD1HealthCheck, tableExists } from './services/health-check-service.js';
+import { jsonWithUsage } from './services/endpoint-usage-service.js';
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const method = request.method;
-    const json = (payload, status = 200, matchedRoute = null) => jsonWithUsage(payload, status, request, env, matchedRoute);
+    const json = (payload, status = 200, matchedRoute = null) => jsonWithUsage(payload, status, request, env, matchedRoute, rawJson);
 
     if (method === 'OPTIONS') return corsResponse();
 
@@ -2360,122 +2364,6 @@ async function logActivityEvent(db, event) {
 
 
 
-async function jsonWithUsage(payload, status = 200, request, env, matchedRoute = null) {
-  const response = json(payload, status);
-  await logEndpointUsage(env?.DB, request, response.status, matchedRoute);
-  return response;
-}
-
-async function logEndpointUsage(db, request, responseStatus, matchedRoute = null) {
-  try {
-    if (!db || !request) return;
-    const url = new URL(request.url);
-    const pathname = url.pathname;
-    const statusCode = Number(responseStatus || 0);
-
-    if (!pathname.startsWith('/api/')) return;
-    if (pathname === '/api/admin/operational-logs') return;
-    if (pathname === '/api/health') return;
-    if (statusCode < 200 || statusCode >= 400) return;
-
-    await logOperationalEvent(db, {
-      level: 'info',
-      area: resolveEndpointUsageArea(pathname),
-      event: 'endpoint_used',
-      route: pathname,
-      method: request.method,
-      message: 'Endpoint utilizado.',
-      metadata: {
-        status_code: statusCode,
-        ...(matchedRoute ? { matched_route: matchedRoute } : {})
-      }
-    });
-  } catch {
-    // Auditoria de uso nunca deve afetar a resposta da API.
-  }
-}
-
-function resolveEndpointUsageArea(pathname) {
-  if (pathname.startsWith('/api/admin/')) return 'admin';
-  if (pathname.startsWith('/api/project-lm/') || pathname.includes('project-lm')) return 'project_lm';
-  if (pathname.startsWith('/api/portal/')) return 'student';
-  return 'system';
-}
-
-async function logOperationalEvent(db, payload) {
-  try {
-    if (!db) return;
-    const metadata = sanitizeOperationalMetadata(payload?.metadata);
-    await db.prepare(
-      `INSERT INTO operational_logs (id, created_at, level, area, event, route, method, student_email, admin_context, message, metadata)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(
-      crypto.randomUUID(),
-      new Date().toISOString(),
-      limitOperationalText(payload?.level || 'error', 20),
-      limitOperationalText(payload?.area || 'system', 40),
-      limitOperationalText(payload?.event || 'operational_error', 80),
-      limitOperationalText(payload?.route, 160),
-      limitOperationalText(payload?.method, 10),
-      limitOperationalText(payload?.student_email, 160)?.toLowerCase() || null,
-      limitOperationalText(payload?.admin_context, 160),
-      limitOperationalText(payload?.message, 500),
-      JSON.stringify(metadata)
-    ).run();
-  } catch {
-    // Logging operacional nunca deve quebrar o fluxo principal.
-  }
-}
-
-function limitOperationalText(value, maxLength) {
-  if (value == null) return null;
-  const text = String(value).trim();
-  if (!text) return null;
-  return text.slice(0, maxLength);
-}
-
-export function sanitizeOperationalMetadata(metadata) {
-  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return {};
-
-  const blockedKeys = new Set([
-    'token',
-    'access_token',
-    'admin_token',
-    'x_admin_token',
-    'password',
-    'senha',
-    'secret',
-    'authorization',
-    'cookie',
-    'set_cookie',
-    'bearer',
-    'credential',
-    'credentials',
-    'meal_plan',
-    'nutrition_plan',
-    'checkin_payload',
-    'answers_json',
-    'internal_scores_json'
-  ]);
-  const blockedKeyFragments = ['token', 'password', 'senha', 'secret', 'authorization', 'cookie', 'credential'];
-  const sensitiveValuePatterns = [/Bearer\s+/i, /x-admin-token/i, /access_token/i, /password/i, /senha/i];
-  const safe = {};
-
-  for (const [key, value] of Object.entries(metadata)) {
-    const normalizedKey = String(key || '').toLowerCase();
-    if (blockedKeys.has(normalizedKey)) continue;
-    if (blockedKeyFragments.some((fragment) => normalizedKey.includes(fragment))) continue;
-
-    if (['string', 'number', 'boolean'].includes(typeof value)) {
-      const sanitizedValue = typeof value === 'string' && sensitiveValuePatterns.some((pattern) => pattern.test(value))
-        ? '[redacted]'
-        : value;
-      safe[key] = typeof sanitizedValue === 'string' ? sanitizedValue.slice(0, 200) : sanitizedValue;
-    }
-  }
-  return safe;
-}
-
 function buildOperationalErrorPayload(request, err) {
   const url = new URL(request.url);
   return {
@@ -2548,13 +2436,6 @@ function isFinancialRiskFollowup(student) {
   return terms.some((term) => reason.includes(term));
 }
 
-
-async function tableExists(db, tableName) {
-  const row = await db.prepare(
-    `SELECT name FROM sqlite_master WHERE type='table' AND name=? LIMIT 1`
-  ).bind(tableName).first();
-  return Boolean(row?.name);
-}
 
 async function ensureColumn(db, tableName, columnName, sqlType) {
   const columns = await db.prepare(`PRAGMA table_info(${tableName})`).all();
@@ -3380,7 +3261,7 @@ function buildFallbackAnamnesisEmail(studentName, studentPhone) {
   return `${normalizedName}.${normalizedPhone}@anamnese.local`;
 }
 
-function json(payload, status = 200) {
+function rawJson(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
     status,
     headers: {
@@ -3495,133 +3376,6 @@ function isAdminAuthorized(request, env) {
   );
 }
 
-async function buildD1HealthCheck(db) {
-  const studentsTableExists = await tableExists(db, 'students');
-  const summary = {
-    students_total: await scalarNumber(db, `SELECT COUNT(*) AS total FROM student_access`),
-    students_active: await scalarNumber(db, `SELECT COUNT(*) AS total FROM student_access WHERE upper(status)='ACTIVE'`),
-    premium_students: await scalarNumber(
-      db,
-      `SELECT COUNT(*) AS total
-       FROM student_access
-       WHERE lower(COALESCE(plan_type, plan, 'premium')) IN ('premium', 'premium_lm')`
-    ),
-    project_lm_students: await scalarNumber(
-      db,
-      `SELECT COUNT(*) AS total
-       FROM student_access
-       WHERE lower(COALESCE(plan_type, plan, '')) IN ('project_lm', 'projeto_lm', 'projeto lm')`
-    )
-  };
-
-  const duplicateStudentAccessEmails = await rows(db, `
-    SELECT lower(email) AS email, COUNT(*) AS count
-    FROM student_access
-    WHERE email IS NOT NULL AND trim(email) <> ''
-    GROUP BY lower(email)
-    HAVING COUNT(*) > 1
-    ORDER BY count DESC, email ASC
-    LIMIT 20
-  `);
-
-  const duplicateStudentsEmails = studentsTableExists
-    ? await rows(db, `
-        SELECT lower(email) AS email, COUNT(*) AS count
-        FROM students
-        WHERE email IS NOT NULL AND trim(email) <> ''
-        GROUP BY lower(email)
-        HAVING COUNT(*) > 1
-        ORDER BY count DESC, email ASC
-        LIMIT 20
-      `)
-    : [];
-
-  const projectProfilesWithoutStudent = await rows(db, `
-    SELECT p.id, CAST(p.user_id AS TEXT) AS student_id, p.created_at
-    FROM project_lm_profiles p
-    LEFT JOIN student_access sa ON CAST(p.user_id AS TEXT)=CAST(sa.id AS TEXT)
-    WHERE sa.id IS NULL
-    ORDER BY datetime(p.created_at) DESC
-    LIMIT 20
-  `);
-
-  const studentAccessWithoutStudent = studentsTableExists
-    ? await rows(db, `
-        SELECT sa.id, lower(sa.email) AS email, sa.created_at
-        FROM student_access sa
-        LEFT JOIN students s ON lower(sa.email)=lower(s.email)
-        WHERE s.email IS NULL
-        ORDER BY datetime(sa.created_at) DESC
-        LIMIT 20
-      `)
-    : [];
-
-  const weeklyPlansWithoutStudent = await rows(db, `
-    SELECT wp.id, lower(wp.student_email) AS email, wp.student_email AS student_id, wp.created_at
-    FROM weekly_plans wp
-    LEFT JOIN student_access sa ON lower(wp.student_email)=lower(sa.email)
-    WHERE sa.email IS NULL
-    ORDER BY datetime(wp.created_at) DESC
-    LIMIT 20
-  `);
-
-  const timelineEventsWithoutStudent = await rows(db, `
-    SELECT at.id, lower(at.student_email) AS email, at.student_email AS student_id, at.created_at
-    FROM activity_timeline at
-    LEFT JOIN student_access sa ON lower(at.student_email)=lower(sa.email)
-    WHERE sa.email IS NULL
-    ORDER BY datetime(at.created_at) DESC
-    LIMIT 20
-  `);
-
-  const checkinsWithoutStudent = await rows(db, `
-    SELECT sc.id, lower(sc.student_email) AS email, sc.student_email AS student_id, sc.created_at
-    FROM student_checkins sc
-    LEFT JOIN student_access sa ON lower(sc.student_email)=lower(sa.email)
-    WHERE sa.email IS NULL
-    ORDER BY datetime(sc.created_at) DESC
-    LIMIT 20
-  `);
-
-  const checks = {
-    duplicate_student_access_emails: formatHealthCheckItems(duplicateStudentAccessEmails),
-    duplicate_students_emails: formatHealthCheckItems(duplicateStudentsEmails),
-    project_profiles_without_student: formatHealthCheckItems(projectProfilesWithoutStudent),
-    student_access_without_student: formatHealthCheckItems(studentAccessWithoutStudent),
-    weekly_plans_without_student: formatHealthCheckItems(weeklyPlansWithoutStudent),
-    timeline_events_without_student: formatHealthCheckItems(timelineEventsWithoutStudent),
-    checkins_without_student: formatHealthCheckItems(checkinsWithoutStudent)
-  };
-
-  const status = Object.values(checks).some((check) => check.count > 0) ? 'warning' : 'healthy';
-
-  return { summary, checks, status };
-}
-
-function formatHealthCheckItems(items) {
-  return {
-    count: items.length,
-    items: items.map((item) => sanitizeHealthCheckItem(item))
-  };
-}
-
-function sanitizeHealthCheckItem(item) {
-  const sanitized = {};
-  for (const key of ['id', 'student_id', 'email', 'count', 'created_at']) {
-    if (item[key] !== undefined && item[key] !== null) sanitized[key] = item[key];
-  }
-  return sanitized;
-}
-
-async function scalarNumber(db, query) {
-  const row = await db.prepare(query).first();
-  return Number(row?.total || 0);
-}
-
-async function rows(db, query) {
-  const { results = [] } = await db.prepare(query).all();
-  return results || [];
-}
 
 
 const DEFAULT_STUDENT_PLAN = 'premium';
