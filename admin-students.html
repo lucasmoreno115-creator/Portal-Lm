@@ -3,16 +3,22 @@
 <head>
   <meta charset='utf-8'>
   <meta name='viewport' content='width=device-width,initial-scale=1'>
-  <title>Acesso do Aluno LM</title>
+  <title>Cadastro de aluno LM</title>
   <link rel='stylesheet' href='portal.css'>
 </head>
 <body>
   <div class='container'>
-    <div class='student-action-row'><button id='adminLogoutBtn' type='button'>Sair</button></div>
+    <nav>
+      <a href='/admin.html'>Admin Hub</a>
+      <a href='/admin-command-center.html'>Command Center</a>
+      <a href='/admin-student.html'>Student 360</a>
+      <a href='/admin-students.html'>Cadastro de aluno</a>
+      <button id='adminLogoutBtn' type='button'>Sair</button>
+    </nav>
     <section class='card hero'>
       <p class='eyebrow'>Consultoria LM • Painel interno</p>
-      <h1>Acesso do Aluno LM</h1>
-      <p class='hero-title'>Crie ou atualize o acesso do aluno ao Portal LM.</p>
+      <h1>Cadastro de aluno LM</h1>
+      <p class='hero-title'>Crie ou atualize acesso, produto e status do aluno.</p>
       <p class='muted'>Após salvar, envie ao aluno o link do portal, email e token de acesso.</p>
     </section>
 
@@ -61,7 +67,7 @@
     <section class='card'>
       <p id='statusBox' class='status muted'>Preencha os dados do aluno para criar ou atualizar o acesso.</p>
       <pre id='shareBlock' class='status' style='display:none;white-space:pre-wrap'></pre>
-      <a class='secondary-link' href='index.html'>Voltar</a>
+      <a class='secondary-link' href='/admin-command-center.html'>Voltar ao Command Center</a>
     </section>
   </div>
 

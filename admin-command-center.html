@@ -9,10 +9,11 @@
 <body class='command-center-page'>
   <div class='container'>
     <nav>
+      <a href='/admin.html'>Admin Hub</a>
+      <a href='/admin-command-center.html'>Command Center</a>
+      <a href='/admin-student.html'>Student 360</a>
+      <a href='/admin-students.html'>Cadastro de aluno</a>
       <button id='adminLogoutBtn' type='button'>Sair</button>
-      <a href='/admin.html'>← Voltar ao Admin Hub</a>
-      <a href='/admin-command-center.html'>Abrir Command Center</a>
-      <a href='/admin-student.html'>Abrir Student 360</a>
     </nav>
 
     <section class='card'>
@@ -34,7 +35,7 @@
         <h2>Check-ins pendentes</h2>
         <p id='pendingCheckins' class='command-number'>0</p>
         <p class='muted'>Check-ins aguardando resposta do coach.</p>
-        <a class='secondary-link' href='/admin-checkins.html'>Abrir check-ins</a>
+        <a class='secondary-link' href='/admin-student.html'>Resolver no Student 360</a>
       </article>
 
 
@@ -42,35 +43,35 @@
         <h2>Alunos sem check-in na semana</h2>
         <p id='withoutCheckinWeek' class='command-number'>0</p>
         <p class='muted'>Alunos ativos sem check-in na semana atual.</p>
-        <a class='secondary-link' href='/admin-checkins.html'>Abrir check-ins</a>
+        <a class='secondary-link' href='/admin-student.html'>Ver alunos no Student 360</a>
       </article>
 
       <article class='card command-card'>
         <h2>Anamneses novas</h2>
         <p id='newAnamneses' class='command-number'>0</p>
         <p class='muted'>Anamneses premium com status RECEBIDA.</p>
-        <a class='secondary-link' href='/admin-anamneses.html'>Abrir anamneses</a>
+        <a class='secondary-link' href='/admin-student.html'>Abrir no Student 360</a>
       </article>
 
       <article class='card command-card'>
         <h2>Sem objetivo do planejamento</h2>
         <p id='withoutWeeklyPlan' class='command-number'>0</p>
         <p class='muted'>Alunos ativos sem objetivo do planejamento da semana atual.</p>
-        <a class='secondary-link' href='/admin-weekly-plan.html'>Criar plano</a>
+        <a class='secondary-link' href='/admin-student.html'>Resolver no Student 360</a>
       </article>
 
       <article class='card command-card'>
         <h2>Sem plano alimentar</h2>
         <p id='withoutNutritionPlan' class='command-number'>0</p>
         <p class='muted'>Alunos ativos sem plano alimentar ativo.</p>
-        <a class='secondary-link' href='/admin-nutrition-plan.html'>Criar plano alimentar</a>
+        <a class='secondary-link' href='/admin-student.html'>Resolver no Student 360</a>
       </article>
 
       <article class='card command-card'>
         <h2>🆕 Novos alunos aguardando liberação</h2>
         <p id='pendingOnboarding' class='command-number'>0</p>
         <p class='muted'>Registros em student_access com status PENDING_ONBOARDING.</p>
-        <a class='secondary-link' href='/admin-students.html'>Abrir alunos</a>
+        <a class='secondary-link' href='/admin-students.html'>Abrir cadastro de aluno</a>
       </article>
 
       <article class='card command-card'>
@@ -85,7 +86,7 @@
         <h2>Follow-ups vencidos</h2>
         <p id='overdueFollowups' class='command-number'>0</p>
         <p class='muted'>Follow-ups abertos com prazo já vencido.</p>
-        <a class='secondary-link' href='/admin-followup.html'>Abrir follow-up</a>
+        <a class='secondary-link' href='/admin-student.html'>Resolver no Student 360</a>
       </article>
     </section>
 
@@ -149,7 +150,15 @@
     function setText(id, value) {
       document.getElementById(id).textContent = String(value ?? 0);
     }
-    function renderActionList(id, list) {
+    function getStudent360Url(email, fallbackUrl) {
+      const normalizedEmail = String(email || '').trim().toLowerCase();
+      if (normalizedEmail && normalizedEmail !== '-') {
+        return `/admin-student.html?email=${encodeURIComponent(normalizedEmail)}`;
+      }
+      return fallbackUrl || '/admin-student.html';
+    }
+
+    function renderActionList(id, list, fallbackUrl) {
       const root = document.getElementById(id);
       const items = Array.isArray(list) ? list : [];
       if (!items.length) {
@@ -158,6 +167,7 @@
       }
       root.innerHTML = items.map((item) => {
         const date = item.last_event_at ? `<p class='action-item-meta'>Data: ${new Date(item.last_event_at).toLocaleString('pt-BR')}</p>` : '';
+        const actionUrl = getStudent360Url(item.email, fallbackUrl || item.action_url);
         return `<article class='action-item'>
           <div>
             <strong>${item.name || '-'}</strong>
@@ -165,7 +175,7 @@
             <p class='action-item-reason'>${item.reason || ''}</p>
             ${date}
           </div>
-          <a class='action-item-button' href='${item.action_url || '#'}'>Abrir aluno</a>
+          <a class='action-item-button' href='${actionUrl}'>Abrir no Student 360</a>
         </article>`;
       }).join('');
     }
@@ -243,13 +253,13 @@
         setText('pendingOnboarding', data.pending_onboarding);
         setText('inactiveStudents', data.inactive_students);
         document.getElementById('reactivationRevenuePotential').textContent = `Potencial de receita: ${currencyBRL(data.reactivation_revenue_potential)}`;
-        renderActionList('pendingCheckinsList', data.pending_checkins_list);
-        renderActionList('withoutCheckinWeekList', data.students_without_checkin_week_list);
-        renderActionList('newAnamnesesList', data.new_anamneses_list);
-        renderActionList('withoutWeeklyPlanList', data.students_without_weekly_plan_list);
-        renderActionList('withoutNutritionPlanList', data.students_without_nutrition_plan_list);
-        renderActionList('overdueFollowupsList', data.overdue_followups_list);
-        renderActionList('pendingOnboardingList', data.pending_onboarding_list);
+        renderActionList('pendingCheckinsList', data.pending_checkins_list, '/admin-checkins.html');
+        renderActionList('withoutCheckinWeekList', data.students_without_checkin_week_list, '/admin-checkins.html');
+        renderActionList('newAnamnesesList', data.new_anamneses_list, '/admin-anamneses.html');
+        renderActionList('withoutWeeklyPlanList', data.students_without_weekly_plan_list, '/admin-weekly-plan.html');
+        renderActionList('withoutNutritionPlanList', data.students_without_nutrition_plan_list, '/admin-nutrition-plan.html');
+        renderActionList('overdueFollowupsList', data.overdue_followups_list, '/admin-followup.html');
+        renderActionList('pendingOnboardingList', data.pending_onboarding_list, '/admin-students.html');
         inactiveStudentsCache = Array.isArray(data.inactive_students_list) ? data.inactive_students_list : [];
         renderReactivationList(inactiveStudentsCache);
         renderActionList('recentActivitiesList', (data.recent_activities || []).map((item) => {
