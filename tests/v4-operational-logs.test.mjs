@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { sanitizeOperationalMetadata } from '../workers/api.js';
 
 const rootDir = process.cwd();
 const apiPath = path.join(rootDir, 'workers/api.js');
@@ -35,6 +36,90 @@ test('migration cria tabela operational_logs e índices', async () => {
   for (const index of ['idx_operational_logs_created_at', 'idx_operational_logs_level_created_at', 'idx_operational_logs_area_created_at', 'idx_operational_logs_student_email_created_at']) {
     assert.match(source, new RegExp(index));
   }
+});
+
+
+test('sanitizeOperationalMetadata bloqueia chaves exatas sensíveis', () => {
+  const result = sanitizeOperationalMetadata({
+    token: 'abc',
+    access_token: 'abc',
+    admin_token: 'abc',
+    x_admin_token: 'abc',
+    password: 'abc',
+    senha: 'abc',
+    secret: 'abc',
+    authorization: 'abc',
+    cookie: 'abc',
+    set_cookie: 'abc',
+    bearer: 'abc',
+    credential: 'abc',
+    credentials: 'abc',
+    meal_plan: 'abc',
+    nutrition_plan: 'abc',
+    checkin_payload: 'abc',
+    answers_json: 'abc',
+    internal_scores_json: 'abc',
+    safe_note: 'ok'
+  });
+  assert.deepEqual(result, { safe_note: 'ok' });
+});
+
+test('sanitizeOperationalMetadata bloqueia chaves sensíveis por correspondência parcial', () => {
+  const result = sanitizeOperationalMetadata({
+    accessToken: 'abc',
+    portalToken: 'abc',
+    adminPassword: 'abc',
+    user_password: 'abc',
+    auth_secret: 'abc',
+    authorizationHeader: 'abc',
+    session_cookie: 'abc',
+    studentCredentials: 'abc',
+    safe_status: 'ok'
+  });
+  assert.deepEqual(result, { safe_status: 'ok' });
+});
+
+test('sanitizeOperationalMetadata redige valores string com padrões sensíveis', () => {
+  const result = sanitizeOperationalMetadata({
+    header: 'Bearer abc123',
+    adminHeader: 'x-admin-token: abc123',
+    query: 'access_token=abc123',
+    field: 'password=abc123',
+    portugueseField: 'senha=abc123'
+  });
+  assert.deepEqual(result, {
+    header: '[redacted]',
+    adminHeader: '[redacted]',
+    query: '[redacted]',
+    field: '[redacted]',
+    portugueseField: '[redacted]'
+  });
+});
+
+test('sanitizeOperationalMetadata preserva valores simples seguros', () => {
+  const result = sanitizeOperationalMetadata({
+    route: '/api/admin/health-check',
+    statusCode: 500,
+    retriable: false,
+    area: 'admin'
+  });
+  assert.deepEqual(result, {
+    route: '/api/admin/health-check',
+    statusCode: 500,
+    retriable: false,
+    area: 'admin'
+  });
+});
+
+test('sanitizeOperationalMetadata ignora objetos, arrays, null e undefined', () => {
+  const result = sanitizeOperationalMetadata({
+    nested: { safe: 'no' },
+    list: ['no'],
+    empty: null,
+    missing: undefined,
+    safe: 'yes'
+  });
+  assert.deepEqual(result, { safe: 'yes' });
 });
 
 test('helper logOperationalEvent existe e possui try/catch interno', async () => {
