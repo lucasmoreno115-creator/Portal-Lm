@@ -529,6 +529,7 @@ export default {
           const name = String(body?.name || '').trim();
           const email = String(body?.email || '').trim().toLowerCase();
           const accessToken = String(body?.access_token || '').trim();
+          const plan = normalizeStudentPlan(body?.plan);
           const planType = String(body?.plan_type || 'PREMIUM').trim();
           const status = String(body?.status || 'ACTIVE').trim();
           const whatsapp = normalizeWhatsapp(body?.whatsapp);
@@ -547,12 +548,13 @@ export default {
           if (existing) {
             await env.DB.prepare(
               `UPDATE student_access
-               SET name=?, access_token=?, plan_type=?, status=?, whatsapp=?
+               SET name=?, access_token=?, plan_type=?, plan=?, status=?, whatsapp=?
                WHERE id=?`
             ).bind(
               name,
               accessToken,
               planType,
+              plan,
               status,
               whatsapp,
               existing.id
@@ -560,14 +562,15 @@ export default {
           } else {
             await env.DB.prepare(
               `INSERT INTO student_access (
-                id, name, email, access_token, plan_type, status, whatsapp, created_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+                id, name, email, access_token, plan_type, plan, status, whatsapp, created_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
             ).bind(
               crypto.randomUUID(),
               name,
               email,
               accessToken,
               planType,
+              plan,
               status,
               whatsapp,
               new Date().toISOString()
@@ -580,6 +583,7 @@ export default {
               name,
               email,
               planType,
+              plan,
               status,
               whatsapp
             }

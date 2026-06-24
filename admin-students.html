@@ -39,21 +39,20 @@
           <input id='accessToken' type='text' required>
         </label>
 
-        <div class='grid'>
-          <label>Tipo de plano
-            <select id='planType'>
-              <option value='START'>START</option>
-              <option value='PREMIUM' selected>PREMIUM</option>
-              <option value='PRESENCIAL'>PRESENCIAL</option>
-            </select>
-          </label>
-          <label>Status
-            <select id='status'>
-              <option value='ACTIVE' selected>ACTIVE</option>
-              <option value='INACTIVE'>INACTIVE</option>
-            </select>
-          </label>
-        </div>
+        <label>Produto
+          <select id='studentPlan'>
+            <option value='premium' selected>Consultoria Premium</option>
+            <option value='projeto_lm'>Projeto LM</option>
+          </select>
+        </label>
+
+        <label>Status
+          <select id='status'>
+            <option value='ACTIVE' selected>ACTIVE</option>
+            <option value='PENDING_ONBOARDING'>PENDING_ONBOARDING</option>
+            <option value='INACTIVE'>INACTIVE</option>
+          </select>
+        </label>
 
         <button id='saveBtn' type='submit'>Salvar acesso</button>
       </form>
@@ -92,6 +91,10 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
       statusBox.classList.add(type || 'muted');
     }
 
+    function legacyPlanTypeForPlan(plan) {
+      return plan === 'projeto_lm' ? 'START' : 'PREMIUM';
+    }
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
 
@@ -99,7 +102,8 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
       const name = document.getElementById('studentName').value.trim();
       const email = document.getElementById('studentEmail').value.trim().toLowerCase();
       const accessToken = document.getElementById('accessToken').value.trim();
-      const planType = document.getElementById('planType').value.trim();
+      const plan = document.getElementById('studentPlan').value.trim();
+      const planType = legacyPlanTypeForPlan(plan);
       const status = document.getElementById('status').value.trim();
       const whatsapp = normalizeWhatsapp(document.getElementById('studentWhatsapp').value);
 
@@ -125,6 +129,7 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
             name,
             email,
             access_token: accessToken,
+            plan,
             plan_type: planType,
             status,
             whatsapp
