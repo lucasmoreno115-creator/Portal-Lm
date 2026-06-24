@@ -108,7 +108,7 @@
       </article>
 
       <article class='card student-360-card collapsible-card' data-collapse-key='weeklyPlan'>
-        <h2><button class='collapse-toggle' type='button' data-collapse-target='weeklyPlan'>Plano da semana</button></h2>
+        <h2><button class='collapse-toggle' type='button' data-collapse-target='weeklyPlan'>Objetivo do planejamento</button></h2>
         <div id='collapse-weeklyPlan'>
         <div id='weeklyPlan'></div>
         <button id='editWeeklyPlanBtn' type='button'>Editar</button>
@@ -119,7 +119,7 @@
           <textarea id='planNutritionFocus' rows='2' placeholder='Foco nutrição'></textarea>
           <textarea id='planMainRisk' rows='2' placeholder='Principal risco'></textarea>
           <textarea id='planCoachMessage' rows='3' placeholder='Mensagem estratégica'></textarea>
-          <button id='saveWeeklyPlanBtn' type='button'>Salvar plano semanal</button>
+          <button id='saveWeeklyPlanBtn' type='button'>Salvar objetivo do planejamento</button>
         </div>
         </div>
       </article>
@@ -496,7 +496,7 @@
 
     function renderWeeklyPlan(plan) {
       if (!plan) {
-        byId('weeklyPlan').innerHTML = renderEmpty('Sem plano semanal ativo na semana atual.');
+        byId('weeklyPlan').innerHTML = renderEmpty('Sem objetivo do planejamento ativo na semana atual.');
         return;
       }
       byId('weeklyPlan').innerHTML = renderFields([
@@ -581,7 +581,7 @@
         COACH_REPLY_SENT: { icon: '📩', title: 'Check-in respondido', description: 'O coach respondeu o check-in do aluno.', category: 'checkins' },
         PROGRESSION_LOG_SUBMITTED: { icon: '🏋️', title: 'Progressão registrada', description: 'O aluno registrou uma atualização de treino.', category: 'treino' },
         FOLLOWUP_LOGGED: { icon: '💬', title: 'Follow-up registrado', description: 'Uma ação de acompanhamento foi registrada.', category: 'comunicação' },
-        WEEKLY_PLAN_UPDATED: { icon: '📋', title: 'Plano semanal atualizado', description: 'O planejamento estratégico da semana foi criado ou revisado.', category: 'planos' },
+        WEEKLY_PLAN_UPDATED: { icon: '📋', title: 'Objetivo do planejamento atualizado', description: 'O planejamento estratégico da semana foi criado ou revisado.', category: 'planos' },
         NUTRITION_PLAN_UPDATED: { icon: '🥗', title: 'Plano alimentar atualizado', description: 'O plano alimentar ativo foi criado ou revisado.', category: 'planos' },
         STUDENT_INACTIVATED: { icon: '⚫', title: 'Aluno inativado', description: 'O aluno foi removido da operação ativa.', category: 'lifecycle' },
         STUDENT_REACTIVATED: { icon: '🟢', title: 'Aluno reativado', description: 'O aluno voltou para a operação ativa.', category: 'lifecycle' },
@@ -664,7 +664,7 @@
         next = 'Usar “🚀 Liberar Acesso”.';
       } else if (!hasWeekly || !hasNutrition) {
         status = 'Planejamento incompleto';
-        reason = 'Falta plano semanal e/ou plano alimentar atualizados.';
+        reason = 'Falta objetivo do planejamento e/ou plano alimentar atualizados.';
         next = 'Atualizar planos usando os atalhos da Central de Ações.';
       } else if (!hasReply) {
         status = 'Follow-up pendente';
@@ -930,7 +930,7 @@
       try {
         const res = await fetch('/api/admin/weekly-plan', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-token': token }, body: JSON.stringify({ student_email: email, week_ref: byId('planWeekRef').value.trim(), training_focus: byId('planTrainingFocus').value.trim(), cardio_target: byId('planCardioTarget').value.trim(), nutrition_focus: byId('planNutritionFocus').value.trim(), main_risk: byId('planMainRisk').value.trim(), coach_message: byId('planCoachMessage').value.trim() }) });
         const payload = await res.json();
-        if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao salvar plano semanal');
+        if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao salvar objetivo do planejamento');
         await loadStudent360();
         showToast('✅ Plano salvo');
       } finally { savePlanBtn.disabled = false; }
