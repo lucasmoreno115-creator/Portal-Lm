@@ -218,7 +218,9 @@
         WEEKLY_PLAN_UPDATED: { icon: '📋', title: 'Objetivo do planejamento atualizado', description: 'O planejamento estratégico da semana foi criado ou revisado.', category: 'planos' },
         NUTRITION_PLAN_UPDATED: { icon: '🥗', title: 'Plano alimentar atualizado', description: 'O plano alimentar ativo foi criado ou revisado.', category: 'planos' },
         STUDENT_INACTIVATED: { icon: '⚫', title: 'Aluno inativado', description: 'O aluno foi removido da operação ativa.', category: 'lifecycle' },
-        STUDENT_REACTIVATED: { icon: '🟢', title: 'Aluno reativado', description: 'O aluno voltou para a operação ativa.', category: 'lifecycle' }
+        STUDENT_REACTIVATED: { icon: '🟢', title: 'Aluno reativado', description: 'O aluno voltou para a operação ativa.', category: 'lifecycle' },
+        STUDENT_TOKEN_UPDATED: { icon: '🔐', title: 'Token de acesso atualizado', description: 'O token/senha de acesso do aluno foi alterado.', category: 'lifecycle' },
+        REACTIVATION_CONTACT_SENT: { icon: '📲', title: 'Contato de reativação enviado', description: 'Uma tentativa de reativação foi registrada para o aluno.', category: 'comunicação' }
       };
       return map[type] || { icon: '🕒', title: 'Atividade registrada', description: 'Um evento operacional foi registrado no sistema.', category: 'outros' };
     }

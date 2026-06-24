@@ -3241,6 +3241,10 @@ function isAdminAuthorized(request, env) {
 
 const DEFAULT_STUDENT_PLAN = 'premium';
 
+export function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
 export function normalizeStudentPlan(plan) {
   if (!plan) return DEFAULT_STUDENT_PLAN;
   const normalized = String(plan).trim().toLowerCase();
