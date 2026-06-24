@@ -91,8 +91,28 @@
     </section>
 
     <section class='card command-priority'>
-      <h2>Prioridade de hoje</h2>
+      <h2>Prioridade Operacional</h2>
       <p id='priorityMsg'>Operação em dia.</p>
+      <p id='criticalPendingCount' class='muted'>Pendências críticas: 0</p>
+      <p id='recommendedAction' class='muted'>Ação recomendada: revisar os cards de maior impacto.</p>
+    </section>
+
+    <section class='card action-inbox'>
+      <h2>Follow-ups</h2>
+      <p class='muted'>Follow-ups vencidos e próximos para responder o que precisa ser resolvido hoje.</p>
+      <a class='secondary-link' href='/admin-followup.html'>Abrir tela antiga de follow-ups</a>
+      <div id='followupsConsolidatedList' class='action-list'>
+        <p class='muted'>Aguardando carregamento dos follow-ups.</p>
+      </div>
+    </section>
+
+    <section class='card action-inbox'>
+      <h2>Alertas</h2>
+      <p class='muted'>Alertas do portal consolidados sem resolução inline.</p>
+      <a class='secondary-link' href='/admin-alerts.html'>Abrir tela antiga de alertas</a>
+      <div id='portalAlertsConsolidatedList' class='action-list'>
+        <p class='muted'>Aguardando carregamento dos alertas.</p>
+      </div>
     </section>
 
     <section class='card command-health-panel'>
@@ -278,6 +298,7 @@
             <p class='action-item-meta'>Dias desde inativação: ${item.days_since_inactivation ?? '-'}</p>
           </div>
           <div class='command-actions'>
+            <a class='action-item-button' href='${getStudent360Url(item.email)}'>Student 360</a>
             <button type='button' class='action-item-button' data-action='send-contact' data-index='${index}'>💬 Reativar contato</button>
             <button type='button' class='action-item-button' data-action='reactivate-student' data-index='${index}'>🔁 Reativar aluno</button>
           </div>
@@ -303,6 +324,87 @@
       return map[type] || { icon: '🕒', title: 'Atividade registrada', description: 'Um evento operacional foi registrado no sistema.', category: 'outros' };
     }
 
+
+    function compactStudentCard(item, label, fallbackReason) {
+      const email = item.email || item.student_email || '-';
+      const reason = item.reason || item.status || item.riskLevel || item.outcome || fallbackReason || 'Pendência operacional';
+      const when = item.nextAction || item.lastFollowupAt || item.lastCheckin || item.created_at || item.last_event_at || '';
+      return `<article class='action-item'>
+          <div>
+            <strong>${label}: ${item.name || 'Aluno'}</strong>
+            <p class='action-item-meta'>${email}</p>
+            <p class='action-item-reason'>${reason}</p>
+            ${when ? `<p class='action-item-meta'>Status/data: ${when}</p>` : ''}
+          </div>
+          <a class='action-item-button' href='${getStudent360Url(email)}'>Abrir no Student 360</a>
+        </article>`;
+    }
+
+    function renderConsolidatedFollowups(data) {
+      const root = document.getElementById('followupsConsolidatedList');
+      const groups = [
+        ['Vencido', data.criticalRiskStudents],
+        ['Vencido', data.highRiskStudents],
+        ['Vencido', data.missingCheckins],
+        ['Próximo', data.cancellationRiskStudents],
+        ['Próximo', data.financialRiskStudents]
+      ];
+      const items = groups.flatMap(([label, rows]) => (Array.isArray(rows) ? rows.map((row) => [label, row]) : []));
+      if (!items.length) {
+        root.innerHTML = "<p class='muted'>Nenhum follow-up vencido ou próximo no momento.</p>";
+        return 0;
+      }
+      root.innerHTML = items.slice(0, 8).map(([label, item]) => compactStudentCard(item, label, 'Follow-up pendente')).join('');
+      return items.length;
+    }
+
+    function renderConsolidatedAlerts(alerts) {
+      const root = document.getElementById('portalAlertsConsolidatedList');
+      const groups = [
+        ['Plano semanal', alerts.missingWeeklyPlan],
+        ['Check-in', alerts.missingCheckin],
+        ['Risco', alerts.riskStudents]
+      ];
+      const items = groups.flatMap(([label, rows]) => (Array.isArray(rows) ? rows.map((row) => [label, row]) : []));
+      if (!items.length) {
+        root.innerHTML = "<p class='muted'>Nenhum alerta do portal no momento.</p>";
+        return 0;
+      }
+      root.innerHTML = items.slice(0, 8).map(([label, item]) => compactStudentCard(item, label, item.planType || item.lastCheckin || 'Alerta do portal')).join('');
+      return items.length;
+    }
+
+    async function loadFollowupBlock(token) {
+      try {
+        const response = await fetch('/api/admin/followup-alerts', { method: 'GET', headers: { 'x-admin-token': token } });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) throw new Error('Falha ao carregar follow-ups.');
+        return renderConsolidatedFollowups(payload.data || {});
+      } catch (error) {
+        document.getElementById('followupsConsolidatedList').innerHTML = "<p class='muted'>Não foi possível carregar follow-ups agora.</p>";
+        return 0;
+      }
+    }
+
+    async function loadPortalAlertsBlock(token) {
+      try {
+        const response = await fetch('/api/admin/portal-alerts', { method: 'GET', headers: { 'x-admin-token': token } });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) throw new Error('Falha ao carregar alertas.');
+        return renderConsolidatedAlerts(payload.data || {});
+      } catch (error) {
+        document.getElementById('portalAlertsConsolidatedList').innerHTML = "<p class='muted'>Não foi possível carregar alertas agora.</p>";
+        return 0;
+      }
+    }
+
+    function updateOperationalPriority(data, followupTotal, alertTotal) {
+      const criticalTotal = Number(data.pending_checkins || 0) + Number(data.overdue_followups || 0) + Number(data.pending_onboarding || 0) + Number(data.inactive_students || 0) + followupTotal + alertTotal;
+      document.getElementById('criticalPendingCount').textContent = `Pendências críticas: ${criticalTotal}`;
+      const recommended = criticalTotal > 0 ? 'Ação recomendada: priorize follow-ups vencidos, alertas com aluno identificado e reativações de maior potencial.' : 'Ação recomendada: manter acompanhamento preventivo e revisar atividades recentes.';
+      document.getElementById('recommendedAction').textContent = recommended;
+      document.getElementById('priorityMsg').textContent = data.priority_message || (criticalTotal > 0 ? 'Existem pendências operacionais para resolver hoje.' : 'Operação em dia.');
+    }
     async function loadCommandCenter() {
       const token = tokenInput.value.trim();
       if (!token) {
@@ -351,8 +453,12 @@
           last_event_at: item.at || null,
           action_url: item.action_url || '#'
         })}));
-        document.getElementById('priorityMsg').textContent = data.priority_message || 'Operação em dia.';
-        await loadSystemHealth(token);
+        const [followupTotal, alertTotal] = await Promise.all([
+          loadFollowupBlock(token),
+          loadPortalAlertsBlock(token),
+          loadSystemHealth(token)
+        ]).then(([followups, alerts]) => [followups, alerts]);
+        updateOperationalPriority(data, followupTotal, alertTotal);
         statusEl.textContent = 'Operação carregada com sucesso.';
       } catch (error) {
         statusEl.textContent = error.message || 'Erro ao carregar operação.';
