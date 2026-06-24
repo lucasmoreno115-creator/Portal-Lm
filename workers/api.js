@@ -125,6 +125,15 @@ export default {
         ).bind(email, token).first();
 
         if (!student) {
+          await logOperationalEvent(env.DB, {
+            level: 'warn',
+            area: 'student',
+            event: 'student_login_failed',
+            route: url.pathname,
+            method,
+            student_email: email,
+            message: 'Credenciais inválidas.'
+          });
           return json({ ok: false, error: 'Credenciais inválidas.' }, 401);
         }
 
@@ -141,7 +150,18 @@ export default {
 
       if (url.pathname.startsWith('/api/portal/') || url.pathname.startsWith('/api/project-lm/')) {
         const auth = await validateStudent(request, env.DB);
-        if (!auth.ok) return json({ ok: false, error: auth.error }, 401);
+        if (!auth.ok) {
+          await logOperationalEvent(env.DB, {
+            level: 'warn',
+            area: 'student',
+            event: 'validate_student_failed',
+            route: url.pathname,
+            method,
+            student_email: request.headers.get('x-student-email'),
+            message: auth.error
+          });
+          return json({ ok: false, error: auth.error }, 401);
+        }
 
         const studentEmail = auth.student.email;
 
@@ -392,7 +412,39 @@ export default {
 
       if (url.pathname.startsWith('/api/admin/')) {
         if (!isAdminAuthorized(request, env)) {
+          await logOperationalEvent(env.DB, {
+            level: 'warn',
+            area: 'admin',
+            event: 'admin_unauthorized',
+            route: url.pathname,
+            method,
+            admin_context: request.headers.get('x-admin-user') || null,
+            message: 'Tentativa admin não autorizada.'
+          });
           return json({ ok: false, error: 'Unauthorized' }, 401);
+        }
+
+
+        if (url.pathname === '/api/admin/operational-logs' && method === 'GET') {
+          const level = nullableTrimmed(url.searchParams.get('level'));
+          const area = nullableTrimmed(url.searchParams.get('area'));
+          const studentEmail = nullableTrimmed(url.searchParams.get('student_email'))?.toLowerCase() || null;
+          const limitRaw = Number(url.searchParams.get('limit') || 50);
+          const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 1), 100) : 50;
+          const where = [];
+          const params = [];
+
+          if (level) { where.push('level=?'); params.push(level); }
+          if (area) { where.push('area=?'); params.push(area); }
+          if (studentEmail) { where.push('lower(student_email)=?'); params.push(studentEmail); }
+
+          const query = `SELECT id, created_at, level, area, event, route, method, student_email, admin_context, message, metadata
+             FROM operational_logs
+             ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+             ORDER BY datetime(created_at) DESC
+             LIMIT ?`;
+          const { results = [] } = await env.DB.prepare(query).bind(...params, limit).all();
+          return json({ ok: true, data: { logs: results || [] } });
         }
 
 
@@ -1943,6 +1995,7 @@ Me responde aqui para ajustarmos o próximo passo e evitar que sua semana fique 
 
       return json({ ok: false, error: 'Not found' }, 404);
     } catch (err) {
+      await logOperationalEvent(env.DB, buildOperationalErrorPayload(request, err));
       return json({
         ok: false,
         error: 'Internal error',
@@ -2218,6 +2271,24 @@ async function ensureSchema(db) {
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_activity_timeline_student_created ON activity_timeline(student_email, created_at)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_activity_timeline_created ON activity_timeline(created_at)`).run();
 
+  await db.prepare(`CREATE TABLE IF NOT EXISTS operational_logs (
+    id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    level TEXT NOT NULL,
+    area TEXT NOT NULL,
+    event TEXT NOT NULL,
+    route TEXT,
+    method TEXT,
+    student_email TEXT,
+    admin_context TEXT,
+    message TEXT,
+    metadata TEXT
+  )`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_operational_logs_created_at ON operational_logs(created_at)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_operational_logs_level_created_at ON operational_logs(level, created_at)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_operational_logs_area_created_at ON operational_logs(area, created_at)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_operational_logs_student_email_created_at ON operational_logs(student_email, created_at)`).run();
+
   await db.prepare(`CREATE TABLE IF NOT EXISTS premium_anamnesis (
     id TEXT PRIMARY KEY,
     student_name TEXT NOT NULL,
@@ -2260,6 +2331,90 @@ async function logActivityEvent(db, event) {
     JSON.stringify(event?.payload || {}),
     now
   ).run();
+}
+
+
+async function logOperationalEvent(db, payload) {
+  try {
+    if (!db) return;
+    const metadata = sanitizeOperationalMetadata(payload?.metadata);
+    await db.prepare(
+      `INSERT INTO operational_logs (id, created_at, level, area, event, route, method, student_email, admin_context, message, metadata)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      crypto.randomUUID(),
+      new Date().toISOString(),
+      limitOperationalText(payload?.level || 'error', 20),
+      limitOperationalText(payload?.area || 'system', 40),
+      limitOperationalText(payload?.event || 'operational_error', 80),
+      limitOperationalText(payload?.route, 160),
+      limitOperationalText(payload?.method, 10),
+      limitOperationalText(payload?.student_email, 160)?.toLowerCase() || null,
+      limitOperationalText(payload?.admin_context, 160),
+      limitOperationalText(payload?.message, 500),
+      JSON.stringify(metadata)
+    ).run();
+  } catch {
+    // Logging operacional nunca deve quebrar o fluxo principal.
+  }
+}
+
+function limitOperationalText(value, maxLength) {
+  if (value == null) return null;
+  const text = String(value).trim();
+  if (!text) return null;
+  return text.slice(0, maxLength);
+}
+
+function sanitizeOperationalMetadata(metadata) {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return {};
+  const blockedKeys = new Set(['token', 'secret', 'authorization', 'meal_plan', 'nutrition_plan', 'checkin_payload']);
+  const safe = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    const normalizedKey = String(key || '').toLowerCase();
+    if (blockedKeys.has(normalizedKey)) continue;
+    if (value == null || ['string', 'number', 'boolean'].includes(typeof value)) {
+      safe[key] = typeof value === 'string' ? value.slice(0, 200) : value;
+    }
+  }
+  return safe;
+}
+
+function buildOperationalErrorPayload(request, err) {
+  const url = new URL(request.url);
+  return {
+    level: 'error',
+    area: resolveOperationalArea(url.pathname),
+    event: resolveOperationalEvent(url.pathname),
+    route: url.pathname,
+    method: request.method,
+    student_email: request.headers.get('x-student-email'),
+    admin_context: request.headers.get('x-admin-user') || null,
+    message: String(err?.message || err || 'Internal error'),
+    metadata: { name: err?.name || null }
+  };
+}
+
+function resolveOperationalArea(pathname) {
+  if (pathname.startsWith('/api/admin/')) return 'admin';
+  if (pathname.includes('/project-lm/')) return 'project_lm';
+  if (pathname.startsWith('/api/portal/')) return 'student';
+  return 'system';
+}
+
+function resolveOperationalEvent(pathname) {
+  if (pathname === '/api/portal/checkin') return 'checkin_submit_error';
+  if (pathname === '/api/portal/progression') return 'progression_register_error';
+  if (pathname === '/api/portal/nutrition-plan') return 'nutrition_plan_load_error';
+  if (pathname === '/api/admin/command-center') return 'command_center_error';
+  if (pathname === '/api/admin/student-360') return 'student_360_error';
+  if (pathname === '/api/admin/student-access') return 'student_access_upsert_error';
+  if (pathname === '/api/admin/health-check') return 'health_check_error';
+  if (pathname.includes('/project-lm/profile')) return 'project_lm_onboarding_error';
+  if (pathname.includes('/current-mission') || pathname.includes('/daily-actions')) return 'project_lm_milestones_error';
+  if (pathname.includes('/library')) return 'project_lm_library_error';
+  if (pathname.includes('/planning') || pathname.includes('/plano-inicial')) return 'project_lm_initial_planning_error';
+  return 'request_error';
 }
 
 function __deprecated_safeJsonParse(value) {
