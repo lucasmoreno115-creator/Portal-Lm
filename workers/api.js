@@ -919,7 +919,7 @@ export default {
             ).run();
           }
 
-          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: EVENT_TYPES.WEEKLY_PLAN_UPDATED, source: 'admin', title: 'Plano semanal atualizado', payload: { weekly_plan_id: id, week_ref: weekRef } });
+          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: EVENT_TYPES.WEEKLY_PLAN_UPDATED, source: 'admin', title: 'Objetivo do planejamento atualizado', payload: { weekly_plan_id: id, week_ref: weekRef } });
 
           const saved = await env.DB.prepare(
             `SELECT id, student_email, week_ref, training_focus, cardio_target,
@@ -1345,7 +1345,7 @@ export default {
           const studentsWithoutWeeklyPlanList = studentsWithoutWeeklyPlanListRaw.map((item) => ({
             name: item.name || item.email,
             email: item.email,
-            reason: 'Plano semanal ausente',
+            reason: 'Objetivo do planejamento ausente',
             last_event_at: null,
             action_url: buildActionUrl(item.email)
           }));
@@ -1550,7 +1550,7 @@ Me responde aqui rapidamente:
 o que mais está dificultando sua rotina agora?`;
           const criticalMessage = `Quero alinhar sua semana antes que a rotina perca direção.
 
-Seu check-in ainda não foi enviado e seu plano da semana precisa ser atualizado com base no seu momento atual.
+Seu check-in ainda não foi enviado e seu objetivo do planejamento precisa ser atualizado com base no seu momento atual.
 
 Me responde aqui para ajustarmos o foco da semana.`;
 
@@ -1670,7 +1670,7 @@ Me responde aqui para eu te explicar as opções.`;
                 planType: student.planType,
                 lastCheckin: student.lastCheckin,
                 priority: 'CRITICAL',
-                reason: 'Sem check-in e sem plano semanal',
+                reason: 'Sem check-in e sem objetivo do planejamento',
                 whatsappUrl: criticalWhatsappUrl,
                 message: criticalMessage,
                 recentlyContacted: student.recentlyContacted,
@@ -1835,7 +1835,7 @@ Me responde aqui para ajustarmos o próximo passo e evitar que sua semana fique 
               riskStudents.push({
                 email: student.email,
                 name,
-                reason: 'Sem plano semanal e sem check-in'
+                reason: 'Sem objetivo do planejamento e sem check-in'
               });
               continue;
             }
@@ -3222,9 +3222,9 @@ function computeNextRecommendedAction(checkin, weeklyPlan) {
     return { code: 'REPLY_CHECKIN', label: 'Responder último check-in', reason: 'Existe check-in sem retorno do coach.' };
   }
   if (!weeklyPlan) {
-    return { code: 'CREATE_WEEKLY_PLAN', label: 'Criar plano semanal atual', reason: 'Aluno sem plano semanal ativo.' };
+    return { code: 'CREATE_WEEKLY_PLAN', label: 'Criar objetivo do planejamento atual', reason: 'Aluno sem objetivo do planejamento ativo.' };
   }
-  return { code: 'REFINE_WEEKLY_PLAN', label: 'Refinar plano semanal', reason: 'Check-in respondido; revisar foco de execução.' };
+  return { code: 'REFINE_WEEKLY_PLAN', label: 'Refinar objetivo do planejamento', reason: 'Check-in respondido; revisar foco de execução.' };
 }
 
 function isAdminAuthorized(request, env) {

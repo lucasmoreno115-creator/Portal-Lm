@@ -64,7 +64,7 @@
           <textarea id='coachMessage' rows='3'></textarea>
         </label>
 
-        <button id='submitBtn' type='submit'>Salvar plano da semana</button>
+        <button id='submitBtn' type='submit'>Salvar objetivo do planejamento</button>
       </form>
     </section>
 
@@ -111,7 +111,7 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
 
       submitBtn.disabled = true;
       submitBtn.textContent = 'Salvando...';
-      setStatus('Salvando plano semanal...', 'muted');
+      setStatus('Salvando objetivo do planejamento...', 'muted');
 
       try {
         const response = await fetch('/api/admin/weekly-plan', {
@@ -136,12 +136,12 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
           throw new Error(payload?.error || 'Falha ao salvar');
         }
 
-        setStatus('Plano da semana salvo com sucesso.', 'ok');
+        setStatus('Objetivo do planejamento salvo com sucesso.', 'ok');
       } catch (error) {
         setStatus('Não foi possível salvar o plano. Verifique o token e os campos obrigatórios.', 'error');
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Salvar plano da semana';
+        submitBtn.textContent = 'Salvar objetivo do planejamento';
       }
     });
   </script>
