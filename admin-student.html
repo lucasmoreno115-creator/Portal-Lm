@@ -101,7 +101,7 @@
       </article>
 
       <article class='card student-360-card collapsible-card' data-collapse-key='anamnesis'>
-        <h2><button class='collapse-toggle' type='button' data-collapse-target='anamnesis'>Anamnese mais recente</button></h2>
+        <h2><button class='collapse-toggle' type='button' data-collapse-target='anamnesis'>📝 Bloco Anamnese</button></h2>
         <div id='collapse-anamnesis'>
           <div id='latestAnamnesis'></div>
           <a class='secondary-link' id='openAnamnesis' href='/admin-anamneses.html'>Abrir rota interna da anamnese</a>
@@ -109,11 +109,12 @@
       </article>
 
       <article class='card student-360-card'>
-        <h2>Check-in mais recente</h2>
+        <h2>✅ Bloco Check-ins</h2>
         <div id='latestCheckin'></div>
         <div class='student-action-row'>
           <textarea id='coachReplyInput' rows='3' placeholder='Escreva a resposta ao check-in'></textarea>
           <button id='replyCheckinBtn' type='button'>Responder check-in</button>
+          <a class='secondary-link' id='openCheckins' href='/admin-checkins.html'>Abrir tela auxiliar de check-ins</a>
         </div>
       </article>
 
@@ -123,10 +124,11 @@
       </article>
 
       <article class='card student-360-card collapsible-card' data-collapse-key='weeklyPlan'>
-        <h2><button class='collapse-toggle' type='button' data-collapse-target='weeklyPlan'>Objetivo do planejamento</button></h2>
+        <h2><button class='collapse-toggle' type='button' data-collapse-target='weeklyPlan'>📋 Bloco Plano Semanal</button></h2>
         <div id='collapse-weeklyPlan'>
         <div id='weeklyPlan'></div>
-        <button id='editWeeklyPlanBtn' type='button'>Editar</button>
+        <button id='editWeeklyPlanBtn' type='button'>Editar inline</button>
+        <a class='secondary-link' id='openWeeklyPlan' href='/admin-weekly-plan.html'>Abrir tela auxiliar do plano semanal</a>
         <div class='student-action-row' id='weeklyPlanForm'>
           <input id='planWeekRef' type='text' placeholder='2026-W20'>
           <textarea id='planTrainingFocus' rows='2' placeholder='Foco treino'></textarea>
@@ -140,7 +142,7 @@
       </article>
 
       <article class='card student-360-card collapsible-card' data-collapse-key='nutritionPlan'>
-        <h2><button class='collapse-toggle' type='button' data-collapse-target='nutritionPlan'>Plano alimentar</button></h2>
+        <h2><button class='collapse-toggle' type='button' data-collapse-target='nutritionPlan'>🥗 Bloco Plano Alimentar</button></h2>
         <div id='collapse-nutritionPlan'>
           <div id='nutritionPlan'></div>
           <a class='secondary-link' id='editNutritionPlan' href='/admin-nutrition-plan.html'>Editar rota interna</a>
@@ -367,6 +369,8 @@
     function hydrateLinks(email) {
       const query = encodeURIComponent(email || '');
       byId('openAnamnesis').href = `/admin-anamneses.html?email=${query}`;
+      byId('openCheckins').href = `/admin-checkins.html?email=${query}`;
+      byId('openWeeklyPlan').href = `/admin-weekly-plan.html?email=${query}`;
       byId('editNutritionPlan').href = getNutritionPlanUrl(email);
     }
     function getWhatsappLink(raw) {
@@ -376,21 +380,15 @@
     function getAccessMessage() {
       const name = currentStudent?.name || 'Aluno(a)';
       const email = currentStudent?.email || emailInput.value.trim().toLowerCase();
-      const token = currentStudent?.token || currentStudent?.access_token || '';
       const portalLink = `${window.location.origin}/portal-login.html`;
-      if (!token) {
-        return `Olá, ${name}!\n\nSeu acesso à Consultoria LM foi liberado.\n\n• Email: ${email}\n• Portal: ${portalLink}\n\n⚠️ Token não disponível nesta tela.\nConsulte "Acessos de Alunos" para recuperar ou reenviar o acesso.\n\nQualquer dúvida, me chama por aqui 👊`;
-      }
-      return `Olá, ${name}!\n\nSeu acesso à Consultoria LM foi liberado.\n\n• Email: ${email}\n• Token: ${token}\n• Portal: ${portalLink}\n\nQualquer dúvida, me chama por aqui 👊`;
+      return `Olá, ${name}!\n\nSeu acesso à Consultoria LM foi liberado.\n\n• Email: ${email}\n• Portal: ${portalLink}\n\nPor segurança, a senha/token não é exibida no Student 360.\n\nQualquer dúvida, me chama por aqui 👊`;
     }
     function syncAccessMessageActions() {
-      const hasToken = !!(currentStudent?.token || currentStudent?.access_token);
-      copyAccessMessageBtn.disabled = !hasToken;
-      openAccessWhatsappBtn.disabled = !hasToken;
-      copyAccessBtn.disabled = !hasToken;
-      const title = hasToken ? '' : 'Token do aluno indisponível';
-      copyAccessMessageBtn.title = title;
-      openAccessWhatsappBtn.title = title;
+      copyAccessMessageBtn.disabled = false;
+      openAccessWhatsappBtn.disabled = false;
+      copyAccessBtn.disabled = false;
+      copyAccessMessageBtn.title = '';
+      openAccessWhatsappBtn.title = '';
     }
     function getStrategicSummaryMessage() {
       const answers = parseAnamnesisAnswers(currentStudent?.latest_anamnesis || null);
@@ -439,10 +437,9 @@
       byId('studentSummary').innerHTML = html;
     }
     function renderStudentAccess(student) {
-      const token = student?.access_token || student?.token || '';
       byId('studentAccessDetails').innerHTML = renderFields([
         field('Email', student?.email),
-        field('Token', token || 'Não informado', true),
+        field('Token', 'Oculto por segurança', true),
         field('Status', student?.status, true),
         field('Produto', formatStudentProduct(student)),
         field('WhatsApp', student?.whatsapp)
@@ -623,7 +620,9 @@
         return;
       }
       byId('latestAnamnesis').innerHTML = renderFields([
-        field('Data de envio', formatDate(anamnesis.created_at), true),
+        field('Existência', 'Anamnese registrada', true),
+        field('Data', formatDate(anamnesis.created_at), true),
+        field('Status', anamnesis.status || 'Recebida'),
         field('Objetivo principal', pickFirstDeep(answers, SUMMARY_PATHS.mainObjective)),
         field('O que mais incomoda', pickFirst(answers, ['o_que_mais_incomoda', 'incômodo_principal', 'pain_point'])),
         field('Maior dificuldade alimentar', pickFirst(answers, ['maior_dificuldade_alimentar', 'nutrition.main_difficulty', 'dificuldade_alimentar'])),
@@ -641,7 +640,8 @@
       }
       byId('latestCheckin').innerHTML = renderFields([
         field('Data do check-in', formatDate(checkin.created_at), true),
-        field('Peso', checkin.weekly_weight),
+        field('Peso', formatWeight(checkin.weekly_weight)),
+        field('Percepção/adesão geral', resolveAdherence(checkin), true),
         field('Adesão treino', checkin.training_adherence),
         field('Adesão nutrição', checkin.nutrition_adherence),
         field('Adesão cardio', checkin.cardio_adherence),
@@ -678,7 +678,7 @@
         field('Meta de cardio', plan.cardio_target),
         field('Foco nutricional', plan.nutrition_focus),
         field('Principal risco', plan.main_risk),
-        field('Mensagem estratégica', plan.coach_message)
+        field('Próxima ação recomendada', plan.coach_message)
       ]);
     }
 
@@ -692,7 +692,7 @@
         field('Título', plan.title, true),
         field('Objetivo', pickFirstDeep(plan, ['objective', 'goal', 'objetivo', 'strategy_goal', 'plan_json.objective', 'plan_json.goal'])),
         field('Estratégia', plan.strategy),
-        field('Status', plan.status || 'ACTIVE'),
+        field('Status do plano alimentar', plan.status || 'ACTIVE', true),
         field('Última atualização', formatDate(plan.updated_at || plan.created_at)),
         field('Quantidade de refeições', meals)
       ]);
