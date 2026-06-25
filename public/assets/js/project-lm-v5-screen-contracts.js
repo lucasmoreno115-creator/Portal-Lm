@@ -1,0 +1,156 @@
+(function initProjectLmV5ScreenContracts(globalScope) {
+  const STATE_MESSAGES = Object.freeze({
+    locked: 'Esta etapa será desbloqueada quando você concluir o passo anterior.',
+    active: 'Esta é sua próxima ação na jornada.',
+    completed: 'Etapa concluída. Você pode revisar o que já construiu.',
+    maintenance: 'Você está em manutenção. Continue sustentando o que construiu.',
+    loading: 'Carregando sua jornada.',
+    error: 'Não foi possível carregar esta etapa agora.'
+  });
+
+  const formContracts = Object.freeze({
+    stage_1_actions: Object.freeze({
+      type: 'stage_1_actions',
+      submit_action: 'createStage1Actions',
+      fields: Object.freeze([
+        Object.freeze({ name: 'actions[0].title', label: 'Ação mínima 1', type: 'text', required: true, placeholder: 'Descreva a primeira ação mínima.' }),
+        Object.freeze({ name: 'actions[1].title', label: 'Ação mínima 2', type: 'text', required: true, placeholder: 'Descreva a segunda ação mínima.' }),
+        Object.freeze({ name: 'actions[2].title', label: 'Ação mínima 3', type: 'text', required: true, placeholder: 'Descreva a terceira ação mínima.' })
+      ])
+    }),
+    stage_2_plan_b: Object.freeze({
+      type: 'stage_2_plan_b',
+      submit_action: 'savePlanB',
+      fields: Object.freeze([
+        Object.freeze({ name: 'emergency_meal', label: 'Refeição de emergência', type: 'text', required: true, placeholder: 'Defina uma refeição simples para dias difíceis.' }),
+        Object.freeze({ name: 'minimum_workout', label: 'Treino mínimo', type: 'text', required: true, placeholder: 'Defina o menor treino possível.' }),
+        Object.freeze({ name: 'minimum_movement', label: 'Movimento mínimo', type: 'text', required: true, placeholder: 'Defina um movimento mínimo diário.' }),
+        Object.freeze({ name: 'minimum_self_care', label: 'Autocuidado mínimo', type: 'text', required: true, placeholder: 'Defina uma ação mínima de autocuidado.' })
+      ])
+    }),
+    stage_3_victories: Object.freeze({
+      type: 'stage_3_victories',
+      submit_action: 'createVictory',
+      fields: Object.freeze([
+        Object.freeze({ name: 'description', label: 'Vitória', type: 'textarea', required: true, placeholder: 'Registre uma vitória concreta da sua jornada.' })
+      ])
+    }),
+    stage_4_recovery: Object.freeze({
+      type: 'stage_4_recovery',
+      submit_action: 'saveRecovery',
+      fields: Object.freeze([
+        Object.freeze({ name: 'overeating', label: 'Exagero alimentar', type: 'textarea', required: true, placeholder: 'Defina como retomar após exagerar na alimentação.' }),
+        Object.freeze({ name: 'missed_workout', label: 'Treino perdido', type: 'textarea', required: true, placeholder: 'Defina como retomar após perder um treino.' }),
+        Object.freeze({ name: 'travel', label: 'Viagem', type: 'textarea', required: true, placeholder: 'Defina como manter a jornada durante viagens.' }),
+        Object.freeze({ name: 'difficult_week', label: 'Semana difícil', type: 'textarea', required: true, placeholder: 'Defina como atravessar uma semana difícil.' }),
+        Object.freeze({ name: 'lack_of_motivation', label: 'Falta de motivação', type: 'textarea', required: true, placeholder: 'Defina como agir quando faltar motivação.' })
+      ])
+    }),
+    maintenance_goals: Object.freeze({
+      type: 'maintenance_goals',
+      submit_action: 'createMaintenanceGoal',
+      fields: Object.freeze([
+        Object.freeze({ name: 'goal', label: 'Meta de manutenção', type: 'text', required: true, placeholder: 'Defina uma meta simples para sustentar sua evolução.' })
+      ])
+    })
+  });
+
+  const screens = Object.freeze([
+    Object.freeze({ key: 'journey_overview', title: 'Visão geral da jornada', subtitle: 'Acompanhe seu avanço na Jornada Projeto LM V5.', route: '#project-lm/journey', stage_key: null, required_status: 'active', empty_state: 'Sua jornada ainda não foi carregada.', locked_state: STATE_MESSAGES.locked, completed_state: STATE_MESSAGES.completed, primary_action: 'open_current_stage', secondary_action: null, form_contract: null }),
+    Object.freeze({ key: 'stage_1_actions', title: 'Ações mínimas', subtitle: 'Defina três ações mínimas para começar com consistência.', route: '#project-lm/stage-1-actions', stage_key: 'stage_1', required_status: 'active', empty_state: 'Nenhuma ação mínima foi definida ainda.', locked_state: STATE_MESSAGES.locked, completed_state: STATE_MESSAGES.completed, primary_action: 'createStage1Actions', secondary_action: 'completeStage1Action', form_contract: formContracts.stage_1_actions }),
+    Object.freeze({ key: 'stage_2_plan_b', title: 'Plano B', subtitle: 'Prepare respostas mínimas para dias difíceis.', route: '#project-lm/plan-b', stage_key: 'stage_2', required_status: 'active', empty_state: 'Seu Plano B ainda não foi definido.', locked_state: STATE_MESSAGES.locked, completed_state: STATE_MESSAGES.completed, primary_action: 'savePlanB', secondary_action: null, form_contract: formContracts.stage_2_plan_b }),
+    Object.freeze({ key: 'stage_3_victories', title: 'Vitórias', subtitle: 'Registre evidências do que você já construiu.', route: '#project-lm/victories', stage_key: 'stage_3', required_status: 'active', empty_state: 'Nenhuma vitória foi registrada ainda.', locked_state: STATE_MESSAGES.locked, completed_state: STATE_MESSAGES.completed, primary_action: 'createVictory', secondary_action: null, form_contract: formContracts.stage_3_victories }),
+    Object.freeze({ key: 'stage_4_recovery', title: 'Protocolos de recuperação', subtitle: 'Defina como retomar rapidamente após desvios.', route: '#project-lm/recovery', stage_key: 'stage_4', required_status: 'active', empty_state: 'Nenhum protocolo de recuperação foi salvo ainda.', locked_state: STATE_MESSAGES.locked, completed_state: STATE_MESSAGES.completed, primary_action: 'saveRecovery', secondary_action: null, form_contract: formContracts.stage_4_recovery }),
+    Object.freeze({ key: 'maintenance_goals', title: 'Metas de manutenção', subtitle: 'Sustente sua evolução com metas simples.', route: '#project-lm/maintenance-goals', stage_key: 'maintenance', required_status: 'maintenance', empty_state: 'Nenhuma meta de manutenção foi criada ainda.', locked_state: STATE_MESSAGES.locked, completed_state: STATE_MESSAGES.completed, primary_action: 'createMaintenanceGoal', secondary_action: null, form_contract: formContracts.maintenance_goals })
+  ]);
+
+  const flows = Object.freeze({
+    stageToScreen: Object.freeze({ stage_1: 'stage_1_actions', stage_2: 'stage_2_plan_b', stage_3: 'stage_3_victories', stage_4: 'stage_4_recovery', maintenance: 'maintenance_goals' }),
+    actionToScreen: Object.freeze({ open_stage_1_actions: 'stage_1_actions', open_plan_b: 'stage_2_plan_b', open_victories: 'stage_3_victories', open_recovery_protocols: 'stage_4_recovery', open_maintenance_goals: 'maintenance_goals' })
+  });
+
+  const actions = Object.freeze([
+    Object.freeze({ key: 'createStage1Actions', state_action: 'createStage1Actions', success_message: 'Ações mínimas salvas com sucesso.', error_fallback: 'Não foi possível salvar suas ações mínimas agora.' }),
+    Object.freeze({ key: 'completeStage1Action', state_action: 'completeStage1Action', success_message: 'Ação mínima concluída com sucesso.', error_fallback: 'Não foi possível concluir esta ação mínima agora.' }),
+    Object.freeze({ key: 'savePlanB', state_action: 'savePlanB', success_message: 'Plano B salvo com sucesso.', error_fallback: 'Não foi possível salvar seu Plano B agora.' }),
+    Object.freeze({ key: 'createVictory', state_action: 'createVictory', success_message: 'Vitória registrada com sucesso.', error_fallback: 'Não foi possível registrar esta vitória agora.' }),
+    Object.freeze({ key: 'saveRecovery', state_action: 'saveRecovery', success_message: 'Protocolos de recuperação salvos com sucesso.', error_fallback: 'Não foi possível salvar seus protocolos de recuperação agora.' }),
+    Object.freeze({ key: 'createMaintenanceGoal', state_action: 'createMaintenanceGoal', success_message: 'Meta de manutenção criada com sucesso.', error_fallback: 'Não foi possível criar esta meta de manutenção agora.' })
+  ]);
+
+  function getScreenByKey(screenKey) {
+    return screens.find((screen) => screen.key === screenKey) || null;
+  }
+
+  function getScreenForStage(stageKey) {
+    return getScreenByKey(flows.stageToScreen[stageKey]);
+  }
+
+  function getFlowForAction(action) {
+    const screenKey = flows.actionToScreen[action];
+    return screenKey ? getScreenByKey(screenKey) : null;
+  }
+
+  function getStageForScreen(screen, journeyState) {
+    if (!screen || !screen.stage_key || !journeyState || !journeyState.stages) return null;
+    return journeyState.stages[screen.stage_key] || null;
+  }
+
+  function getCurrentScreenKey(journeyState) {
+    const nextAction = journeyState?.progress?.next_required_action;
+    const ctaAction = journeyState?.view_model?.primary_cta?.action;
+    const actionScreen = flows.actionToScreen[nextAction] || flows.actionToScreen[ctaAction];
+    if (actionScreen) return actionScreen;
+
+    const stages = journeyState?.stages || {};
+    const activeStageKey = Object.keys(flows.stageToScreen).find((stageKey) => stages[stageKey]?.status === 'active' || stages[stageKey]?.status === 'maintenance');
+    return activeStageKey ? flows.stageToScreen[activeStageKey] : null;
+  }
+
+  function resolveStatus(screen, stage, journeyState) {
+    if (journeyState?.loading) return 'loading';
+    if (journeyState?.error) return 'error';
+    if (screen.key === 'journey_overview') return journeyState?.progress?.status || journeyState?.journey?.status || 'active';
+    if (screen.key === 'maintenance_goals' && stage?.status === 'active') return 'maintenance';
+    return stage?.status || 'locked';
+  }
+
+  function buildScreenState(screenKey, journeyState) {
+    const screen = getScreenByKey(screenKey);
+    if (!screen) return null;
+
+    const stage = getStageForScreen(screen, journeyState);
+    const status = resolveStatus(screen, stage, journeyState);
+    const canAccess = screen.key === 'journey_overview' || (status !== 'locked' && status !== 'error' && status !== 'loading');
+
+    return {
+      key: screen.key,
+      route: screen.route,
+      title: screen.title,
+      subtitle: screen.subtitle,
+      status,
+      can_access: canAccess,
+      can_submit: !journeyState?.loading && !journeyState?.saving && canAccess,
+      is_current: screen.key === getCurrentScreenKey(journeyState),
+      message: STATE_MESSAGES[status] || screen.empty_state,
+      primary_action: screen.primary_action,
+      form_contract: screen.form_contract,
+      source_stage: stage
+    };
+  }
+
+  function buildAllScreenStates(journeyState) {
+    return screens.map((screen) => buildScreenState(screen.key, journeyState));
+  }
+
+  globalScope.ProjectLmV5ScreenContracts = Object.freeze({
+    screens,
+    flows,
+    actions,
+    getScreenByKey,
+    getScreenForStage,
+    getFlowForAction,
+    buildScreenState,
+    buildAllScreenStates
+  });
+})(typeof window !== 'undefined' ? window : globalThis);
