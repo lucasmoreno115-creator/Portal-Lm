@@ -172,6 +172,55 @@ export default {
 
         const studentEmail = auth.student.email;
 
+
+        if (url.pathname === '/api/project-lm/journey' && method === 'GET') {
+          if (!isProjectLmPlan(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM.' }, 403);
+          const journey = await projectLmV5GetOrCreateJourney(env.DB, auth.student);
+          return json({ ok: true, data: journey });
+        }
+
+        if (url.pathname === '/api/project-lm/stage-1/actions' && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM.' }, 403);
+          const body = await safeJson(request);
+          const result = await projectLmV5CreateStage1Actions(env.DB, auth.student, body?.actions);
+          return json(result.payload, result.status);
+        }
+
+        const stage1CompleteMatch = url.pathname.match(/^\/api\/project-lm\/stage-1\/actions\/([^/]+)\/complete$/);
+        if (stage1CompleteMatch && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM.' }, 403);
+          const result = await projectLmV5CompleteStage1Action(env.DB, auth.student, decodeURIComponent(stage1CompleteMatch[1] || ''));
+          return json(result.payload, result.status);
+        }
+
+        if (url.pathname === '/api/project-lm/plan-b' && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM.' }, 403);
+          const body = await safeJson(request);
+          const result = await projectLmV5SavePlanB(env.DB, auth.student, body);
+          return json(result.payload, result.status);
+        }
+
+        if (url.pathname === '/api/project-lm/victories' && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM.' }, 403);
+          const body = await safeJson(request);
+          const result = await projectLmV5CreateVictory(env.DB, auth.student, body);
+          return json(result.payload, result.status);
+        }
+
+        if (url.pathname === '/api/project-lm/recovery' && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM.' }, 403);
+          const body = await safeJson(request);
+          const result = await projectLmV5SaveRecovery(env.DB, auth.student, body);
+          return json(result.payload, result.status);
+        }
+
+        if (url.pathname === '/api/project-lm/maintenance-goals' && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para Projeto LM.' }, 403);
+          const body = await safeJson(request);
+          const result = await projectLmV5CreateMaintenanceGoal(env.DB, auth.student, body);
+          return json(result.payload, result.status);
+        }
+
         if (url.pathname === '/api/portal/me' && method === 'GET') {
           return json({ ok: true, data: auth.student });
         }
@@ -3005,6 +3054,154 @@ const PROJECT_LM_DAILY_ACTION_TYPES = new Set([
   'treino',
   'alimentacao'
 ]);
+
+
+// Projeto LM V5 foundation: isolated from legacy library, weekly missions, current mission, streak, hard day mode, and consistency flows.
+const PROJECT_LM_V5_RECOVERY_FIELDS = ['overeating', 'missed_workout', 'travel', 'difficult_week', 'lack_of_motivation'];
+
+function projectLmV5Error(error, status = 400) {
+  return { status, payload: { ok: false, error } };
+}
+
+function projectLmV5Success(data, status = 200) {
+  return { status, payload: { ok: true, data } };
+}
+
+function requiredText(value) {
+  return nullableTrimmed(value);
+}
+
+function projectLmV5StudentId(student) {
+  return String(student?.id || student?.email || '').trim();
+}
+
+async function projectLmV5GetJourneyRow(db, student) {
+  return db.prepare(`SELECT * FROM project_lm_journeys WHERE student_id=? LIMIT 1`).bind(projectLmV5StudentId(student)).first();
+}
+
+async function projectLmV5GetOrCreateJourney(db, student) {
+  const studentId = projectLmV5StudentId(student);
+  const studentEmail = String(student?.email || '').trim().toLowerCase();
+  let row = await projectLmV5GetJourneyRow(db, student);
+  if (!row) {
+    const now = new Date().toISOString();
+    const id = crypto.randomUUID();
+    await db.prepare(`INSERT INTO project_lm_journeys (id, student_id, student_email, status, current_stage, created_at, updated_at) VALUES (?, ?, ?, 'active', 1, ?, ?)`).bind(id, studentId, studentEmail, now, now).run();
+    row = await projectLmV5GetJourneyRow(db, student);
+  }
+  return projectLmV5HydrateJourney(db, row);
+}
+
+async function projectLmV5HydrateJourney(db, row) {
+  const [actions, planB, victories, recovery, goals] = await Promise.all([
+    db.prepare(`SELECT id, title, completed, completed_at, created_at, updated_at FROM project_lm_stage1_actions WHERE journey_id=? ORDER BY datetime(created_at) ASC`).bind(row.id).all(),
+    db.prepare(`SELECT id, emergency_meal, minimum_workout, minimum_movement, minimum_self_care, created_at, updated_at FROM project_lm_plan_b WHERE journey_id=? LIMIT 1`).bind(row.id).first(),
+    db.prepare(`SELECT id, description, created_at FROM project_lm_victories WHERE journey_id=? ORDER BY datetime(created_at) ASC`).bind(row.id).all(),
+    db.prepare(`SELECT id, overeating, missed_workout, travel, difficult_week, lack_of_motivation, created_at, updated_at FROM project_lm_recovery_protocols WHERE journey_id=? LIMIT 1`).bind(row.id).first(),
+    db.prepare(`SELECT id, goal, created_at, updated_at FROM project_lm_maintenance_goals WHERE journey_id=? ORDER BY datetime(created_at) DESC`).bind(row.id).all()
+  ]);
+  return { ...row, actions: actions.results || [], plan_b: planB || null, victories: victories.results || [], recovery_protocols: recovery || null, maintenance_goals: goals.results || [] };
+}
+
+async function projectLmV5AdvanceJourney(db, journey, targetStage, fields = {}) {
+  if (journey.current_stage >= targetStage && !(fields.status === 'maintenance')) return;
+  const now = new Date().toISOString();
+  await db.prepare(`UPDATE project_lm_journeys SET current_stage=?, status=COALESCE(?, status), stage_2_unlocked_at=COALESCE(stage_2_unlocked_at, ?), stage_3_unlocked_at=COALESCE(stage_3_unlocked_at, ?), stage_4_unlocked_at=COALESCE(stage_4_unlocked_at, ?), maintenance_started_at=COALESCE(maintenance_started_at, ?), updated_at=? WHERE id=?`).bind(
+    targetStage,
+    fields.status || null,
+    targetStage >= 2 ? now : null,
+    targetStage >= 3 ? now : null,
+    targetStage >= 4 ? now : null,
+    fields.status === 'maintenance' ? now : null,
+    now,
+    journey.id
+  ).run();
+}
+
+async function projectLmV5CreateStage1Actions(db, student, actions) {
+  const journey = await projectLmV5GetOrCreateJourney(db, student);
+  if (journey.current_stage !== 1) return projectLmV5Error('Etapa 1 já foi concluída.', 409);
+  if (!Array.isArray(actions) || actions.length !== 3) return projectLmV5Error('A Etapa 1 exige exatamente 3 ações.');
+  const titles = actions.map((a) => requiredText(typeof a === 'string' ? a : a?.title));
+  if (titles.some((title) => !title)) return projectLmV5Error('Todas as 3 ações devem ter título.');
+  const existing = await db.prepare(`SELECT COUNT(*) AS total FROM project_lm_stage1_actions WHERE journey_id=?`).bind(journey.id).first();
+  if (Number(existing?.total || 0) > 0) return projectLmV5Error('As ações da Etapa 1 já foram criadas.', 409);
+  const now = new Date().toISOString();
+  const statements = titles.map((title) => db.prepare(`INSERT INTO project_lm_stage1_actions (id, journey_id, student_id, student_email, title, completed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?)`).bind(crypto.randomUUID(), journey.id, journey.student_id, journey.student_email, title, now, now));
+  if (typeof db.batch === 'function') {
+    await db.batch(statements);
+  } else {
+    for (const statement of statements) await statement.run();
+  }
+  const created = await db.prepare(`SELECT COUNT(*) AS total FROM project_lm_stage1_actions WHERE journey_id=?`).bind(journey.id).first();
+  if (Number(created?.total || 0) !== 3) return projectLmV5Error('Falha ao criar exatamente 3 ações da Etapa 1.', 500);
+  return projectLmV5Success(await projectLmV5HydrateJourney(db, await projectLmV5GetJourneyRow(db, student)), 201);
+}
+
+async function projectLmV5CompleteStage1Action(db, student, actionId) {
+  const journey = await projectLmV5GetOrCreateJourney(db, student);
+  if (journey.current_stage !== 1) return projectLmV5Error('Só é possível concluir ações durante a Etapa 1.', 403);
+  const action = await db.prepare(`SELECT id FROM project_lm_stage1_actions WHERE id=? AND journey_id=? LIMIT 1`).bind(actionId, journey.id).first();
+  if (!action) return projectLmV5Error('Ação não encontrada.', 404);
+  const now = new Date().toISOString();
+  await db.prepare(`UPDATE project_lm_stage1_actions SET completed=1, completed_at=COALESCE(completed_at, ?), updated_at=? WHERE id=?`).bind(now, now, actionId).run();
+  const count = await db.prepare(`SELECT COUNT(*) AS total FROM project_lm_stage1_actions WHERE journey_id=? AND completed=1`).bind(journey.id).first();
+  if (Number(count?.total || 0) === 3) await projectLmV5AdvanceJourney(db, journey, 2);
+  return projectLmV5Success(await projectLmV5HydrateJourney(db, await projectLmV5GetJourneyRow(db, student)));
+}
+
+async function projectLmV5SavePlanB(db, student, body) {
+  const journey = await projectLmV5GetOrCreateJourney(db, student);
+  if (journey.current_stage !== 2) return projectLmV5Error('Plano B só pode ser registrado na Etapa 2.', 403);
+  const emergencyMeal = requiredText(body?.emergency_meal);
+  const minimumWorkout = requiredText(body?.minimum_workout);
+  const minimumMovement = requiredText(body?.minimum_movement);
+  const minimumSelfCare = requiredText(body?.minimum_self_care);
+  if (!emergencyMeal || !minimumWorkout || !minimumMovement || !minimumSelfCare) return projectLmV5Error('Todos os campos do Plano B são obrigatórios.');
+  const now = new Date().toISOString();
+  const existing = await db.prepare(`SELECT id FROM project_lm_plan_b WHERE journey_id=? LIMIT 1`).bind(journey.id).first();
+  if (existing) await db.prepare(`UPDATE project_lm_plan_b SET emergency_meal=?, minimum_workout=?, minimum_movement=?, minimum_self_care=?, updated_at=? WHERE id=?`).bind(emergencyMeal, minimumWorkout, minimumMovement, minimumSelfCare, now, existing.id).run();
+  else await db.prepare(`INSERT INTO project_lm_plan_b (id, journey_id, student_id, student_email, emergency_meal, minimum_workout, minimum_movement, minimum_self_care, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), journey.id, journey.student_id, journey.student_email, emergencyMeal, minimumWorkout, minimumMovement, minimumSelfCare, now, now).run();
+  await projectLmV5AdvanceJourney(db, journey, 3);
+  return projectLmV5Success(await projectLmV5HydrateJourney(db, await projectLmV5GetJourneyRow(db, student)));
+}
+
+async function projectLmV5CreateVictory(db, student, body) {
+  const journey = await projectLmV5GetOrCreateJourney(db, student);
+  if (journey.current_stage !== 3) return projectLmV5Error('Vitórias só podem ser registradas na Etapa 3.', 403);
+  const description = requiredText(body?.description || body?.victory);
+  if (!description) return projectLmV5Error('description é obrigatório.');
+  const count = await db.prepare(`SELECT COUNT(*) AS total FROM project_lm_victories WHERE journey_id=?`).bind(journey.id).first();
+  if (Number(count?.total || 0) >= 7) return projectLmV5Error('A Etapa 3 já possui 7 vitórias.', 409);
+  const now = new Date().toISOString();
+  await db.prepare(`INSERT INTO project_lm_victories (id, journey_id, student_id, student_email, description, created_at) VALUES (?, ?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), journey.id, journey.student_id, journey.student_email, description, now).run();
+  const nextCount = Number(count?.total || 0) + 1;
+  if (nextCount === 7) await projectLmV5AdvanceJourney(db, journey, 4);
+  return projectLmV5Success(await projectLmV5HydrateJourney(db, await projectLmV5GetJourneyRow(db, student)), 201);
+}
+
+async function projectLmV5SaveRecovery(db, student, body) {
+  const journey = await projectLmV5GetOrCreateJourney(db, student);
+  if (journey.current_stage !== 4 || journey.status === 'maintenance') return projectLmV5Error('Protocolos de recuperação só podem ser registrados na Etapa 4.', 403);
+  const values = PROJECT_LM_V5_RECOVERY_FIELDS.map((field) => requiredText(body?.[field]));
+  if (values.some((value) => !value)) return projectLmV5Error('Todos os protocolos de recuperação são obrigatórios.');
+  const now = new Date().toISOString();
+  const existing = await db.prepare(`SELECT id FROM project_lm_recovery_protocols WHERE journey_id=? LIMIT 1`).bind(journey.id).first();
+  if (existing) await db.prepare(`UPDATE project_lm_recovery_protocols SET overeating=?, missed_workout=?, travel=?, difficult_week=?, lack_of_motivation=?, updated_at=? WHERE id=?`).bind(...values, now, existing.id).run();
+  else await db.prepare(`INSERT INTO project_lm_recovery_protocols (id, journey_id, student_id, student_email, overeating, missed_workout, travel, difficult_week, lack_of_motivation, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), journey.id, journey.student_id, journey.student_email, ...values, now, now).run();
+  await projectLmV5AdvanceJourney(db, journey, 4, { status: 'maintenance' });
+  return projectLmV5Success(await projectLmV5HydrateJourney(db, await projectLmV5GetJourneyRow(db, student)));
+}
+
+async function projectLmV5CreateMaintenanceGoal(db, student, body) {
+  const journey = await projectLmV5GetOrCreateJourney(db, student);
+  if (journey.status !== 'maintenance') return projectLmV5Error('Metas de manutenção só podem ser registradas após concluir a Etapa 4.', 403);
+  const goal = requiredText(body?.goal);
+  if (!goal) return projectLmV5Error('goal é obrigatório.');
+  const now = new Date().toISOString();
+  await db.prepare(`INSERT INTO project_lm_maintenance_goals (id, journey_id, student_id, student_email, goal, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), journey.id, journey.student_id, journey.student_email, goal, now, now).run();
+  return projectLmV5Success(await projectLmV5HydrateJourney(db, await projectLmV5GetJourneyRow(db, student)), 201);
+}
 
 function isProjectLmPlan(student) {
   return normalizeStudentPlan(student?.plan) === 'projeto_lm';
