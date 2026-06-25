@@ -32,7 +32,7 @@ A camada não chama APIs, não altera regras de progressão e não modifica o co
 - `stage_4_recovery`
 - `maintenance_goals`
 
-Cada screen define `key`, `title`, `subtitle`, `route`, `stage_key`, `required_status`, estados textuais, ações principais/secundárias e `form_contract` quando aplicável.
+Cada screen define `key`, `title`, `subtitle`, `route`, `stage_key`, `required_status`, estados textuais, ações principais/secundárias e `form_contract` quando aplicável. `journey_overview.required_status = null`, porque a visão geral é sempre acessível e não depende do status da jornada.
 
 ## Rotas internas
 
@@ -55,7 +55,24 @@ Cada screen define `key`, `title`, `subtitle`, `route`, `stage_key`, `required_s
 | `stage_4` | `stage_4_recovery` |
 | `maintenance` | `maintenance_goals` |
 
+## Next Required Action → Screen
+
+`progress.next_required_action` representa a próxima obrigação de progressão da jornada. Esse valor é diferente de `view_model.primary_cta.action`: o primeiro descreve a necessidade de progresso, enquanto o segundo descreve a intenção de navegação do CTA visual futuro.
+
+| Next required action | Screen |
+| --- | --- |
+| `choose_stage_1_actions` | `stage_1_actions` |
+| `complete_stage_1_actions` | `stage_1_actions` |
+| `fill_plan_b` | `stage_2_plan_b` |
+| `record_victories` | `stage_3_victories` |
+| `fill_recovery_protocols` | `stage_4_recovery` |
+| `maintenance` | `maintenance_goals` |
+
+`getScreenForNextRequiredAction(nextRequiredAction)` retorna o contrato da screen correspondente ou `null` quando a action de progressão é desconhecida.
+
 ## CTA Action → Flow
+
+`view_model.primary_cta.action` representa a ação de navegação sugerida pelo view model para uma interface futura. `getFlowForAction(action)` usa somente o mapa CTA Action → Flow e não interpreta `progress.next_required_action`.
 
 | CTA action | Screen |
 | --- | --- |
@@ -65,7 +82,15 @@ Cada screen define `key`, `title`, `subtitle`, `route`, `stage_key`, `required_s
 | `open_recovery_protocols` | `stage_4_recovery` |
 | `open_maintenance_goals` | `maintenance_goals` |
 
-`getFlowForAction(action)` retorna o contrato da screen correspondente ou `null` quando a action é desconhecida.
+`getFlowForAction(action)` retorna o contrato da screen correspondente ou `null` quando a CTA action é desconhecida.
+
+## Ordem oficial da tela atual
+
+A resolução da tela atual usada por `buildScreenState(...).is_current` segue esta ordem explícita:
+
+1. `progress.next_required_action` via Next Required Action → Screen.
+2. `view_model.primary_cta.action` via CTA Action → Flow.
+3. Etapa ativa via Stage → Screen.
 
 ## `buildScreenState`
 
@@ -96,7 +121,7 @@ Regras principais:
 - stages `locked`, `active` e `completed` são refletidos no status da tela.
 - `maintenance_goals` usa status `maintenance` quando a manutenção está ativa.
 - `can_submit` é falso durante `loading` ou `saving`.
-- `is_current` considera o CTA atual do `view_model`, `progress.next_required_action` quando compatível e a etapa ativa atual.
+- `is_current` considera primeiro `progress.next_required_action`, depois `view_model.primary_cta.action` e, por último, a etapa ativa atual.
 
 ## Form contracts
 

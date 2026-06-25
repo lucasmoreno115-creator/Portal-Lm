@@ -56,7 +56,7 @@
   });
 
   const screens = Object.freeze([
-    Object.freeze({ key: 'journey_overview', title: 'Visão geral da jornada', subtitle: 'Acompanhe seu avanço na Jornada Projeto LM V5.', route: '#project-lm/journey', stage_key: null, required_status: 'active', empty_state: 'Sua jornada ainda não foi carregada.', locked_state: STATE_MESSAGES.locked, completed_state: STATE_MESSAGES.completed, primary_action: 'open_current_stage', secondary_action: null, form_contract: null }),
+    Object.freeze({ key: 'journey_overview', title: 'Visão geral da jornada', subtitle: 'Acompanhe seu avanço na Jornada Projeto LM V5.', route: '#project-lm/journey', stage_key: null, required_status: null, empty_state: 'Sua jornada ainda não foi carregada.', locked_state: STATE_MESSAGES.locked, completed_state: STATE_MESSAGES.completed, primary_action: 'open_current_stage', secondary_action: null, form_contract: null }),
     Object.freeze({ key: 'stage_1_actions', title: 'Ações mínimas', subtitle: 'Defina três ações mínimas para começar com consistência.', route: '#project-lm/stage-1-actions', stage_key: 'stage_1', required_status: 'active', empty_state: 'Nenhuma ação mínima foi definida ainda.', locked_state: STATE_MESSAGES.locked, completed_state: STATE_MESSAGES.completed, primary_action: 'createStage1Actions', secondary_action: 'completeStage1Action', form_contract: formContracts.stage_1_actions }),
     Object.freeze({ key: 'stage_2_plan_b', title: 'Plano B', subtitle: 'Prepare respostas mínimas para dias difíceis.', route: '#project-lm/plan-b', stage_key: 'stage_2', required_status: 'active', empty_state: 'Seu Plano B ainda não foi definido.', locked_state: STATE_MESSAGES.locked, completed_state: STATE_MESSAGES.completed, primary_action: 'savePlanB', secondary_action: null, form_contract: formContracts.stage_2_plan_b }),
     Object.freeze({ key: 'stage_3_victories', title: 'Vitórias', subtitle: 'Registre evidências do que você já construiu.', route: '#project-lm/victories', stage_key: 'stage_3', required_status: 'active', empty_state: 'Nenhuma vitória foi registrada ainda.', locked_state: STATE_MESSAGES.locked, completed_state: STATE_MESSAGES.completed, primary_action: 'createVictory', secondary_action: null, form_contract: formContracts.stage_3_victories }),
@@ -64,9 +64,14 @@
     Object.freeze({ key: 'maintenance_goals', title: 'Metas de manutenção', subtitle: 'Sustente sua evolução com metas simples.', route: '#project-lm/maintenance-goals', stage_key: 'maintenance', required_status: 'maintenance', empty_state: 'Nenhuma meta de manutenção foi criada ainda.', locked_state: STATE_MESSAGES.locked, completed_state: STATE_MESSAGES.completed, primary_action: 'createMaintenanceGoal', secondary_action: null, form_contract: formContracts.maintenance_goals })
   ]);
 
+  const STAGE_TO_SCREEN = Object.freeze({ stage_1: 'stage_1_actions', stage_2: 'stage_2_plan_b', stage_3: 'stage_3_victories', stage_4: 'stage_4_recovery', maintenance: 'maintenance_goals' });
+  const NEXT_REQUIRED_ACTION_TO_SCREEN = Object.freeze({ choose_stage_1_actions: 'stage_1_actions', complete_stage_1_actions: 'stage_1_actions', fill_plan_b: 'stage_2_plan_b', record_victories: 'stage_3_victories', fill_recovery_protocols: 'stage_4_recovery', maintenance: 'maintenance_goals' });
+  const CTA_ACTION_TO_SCREEN = Object.freeze({ open_stage_1_actions: 'stage_1_actions', open_plan_b: 'stage_2_plan_b', open_victories: 'stage_3_victories', open_recovery_protocols: 'stage_4_recovery', open_maintenance_goals: 'maintenance_goals' });
+
   const flows = Object.freeze({
-    stageToScreen: Object.freeze({ stage_1: 'stage_1_actions', stage_2: 'stage_2_plan_b', stage_3: 'stage_3_victories', stage_4: 'stage_4_recovery', maintenance: 'maintenance_goals' }),
-    actionToScreen: Object.freeze({ open_stage_1_actions: 'stage_1_actions', open_plan_b: 'stage_2_plan_b', open_victories: 'stage_3_victories', open_recovery_protocols: 'stage_4_recovery', open_maintenance_goals: 'maintenance_goals' })
+    stageToScreen: STAGE_TO_SCREEN,
+    nextRequiredActionToScreen: NEXT_REQUIRED_ACTION_TO_SCREEN,
+    ctaActionToScreen: CTA_ACTION_TO_SCREEN
   });
 
   const actions = Object.freeze([
@@ -83,11 +88,16 @@
   }
 
   function getScreenForStage(stageKey) {
-    return getScreenByKey(flows.stageToScreen[stageKey]);
+    return getScreenByKey(STAGE_TO_SCREEN[stageKey]);
   }
 
   function getFlowForAction(action) {
-    const screenKey = flows.actionToScreen[action];
+    const screenKey = CTA_ACTION_TO_SCREEN[action];
+    return screenKey ? getScreenByKey(screenKey) : null;
+  }
+
+  function getScreenForNextRequiredAction(nextRequiredAction) {
+    const screenKey = NEXT_REQUIRED_ACTION_TO_SCREEN[nextRequiredAction];
     return screenKey ? getScreenByKey(screenKey) : null;
   }
 
@@ -97,14 +107,17 @@
   }
 
   function getCurrentScreenKey(journeyState) {
-    const nextAction = journeyState?.progress?.next_required_action;
+    const nextRequiredAction = journeyState?.progress?.next_required_action;
+    const nextRequiredActionScreen = NEXT_REQUIRED_ACTION_TO_SCREEN[nextRequiredAction];
+    if (nextRequiredActionScreen) return nextRequiredActionScreen;
+
     const ctaAction = journeyState?.view_model?.primary_cta?.action;
-    const actionScreen = flows.actionToScreen[nextAction] || flows.actionToScreen[ctaAction];
-    if (actionScreen) return actionScreen;
+    const ctaActionScreen = CTA_ACTION_TO_SCREEN[ctaAction];
+    if (ctaActionScreen) return ctaActionScreen;
 
     const stages = journeyState?.stages || {};
-    const activeStageKey = Object.keys(flows.stageToScreen).find((stageKey) => stages[stageKey]?.status === 'active' || stages[stageKey]?.status === 'maintenance');
-    return activeStageKey ? flows.stageToScreen[activeStageKey] : null;
+    const activeStageKey = Object.keys(STAGE_TO_SCREEN).find((stageKey) => stages[stageKey]?.status === 'active' || stages[stageKey]?.status === 'maintenance');
+    return activeStageKey ? STAGE_TO_SCREEN[activeStageKey] : null;
   }
 
   function resolveStatus(screen, stage, journeyState) {
@@ -150,6 +163,7 @@
     getScreenByKey,
     getScreenForStage,
     getFlowForAction,
+    getScreenForNextRequiredAction,
     buildScreenState,
     buildAllScreenStates
   });

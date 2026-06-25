@@ -17,7 +17,7 @@ function createModule() {
 function sampleState(overrides = {}) {
   const state = {
     journey: { id: 'journey-1', status: 'active', current_stage: 2 },
-    progress: { current_stage: 2, status: 'active', percentage: 25, next_required_action: 'open_plan_b' },
+    progress: { current_stage: 2, status: 'active', percentage: 25, next_required_action: 'fill_plan_b' },
     stages: {
       stage_1: { key: 'stage_1', status: 'completed' },
       stage_2: { key: 'stage_2', status: 'active' },
@@ -67,6 +67,16 @@ test('maps Stage to Screen correctly', () => {
   assert.equal(contracts.getScreenForStage('maintenance').key, 'maintenance_goals');
 });
 
+test('maps Next Required Action to Screen correctly and returns null for unknown actions', () => {
+  assert.equal(contracts.getScreenForNextRequiredAction('choose_stage_1_actions').key, 'stage_1_actions');
+  assert.equal(contracts.getScreenForNextRequiredAction('complete_stage_1_actions').key, 'stage_1_actions');
+  assert.equal(contracts.getScreenForNextRequiredAction('fill_plan_b').key, 'stage_2_plan_b');
+  assert.equal(contracts.getScreenForNextRequiredAction('record_victories').key, 'stage_3_victories');
+  assert.equal(contracts.getScreenForNextRequiredAction('fill_recovery_protocols').key, 'stage_4_recovery');
+  assert.equal(contracts.getScreenForNextRequiredAction('maintenance').key, 'maintenance_goals');
+  assert.equal(contracts.getScreenForNextRequiredAction('unknown_next_action'), null);
+});
+
 test('maps CTA Action to Flow correctly and returns null for unknown actions', () => {
   assert.equal(contracts.getFlowForAction('open_stage_1_actions').key, 'stage_1_actions');
   assert.equal(contracts.getFlowForAction('open_plan_b').key, 'stage_2_plan_b');
@@ -88,9 +98,34 @@ test('buildScreenState returns loading and error states', () => {
   assert.equal(error.message, 'Não foi possível carregar esta etapa agora.');
 });
 
-test('journey_overview is always accessible', () => {
+test('journey_overview has no required status and is always accessible', () => {
+  assert.equal(contracts.getScreenByKey('journey_overview').required_status, null);
   const state = contracts.buildScreenState('journey_overview', sampleState({ loading: true, error: 'Falha' }));
   assert.equal(state.can_access, true);
+});
+
+test('buildScreenState current screen resolution prioritizes next action, CTA fallback and active stage fallback', () => {
+  const nextActionState = sampleState({
+    progress: { next_required_action: 'record_victories' },
+    view_model: { primary_cta: { label: 'Construir Plano B', action: 'open_plan_b' } },
+    stages: { stage_3: { key: 'stage_3', status: 'active' } }
+  });
+  assert.equal(contracts.buildScreenState('stage_3_victories', nextActionState).is_current, true);
+  assert.equal(contracts.buildScreenState('stage_2_plan_b', nextActionState).is_current, false);
+
+  const ctaFallbackState = sampleState({
+    progress: { next_required_action: 'unknown_next_action' },
+    view_model: { primary_cta: { label: 'Protocolos', action: 'open_recovery_protocols' } },
+    stages: { stage_4: { key: 'stage_4', status: 'active' } }
+  });
+  assert.equal(contracts.buildScreenState('stage_4_recovery', ctaFallbackState).is_current, true);
+
+  const activeStageFallbackState = sampleState({
+    progress: { next_required_action: 'unknown_next_action' },
+    view_model: { primary_cta: { label: 'Desconhecido', action: 'unknown_cta_action' } },
+    stages: { stage_2: { key: 'stage_2', status: 'locked' }, stage_3: { key: 'stage_3', status: 'active' } }
+  });
+  assert.equal(contracts.buildScreenState('stage_3_victories', activeStageFallbackState).is_current, true);
 });
 
 test('buildScreenState reflects locked, active and completed stage access', () => {
