@@ -3060,6 +3060,57 @@ const PROJECT_LM_DAILY_ACTION_TYPES = new Set([
 const PROJECT_LM_V5_RECOVERY_FIELDS = ['overeating', 'missed_workout', 'travel', 'difficult_week', 'lack_of_motivation'];
 const PROJECT_LM_V5_PLAN_B_FIELDS = ['emergency_meal', 'minimum_workout', 'minimum_movement', 'minimum_self_care'];
 
+const PROJECT_LM_V5_VIEW_MODEL_COPY = {
+  statusLabels: {
+    active: 'Jornada em andamento',
+    maintenance: 'Manutenção ativa'
+  },
+  progressLabels: [
+    [0, 0, 'Você está no começo da jornada.'],
+    [10, 24, 'Você já iniciou sua base de continuidade.'],
+    [25, 49, 'Você desbloqueou seu Plano B.'],
+    [50, 74, 'Você está acumulando vitórias reais.'],
+    [75, 99, 'Você está preparando seus protocolos de recuperação.'],
+    [100, 100, 'Você concluiu a jornada e entrou em manutenção.']
+  ],
+  primaryMessages: {
+    choose_stage_1_actions: 'Escolha 3 ações simples que você consegue fazer mesmo em dias difíceis.',
+    complete_stage_1_actions: 'Agora conclua suas 3 ações mínimas para desbloquear o próximo passo.',
+    fill_plan_b: 'Monte seu Plano B para não depender de motivação ou de dias perfeitos.',
+    record_victories: 'Registre 7 vitórias reais para provar que você está construindo continuidade.',
+    fill_recovery_protocols: 'Prepare seus protocolos para saber exatamente o que fazer quando sair do plano.',
+    maintenance: 'Você concluiu a jornada. Agora o foco é manter o que foi construído.'
+  },
+  secondaryMessages: {
+    choose_stage_1_actions: 'Essas ações não precisam ser grandes. Elas precisam ser possíveis.',
+    complete_stage_1_actions: 'O objetivo não é perfeição. É manter o movimento.',
+    fill_plan_b: 'O Plano B existe para os dias em que o plano ideal não cabe na rotina.',
+    record_victories: 'Vitória não é só peso na balança. É execução, escolha melhor e retomada rápida.',
+    fill_recovery_protocols: 'O risco não é sair do plano. O risco é não saber como voltar.',
+    maintenance: 'Manutenção não é parar. É continuar com menos dependência de recomeços.'
+  },
+  primaryCtas: {
+    choose_stage_1_actions: { label: 'Escolher minhas 3 ações', action: 'open_stage_1_actions' },
+    complete_stage_1_actions: { label: 'Concluir ações mínimas', action: 'open_stage_1_actions' },
+    fill_plan_b: { label: 'Construir meu Plano B', action: 'open_plan_b' },
+    record_victories: { label: 'Registrar uma vitória', action: 'open_victories' },
+    fill_recovery_protocols: { label: 'Criar protocolos de recuperação', action: 'open_recovery_protocols' },
+    maintenance: { label: 'Definir meta de manutenção', action: 'open_maintenance_goals' }
+  },
+  stageSubtitles: {
+    stage_1: 'Comece pelo mínimo que mantém você em movimento.',
+    stage_2: 'Tenha um plano para dias imperfeitos.',
+    stage_3: 'Reconheça vitórias que sustentam continuidade.',
+    stage_4: 'Prepare respostas antes dos obstáculos aparecerem.',
+    maintenance: 'Continue sem precisar recomeçar.'
+  },
+  stageStatusLabels: {
+    locked: 'Bloqueado',
+    active: 'Em andamento',
+    completed: 'Concluído'
+  }
+};
+
 function projectLmV5Error(error, status = 400, code = 'PROJECT_LM_V5_INTERNAL_ERROR') {
   return { status, payload: { ok: false, error, code } };
 }
@@ -3157,11 +3208,63 @@ function projectLmV5CompletedFields(data, fields) {
   return fields.filter((field) => Boolean(requiredText(data[field])));
 }
 
+function projectLmV5ProgressLabel(percentage) {
+  const match = PROJECT_LM_V5_VIEW_MODEL_COPY.progressLabels.find(([min, max]) => percentage >= min && percentage <= max);
+  return match ? match[2] : PROJECT_LM_V5_VIEW_MODEL_COPY.progressLabels[0][2];
+}
+
+function projectLmV5StageCardCta(key) {
+  const ctas = {
+    stage_1: PROJECT_LM_V5_VIEW_MODEL_COPY.primaryCtas.complete_stage_1_actions,
+    stage_2: PROJECT_LM_V5_VIEW_MODEL_COPY.primaryCtas.fill_plan_b,
+    stage_3: PROJECT_LM_V5_VIEW_MODEL_COPY.primaryCtas.record_victories,
+    stage_4: PROJECT_LM_V5_VIEW_MODEL_COPY.primaryCtas.fill_recovery_protocols,
+    maintenance: PROJECT_LM_V5_VIEW_MODEL_COPY.primaryCtas.maintenance
+  };
+  return ctas[key];
+}
+
+function projectLmV5StageCard(key, stage, progressText, emptyState = null) {
+  return {
+    key,
+    title: stage.title,
+    subtitle: PROJECT_LM_V5_VIEW_MODEL_COPY.stageSubtitles[key],
+    status: stage.status,
+    status_label: PROJECT_LM_V5_VIEW_MODEL_COPY.stageStatusLabels[stage.status],
+    progress_text: progressText,
+    cta: projectLmV5StageCardCta(key),
+    empty_state: emptyState
+  };
+}
+
+function projectLmV5BuildViewModel(contract) {
+  const { journey, progress, stages } = contract;
+  const nextAction = progress.next_required_action;
+  return {
+    page_title: 'Projeto LM',
+    page_subtitle: 'Continue mesmo nos dias difíceis.',
+    status_label: PROJECT_LM_V5_VIEW_MODEL_COPY.statusLabels[journey.status],
+    progress_label: projectLmV5ProgressLabel(progress.percentage),
+    primary_message: PROJECT_LM_V5_VIEW_MODEL_COPY.primaryMessages[nextAction],
+    secondary_message: PROJECT_LM_V5_VIEW_MODEL_COPY.secondaryMessages[nextAction],
+    primary_cta: PROJECT_LM_V5_VIEW_MODEL_COPY.primaryCtas[nextAction],
+    secondary_cta: null,
+    stage_cards: [
+      projectLmV5StageCard('stage_1', stages.stage_1, `${stages.stage_1.completed_count}/3 ações concluídas`, stages.stage_1.items.length === 0 ? 'Você ainda não escolheu suas 3 ações mínimas.' : null),
+      projectLmV5StageCard('stage_2', stages.stage_2, `${stages.stage_2.completed_fields.length}/4 campos preenchidos`),
+      projectLmV5StageCard('stage_3', stages.stage_3, `${stages.stage_3.completed_count}/7 vitórias registradas`, stages.stage_3.items.length === 0 ? 'Você ainda não registrou vitórias.' : null),
+      projectLmV5StageCard('stage_4', stages.stage_4, `${stages.stage_4.completed_fields.length}/5 protocolos criados`),
+      projectLmV5StageCard('maintenance', stages.maintenance, `${stages.maintenance.items.length} metas de manutenção`, stages.maintenance.items.length === 0 ? 'Você ainda não definiu metas de manutenção.' : null)
+    ],
+    empty_state: null
+  };
+}
+
 function projectLmV5BuildContract(journey) {
   const completedActions = (journey.actions || []).filter((action) => Number(action.completed) === 1).length;
   const planBCompletedFields = projectLmV5CompletedFields(journey.plan_b, PROJECT_LM_V5_PLAN_B_FIELDS);
   const recoveryCompletedFields = projectLmV5CompletedFields(journey.recovery_protocols, PROJECT_LM_V5_RECOVERY_FIELDS);
-  return {
+  const contract = {
     journey: {
       id: journey.id,
       status: journey.status,
@@ -3222,6 +3325,7 @@ function projectLmV5BuildContract(journey) {
       }
     }
   };
+  return { ...contract, view_model: projectLmV5BuildViewModel(contract) };
 }
 
 async function projectLmV5AdvanceJourney(db, journey, targetStage, fields = {}) {
