@@ -38,19 +38,19 @@ test('V5 happy path applies migration and progresses from stage 1 to maintenance
 
     const initial = await api(db, 'GET', '/api/project-lm/journey');
     assert.equal(initial.status, 200);
-    assert.equal(initial.body.data.status, 'active');
-    assert.equal(initial.body.data.current_stage, 1);
+    assert.equal(initial.body.data.journey.status, 'active');
+    assert.equal(initial.body.data.journey.current_stage, 1);
 
     const stage1 = await api(db, 'POST', '/api/project-lm/stage-1/actions', {
       actions: [{ title: 'Água' }, { title: 'Caminhar' }, { title: 'Proteína' }]
     });
     assert.equal(stage1.status, 201);
-    assert.equal(stage1.body.data.actions.length, 3);
+    assert.equal(stage1.body.data.stages.stage_1.items.length, 3);
 
-    for (const action of stage1.body.data.actions) {
+    for (const action of stage1.body.data.stages.stage_1.items) {
       assert.equal((await api(db, 'POST', `/api/project-lm/stage-1/actions/${action.id}/complete`)).status, 200);
     }
-    assert.equal((await api(db, 'GET', '/api/project-lm/journey')).body.data.current_stage, 2);
+    assert.equal((await api(db, 'GET', '/api/project-lm/journey')).body.data.journey.current_stage, 2);
 
     const planB = await api(db, 'POST', '/api/project-lm/plan-b', {
       emergency_meal: 'Ovos e fruta',
@@ -59,13 +59,13 @@ test('V5 happy path applies migration and progresses from stage 1 to maintenance
       minimum_self_care: 'Dormir mais cedo'
     });
     assert.equal(planB.status, 200);
-    assert.equal(planB.body.data.current_stage, 3);
+    assert.equal(planB.body.data.journey.current_stage, 3);
 
     for (let index = 1; index <= 7; index += 1) {
       const victory = await api(db, 'POST', '/api/project-lm/victories', { description: `Vitória ${index}` });
       assert.equal(victory.status, 201);
     }
-    assert.equal((await api(db, 'GET', '/api/project-lm/journey')).body.data.current_stage, 4);
+    assert.equal((await api(db, 'GET', '/api/project-lm/journey')).body.data.journey.current_stage, 4);
 
     const recovery = await api(db, 'POST', '/api/project-lm/recovery', {
       overeating: 'Voltar na próxima refeição',
@@ -75,14 +75,14 @@ test('V5 happy path applies migration and progresses from stage 1 to maintenance
       lack_of_motivation: 'Executar ação mínima'
     });
     assert.equal(recovery.status, 200);
-    assert.equal(recovery.body.data.status, 'maintenance');
-    assert.ok(recovery.body.data.maintenance_started_at);
+    assert.equal(recovery.body.data.journey.status, 'maintenance');
+    assert.ok(recovery.body.data.journey.maintenance_started_at);
 
     const goal = await api(db, 'POST', '/api/project-lm/maintenance-goals', { goal: 'Manter 3 ações mínimas por semana' });
     assert.equal(goal.status, 201);
-    assert.equal(goal.body.data.maintenance_goals[0].goal, 'Manter 3 ações mínimas por semana');
+    assert.equal(goal.body.data.stages.maintenance.items[0].goal, 'Manter 3 ações mínimas por semana');
 
-    await assertDbIntegrity(db, recovery.body.data.id);
+    await assertDbIntegrity(db, recovery.body.data.journey.id);
   });
 });
 
@@ -103,7 +103,7 @@ test('V5 progression blockers reject invalid order and duplicate submissions', a
     assert.equal(stage1.status, 201);
     assert.equal((await api(db, 'POST', '/api/project-lm/stage-1/actions', { actions: [{ title: 'A' }, { title: 'B' }, { title: 'C' }] })).status, 409);
 
-    for (const action of stage1.body.data.actions) await api(db, 'POST', `/api/project-lm/stage-1/actions/${action.id}/complete`);
+    for (const action of stage1.body.data.stages.stage_1.items) await api(db, 'POST', `/api/project-lm/stage-1/actions/${action.id}/complete`);
     assert.equal((await postPlanB(db)).status, 200);
     for (let index = 1; index <= 7; index += 1) assert.equal((await postVictory(db, `Vitória ${index}`)).status, 201);
     assert.equal((await postVictory(db, 'oitava')).status, 403);

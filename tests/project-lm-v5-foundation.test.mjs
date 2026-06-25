@@ -55,22 +55,22 @@ test('V5 happy path progresses from stage 1 to maintenance', async () => {
 
   const initial = await api(db, 'GET', '/api/project-lm/journey');
   assert.equal(initial.status, 200);
-  assert.equal(initial.body.data.current_stage, 1);
-  assert.equal(initial.body.data.status, 'active');
+  assert.equal(initial.body.data.journey.current_stage, 1);
+  assert.equal(initial.body.data.journey.status, 'active');
 
   const stage1 = await api(db, 'POST', '/api/project-lm/stage-1/actions', {
     actions: [{ title: 'Água' }, { title: 'Caminhar' }, { title: 'Proteína' }]
   });
   assert.equal(stage1.status, 201);
-  assert.equal(stage1.body.data.actions.length, 3);
+  assert.equal(stage1.body.data.stages.stage_1.items.length, 3);
   assert.equal(db.tables.project_lm_stage1_actions.length, 3);
   assert.equal(db.batchCalls, 1);
 
-  for (const action of stage1.body.data.actions) {
+  for (const action of stage1.body.data.stages.stage_1.items) {
     const completed = await api(db, 'POST', `/api/project-lm/stage-1/actions/${action.id}/complete`);
     assert.equal(completed.status, 200);
   }
-  assert.equal((await api(db, 'GET', '/api/project-lm/journey')).body.data.current_stage, 2);
+  assert.equal((await api(db, 'GET', '/api/project-lm/journey')).body.data.journey.current_stage, 2);
 
   const planB = await api(db, 'POST', '/api/project-lm/plan-b', {
     emergency_meal: 'Ovos e fruta',
@@ -79,13 +79,13 @@ test('V5 happy path progresses from stage 1 to maintenance', async () => {
     minimum_self_care: 'Dormir mais cedo'
   });
   assert.equal(planB.status, 200);
-  assert.equal(planB.body.data.current_stage, 3);
+  assert.equal(planB.body.data.journey.current_stage, 3);
 
   for (let index = 1; index <= 7; index += 1) {
     const victory = await api(db, 'POST', '/api/project-lm/victories', { description: `Vitória ${index}` });
     assert.equal(victory.status, 201);
   }
-  assert.equal((await api(db, 'GET', '/api/project-lm/journey')).body.data.current_stage, 4);
+  assert.equal((await api(db, 'GET', '/api/project-lm/journey')).body.data.journey.current_stage, 4);
 
   const recovery = await api(db, 'POST', '/api/project-lm/recovery', {
     overeating: 'Voltar na próxima refeição',
@@ -95,19 +95,91 @@ test('V5 happy path progresses from stage 1 to maintenance', async () => {
     lack_of_motivation: 'Executar ação mínima'
   });
   assert.equal(recovery.status, 200);
-  assert.equal(recovery.body.data.status, 'maintenance');
+  assert.equal(recovery.body.data.journey.status, 'maintenance');
 
   const goal = await api(db, 'POST', '/api/project-lm/maintenance-goals', { goal: 'Manter 3 ações mínimas por semana' });
   assert.equal(goal.status, 201);
-  assert.equal(goal.body.data.maintenance_goals.length, 1);
+  assert.equal(goal.body.data.stages.maintenance.items.length, 1);
+});
+
+test('V5 journey contract exposes frontend-ready shape, progress, statuses and next action', async () => {
+  const db = new FakeD1('projeto_lm');
+
+  const initial = await api(db, 'GET', '/api/project-lm/journey');
+  assert.deepEqual(Object.keys(initial.body.data), ['journey', 'progress', 'stages']);
+  assert.equal(initial.body.data.progress.percentage, 0);
+  assert.equal(initial.body.data.progress.next_required_action, 'choose_stage_1_actions');
+  assert.deepEqual(initial.body.data.progress.locked_stages, [2, 3, 4]);
+  assert.ok(initial.body.data.progress.locked_stages.every((stage) => Number.isInteger(stage)));
+  assert.ok(!initial.body.data.progress.locked_stages.includes('maintenance'));
+  assert.equal(initial.body.data.stages.stage_1.status, 'active');
+  assert.equal(initial.body.data.stages.stage_2.status, 'locked');
+  assert.equal(initial.body.data.stages.maintenance.status, 'locked');
+
+  const stage1 = await api(db, 'POST', '/api/project-lm/stage-1/actions', {
+    actions: [{ title: 'Água' }, { title: 'Caminhar' }, { title: 'Proteína' }]
+  });
+  assert.equal(stage1.body.data.progress.next_required_action, 'complete_stage_1_actions');
+  assert.equal(stage1.body.data.progress.percentage, 0);
+  assert.deepEqual(Object.keys(stage1.body.data), ['journey', 'progress', 'stages']);
+
+  const firstCompleted = await api(db, 'POST', `/api/project-lm/stage-1/actions/${stage1.body.data.stages.stage_1.items[0].id}/complete`);
+  assert.equal(firstCompleted.body.data.progress.percentage, 10);
+  const secondCompleted = await api(db, 'POST', `/api/project-lm/stage-1/actions/${stage1.body.data.stages.stage_1.items[1].id}/complete`);
+  assert.equal(secondCompleted.body.data.progress.percentage, 20);
+  const stage2 = await api(db, 'POST', `/api/project-lm/stage-1/actions/${stage1.body.data.stages.stage_1.items[2].id}/complete`);
+  assert.equal(stage2.body.data.progress.percentage, 25);
+  assert.equal(stage2.body.data.progress.next_required_action, 'fill_plan_b');
+  assert.equal(stage2.body.data.stages.stage_1.status, 'completed');
+  assert.equal(stage2.body.data.stages.stage_2.status, 'active');
+  assert.ok(!stage2.body.data.progress.locked_stages.includes('maintenance'));
+
+  const stage3 = await api(db, 'POST', '/api/project-lm/plan-b', {
+    emergency_meal: 'Ovos e fruta',
+    minimum_workout: '10 minutos',
+    minimum_movement: 'Caminhada curta',
+    minimum_self_care: 'Dormir mais cedo'
+  });
+  assert.equal(stage3.body.data.progress.percentage, 50);
+  assert.equal(stage3.body.data.progress.next_required_action, 'record_victories');
+  assert.equal(stage3.body.data.stages.stage_2.status, 'completed');
+  assert.equal(stage3.body.data.stages.stage_3.status, 'active');
+  assert.ok(!stage3.body.data.progress.locked_stages.includes('maintenance'));
+
+  const oneVictory = await api(db, 'POST', '/api/project-lm/victories', { description: 'Vitória 1' });
+  assert.ok(oneVictory.body.data.progress.percentage > 50);
+  assert.ok(oneVictory.body.data.progress.percentage < 75);
+  for (let index = 2; index <= 7; index += 1) await api(db, 'POST', '/api/project-lm/victories', { description: `Vitória ${index}` });
+  const stage4 = await api(db, 'GET', '/api/project-lm/journey');
+  assert.equal(stage4.body.data.progress.percentage, 75);
+  assert.equal(stage4.body.data.progress.next_required_action, 'fill_recovery_protocols');
+  assert.equal(stage4.body.data.stages.stage_3.status, 'completed');
+  assert.equal(stage4.body.data.stages.stage_4.status, 'active');
+
+  const maintenance = await api(db, 'POST', '/api/project-lm/recovery', {
+    overeating: 'Voltar na próxima refeição',
+    missed_workout: 'Fazer treino mínimo',
+    travel: 'Priorizar proteína',
+    difficult_week: 'Reduzir meta sem zerar',
+    lack_of_motivation: 'Executar ação mínima'
+  });
+  assert.equal(maintenance.body.data.progress.percentage, 100);
+  assert.equal(maintenance.body.data.progress.next_required_action, 'maintenance');
+  assert.equal(maintenance.body.data.stages.stage_4.status, 'completed');
+  assert.equal(maintenance.body.data.stages.maintenance.status, 'active');
+  assert.deepEqual(maintenance.body.data.progress.locked_stages, []);
 });
 
 test('V5 blocks future resources, invalid Stage 1 sizes and Premium users', async () => {
   const db = new FakeD1('projeto_lm');
 
-  assert.equal((await api(db, 'POST', '/api/project-lm/plan-b', {
+  const lockedPlanB = await api(db, 'POST', '/api/project-lm/plan-b', {
     emergency_meal: 'x', minimum_workout: 'x', minimum_movement: 'x', minimum_self_care: 'x'
-  })).status, 403);
+  });
+  assert.equal(lockedPlanB.status, 403);
+  assert.deepEqual(Object.keys(lockedPlanB.body), ['ok', 'error', 'code']);
+  assert.equal(lockedPlanB.body.ok, false);
+  assert.equal(lockedPlanB.body.code, 'PLAN_B_STAGE_LOCKED');
   assert.equal((await api(db, 'POST', '/api/project-lm/victories', { description: 'x' })).status, 403);
   assert.equal((await api(db, 'POST', '/api/project-lm/recovery', {
     overeating: 'x', missed_workout: 'x', travel: 'x', difficult_week: 'x', lack_of_motivation: 'x'
@@ -119,7 +191,9 @@ test('V5 blocks future resources, invalid Stage 1 sizes and Premium users', asyn
   assert.equal((await api(db, 'POST', '/api/project-lm/stage-1/actions', { actions: [{ title: 'Uma' }, { title: '   ' }, { title: 'Três' }] })).status, 400);
 
   const premiumDb = new FakeD1('premium');
-  assert.equal((await api(premiumDb, 'GET', '/api/project-lm/journey')).status, 403);
+  const premium = await api(premiumDb, 'GET', '/api/project-lm/journey');
+  assert.equal(premium.status, 403);
+  assert.equal(premium.body.code, 'PROJECT_LM_ONLY');
 });
 
 async function api(db, method, pathname, body) {
