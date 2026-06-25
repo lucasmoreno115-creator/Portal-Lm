@@ -122,10 +122,14 @@ test('V5 journey contract exposes frontend-ready shape, progress, statuses and n
   assert.deepEqual(initial.body.data.view_model.stage_cards.map((card) => card.key), ['stage_1', 'stage_2', 'stage_3', 'stage_4', 'maintenance']);
   assert.equal(initial.body.data.view_model.stage_cards[0].status, 'active');
   assert.equal(initial.body.data.view_model.stage_cards[0].status_label, 'Em andamento');
+  assert.deepEqual(initial.body.data.view_model.stage_cards[0].cta, { label: 'Concluir ações mínimas', action: 'open_stage_1_actions' });
   assert.equal(initial.body.data.view_model.stage_cards[0].progress_text, '0/3 ações concluídas');
   assert.equal(initial.body.data.view_model.stage_cards[0].empty_state, 'Você ainda não escolheu suas 3 ações mínimas.');
+  assert.equal(initial.body.data.view_model.stage_cards[1].cta, null);
   assert.equal(initial.body.data.view_model.stage_cards[2].empty_state, 'Você ainda não registrou vitórias.');
+  assert.equal(initial.body.data.view_model.stage_cards[4].cta, null);
   assert.equal(initial.body.data.view_model.stage_cards[4].empty_state, 'Você ainda não definiu metas de manutenção.');
+  assert.equal(initial.body.data.view_model.stage_cards[4].progress_text, '0 metas de manutenção');
 
   const stage1 = await api(db, 'POST', '/api/project-lm/stage-1/actions', {
     actions: [{ title: 'Água' }, { title: 'Caminhar' }, { title: 'Proteína' }]
@@ -148,7 +152,9 @@ test('V5 journey contract exposes frontend-ready shape, progress, statuses and n
   assert.equal(stage2.body.data.view_model.progress_label, 'Você desbloqueou seu Plano B.');
   assert.deepEqual(stage2.body.data.view_model.primary_cta, { label: 'Construir meu Plano B', action: 'open_plan_b' });
   assert.equal(stage2.body.data.stages.stage_1.status, 'completed');
+  assert.equal(stage2.body.data.view_model.stage_cards[0].cta, null);
   assert.equal(stage2.body.data.stages.stage_2.status, 'active');
+  assert.deepEqual(stage2.body.data.view_model.stage_cards[1].cta, { label: 'Construir meu Plano B', action: 'open_plan_b' });
   assert.ok(!stage2.body.data.progress.locked_stages.includes('maintenance'));
 
   const stage3 = await api(db, 'POST', '/api/project-lm/plan-b', {
@@ -177,6 +183,7 @@ test('V5 journey contract exposes frontend-ready shape, progress, statuses and n
   assert.deepEqual(stage4.body.data.view_model.primary_cta, { label: 'Criar protocolos de recuperação', action: 'open_recovery_protocols' });
   assert.equal(stage4.body.data.view_model.stage_cards[2].progress_text, '7/7 vitórias registradas');
   assert.equal(stage4.body.data.stages.stage_3.status, 'completed');
+  assert.equal(stage4.body.data.view_model.stage_cards[2].cta, null);
   assert.equal(stage4.body.data.stages.stage_4.status, 'active');
 
   const maintenance = await api(db, 'POST', '/api/project-lm/recovery', {
@@ -193,11 +200,18 @@ test('V5 journey contract exposes frontend-ready shape, progress, statuses and n
   assert.equal(maintenance.body.data.view_model.primary_message, 'Você concluiu a jornada. Agora o foco é manter o que foi construído.');
   assert.deepEqual(maintenance.body.data.view_model.primary_cta, { label: 'Definir meta de manutenção', action: 'open_maintenance_goals' });
   assert.equal(maintenance.body.data.view_model.stage_cards[3].progress_text, '5/5 protocolos criados');
+  assert.equal(maintenance.body.data.view_model.stage_cards[3].cta, null);
   assert.equal(maintenance.body.data.view_model.stage_cards[4].status, 'active');
+  assert.deepEqual(maintenance.body.data.view_model.stage_cards[4].cta, { label: 'Definir meta de manutenção', action: 'open_maintenance_goals' });
   assert.equal(maintenance.body.data.view_model.stage_cards[4].progress_text, '0 metas de manutenção');
   assert.equal(maintenance.body.data.stages.stage_4.status, 'completed');
   assert.equal(maintenance.body.data.stages.maintenance.status, 'active');
   assert.deepEqual(maintenance.body.data.progress.locked_stages, []);
+
+  const firstGoal = await api(db, 'POST', '/api/project-lm/maintenance-goals', { goal: 'Manter 3 ações mínimas por semana' });
+  assert.equal(firstGoal.body.data.view_model.stage_cards[4].progress_text, '1 meta de manutenção');
+  const secondGoal = await api(db, 'POST', '/api/project-lm/maintenance-goals', { goal: 'Revisar Plano B quinzenalmente' });
+  assert.equal(secondGoal.body.data.view_model.stage_cards[4].progress_text, '2 metas de manutenção');
 });
 
 test('V5 blocks future resources, invalid Stage 1 sizes and Premium users', async () => {

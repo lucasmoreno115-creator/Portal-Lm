@@ -75,6 +75,22 @@ O CTA principal é derivado de `progress.next_required_action` e sempre contém:
 
 Cada card contém `key`, `title`, `subtitle`, `status`, `status_label`, `progress_text`, `cta` e `empty_state`.
 
+### Regra oficial de CTA por status
+
+- Cards `locked` retornam `cta: null`.
+- Cards `active` retornam o CTA correspondente da etapa.
+- Cards `completed` retornam `cta: null`.
+
+Essa regra evita que o frontend precise decidir se deve esconder botões operacionais de etapas bloqueadas ou concluídas.
+
+### Pluralização de metas de manutenção
+
+O `progress_text` do card `maintenance` usa pluralização oficial:
+
+- `0 metas de manutenção`
+- `1 meta de manutenção`
+- `2 metas de manutenção`
+
 ## Empty states
 
 Os estados vazios aparecem dentro dos respectivos cards quando aplicável:

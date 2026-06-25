@@ -3224,6 +3224,10 @@ function projectLmV5StageCardCta(key) {
   return ctas[key];
 }
 
+function projectLmV5MaintenanceGoalsProgressText(count) {
+  return `${count} ${count === 1 ? 'meta' : 'metas'} de manutenção`;
+}
+
 function projectLmV5StageCard(key, stage, progressText, emptyState = null) {
   return {
     key,
@@ -3232,7 +3236,7 @@ function projectLmV5StageCard(key, stage, progressText, emptyState = null) {
     status: stage.status,
     status_label: PROJECT_LM_V5_VIEW_MODEL_COPY.stageStatusLabels[stage.status],
     progress_text: progressText,
-    cta: projectLmV5StageCardCta(key),
+    cta: stage.status === 'active' ? projectLmV5StageCardCta(key) : null,
     empty_state: emptyState
   };
 }
@@ -3254,7 +3258,7 @@ function projectLmV5BuildViewModel(contract) {
       projectLmV5StageCard('stage_2', stages.stage_2, `${stages.stage_2.completed_fields.length}/4 campos preenchidos`),
       projectLmV5StageCard('stage_3', stages.stage_3, `${stages.stage_3.completed_count}/7 vitórias registradas`, stages.stage_3.items.length === 0 ? 'Você ainda não registrou vitórias.' : null),
       projectLmV5StageCard('stage_4', stages.stage_4, `${stages.stage_4.completed_fields.length}/5 protocolos criados`),
-      projectLmV5StageCard('maintenance', stages.maintenance, `${stages.maintenance.items.length} metas de manutenção`, stages.maintenance.items.length === 0 ? 'Você ainda não definiu metas de manutenção.' : null)
+      projectLmV5StageCard('maintenance', stages.maintenance, projectLmV5MaintenanceGoalsProgressText(stages.maintenance.items.length), stages.maintenance.items.length === 0 ? 'Você ainda não definiu metas de manutenção.' : null)
     ],
     empty_state: null
   };
