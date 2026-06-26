@@ -271,3 +271,62 @@ test('state layer blocks duplicate saves while a POST is already in progress', a
   resolveFetch(okResponse());
   assert.equal((await first).ok, true);
 });
+
+test('state emits V5 telemetry, load timing and diagnostics without changing UX state', async () => {
+  const events = [];
+  const { createProjectLmV5State } = createModule(async () => okResponse(sampleContract({ journey: { id: 'journey-1', student_id: 'student-1', status: 'active', current_stage: 2 } })));
+  const store = createProjectLmV5State({ onTelemetry: (event) => events.push(event) });
+
+  await store.loadJourney();
+  await store.savePlanB({ emergency_meal: 'Ovos' });
+
+  assert.equal(events[0].namespace, 'project_lm_v5');
+  assert.ok(events.some((event) => event.event === 'journey_load_time' && Number.isFinite(event.duration_ms) && event.request_start && event.request_end));
+  assert.ok(events.some((event) => event.event === 'journey_loaded' && event.student_id === 'student-1' && event.current_stage === 2 && event.journey_status === 'active'));
+  assert.ok(events.some((event) => event.event === 'stage_2_completed'));
+  assert.deepEqual(JSON.parse(JSON.stringify(store.getJourneyDiagnostics())), {
+    route: '#project-lm/journey',
+    current_stage: 2,
+    journey_status: 'active',
+    next_required_action: 'fill_plan_b',
+    loading: false,
+    saving: false,
+    last_error_code: null
+  });
+});
+
+test('invalid current_stage and status produce contract warnings without rejecting renderable data', async () => {
+  const events = [];
+  const warnings = [];
+  const context = createModule(async () => okResponse(sampleContract({
+    journey: { id: 'journey-1', status: 'mystery', current_stage: 99 },
+    progress: { current_stage: 99, status: 'mystery', percentage: 0, next_required_action: 'fill_plan_b' }
+  })));
+  context.console = { warn: (...args) => warnings.push(args) };
+  context.ProjectLmV5Telemetry = (event) => events.push(event);
+  const store = context.createProjectLmV5State({ onTelemetry: (event) => events.push(event) });
+
+  const result = await store.loadJourney();
+
+  assert.equal(result.ok, true);
+  assert.equal(store.getState().journey.current_stage, 99);
+  assert.ok(events.some((event) => event.event === 'contract_warning' && event.code === 'PROJECT_LM_V5_INVALID_CURRENT_STAGE'));
+  assert.ok(events.some((event) => event.event === 'contract_warning' && event.code === 'PROJECT_LM_V5_INVALID_STATUS'));
+  assert.equal(warnings.length >= 2, true);
+});
+
+test('api_error telemetry captures endpoint, status_code and error_code', async () => {
+  const events = [];
+  const { createProjectLmV5State } = createModule(async () => ({
+    ok: false,
+    status: 500,
+    async json() {
+      return { ok: false, error: 'Falha', code: 'SERVER_DOWN' };
+    }
+  }));
+  const store = createProjectLmV5State({ onTelemetry: (event) => events.push(event) });
+
+  await store.loadJourney();
+
+  assert.ok(events.some((event) => event.event === 'api_error' && event.endpoint === '/api/project-lm/journey' && event.status_code === 500 && event.error_code === 'SERVER_DOWN'));
+});

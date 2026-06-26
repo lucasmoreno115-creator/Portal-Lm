@@ -92,6 +92,25 @@
   let hashChangeHandler = null;
   let successFeedback = null;
   let successFeedbackTimer = null;
+  let errorHandler = null;
+  let rejectionHandler = null;
+  let lastViewedEvent = null;
+
+  const SCREEN_VIEW_EVENTS = Object.freeze({
+    stage_1_actions: 'stage_1_viewed',
+    stage_2_plan_b: 'stage_2_viewed',
+    stage_3_victories: 'stage_3_viewed',
+    stage_4_recovery: 'stage_4_viewed',
+    maintenance_goals: 'maintenance_viewed'
+  });
+
+  const SCREEN_ENTER_EVENTS = Object.freeze({
+    stage_1_actions: 'entered_stage_1',
+    stage_2_plan_b: 'entered_stage_2',
+    stage_3_victories: 'entered_stage_3',
+    stage_4_recovery: 'entered_stage_4',
+    maintenance_goals: 'entered_maintenance'
+  });
 
   function text(value, fallback) {
     if (value === null || value === undefined || value === '') return fallback || '';
@@ -115,9 +134,9 @@
   }
 
   function getRoute() {
-    const hash = globalScope.location.hash;
-    if (!hash) return '#project-lm/journey';
-    return OFFICIAL_ROUTES[hash] ? hash : '#project-lm/journey';
+    const hash = text(globalScope.location.hash).trim();
+    if (!hash || hash === '#' || !hash.startsWith('#project-lm/') || !OFFICIAL_ROUTES[hash]) return '#project-lm/journey';
+    return hash;
   }
 
   function ensureRoute() {
@@ -446,6 +465,17 @@
     else if (state?.saving) elements.messages.appendChild(copyNode('plmv5-message', UX_COPY.saving));
   }
 
+  function trackRouteView(screenKey) {
+    if (!store || typeof store.track !== 'function') return;
+    const viewed = screenKey === 'journey_overview' ? null : SCREEN_VIEW_EVENTS[screenKey];
+    const entered = SCREEN_ENTER_EVENTS[screenKey];
+    const key = `${screenKey}:${viewed}:${entered}`;
+    if (key === lastViewedEvent) return;
+    lastViewedEvent = key;
+    if (viewed) store.track(viewed);
+    if (entered) store.track(entered);
+  }
+
   function renderCurrentRoute(state) {
     const route = getRoute();
     const isOverviewRoute = route === '#project-lm/journey';
@@ -456,6 +486,7 @@
     clear(elements.stageCards);
     clear(elements.screen);
     renderRoutes(isOverviewRoute ? 'journey_overview' : getScreenKey(), state);
+    trackRouteView(isOverviewRoute ? 'journey_overview' : getScreenKey());
     if (isOverviewRoute) {
       renderOverview(state);
       renderStageCards(state);
@@ -476,6 +507,7 @@
   }
 
   function boot() {
+    if (unsubscribe || hashChangeHandler) destroy();
     contracts = globalScope.ProjectLmV5ScreenContracts;
     store = globalScope.ProjectLmV5State || (typeof globalScope.createProjectLmV5State === 'function' ? globalScope.createProjectLmV5State() : null);
     const root = globalScope.document.querySelector(selectors.root);
@@ -490,6 +522,14 @@
       focusMainContent();
     };
     globalScope.addEventListener('hashchange', hashChangeHandler);
+    errorHandler = (event) => {
+      if (store && typeof store.track === 'function') store.track('unexpected_client_error', { error_code: event?.error?.name || 'CLIENT_ERROR', message: event?.message || null });
+    };
+    rejectionHandler = (event) => {
+      if (store && typeof store.track === 'function') store.track('unexpected_client_error', { error_code: event?.reason?.name || 'UNHANDLED_REJECTION', message: event?.reason?.message || String(event?.reason || '') });
+    };
+    globalScope.addEventListener('error', errorHandler);
+    globalScope.addEventListener('unhandledrejection', rejectionHandler);
     unsubscribe = store.subscribe(render);
     store.loadJourney();
   }
@@ -497,8 +537,13 @@
   function destroy() {
     if (typeof unsubscribe === 'function') unsubscribe();
     if (hashChangeHandler) globalScope.removeEventListener('hashchange', hashChangeHandler);
+    if (errorHandler) globalScope.removeEventListener('error', errorHandler);
+    if (rejectionHandler) globalScope.removeEventListener('unhandledrejection', rejectionHandler);
     unsubscribe = null;
     hashChangeHandler = null;
+    errorHandler = null;
+    rejectionHandler = null;
+    lastViewedEvent = null;
     currentState = null;
     successFeedback = null;
     if (successFeedbackTimer) globalScope.clearTimeout(successFeedbackTimer);

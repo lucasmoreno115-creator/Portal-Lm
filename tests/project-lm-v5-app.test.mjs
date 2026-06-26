@@ -212,3 +212,32 @@ test('V5-11 app guards form and action submits against rapid duplicate interacti
   assert.match(appSource, /button\.dataset\.submitting === 'true' \|\| currentState\?\.saving/);
   assert.match(appSource, /button\.disabled = true/);
 });
+
+test('V5-12 app hardens malformed hashes with the official journey fallback', () => {
+  assert.match(appSource, /!hash \|\| hash === '#' \|\| !hash\.startsWith\('#project-lm\/'\) \|\| !OFFICIAL_ROUTES\[hash\]/);
+  assert.match(appSource, /return '#project-lm\/journey'/);
+});
+
+test('V5-12 app tracks stage views, funnel entries and unexpected client errors', () => {
+  for (const event of ['stage_1_viewed', 'stage_2_viewed', 'stage_3_viewed', 'stage_4_viewed', 'maintenance_viewed', 'entered_stage_1', 'entered_stage_2', 'entered_stage_3', 'entered_stage_4', 'entered_maintenance', 'unexpected_client_error']) {
+    assert.match(appSource, new RegExp(event));
+  }
+  assert.match(appSource, /store\.track\(viewed\)/);
+  assert.match(appSource, /store\.track\(entered\)/);
+  assert.match(appSource, /addEventListener\('error', errorHandler\)/);
+  assert.match(appSource, /addEventListener\('unhandledrejection', rejectionHandler\)/);
+});
+
+test('V5-12 destroy removes all production-readiness listeners and boot avoids duplicates', () => {
+  assert.match(appSource, /if \(unsubscribe \|\| hashChangeHandler\) destroy\(\)/);
+  assert.match(appSource, /removeEventListener\('error', errorHandler\)/);
+  assert.match(appSource, /removeEventListener\('unhandledrejection', rejectionHandler\)/);
+  assert.match(appSource, /lastViewedEvent = null/);
+});
+
+test('V5-12 premium isolation audit covers requested prohibited references', () => {
+  const combined = `${appSource}\n${htmlSource}\n${cssSource}`;
+  for (const prohibited of ['Premium', 'Student360', 'Check-in', 'Plano Alimentar', 'Biblioteca Premium']) {
+    assert.doesNotMatch(combined, new RegExp(prohibited, 'i'));
+  }
+});

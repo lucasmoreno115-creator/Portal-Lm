@@ -365,3 +365,68 @@ A validação V5-11 executa a Jornada Projeto LM V5 como um usuário real: onboa
 - A validação é automatizada em nível de contrato, state layer e integração estática/VM da UI. Ela não substitui um teste E2E com navegador real autenticado contra backend de staging.
 - A persistência é validada pelo contrato retornado por `loadJourney()` após salvamento; a regra definitiva de armazenamento continua pertencendo ao backend.
 - A UI não recalcula progresso no frontend; percentuais, status e `next_required_action` continuam vindo da API e do screen contract.
+
+## V5-12 Beta Readiness & Production Hardening
+
+A camada V5-12 prepara a Jornada Projeto LM V5 para operação com usuários reais sem alterar UX, copy, progressão, contratos visíveis ou componentes.
+
+### Telemetria
+
+A telemetria usa o namespace isolado `project_lm_v5`. Os eventos carregam `student_id`, `journey_status`, `current_stage` e `timestamp` sempre que esses dados estão disponíveis no estado local.
+
+Eventos de carregamento e visualização:
+
+- `journey_loaded`
+- `stage_1_viewed`
+- `stage_2_viewed`
+- `stage_3_viewed`
+- `stage_4_viewed`
+- `maintenance_viewed`
+
+Eventos de conclusão:
+
+- `stage_1_completed`
+- `stage_2_completed`
+- `stage_3_completed`
+- `stage_4_completed`
+- `journey_completed`
+
+Eventos de funil:
+
+- `entered_stage_1`
+- `entered_stage_2`
+- `entered_stage_3`
+- `entered_stage_4`
+- `entered_maintenance`
+
+### Observabilidade e métricas
+
+A métrica `journey_load_time` mede `request_start`, `request_end` e `duration_ms` para identificar lentidão no carregamento inicial da jornada.
+
+Falhas de API emitem `api_error` com `endpoint`, `status_code`, `error_code` e `timestamp`. Exceções não tratadas do cliente emitem `unexpected_client_error` a partir de `error` e `unhandledrejection`.
+
+### Diagnósticos internos
+
+O helper interno `getJourneyDiagnostics()` expõe apenas dados de suporte e debug, sem renderização para o usuário:
+
+- `route`
+- `current_stage`
+- `journey_status`
+- `next_required_action`
+- `loading`
+- `saving`
+- `last_error_code`
+
+### Validação defensiva de contrato
+
+A camada de estado valida defensivamente `current_stage` e `status`. Valores inesperados geram `contract_warning` e `console.warn`, mas não impedem que dados renderizáveis sejam aplicados ao estado. A estratégia evita tela quebrada por divergências parciais do backend.
+
+### Fallback strategy de rota
+
+Hashes vazios, parciais, inválidos ou malformados retornam para `#project-lm/journey`. A normalização é invisível para o usuário e mantém o roteador dentro das rotas oficiais da Jornada V5.
+
+### Limitações
+
+- Esta PR não cria dashboard, tela admin, relatório, gráfico ou métrica visível.
+- A coleta depende de um sink externo opcional em `ProjectLmV5Telemetry`, função `onTelemetry`/`telemetry` injetada ou evento browser `project_lm_v5:telemetry`.
+- A validação defensiva registra warnings para suporte, mas não bloqueia respostas parcialmente renderizáveis.
