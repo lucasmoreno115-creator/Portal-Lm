@@ -405,6 +405,8 @@ A métrica `journey_load_time` mede `request_start`, `request_end` e `duration_m
 
 Falhas de API emitem `api_error` com `endpoint`, `status_code`, `error_code` e `timestamp`. Exceções não tratadas do cliente emitem `unexpected_client_error` a partir de `error` e `unhandledrejection`.
 
+Chamadas travadas são abortadas defensivamente após 12 segundos e registradas como `PROJECT_LM_V5_REQUEST_TIMEOUT`, mantendo a UI em estado recuperável em vez de deixar carregamentos ou salvamentos pendurados.
+
 ### Diagnósticos internos
 
 O helper interno `getJourneyDiagnostics()` expõe apenas dados de suporte e debug, sem renderização para o usuário:
@@ -424,6 +426,8 @@ A camada de estado valida defensivamente `current_stage` e `status`. Valores ine
 ### Fallback strategy de rota
 
 Hashes vazios, parciais, inválidos ou malformados retornam para `#project-lm/journey`. A normalização é invisível para o usuário e mantém o roteador dentro das rotas oficiais da Jornada V5.
+
+Carregamentos concorrentes de jornada são bloqueados com `PROJECT_LM_V5_LOAD_IN_PROGRESS`, assim como salvamentos concorrentes já são bloqueados com `PROJECT_LM_V5_SAVE_IN_PROGRESS`. Isso reduz duplicidade de requests durante boot, refresh lógico ou cliques rápidos sem alterar contratos visíveis.
 
 ### Limitações
 
