@@ -10,7 +10,7 @@
   <script>
     requireAuth();
     if (getUserPlan() === 'projeto_lm') {
-      window.location.replace('projeto-lm-jornada.html');
+      window.location.replace('public/project-lm-v5.html#project-lm/journey');
     }
   </script>
 </head>
@@ -136,9 +136,9 @@
     function renderQuickLinksForPlan() {
       if (currentPlan === 'projeto_lm') {
         quickLinksEl.innerHTML = `
-          <a class='secondary-link' href='projeto-lm-jornada.html'><span class='quick-icon'>🗺</span><span>Minha Jornada</span></a>
-          <a class='secondary-link' href='projeto-lm-consistencia.html'><span class='quick-icon'>📈</span><span>Consistência</span></a>
-          <a class='secondary-link' href='projeto-lm-dia-dificil.html'><span class='quick-icon'>🧭</span><span>Modo Dia Difícil</span></a>
+          <a class='secondary-link' href='public/project-lm-v5.html#project-lm/journey'><span class='quick-icon'>🗺</span><span>Minha Jornada</span></a>
+          <a class='secondary-link' href='public/project-lm-v5.html#project-lm/victories'><span class='quick-icon'>📈</span><span>Consistência</span></a>
+          <a class='secondary-link' href='public/project-lm-v5.html#project-lm/plan-b'><span class='quick-icon'>🧭</span><span>Modo Dia Difícil</span></a>
           <a class='secondary-link' href='portal-biblioteca.html'><span class='quick-icon'>📚</span><span>Biblioteca</span></a>
         `;
         return;
@@ -160,7 +160,7 @@
       document.getElementById('nextTitle').textContent = 'Modo Dia Difícil';
       document.getElementById('nextMsg').textContent = 'Quando o dia ficar difícil, use o mínimo viável para continuar em movimento.';
       document.getElementById('nextBtn').textContent = 'Abrir Modo Dia Difícil';
-      document.getElementById('nextBtn').href = 'projeto-lm-dia-dificil.html';
+      document.getElementById('nextBtn').href = 'public/project-lm-v5.html#project-lm/plan-b';
       document.getElementById('nextBtn').dataset.feature = 'modo-dia-dificil';
       document.getElementById('statusLabel1').textContent = 'Foco do dia';
       document.getElementById('checkStatus').textContent = 'Manter o básico';
