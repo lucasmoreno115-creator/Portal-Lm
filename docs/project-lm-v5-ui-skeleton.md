@@ -178,3 +178,93 @@ Os formulários continuam renderizados exclusivamente a partir de `form_contract
 ### Escopo preservado
 
 A V5-08 não cria gamificação, missões, streak, conquistas, biblioteca, dashboard Premium, novos endpoints, novas migrations ou regras novas de progressão. A mudança permanece isolada em `project-lm-v5-*`.
+
+## V5-09 Copy & Emotional UX
+
+### Princípios de comunicação
+
+A V5-09 transforma a Jornada Projeto LM V5 em uma experiência textual mais alinhada à metodologia LM. A proposta central é reforçar que o usuário não precisa de mais motivação, mas de direção para continuar com execução mínima, consistência e retorno rápido ao plano.
+
+A comunicação evita pressionar o usuário a fazer mais. A interface passa a orientar o próximo passo, proteger a sensação de continuidade e reduzir a percepção de recomeço quando algo sai do planejado.
+
+### Tom oficial
+
+O tom oficial é humano, calmo, direto, sem exageros, sem hype e sem frases motivacionais vazias. A sensação desejada é: “Eu consigo continuar.”
+
+As mensagens devem reforçar:
+
+- continuidade;
+- execução mínima;
+- consistência;
+- retorno rápido ao plano;
+- preservação do que já foi construído.
+
+### Mensagens de carregamento, salvamento e erro
+
+A interface passa a usar mensagens oficiais da metodologia LM:
+
+- Loading: “Preparando sua jornada. Organizando o próximo passo para você continuar.”
+- Saving: “Registrando seu progresso.”
+- Error: “Algo não saiu como esperado. Tente novamente em alguns instantes. Sua jornada continua segura.”
+
+### Visão geral e progresso
+
+A visão geral passa a se chamar “Seu próximo passo” e reforça que o foco não é fazer tudo, mas executar o próximo passo e continuar avançando.
+
+O percentual de progresso continua vindo do contrato existente, sem novo cálculo no frontend, mas ganha apoio textual conforme a faixa:
+
+- 0–24%: “Você está construindo sua base.”
+- 25–49%: “Você já começou a criar consistência.”
+- 50–74%: “Seu sistema está ficando mais forte.”
+- 75–99%: “Você está perto de concluir sua jornada.”
+- 100%: “Hora de proteger o que foi construído.”
+
+Quando `view_model.primary_message` estiver vazio, a UI usa o fallback: “Pequenas ações repetidas vencem grandes planos abandonados.”
+
+### Mensagens por etapa
+
+A Etapa 1 apresenta “Defina suas ações mínimas.” e orienta o usuário a escolher ações simples o bastante para os dias difíceis. O empty state oficial é: “Você ainda não definiu suas ações mínimas.”
+
+A Etapa 2 explica que o Plano B existe para os dias em que o Plano A não for possível e reforça que continuar parcialmente é melhor do que recomeçar.
+
+A Etapa 3 reforça que resultados grandes são construídos por pequenas vitórias acumuladas. O empty state orienta o usuário a registrar qualquer avanço que mostre continuidade.
+
+A Etapa 4 explica que errar o plano não encerra a jornada e que o importante é saber como voltar rapidamente.
+
+### Mensagens de manutenção
+
+Quando o status da tela for `maintenance`, a UI exibe um destaque visual com:
+
+- Título: “Jornada concluída.”
+- Subtítulo: “Agora o objetivo é proteger o que você construiu.”
+- Mensagem: “Você não precisa voltar ao início. Você já possui um sistema para continuar mesmo quando a rotina apertar.”
+
+Essa tela é tratada como a principal superfície emocional da V5-09, pois comunica que a jornada não exige recomeço após a conclusão.
+
+### Mensagens de bloqueio e conclusão
+
+Estados bloqueados deixam de gerar urgência e passam a dizer: “Você ainda não precisa se preocupar com esta etapa. Concentre-se apenas no passo atual.”
+
+Estados concluídos passam a dizer: “Esta etapa já faz parte da sua base. Quando precisar, ela continuará disponível para consulta.”
+
+### Feedbacks de sucesso
+
+Após salvar formulários, a UI mostra temporariamente: “Salvo com sucesso. Mais um passo construído.”
+
+Após concluir uma ação mínima, a UI mostra: “Ação concluída. Continuar conta mais do que perfeição.”
+
+Após registrar uma vitória, a UI mostra: “Vitória registrada. Reconhecer o progresso ajuda a sustentar o processo.”
+
+### Formulários e empty states
+
+A mensagem auxiliar dos formulários passa a ser: “Mantenha simples. A melhor estratégia é aquela que você consegue executar.”
+
+Empty states devem evitar culpa, urgência e pressão. Eles devem indicar que ainda não há registro e orientar o usuário a voltar quando houver algo que mostre continuidade.
+
+### Palavras proibidas
+
+A copy oficial da Jornada V5 não deve usar: desafio, missão, streak, sequência, pontuação, ranking, recompensa, conquista, nível, desbloqueio gamificado ou performance.
+
+### Escopo preservado
+
+A V5-09 não altera backend, APIs, progressão, state layer, contracts, migrations ou Premium. As mudanças permanecem restritas à UX textual, feedbacks visuais leves e documentação.

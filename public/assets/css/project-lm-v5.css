@@ -99,3 +99,7 @@ button { cursor: pointer; }
 .plmv5-back-link { display: inline-flex; width: fit-content; margin-bottom: 12px; border-radius: 999px; padding: 8px 12px; background: rgba(255, 255, 255, .06); color: #f0cf7b; font-weight: 800; text-decoration: none; }
 .plmv5-back-link:hover, .plmv5-back-link:focus { background: rgba(240, 207, 123, .14); outline: 2px solid rgba(240, 207, 123, .45); outline-offset: 2px; }
 .plmv5-main:focus { outline: 3px solid rgba(240, 207, 123, .28); outline-offset: 4px; }
+.plmv5-progress-support { display: block; margin: 6px 0 0; color: #fff6df; font-size: 14px; font-weight: 700; }
+.plmv5-success { background: rgba(115, 196, 151, .16); border-color: rgba(115, 196, 151, .4); color: #d7ffe5; }
+.plmv5-maintenance-highlight { display: grid; gap: 10px; border: 1px solid rgba(112, 184, 255, .34); border-radius: 20px; padding: 20px; background: linear-gradient(135deg, rgba(112, 184, 255, .14), rgba(255, 255, 255, .035)); }
+.plmv5-maintenance-highlight h3 { margin: 0; font-size: clamp(24px, 3vw, 36px); letter-spacing: -.03em; }

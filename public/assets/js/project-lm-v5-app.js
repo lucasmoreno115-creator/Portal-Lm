@@ -41,12 +41,29 @@
   });
 
   const UX_COPY = Object.freeze({
-    overviewTitle: 'Seu caminho agora',
-    overviewDescription: 'A jornada mostra somente o que ajuda você a continuar: o passo atual, o que já foi concluído e manutenção quando estiver disponível.',
+    loading: 'Preparando sua jornada.\nOrganizando o próximo passo para você continuar.',
+    saving: 'Registrando seu progresso.',
+    error: 'Algo não saiu como esperado.\n\nTente novamente em alguns instantes.\nSua jornada continua segura.',
+    primaryMessageFallback: 'Pequenas ações repetidas vencem grandes planos abandonados.',
+    overviewTitle: 'Seu próximo passo',
+    overviewDescription: 'O foco agora não é fazer tudo.\n\nÉ fazer o próximo passo e continuar avançando.',
     backToOverview: 'Voltar para a visão geral',
-    requiredFields: 'Campos obrigatórios mantêm seu plano simples e acionável.',
-    lockedHint: 'Ainda bloqueada. Conclua o passo anterior para liberar esta etapa.',
-    completedHint: 'Concluída. Fica visível para consulta, sem nova ação obrigatória.'
+    requiredFields: 'Mantenha simples.\n\nA melhor estratégia é aquela que você consegue executar.',
+    lockedHint: 'Você ainda não precisa se preocupar com esta etapa.\n\nConcentre-se apenas no passo atual.',
+    completedHint: 'Esta etapa já faz parte da sua base.\n\nQuando precisar, ela continuará disponível para consulta.',
+    stage1Title: 'Defina suas ações mínimas.',
+    stage1Message: 'Escolha ações tão simples que você consiga executá-las mesmo nos dias difíceis.',
+    stage1Empty: 'Você ainda não definiu suas ações mínimas.',
+    planBMessage: 'Seu Plano B existe para os dias em que o Plano A não for possível.\n\nContinuar parcialmente é melhor do que recomeçar.',
+    victoriesMessage: 'Resultados grandes são construídos por pequenas vitórias acumuladas.',
+    victoriesEmpty: 'Registre qualquer avanço que mostre que você continuou.',
+    recoveryMessage: 'Errar o plano não encerra a jornada.\n\nO importante é saber como voltar rapidamente.',
+    maintenanceTitle: 'Jornada concluída.',
+    maintenanceSubtitle: 'Agora o objetivo é proteger o que você construiu.',
+    maintenanceMessage: 'Você não precisa voltar ao início.\n\nVocê já possui um sistema para continuar mesmo quando a rotina apertar.',
+    successGeneric: 'Salvo com sucesso.\n\nMais um passo construído.',
+    successAction: 'Ação concluída.\n\nContinuar conta mais do que perfeição.',
+    successVictory: 'Vitória registrada.\n\nReconhecer o progresso ajuda a sustentar o processo.'
   });
 
   const selectors = {
@@ -73,6 +90,8 @@
   let currentState = null;
   let unsubscribe = null;
   let hashChangeHandler = null;
+  let successFeedback = null;
+  let successFeedbackTimer = null;
 
   function text(value, fallback) {
     if (value === null || value === undefined || value === '') return fallback || '';
@@ -125,7 +144,37 @@
   }
 
   function readableStatus(status) {
-    return STATUS_LABELS[status] || text(status, 'Status indisponível');
+    return STATUS_LABELS[status] || text(status, 'Status não carregado');
+  }
+
+  function copyNode(className, content) {
+    const node = el('p', className);
+    safeText(node, content);
+    return node;
+  }
+
+  function getProgressSupport(percentage) {
+    if (percentage >= 100) return 'Hora de proteger o que foi construído.';
+    if (percentage >= 75) return 'Você está perto de concluir sua jornada.';
+    if (percentage >= 50) return 'Seu sistema está ficando mais forte.';
+    if (percentage >= 25) return 'Você já começou a criar consistência.';
+    return 'Você está construindo sua base.';
+  }
+
+  function getSuccessFeedback(action) {
+    if (action === 'completeStage1Action') return UX_COPY.successAction;
+    if (action === 'createVictory') return UX_COPY.successVictory;
+    return UX_COPY.successGeneric;
+  }
+
+  function showSuccessFeedback(message) {
+    successFeedback = message;
+    if (successFeedbackTimer) globalScope.clearTimeout(successFeedbackTimer);
+    successFeedbackTimer = globalScope.setTimeout(() => {
+      successFeedback = null;
+      if (store && elements) renderMessages(store.getState());
+    }, 4200);
+    if (store && elements) renderMessages(store.getState());
   }
 
   function getCurrentActionScreen(state) {
@@ -183,20 +232,21 @@
     clear(elements.overview);
     safeText(elements.pageTitle, 'Projeto LM');
     safeText(elements.pageSubtitle, 'Continue mesmo nos dias difíceis.');
-    safeText(elements.statusLabel, text(viewModel.status_label, state?.journey?.status || 'Status indisponível'));
+    safeText(elements.statusLabel, text(viewModel.status_label, state?.journey?.status || 'Status não carregado'));
     safeText(elements.progressLabel, text(viewModel.progress_label, 'Progresso não carregado'));
     const percentage = Number(state?.progress?.percentage ?? viewModel.percentage ?? 0);
     const safePercentage = Number.isFinite(percentage) ? Math.max(0, Math.min(100, percentage)) : 0;
     elements.percentage.value = safePercentage;
     safeText(elements.percentage, `${safePercentage}%`);
     safeText(elements.percentageText, `${safePercentage}%`);
-    safeText(elements.primaryMessage, text(viewModel.primary_message, 'Carregando sua jornada...'));
+    if (elements.progressLabel) elements.progressLabel.appendChild(copyNode('plmv5-progress-support', getProgressSupport(safePercentage)));
+    safeText(elements.primaryMessage, text(viewModel.primary_message, UX_COPY.primaryMessageFallback));
     safeText(elements.nextAction, `◆ Próxima ação: ${readableAction(state?.progress?.next_required_action)}`);
     updateHeroCta(state, viewModel);
 
     elements.overview.appendChild(renderOverviewIntro(state));
     const summary = el('div', 'plmv5-overview-panel');
-    summary.appendChild(el('p', 'plmv5-message', text(viewModel.primary_message, 'Sua jornada será exibida aqui assim que os dados forem carregados.')));
+    summary.appendChild(copyNode('plmv5-message', text(viewModel.primary_message, UX_COPY.primaryMessageFallback)));
     if (state?.progress?.next_required_action) summary.appendChild(el('p', 'plmv5-next-action', `◆ ${readableAction(state.progress.next_required_action)}`));
     elements.overview.appendChild(summary);
   }
@@ -223,8 +273,8 @@
       button.appendChild(el('span', 'plmv5-card-status', text(card.status_label, readableStatus(status))));
       if (card.subtitle || card.description) button.appendChild(el('span', 'plmv5-card-subtitle', text(card.subtitle || card.description)));
       if (card.progress_text) button.appendChild(el('span', 'plmv5-card-progress', card.progress_text));
-      if (status === 'locked') button.appendChild(el('small', 'plmv5-empty', UX_COPY.lockedHint));
-      else if (status === 'completed') button.appendChild(el('small', 'plmv5-empty', UX_COPY.completedHint));
+      if (status === 'locked') button.appendChild(copyNode('plmv5-empty', UX_COPY.lockedHint));
+      else if (status === 'completed') button.appendChild(copyNode('plmv5-empty', UX_COPY.completedHint));
       else if (card.empty_state) button.appendChild(el('small', 'plmv5-empty', card.empty_state));
       button.addEventListener('click', () => {
         if (screen && status !== 'locked' && status !== 'completed') navigateToScreen(screen.key);
@@ -266,7 +316,7 @@
     feedback.id = 'plmv5-form-feedback';
     feedback.setAttribute('aria-live', 'polite');
     form.appendChild(feedback);
-    const submit = el('button', 'plmv5-button plmv5-button-primary', currentState?.saving ? 'Salvando alterações...' : 'Salvar');
+    const submit = el('button', 'plmv5-button plmv5-button-primary', currentState?.saving ? UX_COPY.saving : 'Salvar');
     submit.type = 'submit';
     submit.disabled = !screenState.can_submit || Boolean(currentState?.saving);
     form.appendChild(submit);
@@ -276,7 +326,10 @@
       const action = FORM_ACTIONS[formContract.submit_action] || formContract.submit_action;
       const payload = payloadFromForm(form, formContract);
       const argument = formContract.type === 'stage_1_actions' ? payload.actions : payload;
-      if (typeof store[action] === 'function') await store[action](argument);
+      if (typeof store[action] === 'function') {
+        const result = await store[action](argument);
+        if (result?.ok) showSuccessFeedback(getSuccessFeedback(action));
+      }
     });
     return form;
   }
@@ -302,9 +355,10 @@
   function renderStage1Actions(screenState) {
     const actions = screenState?.source_stage?.actions || screenState?.source_stage?.items || [];
     const section = el('section', 'plmv5-data-block');
-    section.appendChild(el('h3', '', 'Ações existentes'));
+    section.appendChild(el('h3', '', UX_COPY.stage1Title));
+    section.appendChild(copyNode('plmv5-message', UX_COPY.stage1Message));
     if (!Array.isArray(actions) || actions.length === 0) {
-      section.appendChild(el('p', 'plmv5-empty', screenState.empty_state || 'Nenhuma ação mínima foi definida ainda.'));
+      section.appendChild(el('p', 'plmv5-empty', UX_COPY.stage1Empty));
       return section;
     }
     const list = el('div', 'plmv5-record-list');
@@ -317,7 +371,10 @@
         const button = el('button', 'plmv5-button', 'Concluir ação');
         button.type = 'button';
         button.disabled = Boolean(currentState?.saving);
-        button.addEventListener('click', () => store.completeStage1Action(action.id));
+        button.addEventListener('click', async () => {
+          const result = await store.completeStage1Action(action.id);
+          if (result?.ok) showSuccessFeedback(getSuccessFeedback('completeStage1Action'));
+        });
         item.appendChild(button);
       }
       list.appendChild(item);
@@ -329,7 +386,7 @@
   function renderScreenCollections(screenState) {
     const stage = screenState?.source_stage || {};
     if (screenState.key === 'stage_1_actions') return renderStage1Actions(screenState);
-    if (screenState.key === 'stage_3_victories') return renderDataList('Vitórias registradas', stage.victories || stage.items, 'Nenhuma vitória foi registrada ainda.', (item) => text(item.description || item.title || item.value, 'Vitória registrada'));
+    if (screenState.key === 'stage_3_victories') return renderDataList('Vitórias registradas', stage.victories || stage.items, UX_COPY.victoriesEmpty, (item) => text(item.description || item.title || item.value, 'Vitória registrada'));
     if (screenState.key === 'stage_4_recovery') return renderDataList('Protocolos salvos', stage.protocols || stage.items, 'Nenhum protocolo de recuperação foi salvo ainda.', (item) => text(item.description || item.title || item.value, 'Protocolo salvo'));
     if (screenState.key === 'maintenance_goals') return renderDataList('Metas de manutenção', stage.goals || stage.items, 'Nenhuma meta de manutenção foi criada ainda.', (item) => text(item.goal || item.title || item.description, 'Meta de manutenção'));
     return null;
@@ -348,12 +405,21 @@
     header.appendChild(el('p', '', screenState.subtitle));
     header.appendChild(el('span', `plmv5-badge is-${screenState.status}`, readableStatus(screenState.status)));
     elements.screen.appendChild(header);
-    if (screenState.status === 'loading') elements.screen.appendChild(el('p', 'plmv5-message', 'Carregando sua jornada...'));
-    if (state?.saving) elements.screen.appendChild(el('p', 'plmv5-message', 'Salvando alterações...'));
-    if (screenState.status === 'error') elements.screen.appendChild(el('p', 'plmv5-message plmv5-error', `${text(state.error, 'Não foi possível carregar esta etapa agora.')} ${text(state.last_error_code)}`.trim()));
-    if (screenState.status === 'locked') elements.screen.appendChild(el('p', 'plmv5-message plmv5-locked', 'Esta etapa ainda está bloqueada. Conclua a ação anterior para continuar.'));
-    if (screenState.status === 'completed') elements.screen.appendChild(el('p', 'plmv5-message', 'Etapa concluída. Revise o que você construiu antes de avançar.'));
-    if (screenState.status === 'maintenance') elements.screen.appendChild(el('p', 'plmv5-message', 'Manutenção ativa. Sustente seus acordos com simplicidade.'));
+    if (screenState.key === 'stage_2_plan_b') elements.screen.appendChild(copyNode('plmv5-message', UX_COPY.planBMessage));
+    if (screenState.key === 'stage_3_victories') elements.screen.appendChild(copyNode('plmv5-message', UX_COPY.victoriesMessage));
+    if (screenState.key === 'stage_4_recovery') elements.screen.appendChild(copyNode('plmv5-message', UX_COPY.recoveryMessage));
+    if (screenState.status === 'loading') elements.screen.appendChild(copyNode('plmv5-message', UX_COPY.loading));
+    if (state?.saving) elements.screen.appendChild(copyNode('plmv5-message', UX_COPY.saving));
+    if (screenState.status === 'error') elements.screen.appendChild(copyNode('plmv5-message plmv5-error', UX_COPY.error));
+    if (screenState.status === 'locked') elements.screen.appendChild(copyNode('plmv5-message plmv5-locked', UX_COPY.lockedHint));
+    if (screenState.status === 'completed') elements.screen.appendChild(copyNode('plmv5-message', UX_COPY.completedHint));
+    if (screenState.status === 'maintenance') {
+      const maintenance = el('section', 'plmv5-maintenance-highlight');
+      maintenance.appendChild(el('h3', '', UX_COPY.maintenanceTitle));
+      maintenance.appendChild(el('p', 'plmv5-kicker', UX_COPY.maintenanceSubtitle));
+      maintenance.appendChild(copyNode('plmv5-message', UX_COPY.maintenanceMessage));
+      elements.screen.appendChild(maintenance);
+    }
     const collection = renderScreenCollections(screenState);
     if (collection) elements.screen.appendChild(collection);
     const form = renderFormContract(screenState);
@@ -362,9 +428,10 @@
 
   function renderMessages(state) {
     clear(elements.messages);
-    if (state?.error) elements.messages.appendChild(el('p', 'plmv5-message plmv5-error', `${state.error} ${text(state.last_error_code)}`.trim()));
-    else if (state?.loading) elements.messages.appendChild(el('p', 'plmv5-message', 'Carregando sua jornada...'));
-    else if (state?.saving) elements.messages.appendChild(el('p', 'plmv5-message', 'Salvando alterações...'));
+    if (successFeedback) elements.messages.appendChild(copyNode('plmv5-message plmv5-success', successFeedback));
+    if (state?.error) elements.messages.appendChild(copyNode('plmv5-message plmv5-error', UX_COPY.error));
+    else if (state?.loading) elements.messages.appendChild(copyNode('plmv5-message', UX_COPY.loading));
+    else if (state?.saving) elements.messages.appendChild(copyNode('plmv5-message', UX_COPY.saving));
   }
 
   function renderCurrentRoute(state) {
@@ -421,6 +488,9 @@
     unsubscribe = null;
     hashChangeHandler = null;
     currentState = null;
+    successFeedback = null;
+    if (successFeedbackTimer) globalScope.clearTimeout(successFeedbackTimer);
+    successFeedbackTimer = null;
     elements = null;
     store = null;
     contracts = null;
