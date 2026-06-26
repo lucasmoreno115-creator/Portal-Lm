@@ -135,12 +135,12 @@ test('Project LM V5 UX foundation adds focused guidance, accessible skip navigat
   assert.match(appSource, /const STATUS_LABELS = Object\.freeze/);
   assert.match(appSource, /const UX_COPY = Object\.freeze/);
   assert.match(appSource, /Projeto LM/);
-  assert.match(appSource, /Você não precisa começar de novo/);
+  assert.match(appSource, /Veja seu próximo passo/);
   assert.match(appSource, /function renderOverviewIntro\(state\)/);
   assert.match(appSource, /readableStatus\(screenState\.status\)/);
   assert.match(appSource, /UX_COPY\.lockedHint/);
   assert.match(appSource, /UX_COPY\.completedHint/);
-  assert.match(appSource, /Voltar para minha direção/);
+  assert.match(appSource, /Voltar para o resumo/);
   assert.match(appSource, /function focusMainContent\(\)/);
   assert.match(appSource, /main\.focus\(\{ preventScroll: true \}\)/);
   assert.match(cssSource, /\.plmv5-skip-link/);
@@ -151,12 +151,12 @@ test('Project LM V5 UX foundation adds focused guidance, accessible skip navigat
 });
 
 test('Project LM V5 app implements official V5-09 emotional UX copy', () => {
-  assert.match(appSource, /Preparando sua direção/);
-  assert.match(appSource, /Organizando o próximo passo para você continuar/);
-  assert.match(appSource, /Registrando seu progresso/);
-  assert.match(appSource, /Algo não saiu como esperado/);
-  assert.match(appSource, /Sua jornada continua segura/);
-  assert.match(appSource, /Você não precisa de mais motivação/);
+  assert.match(appSource, /Preparando seu próximo passo/);
+  assert.match(appSource, /VER MEU PRÓXIMO PASSO/);
+  assert.match(appSource, /Registrando\. Aguarde um instante/);
+  assert.match(appSource, /Não conseguimos atualizar agora/);
+  assert.match(appSource, /A conexão demorou mais do que o esperado/);
+  assert.match(appSource, /Siga um passo simples por vez/);
   assert.match(appSource, /Você está construindo sua base/);
   assert.match(appSource, /Você já começou a criar consistência/);
   assert.match(appSource, /Seu sistema está ficando mais forte/);
@@ -165,18 +165,18 @@ test('Project LM V5 app implements official V5-09 emotional UX copy', () => {
 });
 
 test('Project LM V5 app implements official V5-09 state copy and feedback', () => {
-  assert.match(appSource, /Você provou que consegue continuar/);
-  assert.match(appSource, /Agora o desafio não é começar/);
-  assert.match(appSource, /É manter a direção construída/);
-  assert.match(appSource, /Você ainda não precisa se preocupar com esta etapa/);
-  assert.match(appSource, /Concentre-se apenas no passo atual/);
-  assert.match(appSource, /Esta etapa já faz parte da sua base/);
-  assert.match(appSource, /Salvo com sucesso/);
-  assert.match(appSource, /Mais um passo construído/);
+  assert.match(appSource, /Você chegou à manutenção/);
+  assert.match(appSource, /Agora escolha o que sustenta sua rotina/);
+  assert.match(appSource, /Defina uma meta simples para os próximos dias/);
+  assert.match(appSource, /Esta etapa abre depois do passo atual/);
+  assert.match(appSource, /Volte ao resumo para ver o que fazer agora/);
+  assert.match(appSource, /Etapa concluída/);
+  assert.match(appSource, /Registro salvo/);
+  assert.match(appSource, /Veja o próximo passo no resumo/);
   assert.match(appSource, /Ação concluída/);
-  assert.match(appSource, /Continuar conta mais do que perfeição/);
+  assert.match(appSource, /Veja se ainda há ações pendentes/);
   assert.match(appSource, /Vitória registrada/);
-  assert.match(appSource, /Reconhecer o progresso ajuda a sustentar o processo/);
+  assert.match(appSource, /Continue até completar 7/);
 });
 
 test('Project LM V5 app stays isolated from prohibited product and gamified references', () => {
@@ -193,7 +193,7 @@ test('Project LM V5 app stays isolated from prohibited product and gamified refe
 
 test('Project LM V5 final UX polish preserves contracts while reducing overview density', () => {
   assert.match(appSource, /safeText\(elements\.pageTitle, UX_COPY\.overviewTitle\)/);
-  assert.match(appSource, /safeText\(elements\.pageSubtitle, 'Você não precisa de mais motivação\. Precisa de direção\.'\)/);
+  assert.match(appSource, /safeText\(elements\.pageSubtitle, 'Um passo simples por vez\.'\)/);
   assert.match(appSource, /contracts\.getFlowForAction\(viewModel\.primary_cta\.action\)/);
   assert.match(appSource, /safeText\(elements\.primaryMessage, UX_COPY\.overviewDescription\)/);
   assert.doesNotMatch(appSource, /plmv5-overview-panel[\s\S]*viewModel\.primary_message/);

@@ -3106,43 +3106,43 @@ const PROJECT_LM_V5_VIEW_MODEL_COPY = {
     maintenance: 'Manutenção ativa'
   },
   progressLabels: [
-    [0, 0, 'Você está no começo da jornada.'],
-    [10, 24, 'Você já iniciou sua base de continuidade.'],
-    [25, 49, 'Você desbloqueou seu Plano B.'],
-    [50, 74, 'Você está acumulando vitórias reais.'],
-    [75, 99, 'Você está preparando seus protocolos de recuperação.'],
-    [100, 100, 'Você concluiu a jornada e entrou em manutenção.']
+    [0, 0, 'Comece pelas três ações mínimas.'],
+    [10, 24, 'Continue concluindo suas ações mínimas.'],
+    [25, 49, 'Crie seu Plano B.'],
+    [50, 74, 'Registre vitórias concretas.'],
+    [75, 99, 'Defina seus protocolos de recuperação.'],
+    [100, 100, 'Você está em manutenção.']
   ],
   primaryMessages: {
-    choose_stage_1_actions: 'Escolha 3 ações simples que você consegue fazer mesmo em dias difíceis.',
-    complete_stage_1_actions: 'Agora conclua suas 3 ações mínimas para desbloquear o próximo passo.',
-    fill_plan_b: 'Monte seu Plano B para não depender de motivação ou de dias perfeitos.',
-    record_victories: 'Registre 7 vitórias reais para provar que você está construindo continuidade.',
-    fill_recovery_protocols: 'Prepare seus protocolos para saber exatamente o que fazer quando sair do plano.',
-    maintenance: 'Você concluiu a jornada. Agora o foco é manter o que foi construído.'
+    choose_stage_1_actions: 'Escolha 3 ações simples para fazer nesta semana.',
+    complete_stage_1_actions: 'Conclua suas ações mínimas pendentes.',
+    fill_plan_b: 'Monte seu Plano B para dias em que o plano ideal não couber.',
+    record_victories: 'Registre 7 vitórias concretas da sua rotina.',
+    fill_recovery_protocols: 'Defina como retomar após os obstáculos mais comuns.',
+    maintenance: 'Defina uma meta simples para sustentar sua rotina.'
   },
   secondaryMessages: {
-    choose_stage_1_actions: 'Essas ações não precisam ser grandes. Elas precisam ser possíveis.',
-    complete_stage_1_actions: 'O objetivo não é perfeição. É manter o movimento.',
-    fill_plan_b: 'O Plano B existe para os dias em que o plano ideal não cabe na rotina.',
-    record_victories: 'Vitória não é só peso na balança. É execução, escolha melhor e retomada rápida.',
-    fill_recovery_protocols: 'O risco não é sair do plano. O risco é não saber como voltar.',
-    maintenance: 'Manutenção não é parar. É continuar com menos dependência de recomeços.'
+    choose_stage_1_actions: 'Use ações pequenas, claras e possíveis.',
+    complete_stage_1_actions: 'Marque uma ação por vez.',
+    fill_plan_b: 'Preencha alimentação, treino, movimento e autocuidado mínimos.',
+    record_victories: 'Pode ser uma execução, uma escolha melhor ou uma retomada rápida.',
+    fill_recovery_protocols: 'Deixe a resposta pronta antes de precisar dela.',
+    maintenance: 'Escolha uma meta para os próximos dias.'
   },
   primaryCtas: {
-    choose_stage_1_actions: { label: 'Escolher minhas 3 ações', action: 'open_stage_1_actions' },
-    complete_stage_1_actions: { label: 'Concluir ações mínimas', action: 'open_stage_1_actions' },
-    fill_plan_b: { label: 'Construir meu Plano B', action: 'open_plan_b' },
+    choose_stage_1_actions: { label: 'Definir minhas 3 ações', action: 'open_stage_1_actions' },
+    complete_stage_1_actions: { label: 'Marcar ações concluídas', action: 'open_stage_1_actions' },
+    fill_plan_b: { label: 'Criar meu Plano B', action: 'open_plan_b' },
     record_victories: { label: 'Registrar uma vitória', action: 'open_victories' },
-    fill_recovery_protocols: { label: 'Criar protocolos de recuperação', action: 'open_recovery_protocols' },
+    fill_recovery_protocols: { label: 'Definir protocolos de recuperação', action: 'open_recovery_protocols' },
     maintenance: { label: 'Definir meta de manutenção', action: 'open_maintenance_goals' }
   },
   stageSubtitles: {
-    stage_1: 'Comece pelo mínimo que mantém você em movimento.',
-    stage_2: 'Tenha um plano para dias imperfeitos.',
-    stage_3: 'Reconheça vitórias que sustentam continuidade.',
-    stage_4: 'Prepare respostas antes dos obstáculos aparecerem.',
-    maintenance: 'Continue sem precisar recomeçar.'
+    stage_1: 'Defina o mínimo executável desta semana.',
+    stage_2: 'Prepare uma alternativa simples para dias apertados.',
+    stage_3: 'Registre escolhas concretas da rotina.',
+    stage_4: 'Defina como retomar sem improviso.',
+    maintenance: 'Sustente uma meta simples por vez.'
   },
   stageStatusLabels: {
     locked: 'Bloqueado',
@@ -3286,7 +3286,7 @@ function projectLmV5BuildViewModel(contract) {
   const nextAction = progress.next_required_action;
   return {
     page_title: 'Projeto LM',
-    page_subtitle: 'Continue mesmo nos dias difíceis.',
+    page_subtitle: 'Um passo simples por vez.',
     status_label: PROJECT_LM_V5_VIEW_MODEL_COPY.statusLabels[journey.status],
     progress_label: projectLmV5ProgressLabel(progress.percentage),
     primary_message: PROJECT_LM_V5_VIEW_MODEL_COPY.primaryMessages[nextAction],
@@ -3294,11 +3294,11 @@ function projectLmV5BuildViewModel(contract) {
     primary_cta: PROJECT_LM_V5_VIEW_MODEL_COPY.primaryCtas[nextAction],
     secondary_cta: null,
     stage_cards: [
-      projectLmV5StageCard('stage_1', stages.stage_1, `${stages.stage_1.completed_count}/3 ações concluídas`, stages.stage_1.items.length === 0 ? 'Você ainda não escolheu suas 3 ações mínimas.' : null),
+      projectLmV5StageCard('stage_1', stages.stage_1, `${stages.stage_1.completed_count}/3 ações concluídas`, stages.stage_1.items.length === 0 ? 'Defina suas 3 ações mínimas para começar.' : null),
       projectLmV5StageCard('stage_2', stages.stage_2, `${stages.stage_2.completed_fields.length}/4 campos preenchidos`),
-      projectLmV5StageCard('stage_3', stages.stage_3, `${stages.stage_3.completed_count}/7 vitórias registradas`, stages.stage_3.items.length === 0 ? 'Você ainda não registrou vitórias.' : null),
+      projectLmV5StageCard('stage_3', stages.stage_3, `${stages.stage_3.completed_count}/7 vitórias registradas`, stages.stage_3.items.length === 0 ? 'Registre uma escolha concreta de hoje.' : null),
       projectLmV5StageCard('stage_4', stages.stage_4, `${stages.stage_4.completed_fields.length}/5 protocolos criados`),
-      projectLmV5StageCard('maintenance', stages.maintenance, projectLmV5MaintenanceGoalsProgressText(stages.maintenance.items.length), stages.maintenance.items.length === 0 ? 'Você ainda não definiu metas de manutenção.' : null)
+      projectLmV5StageCard('maintenance', stages.maintenance, projectLmV5MaintenanceGoalsProgressText(stages.maintenance.items.length), stages.maintenance.items.length === 0 ? 'Defina uma meta simples para os próximos dias.' : null)
     ],
     empty_state: null
   };

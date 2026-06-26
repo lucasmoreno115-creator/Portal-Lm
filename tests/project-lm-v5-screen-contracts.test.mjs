@@ -90,12 +90,12 @@ test('buildScreenState returns loading and error states', () => {
   const loading = contracts.buildScreenState('stage_2_plan_b', sampleState({ loading: true }));
   assert.equal(loading.status, 'loading');
   assert.equal(loading.can_submit, false);
-  assert.equal(loading.message, 'Carregando sua jornada.');
+  assert.equal(loading.message, 'Preparando seu resumo.');
 
   const error = contracts.buildScreenState('stage_2_plan_b', sampleState({ error: 'Falha' }));
   assert.equal(error.status, 'error');
   assert.equal(error.can_access, false);
-  assert.equal(error.message, 'Não foi possível carregar esta etapa agora.');
+  assert.equal(error.message, 'Não conseguimos mostrar esta etapa agora. Tente novamente.');
 });
 
 test('journey_overview has no required status and is always accessible', () => {
