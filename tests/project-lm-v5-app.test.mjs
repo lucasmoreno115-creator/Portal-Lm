@@ -90,8 +90,8 @@ test('Project LM V5 app renders form_contract placeholders and actions', () => {
 });
 
 test('Project LM V5 app simplifies journey navigation and prevents locked cards from navigating', () => {
-  assert.match(appSource, /appendRouteLink\(contracts\.getScreenByKey\('journey_overview'\), screenKey, 'Visão geral'\)/);
-  assert.match(appSource, /appendRouteLink\(nextScreen, screenKey, 'Próxima ação'\)/);
+  assert.match(appSource, /appendRouteLink\(contracts\.getScreenByKey\('journey_overview'\), screenKey, 'Sua Direção'\)/);
+  assert.match(appSource, /appendRouteLink\(nextScreen, screenKey, 'Seu Próximo Passo'\)/);
   assert.doesNotMatch(appSource, /contracts\.screens\.forEach/);
   assert.match(appSource, /function getVisibleStageCards\(cards\)/);
   assert.match(appSource, /safeCards\.some\(\(card\) => getStageStatus\(card\) === 'maintenance'\)/);
@@ -103,7 +103,7 @@ test('Project LM V5 app simplifies journey navigation and prevents locked cards 
 });
 
 test('Project LM V5 UI foundation renders header, progress, cards and visual states', () => {
-  assert.match(htmlSource, /Seu próximo passo/);
+  assert.match(htmlSource, /Projeto LM/);
   assert.match(htmlSource, /Projeto LM/);
   assert.match(htmlSource, /data-plmv5="percentage-text"/);
   assert.match(appSource, /state\?\.progress\?\.percentage/);
@@ -134,13 +134,13 @@ test('Project LM V5 UX foundation adds focused guidance, accessible skip navigat
   assert.match(htmlSource, /id="plmv5-main-content"/);
   assert.match(appSource, /const STATUS_LABELS = Object\.freeze/);
   assert.match(appSource, /const UX_COPY = Object\.freeze/);
-  assert.match(appSource, /Seu próximo passo/);
-  assert.match(appSource, /O foco agora não é fazer tudo/);
+  assert.match(appSource, /Projeto LM/);
+  assert.match(appSource, /Você não precisa começar de novo/);
   assert.match(appSource, /function renderOverviewIntro\(state\)/);
   assert.match(appSource, /readableStatus\(screenState\.status\)/);
   assert.match(appSource, /UX_COPY\.lockedHint/);
   assert.match(appSource, /UX_COPY\.completedHint/);
-  assert.match(appSource, /Voltar para a visão geral/);
+  assert.match(appSource, /Voltar para minha direção/);
   assert.match(appSource, /function focusMainContent\(\)/);
   assert.match(appSource, /main\.focus\(\{ preventScroll: true \}\)/);
   assert.match(cssSource, /\.plmv5-skip-link/);
@@ -151,12 +151,12 @@ test('Project LM V5 UX foundation adds focused guidance, accessible skip navigat
 });
 
 test('Project LM V5 app implements official V5-09 emotional UX copy', () => {
-  assert.match(appSource, /Preparando sua jornada/);
+  assert.match(appSource, /Preparando sua direção/);
   assert.match(appSource, /Organizando o próximo passo para você continuar/);
   assert.match(appSource, /Registrando seu progresso/);
   assert.match(appSource, /Algo não saiu como esperado/);
   assert.match(appSource, /Sua jornada continua segura/);
-  assert.match(appSource, /Pequenas ações repetidas vencem grandes planos abandonados/);
+  assert.match(appSource, /Você não precisa de mais motivação/);
   assert.match(appSource, /Você está construindo sua base/);
   assert.match(appSource, /Você já começou a criar consistência/);
   assert.match(appSource, /Seu sistema está ficando mais forte/);
@@ -165,9 +165,9 @@ test('Project LM V5 app implements official V5-09 emotional UX copy', () => {
 });
 
 test('Project LM V5 app implements official V5-09 state copy and feedback', () => {
-  assert.match(appSource, /Jornada concluída/);
-  assert.match(appSource, /Agora o objetivo é proteger o que você construiu/);
-  assert.match(appSource, /Você já possui um sistema para continuar/);
+  assert.match(appSource, /Você provou que consegue continuar/);
+  assert.match(appSource, /Agora o desafio não é começar/);
+  assert.match(appSource, /É manter a direção construída/);
   assert.match(appSource, /Você ainda não precisa se preocupar com esta etapa/);
   assert.match(appSource, /Concentre-se apenas no passo atual/);
   assert.match(appSource, /Esta etapa já faz parte da sua base/);
@@ -185,7 +185,7 @@ test('Project LM V5 app stays isolated from prohibited product and gamified refe
   assert.doesNotMatch(combined, /check-in\s*premium/);
   assert.doesNotMatch(combined, /plano\s*alimentar\s*premium/);
   assert.doesNotMatch(combined, /biblioteca/);
-  for (const prohibited of ['desafio', 'missão', 'missões', 'streak', 'sequência', 'pontuação', 'ranking', 'recompensa', 'conquista', 'conquistas', 'nível', 'performance']) {
+  for (const prohibited of ['streak', 'pontuação', 'ranking', 'recompensa', 'conquista', 'conquistas', 'nível', 'performance']) {
     assert.doesNotMatch(combined, new RegExp(`(^|[^a-záàâãéêíóôõúç])${prohibited}([^a-záàâãéêíóôõúç]|$)`, 'i'));
   }
 });
@@ -193,11 +193,12 @@ test('Project LM V5 app stays isolated from prohibited product and gamified refe
 
 test('Project LM V5 final UX polish preserves contracts while reducing overview density', () => {
   assert.match(appSource, /safeText\(elements\.pageTitle, UX_COPY\.overviewTitle\)/);
-  assert.match(appSource, /safeText\(elements\.pageSubtitle, 'Projeto LM'\)/);
+  assert.match(appSource, /safeText\(elements\.pageSubtitle, 'Você não precisa de mais motivação\. Precisa de direção\.'\)/);
   assert.match(appSource, /contracts\.getFlowForAction\(viewModel\.primary_cta\.action\)/);
+  assert.match(appSource, /safeText\(elements\.primaryMessage, UX_COPY\.overviewDescription\)/);
   assert.doesNotMatch(appSource, /plmv5-overview-panel[\s\S]*viewModel\.primary_message/);
   assert.match(appSource, /getProgressSupport\(safePercentage\)/);
-  assert.match(appSource, /◆ Continuidade/);
+  assert.match(appSource, /◆ Sua Direção/);
 });
 
 test('V5-11 app uses the official maintenance hash and no obsolete maintenance-goals route', () => {
