@@ -42,10 +42,8 @@
       statusBox.textContent = 'Validando token...';
       statusBox.className = 'status muted';
       try {
-        const res = await fetch('/api/admin/command-center', { headers: { 'x-admin-token': token } });
-        const payload = await res.json().catch(() => ({}));
-        if (!res.ok || !payload.ok) throw new Error(payload.error || 'Token admin inválido.');
-        window.LMAdminAuth.setAdminToken(token);
+        await window.LMAdminAuth.loginAdmin(token);
+        input.value = '';
         statusBox.textContent = 'Login realizado com sucesso. Redirecionando...';
         statusBox.className = 'status ok';
         window.location.href = '/admin-command-center.html';

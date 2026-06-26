@@ -356,7 +356,7 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
         ...options,
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-token': adminToken,
+          'x-admin-session': adminToken,
           ...(options.headers || {})
         }
       });

@@ -129,7 +129,7 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-admin-token': adminToken
+            'x-admin-session': adminToken
           },
           body: JSON.stringify({
             name,

@@ -8,7 +8,7 @@ import { logOperationalEvent } from './services/operational-log-service.js';
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
 import { buildD1HealthCheck, tableExists } from './services/health-check-service.js';
 import { jsonWithUsage } from './services/endpoint-usage-service.js';
-import { isAdminAuthorized, validateStudent, normalizeStudentPlan } from './services/auth-service.js';
+import { createAdminSession, invalidateAdminSession, isAdminAuthorized, validateAdminLoginToken, validateStudent, normalizeStudentPlan } from './services/auth-service.js';
 export { normalizeEmail, normalizeStudentPlan } from './services/auth-service.js';
 
 export default {
@@ -116,6 +116,46 @@ export default {
         }
 
         return json({ ok: true, data: { id, created_at: now, access_created: accessCreated, access_status: accessStatus } });
+      }
+
+      if (url.pathname === '/api/admin/session/login' && method === 'POST') {
+        const body = await safeJson(request);
+        const providedToken = String(body?.token || body?.admin_token || '').trim();
+
+        if (!validateAdminLoginToken(providedToken, env)) {
+          await logOperationalEvent(env.DB, {
+            level: 'warn',
+            area: 'admin',
+            event: 'admin_login_failed',
+            route: url.pathname,
+            method,
+            message: 'Login admin recusado.'
+          });
+          return json({ ok: false, error: 'Unauthorized' }, 401);
+        }
+
+        const session = createAdminSession();
+        await logOperationalEvent(env.DB, {
+          level: 'info',
+          area: 'admin',
+          event: 'admin_login_success',
+          route: url.pathname,
+          method,
+          message: 'Sessão admin criada.'
+        });
+        return json({
+          ok: true,
+          data: {
+            session_id: session.sessionId,
+            expires_at: session.expiresAtIso,
+            ttl_seconds: session.ttlSeconds
+          }
+        });
+      }
+
+      if (url.pathname === '/api/admin/session/logout' && method === 'POST') {
+        invalidateAdminSession(request);
+        return json({ ok: true });
       }
 
       if (url.pathname === '/api/portal/login' && method === 'POST') {
@@ -2829,7 +2869,7 @@ function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type,x-admin-token,x-student-email,x-student-token'
+    'Access-Control-Allow-Headers': 'Content-Type,x-admin-session,x-admin-token,x-student-email,x-student-token'
   };
 }
 
