@@ -434,3 +434,32 @@ Carregamentos concorrentes de jornada são bloqueados com `PROJECT_LM_V5_LOAD_IN
 - Esta PR não cria dashboard, tela admin, relatório, gráfico ou métrica visível.
 - A coleta depende de um sink externo opcional em `ProjectLmV5Telemetry`, função `onTelemetry`/`telemetry` injetada ou evento browser `project_lm_v5:telemetry`.
 - A validação defensiva registra warnings para suporte, mas não bloqueia respostas parcialmente renderizáveis.
+
+## V5-13A — Emotional Copy Layer
+
+A V5-13A ajusta somente a camada de copy visível da Jornada Projeto LM V5 para reforçar a promessa central: “Você não precisa de mais motivação. Precisa de direção.” O objetivo é deixar a experiência menos parecida com dashboard/checklist e mais próxima de uma jornada guiada para começar e continuar mesmo nos dias difíceis.
+
+### Promessa e hero
+
+- Título principal: “Projeto LM”.
+- Subtítulo de promessa: “Você não precisa de mais motivação. Precisa de direção.”
+- Mensagem central: “Você não precisa começar de novo. Precisa continuar. Nos próximos 30 dias vamos construir uma direção que funcione até nos dias difíceis.”
+- CTA visual principal: “CONTINUAR MINHA JORNADA”.
+
+### Direção e continuidade
+
+A visão geral passa a reforçar “Sua Direção” e “Seu Próximo Passo”, com a orientação: “Siga um passo de cada vez. Não é necessário fazer tudo.” A UI mantém os mesmos contratos e ações de navegação, alterando apenas os textos renderizados.
+
+### Etapas e estados vazios
+
+- `stage_1`: “MISSÃO DA SEMANA — Pare de Recomeçar”, com foco em provar continuidade, não perfeição.
+- `stage_2`: “Plano B — Dias Difíceis”, com estado vazio sobre preparar a resposta antes dos dias difíceis chegarem.
+- `stage_3`: “Vitórias da Jornada”, com estado vazio sobre registrar a primeira pequena vitória.
+- `stage_4`: “Voltar para a Direção”, reforçando que sair do plano faz parte e voltar faz diferença.
+- `maintenance`: “Sua Evolução”, conectada a pequenos avanços acumulados.
+
+### Conclusão da jornada
+
+A mensagem de conclusão passa a ser: “Você provou que consegue continuar. Agora o desafio não é começar. É manter a direção construída.”
+
+Nenhum endpoint, schema, rota, regra Premium/Admin ou contrato V5 estrutural foi alterado nesta camada.
