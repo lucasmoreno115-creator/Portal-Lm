@@ -15,7 +15,9 @@
   const NETWORK_ERROR_CODE = 'PROJECT_LM_V5_NETWORK_ERROR';
   const INVALID_JSON_CODE = 'PROJECT_LM_V5_INVALID_JSON';
   const VALIDATION_ERROR_CODE = 'PROJECT_LM_V5_ACTION_VALIDATION_ERROR';
+  const REQUEST_TIMEOUT_CODE = 'PROJECT_LM_V5_REQUEST_TIMEOUT';
   const TELEMETRY_NAMESPACE = 'project_lm_v5';
+  const DEFAULT_REQUEST_TIMEOUT_MS = 12000;
   const VALID_STAGES = new Set([1, 2, 3, 4, '1', '2', '3', '4', 'maintenance']);
   const VALID_STATUSES = new Set(['active', 'completed', 'locked', 'maintenance', 'loading', 'error']);
 
@@ -105,6 +107,10 @@
     }
 
     const hasBody = Object.prototype.hasOwnProperty.call(options, 'body') && options.body !== undefined;
+    const timeoutMs = Number(options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS);
+    const canTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0 && typeof globalScope.AbortController === 'function';
+    const controller = canTimeout ? new globalScope.AbortController() : null;
+    const timeoutId = controller ? globalScope.setTimeout(() => controller.abort(), timeoutMs) : null;
     const headers = {
       ...getAuthHeaders(),
       ...(hasBody ? { 'content-type': 'application/json' } : {}),
@@ -117,12 +123,22 @@
         method: options.method || 'GET',
         credentials: options.credentials || 'same-origin',
         headers,
+        signal: controller?.signal,
         body: hasBody ? JSON.stringify(options.body) : undefined
       });
     } catch (error) {
-      const result = { ok: false, error: error?.message || 'Erro de rede ao acessar a Jornada V5.', code: NETWORK_ERROR_CODE, status_code: null, endpoint: path };
+      const timedOut = error?.name === 'AbortError';
+      const result = {
+        ok: false,
+        error: timedOut ? 'Tempo limite ao acessar a Jornada V5.' : error?.message || 'Erro de rede ao acessar a Jornada V5.',
+        code: timedOut ? REQUEST_TIMEOUT_CODE : NETWORK_ERROR_CODE,
+        status_code: null,
+        endpoint: path
+      };
       emitTelemetry('api_error', { endpoint: path, status_code: null, error_code: result.code }, options.telemetry);
       return result;
+    } finally {
+      if (timeoutId) globalScope.clearTimeout(timeoutId);
     }
 
     let payload;
@@ -154,6 +170,7 @@
     const telemetry = config.telemetry || config.onTelemetry || globalScope.ProjectLmV5Telemetry;
     const listeners = new Set();
     const fetchImpl = config.fetchImpl;
+    const requestTimeoutMs = config.requestTimeoutMs;
 
     function getState() {
       return clone(state);
@@ -237,13 +254,16 @@
     }
 
     async function runRequest(path, options, mode) {
+      if (mode === 'loading' && state.loading) {
+        return clone({ ok: false, error: 'Já existe um carregamento em andamento.', code: 'PROJECT_LM_V5_LOAD_IN_PROGRESS' });
+      }
       if (mode === 'saving' && state.saving) {
         return clone({ ok: false, error: 'Já existe um salvamento em andamento.', code: 'PROJECT_LM_V5_SAVE_IN_PROGRESS' });
       }
       setState({ [mode]: true, error: null, last_error_code: null });
       const request_start = nowIso();
       const started = Date.now();
-      const result = await requestProjectLmV5(path, { ...options, fetchImpl, telemetry });
+      const result = await requestProjectLmV5(path, { ...options, fetchImpl, telemetry, timeoutMs: requestTimeoutMs });
       const request_end = nowIso();
       if (path === '/api/project-lm/journey') track('journey_load_time', { request_start, request_end, duration_ms: Date.now() - started });
       if (result.ok) {

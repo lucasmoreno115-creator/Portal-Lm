@@ -9,6 +9,9 @@ function createModule(fetchImpl) {
   const context = {
     console,
     structuredClone,
+    AbortController,
+    setTimeout,
+    clearTimeout,
     fetch: fetchImpl,
     localStorage: {
       getItem(key) {
@@ -270,6 +273,45 @@ test('state layer blocks duplicate saves while a POST is already in progress', a
 
   resolveFetch(okResponse());
   assert.equal((await first).ok, true);
+});
+
+test('state layer blocks duplicate journey loads while a GET is already in progress', async () => {
+  let resolveFetch;
+  let calls = 0;
+  const pendingFetch = new Promise((resolve) => { resolveFetch = resolve; });
+  const { createProjectLmV5State } = createModule(() => {
+    calls += 1;
+    return pendingFetch;
+  });
+  const store = createProjectLmV5State();
+
+  const first = store.loadJourney();
+  const duplicate = await store.loadJourney();
+  assert.equal(duplicate.ok, false);
+  assert.equal(duplicate.code, 'PROJECT_LM_V5_LOAD_IN_PROGRESS');
+  assert.equal(calls, 1);
+
+  resolveFetch(okResponse());
+  assert.equal((await first).ok, true);
+});
+
+test('request timeouts abort stalled V5 API calls and emit operational telemetry', async () => {
+  const events = [];
+  const { createProjectLmV5State } = createModule((path, options) => new Promise((resolve, reject) => {
+    options.signal.addEventListener('abort', () => {
+      const error = new Error('Aborted');
+      error.name = 'AbortError';
+      reject(error);
+    });
+  }));
+  const store = createProjectLmV5State({ onTelemetry: (event) => events.push(event), requestTimeoutMs: 1 });
+
+  const result = await store.loadJourney();
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'PROJECT_LM_V5_REQUEST_TIMEOUT');
+  assert.equal(store.getState().last_error_code, 'PROJECT_LM_V5_REQUEST_TIMEOUT');
+  assert.ok(events.some((event) => event.event === 'api_error' && event.error_code === 'PROJECT_LM_V5_REQUEST_TIMEOUT'));
 });
 
 test('state emits V5 telemetry, load timing and diagnostics without changing UX state', async () => {
