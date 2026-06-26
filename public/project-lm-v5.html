@@ -9,20 +9,28 @@
 <body>
   <div id="project-lm-v5-root" class="plmv5-shell">
     <header class="plmv5-header">
-      <p class="plmv5-kicker">Projeto LM V5</p>
-      <h1 data-plmv5="page-title">Jornada Projeto LM V5</h1>
-      <p data-plmv5="page-subtitle">Skeleton visual isolado para teste interno.</p>
+      <div class="plmv5-header-copy">
+        <p class="plmv5-kicker">◆ Jornada oficial</p>
+        <h1 data-plmv5="page-title">Projeto LM</h1>
+        <p data-plmv5="page-subtitle">Continue mesmo nos dias difíceis.</p>
+        <p data-plmv5="primary-message" class="plmv5-hero-message">Carregando sua jornada...</p>
+      </div>
+      <div class="plmv5-header-action" data-plmv5="hero-cta"></div>
     </header>
 
     <section class="plmv5-status" aria-live="polite">
-      <strong data-plmv5="status-label">Status indisponível</strong>
-      <span data-plmv5="progress-label">Progresso não carregado</span>
+      <div class="plmv5-status-topline">
+        <strong data-plmv5="status-label">Status indisponível</strong>
+        <span data-plmv5="percentage-text">0%</span>
+      </div>
       <progress data-plmv5="percentage" max="100" value="0">0%</progress>
+      <span data-plmv5="progress-label">Progresso não carregado</span>
+      <span data-plmv5="next-action">◆ Próxima ação: aguardando carregamento</span>
     </section>
 
     <div class="plmv5-layout">
       <aside class="plmv5-sidebar" aria-label="Etapas da Jornada V5">
-        <nav data-plmv5="route-list"></nav>
+        <nav data-plmv5="route-list" aria-label="Navegação simplificada da Jornada V5"></nav>
         <div data-plmv5="stage-cards" class="plmv5-stage-cards"></div>
       </aside>
 
