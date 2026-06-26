@@ -12,7 +12,7 @@ const officialRoutes = [
   '#project-lm/plan-b',
   '#project-lm/victories',
   '#project-lm/recovery',
-  '#project-lm/maintenance-goals'
+  '#project-lm/maintenance'
 ];
 
 test('Project LM V5 app integrates only with V5 state and screen contracts', () => {
@@ -198,4 +198,17 @@ test('Project LM V5 final UX polish preserves contracts while reducing overview 
   assert.doesNotMatch(appSource, /plmv5-overview-panel[\s\S]*viewModel\.primary_message/);
   assert.match(appSource, /getProgressSupport\(safePercentage\)/);
   assert.match(appSource, /◆ Continuidade/);
+});
+
+test('V5-11 app uses the official maintenance hash and no obsolete maintenance-goals route', () => {
+  assert.ok(officialRoutes.includes('#project-lm/maintenance'));
+  assert.match(appSource, /'#project-lm\/maintenance': 'maintenance_goals'/);
+  assert.doesNotMatch(appSource, /#project-lm\/maintenance-goals/);
+});
+
+test('V5-11 app guards form and action submits against rapid duplicate interactions', () => {
+  assert.match(appSource, /form\.dataset\.submitting === 'true' \|\| currentState\?\.saving/);
+  assert.match(appSource, /form\.dataset\.submitting = 'true'/);
+  assert.match(appSource, /button\.dataset\.submitting === 'true' \|\| currentState\?\.saving/);
+  assert.match(appSource, /button\.disabled = true/);
 });

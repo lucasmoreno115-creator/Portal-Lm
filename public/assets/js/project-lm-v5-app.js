@@ -5,7 +5,7 @@
     '#project-lm/plan-b': 'stage_2_plan_b',
     '#project-lm/victories': 'stage_3_victories',
     '#project-lm/recovery': 'stage_4_recovery',
-    '#project-lm/maintenance-goals': 'maintenance_goals'
+    '#project-lm/maintenance': 'maintenance_goals'
   });
 
   const SCREEN_TO_ROUTE = Object.freeze(Object.keys(OFFICIAL_ROUTES).reduce((acc, route) => {
@@ -326,12 +326,15 @@
     form.appendChild(submit);
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      if (form.dataset.submitting === 'true' || currentState?.saving) return;
       if (!form.reportValidity()) return;
       const action = FORM_ACTIONS[formContract.submit_action] || formContract.submit_action;
       const payload = payloadFromForm(form, formContract);
       const argument = formContract.type === 'stage_1_actions' ? payload.actions : payload;
       if (typeof store[action] === 'function') {
+        form.dataset.submitting = 'true';
         const result = await store[action](argument);
+        form.dataset.submitting = 'false';
         if (result?.ok) showSuccessFeedback(getSuccessFeedback(action));
       }
     });
@@ -376,7 +379,11 @@
         button.type = 'button';
         button.disabled = Boolean(currentState?.saving);
         button.addEventListener('click', async () => {
+          if (button.dataset.submitting === 'true' || currentState?.saving) return;
+          button.dataset.submitting = 'true';
+          button.disabled = true;
           const result = await store.completeStage1Action(action.id);
+          button.dataset.submitting = 'false';
           if (result?.ok) showSuccessFeedback(getSuccessFeedback('completeStage1Action'));
         });
         item.appendChild(button);
