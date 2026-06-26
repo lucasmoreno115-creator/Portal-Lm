@@ -26,7 +26,7 @@ test('Project LM V5 app integrates only with V5 state and screen contracts', () 
 });
 
 test('Project LM V5 HTML loads only isolated V5 assets', () => {
-  const assetRefs = [...htmlSource.matchAll(/(?:src|href)="([^"]+)"/g)].map((match) => match[1]);
+  const assetRefs = [...htmlSource.matchAll(/(?:src|href)="([^"]+)"/g)].map((match) => match[1]).filter((ref) => ref.startsWith('/'));
   assert.deepEqual(assetRefs, [
     '/assets/css/project-lm-v5.css',
     '/assets/js/project-lm-v5-state.js',
@@ -119,6 +119,26 @@ test('Project LM V5 CSS remains prefixed and responsive', () => {
   assert.match(cssSource, /@media \(max-width: 900px\)/);
   assert.match(cssSource, /@media \(max-width: 560px\)/);
   assert.doesNotMatch(cssSource, /\.(?!plmv5|is-|:root|body|button|input|textarea|\*)[a-z][a-z0-9_-]*\s*\{/i);
+});
+
+
+test('Project LM V5 UX foundation adds guidance, accessible skip navigation and readable statuses', () => {
+  assert.match(htmlSource, /plmv5-skip-link/);
+  assert.match(htmlSource, /href="#plmv5-main-content"/);
+  assert.match(htmlSource, /id="plmv5-main-content"/);
+  assert.match(appSource, /const STATUS_LABELS = Object\.freeze/);
+  assert.match(appSource, /const UX_COPY = Object\.freeze/);
+  assert.match(appSource, /Seu caminho agora/);
+  assert.match(appSource, /function renderOverviewIntro\(state\)/);
+  assert.match(appSource, /readableStatus\(screenState\.status\)/);
+  assert.match(appSource, /UX_COPY\.lockedHint/);
+  assert.match(appSource, /UX_COPY\.completedHint/);
+  assert.match(appSource, /Voltar para a visão geral/);
+  assert.match(appSource, /function focusMainContent\(\)/);
+  assert.match(appSource, /main\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(cssSource, /\.plmv5-skip-link/);
+  assert.match(cssSource, /\.plmv5-ux-intro/);
+  assert.match(cssSource, /\.plmv5-back-link/);
 });
 
 test('Project LM V5 app stays isolated from prohibited product and gamified references', () => {

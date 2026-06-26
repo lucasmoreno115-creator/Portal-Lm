@@ -152,3 +152,29 @@ A V5-07 não adiciona novas regras de progressão, endpoints, migrations, onboar
 ### Premium preservado
 
 A UI Foundation permanece isolada nos arquivos `project-lm-v5-*`. Nenhum arquivo, endpoint, fluxo, JavaScript ou CSS Premium é importado ou alterado por esta etapa.
+
+## V5-08 Jornada UX Foundation
+
+### Objetivo de UX
+
+A V5-08 melhora a experiência de uso da Jornada Projeto LM V5 sem alterar contratos, endpoints, migrations, regras de progressão ou integração Premium. O foco passa a ser orientação, acessibilidade básica e redução de ambiguidade durante a navegação interna.
+
+### Orientação da jornada
+
+A visão geral passa a abrir com um bloco de orientação `Seu caminho agora`, explicando que a interface destaca apenas o passo atual, etapas já concluídas e manutenção quando disponível. Essa cópia evita transformar a jornada em checklist completo e mantém o foco na continuidade.
+
+### Acessibilidade e navegação
+
+A página inclui um skip link para o conteúdo principal, `main` com `id="plmv5-main-content"`, feedback via `aria-live` e foco programático no conteúdo quando a rota hash muda. Telas internas passam a exibir um link explícito de retorno para a visão geral.
+
+### Labels humanos de status
+
+Estados técnicos continuam vindo dos contracts, mas a UI traduz `active`, `completed`, `locked`, `maintenance`, `loading` e `error` para labels legíveis. Cards bloqueados e concluídos recebem hints específicos para reduzir cliques sem efeito e explicar por que a etapa está visível.
+
+### Formulários mais claros
+
+Os formulários continuam renderizados exclusivamente a partir de `form_contract`, mas a mensagem de apoio agora reforça que campos obrigatórios mantêm o plano simples e acionável. A validação segue limitada ao `required` nativo do navegador; regras de negócio permanecem no backend.
+
+### Escopo preservado
+
+A V5-08 não cria gamificação, missões, streak, conquistas, biblioteca, dashboard Premium, novos endpoints, novas migrations ou regras novas de progressão. A mudança permanece isolada em `project-lm-v5-*`.
