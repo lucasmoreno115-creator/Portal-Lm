@@ -128,7 +128,8 @@ test('Project LM V5 UX foundation adds guidance, accessible skip navigation and 
   assert.match(htmlSource, /id="plmv5-main-content"/);
   assert.match(appSource, /const STATUS_LABELS = Object\.freeze/);
   assert.match(appSource, /const UX_COPY = Object\.freeze/);
-  assert.match(appSource, /Seu caminho agora/);
+  assert.match(appSource, /Seu próximo passo/);
+  assert.match(appSource, /O foco agora não é fazer tudo/);
   assert.match(appSource, /function renderOverviewIntro\(state\)/);
   assert.match(appSource, /readableStatus\(screenState\.status\)/);
   assert.match(appSource, /UX_COPY\.lockedHint/);
@@ -141,13 +142,42 @@ test('Project LM V5 UX foundation adds guidance, accessible skip navigation and 
   assert.match(cssSource, /\.plmv5-back-link/);
 });
 
+test('Project LM V5 app implements official V5-09 emotional UX copy', () => {
+  assert.match(appSource, /Preparando sua jornada/);
+  assert.match(appSource, /Organizando o próximo passo para você continuar/);
+  assert.match(appSource, /Registrando seu progresso/);
+  assert.match(appSource, /Algo não saiu como esperado/);
+  assert.match(appSource, /Sua jornada continua segura/);
+  assert.match(appSource, /Pequenas ações repetidas vencem grandes planos abandonados/);
+  assert.match(appSource, /Você está construindo sua base/);
+  assert.match(appSource, /Você já começou a criar consistência/);
+  assert.match(appSource, /Seu sistema está ficando mais forte/);
+  assert.match(appSource, /Você está perto de concluir sua jornada/);
+  assert.match(appSource, /Hora de proteger o que foi construído/);
+});
+
+test('Project LM V5 app implements official V5-09 state copy and feedback', () => {
+  assert.match(appSource, /Jornada concluída/);
+  assert.match(appSource, /Agora o objetivo é proteger o que você construiu/);
+  assert.match(appSource, /Você já possui um sistema para continuar/);
+  assert.match(appSource, /Você ainda não precisa se preocupar com esta etapa/);
+  assert.match(appSource, /Concentre-se apenas no passo atual/);
+  assert.match(appSource, /Esta etapa já faz parte da sua base/);
+  assert.match(appSource, /Salvo com sucesso/);
+  assert.match(appSource, /Mais um passo construído/);
+  assert.match(appSource, /Ação concluída/);
+  assert.match(appSource, /Continuar conta mais do que perfeição/);
+  assert.match(appSource, /Vitória registrada/);
+  assert.match(appSource, /Reconhecer o progresso ajuda a sustentar o processo/);
+});
+
 test('Project LM V5 app stays isolated from prohibited product and gamified references', () => {
   const combined = `${appSource}\n${htmlSource}\n${cssSource}`.toLowerCase();
   assert.doesNotMatch(combined, /student\s*360/);
   assert.doesNotMatch(combined, /check-in\s*premium/);
   assert.doesNotMatch(combined, /plano\s*alimentar\s*premium/);
   assert.doesNotMatch(combined, /biblioteca/);
-  assert.doesNotMatch(combined, /miss[oõ]es/);
-  assert.doesNotMatch(combined, /streak/);
-  assert.doesNotMatch(combined, /conquistas/);
+  for (const prohibited of ['desafio', 'missão', 'missões', 'streak', 'sequência', 'pontuação', 'ranking', 'recompensa', 'conquista', 'conquistas', 'nível', 'performance']) {
+    assert.doesNotMatch(combined, new RegExp(`(^|[^a-záàâãéêíóôõúç])${prohibited}([^a-záàâãéêíóôõúç]|$)`, 'i'));
+  }
 });
