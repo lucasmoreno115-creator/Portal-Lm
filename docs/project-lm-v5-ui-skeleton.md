@@ -268,3 +268,61 @@ A copy oficial da Jornada V5 não deve usar: desafio, missão, streak, sequênci
 ### Escopo preservado
 
 A V5-09 não altera backend, APIs, progressão, state layer, contracts, migrations ou Premium. As mudanças permanecem restritas à UX textual, feedbacks visuais leves e documentação.
+
+## V5-10 Final UX Polish
+
+### Pergunta norteadora
+
+A V5-10 usa como critério principal: “Isso ajuda o aluno a continuar sem precisar pensar demais?”. Elementos que competiam com a próxima ação foram reduzidos para que a visão geral pareça direção e continuidade, não dashboard, checklist, curso ou área administrativa.
+
+### Redução de carga cognitiva
+
+A hierarquia visual passa a priorizar:
+
+1. Próxima ação.
+2. CTA principal vindo de `view_model.primary_cta`.
+3. Progresso e apoio textual.
+4. Demais elementos de contexto.
+
+A visão geral deixa de duplicar blocos de mensagem e usa menos caixas simultâneas. Empty states e hints visuais ficam menores para informar sem competir com a ação principal.
+
+### Ocultação de etapas futuras
+
+A lista de cards deixa de exibir toda a jornada por padrão. A UI mostra a etapa atual, etapas já concluídas e apenas a próxima etapa bloqueada. Etapas futuras permanecem ocultas até serem relevantes, reduzindo a sensação de jornada longa.
+
+Quando a manutenção está ativa ou disponível como status de manutenção, a UI pode exibir todos os cards relevantes para preservar a continuidade pós-conclusão.
+
+### Simplificação da navegação
+
+A sidebar foi reduzida à navegação essencial:
+
+- Visão geral.
+- Próxima ação, quando existir uma tela resolvida pelos contracts.
+
+Os cards de etapa deixam a sidebar e passam a aparecer no conteúdo da visão geral, como apoio contextual e não como menu exploratório.
+
+### Foco na próxima ação
+
+O header passa a destacar “Seu próximo passo” como título principal, deixando “Projeto LM” em menor hierarquia. O CTA principal ganha mais presença visual e continua usando exclusivamente `view_model.primary_cta.label` e `view_model.primary_cta.action`, resolvidos por `ProjectLmV5ScreenContracts.getFlowForAction()`.
+
+### Progresso compacto
+
+O percentual, a barra e o progress support são mantidos, mas o bloco ocupa menos espaço e não compete com o CTA principal. O progresso permanece informativo, sem recalcular regras no frontend.
+
+### Refinamentos mobile
+
+A V5-10 reduz padding inicial, simplifica o layout em coluna única, mantém o CTA em largura total e prioriza header, próxima ação e CTA acima do restante do conteúdo em larguras pequenas como 320px, 375px, 390px e 414px.
+
+### Maintenance refinado
+
+A manutenção mantém a copy oficial:
+
+- “Jornada concluída.”
+- “Agora o objetivo é proteger o que você construiu.”
+- “Você não precisa voltar ao início. Você já possui um sistema para continuar mesmo quando a rotina apertar.”
+
+O bloco visual recebe um tratamento próprio de continuidade para comunicar sustentação do que foi construído, não fim do programa.
+
+### Escopo preservado
+
+A V5-10 não altera APIs, backend, migrations, state layer, contracts, regras de progressão, Premium ou copy oficial V5-09. Também não cria gamificação, biblioteca, missões, streak, conquistas ou dashboards.

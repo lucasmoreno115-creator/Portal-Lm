@@ -227,11 +227,21 @@
     return intro;
   }
 
+  function getVisibleStageCards(cards) {
+    const safeCards = Array.isArray(cards) ? cards : [];
+    if (safeCards.some((card) => getStageStatus(card) === 'maintenance')) return safeCards;
+    const activeIndex = safeCards.findIndex((card) => getStageStatus(card) === 'active');
+    if (activeIndex >= 0) return safeCards.slice(0, Math.min(safeCards.length, activeIndex + 2));
+    const lastCompletedIndex = safeCards.reduce((lastIndex, card, index) => (getStageStatus(card) === 'completed' ? index : lastIndex), -1);
+    if (lastCompletedIndex >= 0) return safeCards.slice(0, Math.min(safeCards.length, lastCompletedIndex + 2));
+    return safeCards.slice(0, 2);
+  }
+
   function renderOverview(state) {
     const viewModel = state?.view_model || {};
     clear(elements.overview);
-    safeText(elements.pageTitle, 'Projeto LM');
-    safeText(elements.pageSubtitle, 'Continue mesmo nos dias difíceis.');
+    safeText(elements.pageTitle, UX_COPY.overviewTitle);
+    safeText(elements.pageSubtitle, 'Projeto LM');
     safeText(elements.statusLabel, text(viewModel.status_label, state?.journey?.status || 'Status não carregado'));
     safeText(elements.progressLabel, text(viewModel.progress_label, 'Progresso não carregado'));
     const percentage = Number(state?.progress?.percentage ?? viewModel.percentage ?? 0);
@@ -245,15 +255,11 @@
     updateHeroCta(state, viewModel);
 
     elements.overview.appendChild(renderOverviewIntro(state));
-    const summary = el('div', 'plmv5-overview-panel');
-    summary.appendChild(copyNode('plmv5-message', text(viewModel.primary_message, UX_COPY.primaryMessageFallback)));
-    if (state?.progress?.next_required_action) summary.appendChild(el('p', 'plmv5-next-action', `◆ ${readableAction(state.progress.next_required_action)}`));
-    elements.overview.appendChild(summary);
   }
 
   function renderStageCards(state) {
     clear(elements.stageCards);
-    const cards = (state?.view_model?.stage_cards || []).filter((card) => {
+    const cards = getVisibleStageCards(state?.view_model?.stage_cards).filter((card) => {
       const status = getStageStatus(card);
       return status === 'active' || status === 'completed' || status === 'locked' || status === 'maintenance';
     });
@@ -273,9 +279,7 @@
       button.appendChild(el('span', 'plmv5-card-status', text(card.status_label, readableStatus(status))));
       if (card.subtitle || card.description) button.appendChild(el('span', 'plmv5-card-subtitle', text(card.subtitle || card.description)));
       if (card.progress_text) button.appendChild(el('span', 'plmv5-card-progress', card.progress_text));
-      if (status === 'locked') button.appendChild(copyNode('plmv5-empty', UX_COPY.lockedHint));
-      else if (status === 'completed') button.appendChild(copyNode('plmv5-empty', UX_COPY.completedHint));
-      else if (card.empty_state) button.appendChild(el('small', 'plmv5-empty', card.empty_state));
+      if (card.empty_state && status === 'active') button.appendChild(el('small', 'plmv5-empty', card.empty_state));
       button.addEventListener('click', () => {
         if (screen && status !== 'locked' && status !== 'completed') navigateToScreen(screen.key);
       });
@@ -415,8 +419,9 @@
     if (screenState.status === 'completed') elements.screen.appendChild(copyNode('plmv5-message', UX_COPY.completedHint));
     if (screenState.status === 'maintenance') {
       const maintenance = el('section', 'plmv5-maintenance-highlight');
+      maintenance.appendChild(el('p', 'plmv5-kicker', '◆ Continuidade'));
       maintenance.appendChild(el('h3', '', UX_COPY.maintenanceTitle));
-      maintenance.appendChild(el('p', 'plmv5-kicker', UX_COPY.maintenanceSubtitle));
+      maintenance.appendChild(el('p', '', UX_COPY.maintenanceSubtitle));
       maintenance.appendChild(copyNode('plmv5-message', UX_COPY.maintenanceMessage));
       elements.screen.appendChild(maintenance);
     }
