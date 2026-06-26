@@ -6,9 +6,6 @@ routes = [
   { pattern = "portal.lucasmorenopersonal.com.br/api/*", zone_name = "lucasmorenopersonal.com.br" }
 ]
 
-[vars]
-ADMIN_TOKEN = "admin4191luc"
-PORTAL_ADMIN_TOKEN = "admin4191luc"
 
 [[d1_databases]]
 binding = "DB"
