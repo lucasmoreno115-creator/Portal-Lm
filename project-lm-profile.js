@@ -1,3 +1,5 @@
+/* LEGACY - DO NOT EXTEND
+   SUPERSEDED BY PROJECT LM V5 */
 requireAuth();
 
 if (!isProjectLm()) {
@@ -24,7 +26,7 @@ function isProjectLmProfileComplete(profile) {
 
 async function redirectIfProfileExists() {
   const profile = await getProjectLmProfile();
-  if (isProjectLmProfileComplete(profile)) window.location.href = 'projeto-lm-jornada.html';
+  if (isProjectLmProfileComplete(profile)) window.location.href = 'public/project-lm-v5.html#project-lm/journey';
 }
 
 form.addEventListener('submit', async (event) => {
@@ -48,7 +50,7 @@ form.addEventListener('submit', async (event) => {
     });
     statusEl.textContent = 'Planejamento liberado.';
     window.setTimeout(() => {
-      window.location.href = 'projeto-lm-jornada.html';
+      window.location.href = 'public/project-lm-v5.html#project-lm/journey';
     }, 400);
   } catch (error) {
     statusEl.textContent = error.message || 'Não foi possível salvar seus dados agora.';

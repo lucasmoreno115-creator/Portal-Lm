@@ -1,3 +1,5 @@
+/* LEGACY - DO NOT EXTEND
+   SUPERSEDED BY PROJECT LM V5 */
 const PROJECT_LM_PLANS = {
   female: {
     label: 'Mulher',

@@ -41,7 +41,10 @@ async function inventoryFiles() {
   const rootEntries = await readdir(rootDir, { withFileTypes: true });
   const rootFiles = rootEntries.filter((entry) => entry.isFile()).map((entry) => entry.name);
 
-  const htmlFiles = rootFiles.filter((file) => file.endsWith('.html')).sort();
+  const htmlFiles = [
+    ...rootFiles.filter((file) => file.endsWith('.html')),
+    ...(await listFilesInDir('public', /\.html$/))
+  ].sort();
   const jsFiles = [
     ...rootFiles.filter((file) => file.endsWith('.js')),
     ...(await listFilesInDir('public/assets/js', /\.js$/))

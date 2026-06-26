@@ -1,3 +1,6 @@
+const LM_PROJECT_LM_V5_ENTRY = ['/project-lm-v5', 'html'].join('.');
+const projectLmV5Route = (hash) => `${LM_PROJECT_LM_V5_ENTRY}#${hash}`;
+
 const LM_ACCESS = {
   projeto_lm: [
     'minha-jornada',
@@ -25,12 +28,12 @@ const LM_DEFAULT_PLAN = 'premium';
 
 const LM_MENU_ITEMS = [
   { feature: 'dashboard', label: 'Página inicial', href: 'portal.html' },
-  { feature: 'minha-jornada', label: '🗺 Minha Jornada', href: 'projeto-lm-jornada.html' },
-  { feature: 'meu-planejamento', label: '📋 Meu Planejamento', href: 'projeto-lm-planejamento.html' },
-  { feature: 'consistencia', label: '📈 Consistência', href: 'projeto-lm-consistencia.html' },
-  { feature: 'modo-dia-dificil', label: '🧭 Plano B', href: 'projeto-lm-dia-dificil.html' },
-  { feature: 'marcos', label: '🏅 Marcos', href: 'projeto-lm-conquistas.html' },
-  { feature: 'biblioteca', label: '📚 Biblioteca', href: 'projeto-lm-biblioteca.html' },
+  { feature: 'minha-jornada', label: '🗺 Minha Jornada', href: projectLmV5Route('project-lm/journey') },
+  { feature: 'meu-planejamento', label: '📋 Ações iniciais', href: projectLmV5Route('project-lm/stage-1-actions') },
+  { feature: 'consistencia', label: '📈 Consistência', href: projectLmV5Route('project-lm/victories') },
+  { feature: 'modo-dia-dificil', label: '🧭 Plano B', href: projectLmV5Route('project-lm/plan-b') },
+  { feature: 'marcos', label: '🏅 Vitórias', href: projectLmV5Route('project-lm/victories') },
+  { feature: 'biblioteca', label: '🔁 Recuperação', href: projectLmV5Route('project-lm/recovery') },
   { feature: 'plano-alimentar', label: 'Plano alimentar', href: 'portal-plano-alimentar.html' },
   { feature: 'progressao', label: 'Progressão de carga', href: 'portal-progressao.html' },
   { feature: 'plano-da-semana', label: 'Objetivo do planejamento', href: 'portal.html#weekly-plan-section' },
@@ -67,7 +70,7 @@ function hasAccess(feature) {
 function redirectIfNoAccess(feature) {
   if (hasAccess(feature)) return true;
   sessionStorage.setItem('lm_access_message', LM_ACCESS_DENIED_MESSAGE);
-  window.location.href = getUserPlan() === 'projeto_lm' ? 'projeto-lm-jornada.html' : 'portal.html';
+  window.location.href = getUserPlan() === 'projeto_lm' ? projectLmV5Route('project-lm/journey') : 'portal.html';
   return false;
 }
 
@@ -122,12 +125,12 @@ async function shouldShowProjectOnboarding() {
 async function redirectProjectLmOnboardingIfNeeded() {
   if (!isProjectLm()) return false;
   const path = window.location.pathname;
-  if (path.endsWith('/project-lm-profile.html') || path.endsWith('project-lm-profile.html')) {
+  if (path.endsWith(LM_PROJECT_LM_V5_ENTRY) || path.endsWith(LM_PROJECT_LM_V5_ENTRY.replace(/^\//, ''))) {
     return false;
   }
   const shouldRedirect = await shouldShowProjectOnboarding();
   if (shouldRedirect) {
-    window.location.href = 'project-lm-profile.html';
+    window.location.href = projectLmV5Route('project-lm/journey');
     return true;
   }
   return false;
