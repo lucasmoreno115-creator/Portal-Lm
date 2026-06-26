@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jornada Projeto LM V5</title>
+  <link rel="stylesheet" href="/assets/css/project-lm-v5.css">
+</head>
+<body>
+  <div id="project-lm-v5-root" class="plmv5-shell">
+    <header class="plmv5-header">
+      <p class="plmv5-kicker">Projeto LM V5</p>
+      <h1 data-plmv5="page-title">Jornada Projeto LM V5</h1>
+      <p data-plmv5="page-subtitle">Skeleton visual isolado para teste interno.</p>
+    </header>
+
+    <section class="plmv5-status" aria-live="polite">
+      <strong data-plmv5="status-label">Status indisponível</strong>
+      <span data-plmv5="progress-label">Progresso não carregado</span>
+      <progress data-plmv5="percentage" max="100" value="0">0%</progress>
+    </section>
+
+    <div class="plmv5-layout">
+      <aside class="plmv5-sidebar" aria-label="Etapas da Jornada V5">
+        <nav data-plmv5="route-list"></nav>
+        <div data-plmv5="stage-cards" class="plmv5-stage-cards"></div>
+      </aside>
+
+      <main class="plmv5-main" tabindex="-1">
+        <section data-plmv5="overview" class="plmv5-overview"></section>
+        <section data-plmv5="screen" class="plmv5-screen"></section>
+      </main>
+    </div>
+
+    <section data-plmv5="messages" class="plmv5-messages" aria-live="assertive"></section>
+  </div>
+
+  <script src="/assets/js/project-lm-v5-state.js"></script>
+  <script src="/assets/js/project-lm-v5-screen-contracts.js"></script>
+  <script src="/assets/js/project-lm-v5-app.js"></script>
+</body>
+</html>
