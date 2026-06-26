@@ -15,6 +15,9 @@
   const NETWORK_ERROR_CODE = 'PROJECT_LM_V5_NETWORK_ERROR';
   const INVALID_JSON_CODE = 'PROJECT_LM_V5_INVALID_JSON';
   const VALIDATION_ERROR_CODE = 'PROJECT_LM_V5_ACTION_VALIDATION_ERROR';
+  const TELEMETRY_NAMESPACE = 'project_lm_v5';
+  const VALID_STAGES = new Set([1, 2, 3, 4, '1', '2', '3', '4', 'maintenance']);
+  const VALID_STATUSES = new Set(['active', 'completed', 'locked', 'maintenance', 'loading', 'error']);
 
   function clone(value) {
     if (value == null) return value;
@@ -26,6 +29,27 @@
     return new Date().toISOString();
   }
 
+  function getStudentId() {
+    const storage = globalScope.localStorage;
+    if (!storage || typeof storage.getItem !== 'function') return null;
+    return storage.getItem('lm_student_id') || storage.getItem('lm_student_email') || null;
+  }
+
+  function emitTelemetry(event, payload = {}, telemetry = globalScope.ProjectLmV5Telemetry) {
+    const entry = { namespace: TELEMETRY_NAMESPACE, event, timestamp: nowIso(), ...payload };
+    if (!entry.student_id) entry.student_id = getStudentId();
+    try {
+      if (typeof telemetry === 'function') telemetry(entry);
+      else if (telemetry && typeof telemetry.track === 'function') telemetry.track(TELEMETRY_NAMESPACE, event, entry);
+      else if (typeof globalScope.dispatchEvent === 'function' && typeof globalScope.CustomEvent === 'function') {
+        globalScope.dispatchEvent(new globalScope.CustomEvent('project_lm_v5:telemetry', { detail: entry }));
+      }
+    } catch (_) {
+      // Telemetry must never affect the Jornada.
+    }
+    return entry;
+  }
+
   function getAuthHeaders() {
     const storage = globalScope.localStorage;
     if (!storage || typeof storage.getItem !== 'function') return {};
@@ -33,6 +57,19 @@
     const token = storage.getItem('lm_student_token') || '';
     if (!email || !token) return {};
     return { 'x-student-email': email, 'x-student-token': token };
+  }
+
+  function validateJourneyContract(data) {
+    const warnings = [];
+    const currentStage = data?.journey?.current_stage ?? data?.progress?.current_stage;
+    const status = data?.journey?.status ?? data?.progress?.status;
+    if (currentStage != null && !VALID_STAGES.has(currentStage)) warnings.push({ field: 'current_stage', value: currentStage, code: 'PROJECT_LM_V5_INVALID_CURRENT_STAGE' });
+    if (status != null && !VALID_STATUSES.has(status)) warnings.push({ field: 'status', value: status, code: 'PROJECT_LM_V5_INVALID_STATUS' });
+    for (const warning of warnings) {
+      emitTelemetry('contract_warning', warning);
+      if (globalScope.console && typeof globalScope.console.warn === 'function') globalScope.console.warn('[project_lm_v5] contract warning', warning);
+    }
+    return warnings;
   }
 
   function normalizeJourneyResponse(response) {
@@ -45,8 +82,11 @@
       };
     }
 
+    const warnings = validateJourneyContract(data);
+
     return {
       ok: true,
+      warnings,
       data: {
         journey: data.journey,
         progress: data.progress,
@@ -59,7 +99,9 @@
   async function requestProjectLmV5(path, options = {}) {
     const fetchImpl = options.fetchImpl || globalScope.fetch;
     if (typeof fetchImpl !== 'function') {
-      return { ok: false, error: 'Cliente HTTP indisponível.', code: NETWORK_ERROR_CODE };
+      const result = { ok: false, error: 'Cliente HTTP indisponível.', code: NETWORK_ERROR_CODE, status_code: null, endpoint: path };
+      emitTelemetry('api_error', { endpoint: path, status_code: null, error_code: result.code }, options.telemetry);
+      return result;
     }
 
     const hasBody = Object.prototype.hasOwnProperty.call(options, 'body') && options.body !== undefined;
@@ -78,22 +120,30 @@
         body: hasBody ? JSON.stringify(options.body) : undefined
       });
     } catch (error) {
-      return { ok: false, error: error?.message || 'Erro de rede ao acessar a Jornada V5.', code: NETWORK_ERROR_CODE };
+      const result = { ok: false, error: error?.message || 'Erro de rede ao acessar a Jornada V5.', code: NETWORK_ERROR_CODE, status_code: null, endpoint: path };
+      emitTelemetry('api_error', { endpoint: path, status_code: null, error_code: result.code }, options.telemetry);
+      return result;
     }
 
     let payload;
     try {
       payload = await response.json();
     } catch (_) {
-      return { ok: false, error: 'Resposta inválida da Jornada V5.', code: INVALID_JSON_CODE };
+      const result = { ok: false, error: 'Resposta inválida da Jornada V5.', code: INVALID_JSON_CODE, status_code: response.status, endpoint: path };
+      emitTelemetry('api_error', { endpoint: path, status_code: response.status, error_code: result.code }, options.telemetry);
+      return result;
     }
 
     if (!response.ok || payload?.ok === false) {
-      return {
+      const result = {
         ok: false,
         error: payload?.error || 'Erro ao acessar a Jornada V5.',
-        code: payload?.code || `HTTP_${response.status}`
+        code: payload?.code || `HTTP_${response.status}`,
+        status_code: response.status,
+        endpoint: path
       };
+      emitTelemetry('api_error', { endpoint: path, status_code: response.status, error_code: result.code }, options.telemetry);
+      return { ok: false, error: result.error, code: result.code };
     }
 
     return normalizeJourneyResponse(payload);
@@ -101,6 +151,7 @@
 
   function createProjectLmV5State(config = {}) {
     let state = { ...INITIAL_STATE };
+    const telemetry = config.telemetry || config.onTelemetry || globalScope.ProjectLmV5Telemetry;
     const listeners = new Set();
     const fetchImpl = config.fetchImpl;
 
@@ -137,8 +188,32 @@
       };
     }
 
+    function baseTelemetryPayload(nextState = state) {
+      return {
+        student_id: nextState?.journey?.student_id || nextState?.journey?.studentId || getStudentId(),
+        journey_status: nextState?.journey?.status ?? nextState?.progress?.status ?? null,
+        current_stage: nextState?.journey?.current_stage ?? nextState?.progress?.current_stage ?? null
+      };
+    }
+
+    function track(event, payload = {}) {
+      return emitTelemetry(event, { ...baseTelemetryPayload(), ...payload }, telemetry);
+    }
+
+    function getJourneyDiagnostics() {
+      return {
+        route: globalScope.location?.hash || '#project-lm/journey',
+        current_stage: selectors.getCurrentStage(state),
+        journey_status: selectors.getStatus(state),
+        next_required_action: selectors.getNextRequiredAction(state),
+        loading: Boolean(state.loading),
+        saving: Boolean(state.saving),
+        last_error_code: state.last_error_code
+      };
+    }
+
     function applySuccess(data) {
-      setState({
+      const nextState = {
         loading: false,
         saving: false,
         error: null,
@@ -148,7 +223,8 @@
         stages: data.stages,
         view_model: data.view_model,
         last_updated_at: nowIso()
-      });
+      };
+      setState(nextState);
     }
 
     function applyFailure(result) {
@@ -165,9 +241,20 @@
         return clone({ ok: false, error: 'Já existe um salvamento em andamento.', code: 'PROJECT_LM_V5_SAVE_IN_PROGRESS' });
       }
       setState({ [mode]: true, error: null, last_error_code: null });
-      const result = await requestProjectLmV5(path, { ...options, fetchImpl });
-      if (result.ok) applySuccess(result.data);
-      else applyFailure(result);
+      const request_start = nowIso();
+      const started = Date.now();
+      const result = await requestProjectLmV5(path, { ...options, fetchImpl, telemetry });
+      const request_end = nowIso();
+      if (path === '/api/project-lm/journey') track('journey_load_time', { request_start, request_end, duration_ms: Date.now() - started });
+      if (result.ok) {
+        applySuccess(result.data);
+        if (path === '/api/project-lm/journey') track('journey_loaded');
+        else if (path.includes('/stage-1/')) track('stage_1_completed');
+        else if (path.includes('/plan-b')) track('stage_2_completed');
+        else if (path.includes('/victories')) track('stage_3_completed');
+        else if (path.includes('/recovery')) track('stage_4_completed');
+        else if (path.includes('/maintenance-goals')) track('journey_completed');
+      } else applyFailure(result);
       return clone(result);
     }
 
@@ -216,6 +303,8 @@
       getState,
       subscribe,
       loadJourney,
+      getJourneyDiagnostics,
+      track,
       createStage1Actions,
       completeStage1Action,
       savePlanB,
@@ -224,7 +313,8 @@
       createMaintenanceGoal,
       selectors,
       normalizeJourneyResponse,
-      requestProjectLmV5
+      requestProjectLmV5,
+      emitTelemetry
     };
   }
 

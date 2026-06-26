@@ -223,3 +223,27 @@ test('V5-11 edge thresholds keep stage 4 locked until 7 victories in API-provide
     assert.equal(contracts.buildScreenState('stage_4_recovery', state).status, 'active');
   }
 });
+
+test('V5-12 screen contracts tolerate invalid current_stage and status via safe screen fallback', () => {
+  const invalidState = sampleState({
+    journey: { status: 'unexpected_status', current_stage: 99 },
+    progress: { current_stage: 99, status: 'unexpected_status', next_required_action: 'unknown_next_action' },
+    view_model: { primary_cta: { label: 'Desconhecido', action: 'unknown_action' } },
+    stages: {
+      stage_1: { key: 'stage_1', status: 'locked' },
+      stage_2: { key: 'stage_2', status: 'locked' },
+      stage_3: { key: 'stage_3', status: 'locked' },
+      stage_4: { key: 'stage_4', status: 'locked' },
+      maintenance: { key: 'maintenance', status: 'locked' }
+    }
+  });
+
+  const overview = contracts.buildScreenState('journey_overview', invalidState);
+  const stage = contracts.buildScreenState('stage_2_plan_b', invalidState);
+
+  assert.equal(overview.key, 'journey_overview');
+  assert.equal(overview.can_access, true);
+  assert.equal(stage.key, 'stage_2_plan_b');
+  assert.equal(stage.status, 'locked');
+  assert.equal(stage.can_access, false);
+});
