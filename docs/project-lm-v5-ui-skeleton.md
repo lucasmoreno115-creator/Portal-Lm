@@ -33,7 +33,7 @@ As rotas mínimas implementadas são:
 - `#project-lm/plan-b`
 - `#project-lm/victories`
 - `#project-lm/recovery`
-- `#project-lm/maintenance-goals`
+- `#project-lm/maintenance`
 
 Hash vazio ou desconhecido retorna para `#project-lm/journey`.
 
@@ -326,3 +326,42 @@ O bloco visual recebe um tratamento próprio de continuidade para comunicar sust
 ### Escopo preservado
 
 A V5-10 não altera APIs, backend, migrations, state layer, contracts, regras de progressão, Premium ou copy oficial V5-09. Também não cria gamificação, biblioteca, missões, streak, conquistas ou dashboards.
+
+## V5-11 Real User Flow Validation
+
+### Objetivo
+
+A validação V5-11 executa a Jornada Projeto LM V5 como um usuário real: onboarding já concluído, visão geral, Etapa 1, Etapa 2, Etapa 3, Etapa 4 e Maintenance. O escopo permanece restrito à validação e correção de inconsistências entre API, state layer, screen contracts, UI, rotas hash e progressão, sem criar funcionalidades, alterar design, mudar copy oficial ou modificar contratos públicos.
+
+### Cenários testados
+
+- Etapa 1 vazia, parcial e completa, incluindo formulário de três ações, conclusão individual e desbloqueio da Etapa 2.
+- Etapa 2 com Plano B vazio, parcial e completo, incluindo salvamento, recarregamento lógico por `loadJourney()` e persistência do payload retornado pela API.
+- Etapa 3 com 0, 1, 6, 7 e 8+ vitórias, confirmando que a Etapa 4 só fica acessível a partir de 7 vitórias.
+- Etapa 4 com protocolos incompletos e completos, confirmando liberação da manutenção apenas após os protocolos de excesso alimentar, falta de treino, viagem, semana difícil e falta de motivação.
+- Maintenance com status `maintenance`, progresso final, cards e CTA coerentes com `next_required_action: maintenance`.
+- Refresh lógico em overview, Etapa 1, Etapa 2, Etapa 3, Etapa 4 e Maintenance, preservando hash válido e reconstruindo tela a partir do state restaurado.
+- Rotas hash oficiais: `#project-lm/journey`, `#project-lm/stage-1-actions`, `#project-lm/plan-b`, `#project-lm/victories`, `#project-lm/recovery` e `#project-lm/maintenance`.
+- Falhas de API 400, 404, 409 e 500, garantindo `state.error`, `last_error_code`, mensagem de erro de UX e continuidade do app.
+- Duplo submit nas ações críticas: criar ações, concluir ação, criar vitória, salvar Plano B e salvar protocolo.
+
+### Edge cases cobertos
+
+- Hash desconhecido volta para `#project-lm/journey`.
+- `buildScreenState()` mantém estrutura válida para todas as screen keys oficiais.
+- Telas bloqueadas não aceitam submit.
+- Loading e saving desabilitam submit.
+- Resposta sem `code` da API passa a preservar status HTTP como `HTTP_<status>`.
+- Salvamento concorrente no state layer é recusado antes de emitir segundo POST.
+
+### Falhas corrigidas
+
+- A rota pública de Maintenance estava divergente do fluxo validado: a UI e os contratos apontavam para `#project-lm/maintenance-goals`, enquanto a jornada validada usa `#project-lm/maintenance`.
+- Falhas HTTP sem `payload.code` perdiam o código operacional em `last_error_code`, dificultando validação de 400, 404, 409 e 500.
+- Submits múltiplos muito rápidos podiam disparar chamadas duplicadas antes da próxima renderização desabilitar os controles.
+
+### Limitações conhecidas
+
+- A validação é automatizada em nível de contrato, state layer e integração estática/VM da UI. Ela não substitui um teste E2E com navegador real autenticado contra backend de staging.
+- A persistência é validada pelo contrato retornado por `loadJourney()` após salvamento; a regra definitiva de armazenamento continua pertencendo ao backend.
+- A UI não recalcula progresso no frontend; percentuais, status e `next_required_action` continuam vindo da API e do screen contract.

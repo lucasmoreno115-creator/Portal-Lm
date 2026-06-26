@@ -92,7 +92,7 @@
       return {
         ok: false,
         error: payload?.error || 'Erro ao acessar a Jornada V5.',
-        code: payload?.code || null
+        code: payload?.code || `HTTP_${response.status}`
       };
     }
 
@@ -161,6 +161,9 @@
     }
 
     async function runRequest(path, options, mode) {
+      if (mode === 'saving' && state.saving) {
+        return clone({ ok: false, error: 'Já existe um salvamento em andamento.', code: 'PROJECT_LM_V5_SAVE_IN_PROGRESS' });
+      }
       setState({ [mode]: true, error: null, last_error_code: null });
       const result = await requestProjectLmV5(path, { ...options, fetchImpl });
       if (result.ok) applySuccess(result.data);

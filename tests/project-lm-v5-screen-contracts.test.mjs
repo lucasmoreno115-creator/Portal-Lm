@@ -49,7 +49,7 @@ const expectedRoutes = {
   stage_2_plan_b: '#project-lm/plan-b',
   stage_3_victories: '#project-lm/victories',
   stage_4_recovery: '#project-lm/recovery',
-  maintenance_goals: '#project-lm/maintenance-goals'
+  maintenance_goals: '#project-lm/maintenance'
 };
 
 test('exposes all official screens with the correct routes', () => {
@@ -187,4 +187,39 @@ test('screen contracts source does not contain forbidden browser/API operations'
   assert.equal(source.includes('innerHTML'), false);
   assert.equal(source.includes('addEventListener'), false);
   assert.equal(source.includes('fetch'), false);
+});
+
+test('V5-11 progression keeps screen status coherent from stage 1 to maintenance', () => {
+  const checkpoints = [
+    ['stage_1_actions', sampleState({ progress: { current_stage: 1, percentage: 0, next_required_action: 'choose_stage_1_actions' }, stages: { stage_1: { key: 'stage_1', status: 'active' }, stage_2: { key: 'stage_2', status: 'locked' } } }), 'active'],
+    ['stage_2_plan_b', sampleState({ progress: { current_stage: 2, percentage: 25, next_required_action: 'fill_plan_b' }, stages: { stage_1: { key: 'stage_1', status: 'completed' }, stage_2: { key: 'stage_2', status: 'active' } } }), 'active'],
+    ['stage_3_victories', sampleState({ progress: { current_stage: 3, percentage: 50, next_required_action: 'record_victories' }, stages: { stage_2: { key: 'stage_2', status: 'completed' }, stage_3: { key: 'stage_3', status: 'active' } } }), 'active'],
+    ['stage_4_recovery', sampleState({ progress: { current_stage: 4, percentage: 75, next_required_action: 'fill_recovery_protocols' }, stages: { stage_3: { key: 'stage_3', status: 'completed' }, stage_4: { key: 'stage_4', status: 'active' } } }), 'active'],
+    ['maintenance_goals', sampleState({ journey: { status: 'maintenance', current_stage: 'maintenance' }, progress: { current_stage: 'maintenance', status: 'maintenance', percentage: 100, next_required_action: 'maintenance' }, stages: { stage_4: { key: 'stage_4', status: 'completed' }, maintenance: { key: 'maintenance', status: 'active' } } }), 'maintenance']
+  ];
+
+  for (const [screenKey, state, status] of checkpoints) {
+    const screenState = contracts.buildScreenState(screenKey, state);
+    assert.equal(screenState.status, status);
+    assert.equal(screenState.can_access, true);
+    assert.ok(screenState.key);
+    assert.ok(Object.hasOwn(expectedRoutes, screenState.key));
+  }
+});
+
+test('V5-11 edge thresholds keep stage 4 locked until 7 victories in API-provided state', () => {
+  for (const victories of [0, 1, 6]) {
+    const state = sampleState({
+      progress: { current_stage: 3, next_required_action: 'record_victories' },
+      stages: { stage_3: { key: 'stage_3', status: 'active', victories: Array.from({ length: victories }) }, stage_4: { key: 'stage_4', status: 'locked' } }
+    });
+    assert.equal(contracts.buildScreenState('stage_4_recovery', state).status, 'locked');
+  }
+  for (const victories of [7, 8]) {
+    const state = sampleState({
+      progress: { current_stage: 4, next_required_action: 'fill_recovery_protocols' },
+      stages: { stage_3: { key: 'stage_3', status: 'completed', victories: Array.from({ length: victories }) }, stage_4: { key: 'stage_4', status: 'active' } }
+    });
+    assert.equal(contracts.buildScreenState('stage_4_recovery', state).status, 'active');
+  }
 });

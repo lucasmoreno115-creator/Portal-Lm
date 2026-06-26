@@ -233,3 +233,41 @@ test('state layer does not manipulate the DOM or register visual events', () => 
   assert.doesNotMatch(source, /innerHTML/);
   assert.doesNotMatch(source, /addEventListener/);
 });
+
+test('API failures 400, 404, 409 and 500 preserve last_error_code when backend omits code', async () => {
+  for (const status of [400, 404, 409, 500]) {
+    const { createProjectLmV5State } = createModule(async () => ({
+      ok: false,
+      status,
+      async json() {
+        return { ok: false, error: `HTTP ${status}` };
+      }
+    }));
+    const store = createProjectLmV5State();
+    const result = await store.loadJourney();
+    assert.equal(result.ok, false);
+    assert.equal(result.code, `HTTP_${status}`);
+    assert.equal(store.getState().error, `HTTP ${status}`);
+    assert.equal(store.getState().last_error_code, `HTTP_${status}`);
+  }
+});
+
+test('state layer blocks duplicate saves while a POST is already in progress', async () => {
+  let resolveFetch;
+  let calls = 0;
+  const pendingFetch = new Promise((resolve) => { resolveFetch = resolve; });
+  const { createProjectLmV5State } = createModule(() => {
+    calls += 1;
+    return pendingFetch;
+  });
+  const store = createProjectLmV5State();
+
+  const first = store.createVictory({ description: 'Primeira vitória' });
+  const duplicate = await store.createVictory({ description: 'Primeira vitória duplicada' });
+  assert.equal(duplicate.ok, false);
+  assert.equal(duplicate.code, 'PROJECT_LM_V5_SAVE_IN_PROGRESS');
+  assert.equal(calls, 1);
+
+  resolveFetch(okResponse());
+  assert.equal((await first).ok, true);
+});
