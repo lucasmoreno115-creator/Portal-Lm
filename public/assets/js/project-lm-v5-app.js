@@ -24,7 +24,7 @@
   const ACTION_LABELS = Object.freeze({
     choose_stage_1_actions: 'Definir suas três ações mínimas',
     complete_stage_1_actions: 'Concluir uma ação mínima pendente',
-    fill_plan_b: 'Ver meu próximo passo',
+    fill_plan_b: 'Criar meu Plano B',
     record_victories: 'Registrar uma vitória concreta',
     fill_recovery_protocols: 'Definir protocolos de recuperação',
     maintenance: 'Ver minha evolução'
@@ -42,57 +42,57 @@
 
 
 
-  const HERO_CTA_LABEL = 'CONTINUAR MINHA JORNADA';
+  const HERO_CTA_LABEL = 'VER MEU PRÓXIMO PASSO';
 
   const STAGE_CARD_COPY = Object.freeze({
     stage_1: Object.freeze({
-      title: 'MISSÃO DA SEMANA\nPare de Recomeçar',
-      subtitle: 'Seu objetivo esta semana não é ser perfeito. É provar para si mesmo que consegue continuar.'
+      title: 'Ações mínimas da semana',
+      subtitle: 'Escolha três ações pequenas e possíveis para começar.'
     }),
     stage_2: Object.freeze({
-      title: 'Plano B — Dias Difíceis',
-      subtitle: 'Quando o dia não sair como planejado, sua direção continua.',
-      empty: 'Os dias difíceis vão acontecer. Prepare sua resposta antes deles chegarem.'
+      title: 'Plano B',
+      subtitle: 'Defina o que fazer quando o plano ideal não couber.',
+      empty: 'Preencha seu Plano B para saber o que fazer em dias apertados.'
     }),
     stage_3: Object.freeze({
       title: 'Vitórias da Jornada',
-      subtitle: 'Registre momentos em que você escolheu continuar.',
-      empty: 'Toda mudança começa com uma pequena vitória. Quando ela acontecer, registre aqui.'
+      subtitle: 'Registre uma escolha concreta que mostrou progresso.',
+      empty: 'Registre uma escolha concreta de hoje, mesmo que pequena.'
     }),
     stage_4: Object.freeze({
-      title: 'Voltar para a Direção',
-      subtitle: 'Sair do plano faz parte. Voltar faz a diferença.'
+      title: 'Recuperação',
+      subtitle: 'Defina respostas simples para retomar sem improviso.'
     }),
     maintenance: Object.freeze({
-      title: 'Sua Evolução',
-      subtitle: 'Pequenos avanços acumulados criam grandes transformações.'
+      title: 'Manutenção',
+      subtitle: 'Escolha uma meta simples para sustentar o que construiu.'
     })
   });
 
   const UX_COPY = Object.freeze({
-    loading: 'Preparando sua direção.\nOrganizando o próximo passo para você continuar.',
-    saving: 'Registrando seu progresso.',
-    error: 'Algo não saiu como esperado.\n\nTente novamente em alguns instantes.\nSua jornada continua segura.',
-    primaryMessageFallback: 'Você não precisa de mais motivação. Precisa de direção.',
+    loading: 'Preparando seu próximo passo.',
+    saving: 'Registrando. Aguarde um instante.',
+    error: 'Não conseguimos atualizar agora. Tente novamente.',
+    primaryMessageFallback: 'Siga um passo simples por vez.',
     overviewTitle: 'Projeto LM',
-    overviewDescription: 'Você não precisa começar de novo.\nPrecisa continuar.\n\nNos próximos 30 dias vamos construir uma direção que funcione até nos dias difíceis.',
-    backToOverview: 'Voltar para minha direção',
-    requiredFields: 'Mantenha simples.\n\nA melhor estratégia é aquela que você consegue executar.',
-    lockedHint: 'Você ainda não precisa se preocupar com esta etapa.\n\nConcentre-se apenas no passo atual.',
-    completedHint: 'Esta etapa já faz parte da sua base.\n\nQuando precisar, ela continuará disponível para consulta.',
-    stage1Title: 'MISSÃO DA SEMANA\nPare de Recomeçar',
-    stage1Message: 'Seu objetivo esta semana não é ser perfeito.\nÉ provar para si mesmo que consegue continuar.',
-    stage1Empty: 'Sua direção será construída passo a passo.\nVamos começar.',
-    planBMessage: 'Quando o dia não sair como planejado, sua direção continua.\n\nOs dias difíceis vão acontecer. Prepare sua resposta antes deles chegarem.',
-    victoriesMessage: 'Registre momentos em que você escolheu continuar.',
-    victoriesEmpty: 'Toda mudança começa com uma pequena vitória.\nQuando ela acontecer, registre aqui.',
-    recoveryMessage: 'Sair do plano faz parte.\nVoltar faz a diferença.',
-    maintenanceTitle: 'Você provou que consegue continuar.',
-    maintenanceSubtitle: 'Agora o desafio não é começar.',
-    maintenanceMessage: 'É manter a direção construída.',
-    successGeneric: 'Salvo com sucesso.\n\nMais um passo construído.',
-    successAction: 'Ação concluída.\n\nContinuar conta mais do que perfeição.',
-    successVictory: 'Vitória registrada.\n\nReconhecer o progresso ajuda a sustentar o processo.'
+    overviewDescription: 'Veja seu próximo passo e faça apenas o necessário para avançar hoje.',
+    backToOverview: 'Voltar para o resumo',
+    requiredFields: 'Preencha com respostas simples e executáveis.',
+    lockedHint: 'Esta etapa abre depois do passo atual. Volte ao resumo para ver o que fazer agora.',
+    completedHint: 'Etapa concluída. Revise se quiser, ou volte ao resumo para seguir.',
+    stage1Title: 'Ações mínimas da semana',
+    stage1Message: 'Escolha três ações pequenas que cabem na sua rotina real.',
+    stage1Empty: 'Defina suas três ações mínimas para começar.',
+    planBMessage: 'Defina uma versão mínima para alimentação, treino, movimento e autocuidado.',
+    victoriesMessage: 'Registre uma escolha concreta que mostrou progresso.',
+    victoriesEmpty: 'Registre uma escolha concreta de hoje, mesmo que pequena.',
+    recoveryMessage: 'Prepare respostas para retomar após obstáculos comuns.',
+    maintenanceTitle: 'Você chegou à manutenção.',
+    maintenanceSubtitle: 'Agora escolha o que sustenta sua rotina.',
+    maintenanceMessage: 'Defina uma meta simples para os próximos dias.',
+    successGeneric: 'Registro salvo. Veja o próximo passo no resumo.',
+    successAction: 'Ação concluída. Veja se ainda há ações pendentes.',
+    successVictory: 'Vitória registrada. Continue até completar 7.'
   });
 
   const selectors = {
@@ -209,6 +209,29 @@
     return 'Você está construindo sua base.';
   }
 
+
+  function getUserFacingError(state) {
+    if (!state?.error && !state?.last_error_code) return '';
+    const code = state.last_error_code;
+    if (code === 'PROJECT_LM_V5_REQUEST_TIMEOUT') return 'A conexão demorou mais do que o esperado. Tente novamente.';
+    if (code === 'PROJECT_LM_V5_NETWORK_ERROR') return 'Não conseguimos conectar agora. Verifique sua internet e tente novamente.';
+    if (code === 'PROJECT_LM_V5_INVALID_CONTRACT') return 'Não conseguimos preparar sua jornada agora. Tente atualizar a página.';
+    if (code === 'PROJECT_LM_V5_SAVE_IN_PROGRESS') return 'Já estamos registrando sua resposta. Aguarde um instante.';
+    if (code === 'PROJECT_LM_V5_LOAD_IN_PROGRESS') return 'Seu resumo já está sendo preparado. Aguarde um instante.';
+    return text(state.error, UX_COPY.error);
+  }
+
+  function getSubmitLabel(formType) {
+    const labels = {
+      stage_1_actions: 'Definir minhas 3 ações',
+      stage_2_plan_b: 'Criar meu Plano B',
+      stage_3_victories: 'Registrar minha vitória',
+      stage_4_recovery: 'Salvar meus protocolos',
+      maintenance_goals: 'Definir meta de manutenção'
+    };
+    return labels[formType] || 'Registrar resposta';
+  }
+
   function getSuccessFeedback(action) {
     if (action === 'completeStage1Action') return UX_COPY.successAction;
     if (action === 'createVictory') return UX_COPY.successVictory;
@@ -269,7 +292,7 @@
   function renderOverviewIntro(state) {
     const intro = el('section', 'plmv5-ux-intro');
     intro.appendChild(el('p', 'plmv5-kicker', '◆ Sua Direção'));
-    intro.appendChild(el('p', 'plmv5-message', 'Siga um passo de cada vez.\nNão é necessário fazer tudo.'));
+    intro.appendChild(el('p', 'plmv5-message', 'Faça apenas o próximo passo indicado.'));
     intro.appendChild(el('h2', '', UX_COPY.overviewTitle));
     intro.appendChild(el('p', '', UX_COPY.overviewDescription));
     if (state?.progress?.next_required_action) intro.appendChild(el('strong', 'plmv5-next-action', readableAction(state.progress.next_required_action)));
@@ -290,7 +313,7 @@
     const viewModel = state?.view_model || {};
     clear(elements.overview);
     safeText(elements.pageTitle, UX_COPY.overviewTitle);
-    safeText(elements.pageSubtitle, 'Você não precisa de mais motivação. Precisa de direção.');
+    safeText(elements.pageSubtitle, 'Um passo simples por vez.');
     safeText(elements.statusLabel, text(viewModel.status_label, state?.journey?.status || 'Status não carregado'));
     safeText(elements.progressLabel, text(viewModel.progress_label, 'Progresso não carregado'));
     const percentage = Number(state?.progress?.percentage ?? viewModel.percentage ?? 0);
@@ -300,7 +323,7 @@
     safeText(elements.percentageText, `${safePercentage}%`);
     if (elements.progressLabel) elements.progressLabel.appendChild(copyNode('plmv5-progress-support', getProgressSupport(safePercentage)));
     safeText(elements.primaryMessage, UX_COPY.overviewDescription);
-    safeText(elements.nextAction, `◆ Seu próximo passo: ${readableAction(state?.progress?.next_required_action)}`);
+    safeText(elements.nextAction, `◆ Próximo: ${readableAction(state?.progress?.next_required_action)}`);
     updateHeroCta(state, viewModel);
 
     elements.overview.appendChild(renderOverviewIntro(state));
@@ -313,7 +336,7 @@
       return status === 'active' || status === 'completed' || status === 'locked' || status === 'maintenance';
     });
     if (!cards.length) {
-      elements.stageCards.appendChild(el('p', 'plmv5-empty', 'As etapas serão exibidas após o carregamento da jornada.'));
+      elements.stageCards.appendChild(el('p', 'plmv5-empty', 'As etapas aparecem assim que seu resumo estiver pronto.'));
       return;
     }
     cards.forEach((card) => {
@@ -366,11 +389,11 @@
       wrapper.appendChild(input);
       form.appendChild(wrapper);
     });
-    const feedback = el('p', currentState?.error ? 'plmv5-form-feedback plmv5-error' : 'plmv5-form-feedback', currentState?.error || UX_COPY.requiredFields);
+    const feedback = el('p', currentState?.error ? 'plmv5-form-feedback plmv5-error' : 'plmv5-form-feedback', getUserFacingError(currentState) || UX_COPY.requiredFields);
     feedback.id = 'plmv5-form-feedback';
     feedback.setAttribute('aria-live', 'polite');
     form.appendChild(feedback);
-    const submit = el('button', 'plmv5-button plmv5-button-primary', currentState?.saving ? UX_COPY.saving : 'Salvar');
+    const submit = el('button', 'plmv5-button plmv5-button-primary', currentState?.saving ? UX_COPY.saving : getSubmitLabel(formContract.type));
     submit.type = 'submit';
     submit.disabled = !screenState.can_submit || Boolean(currentState?.saving);
     form.appendChild(submit);
@@ -425,7 +448,7 @@
       if (action.completed || action.completed_at || action.status === 'completed') {
         item.appendChild(el('span', 'plmv5-badge is-completed', 'Concluída'));
       } else {
-        const button = el('button', 'plmv5-button', 'Concluir ação');
+        const button = el('button', 'plmv5-button', 'Marcar ação como concluída');
         button.type = 'button';
         button.disabled = Boolean(currentState?.saving);
         button.addEventListener('click', async () => {
@@ -448,8 +471,8 @@
     const stage = screenState?.source_stage || {};
     if (screenState.key === 'stage_1_actions') return renderStage1Actions(screenState);
     if (screenState.key === 'stage_3_victories') return renderDataList('Vitórias da Jornada', stage.victories || stage.items, UX_COPY.victoriesEmpty, (item) => text(item.description || item.title || item.value, 'Vitória registrada'));
-    if (screenState.key === 'stage_4_recovery') return renderDataList('Voltar para a Direção', stage.protocols || stage.items, 'Sair do plano faz parte. Voltar faz a diferença.', (item) => text(item.description || item.title || item.value, 'Protocolo salvo'));
-    if (screenState.key === 'maintenance_goals') return renderDataList('Sua Evolução', stage.goals || stage.items, 'Nenhuma meta de manutenção foi criada ainda.', (item) => text(item.goal || item.title || item.description, 'Meta de manutenção'));
+    if (screenState.key === 'stage_4_recovery') return renderDataList('Recuperação', stage.protocols || stage.items, 'Preencha seus protocolos para saber como retomar.', (item) => text(item.description || item.title || item.value, 'Protocolo salvo'));
+    if (screenState.key === 'maintenance_goals') return renderDataList('Manutenção', stage.goals || stage.items, 'Defina uma meta simples para sustentar sua rotina.', (item) => text(item.goal || item.title || item.description, 'Meta de manutenção'));
     return null;
   }
 
@@ -461,7 +484,7 @@
     const backLink = el('a', 'plmv5-back-link', UX_COPY.backToOverview);
     backLink.href = '#project-lm/journey';
     header.appendChild(backLink);
-    header.appendChild(el('p', 'plmv5-kicker', '◆ Etapa da jornada'));
+    header.appendChild(el('p', 'plmv5-kicker', '◆ Passo da jornada'));
     header.appendChild(el('h2', '', screenState.title));
     header.appendChild(el('p', '', screenState.subtitle));
     header.appendChild(el('span', `plmv5-badge is-${screenState.status}`, readableStatus(screenState.status)));
@@ -491,7 +514,7 @@
   function renderMessages(state) {
     clear(elements.messages);
     if (successFeedback) elements.messages.appendChild(copyNode('plmv5-message plmv5-success', successFeedback));
-    if (state?.error) elements.messages.appendChild(copyNode('plmv5-message plmv5-error', UX_COPY.error));
+    if (state?.error) elements.messages.appendChild(copyNode('plmv5-message plmv5-error', getUserFacingError(state) || UX_COPY.error));
     else if (state?.loading) elements.messages.appendChild(copyNode('plmv5-message', UX_COPY.loading));
     else if (state?.saving) elements.messages.appendChild(copyNode('plmv5-message', UX_COPY.saving));
   }
