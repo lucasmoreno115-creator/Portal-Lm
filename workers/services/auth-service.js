@@ -3,12 +3,8 @@ const DEFAULT_STUDENT_PLAN = 'premium';
 export function isAdminAuthorized(request, env) {
   const token = String(request.headers.get('x-admin-token') || '').trim();
   const adminToken = String(env.ADMIN_TOKEN || '').trim();
-  const portalToken = String(env.PORTAL_ADMIN_TOKEN || '').trim();
 
-  return !!token && (
-    (!!portalToken && token === portalToken) ||
-    (!!adminToken && token === adminToken)
-  );
+  return !!token && !!adminToken && token === adminToken;
 }
 
 export function normalizeEmail(email) {
