@@ -90,3 +90,12 @@ button { cursor: pointer; }
   .plmv5-link, .plmv5-card, .plmv5-button { min-height: 48px; }
   .plmv5-record { grid-template-columns: 1fr; }
 }
+
+.plmv5-skip-link { position: fixed; left: 16px; top: 16px; z-index: 20; transform: translateY(-140%); border-radius: 999px; padding: 10px 14px; background: #f0cf7b; color: #10131a; font-weight: 900; text-decoration: none; transition: transform .18s ease; }
+.plmv5-skip-link:focus { transform: translateY(0); outline: 3px solid rgba(255, 255, 255, .88); outline-offset: 3px; }
+.plmv5-ux-intro { display: grid; gap: 10px; border: 1px solid rgba(240, 207, 123, .22); border-radius: 20px; padding: 20px; background: linear-gradient(135deg, rgba(240, 207, 123, .12), rgba(255, 255, 255, .035)); }
+.plmv5-ux-intro h2 { margin: 0; font-size: clamp(28px, 4vw, 46px); letter-spacing: -.04em; }
+.plmv5-ux-intro p { margin: 0; color: #cbd0db; }
+.plmv5-back-link { display: inline-flex; width: fit-content; margin-bottom: 12px; border-radius: 999px; padding: 8px 12px; background: rgba(255, 255, 255, .06); color: #f0cf7b; font-weight: 800; text-decoration: none; }
+.plmv5-back-link:hover, .plmv5-back-link:focus { background: rgba(240, 207, 123, .14); outline: 2px solid rgba(240, 207, 123, .45); outline-offset: 2px; }
+.plmv5-main:focus { outline: 3px solid rgba(240, 207, 123, .28); outline-offset: 4px; }

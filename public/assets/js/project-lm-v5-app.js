@@ -30,6 +30,25 @@
     maintenance: 'Sustentar metas de manutenção'
   });
 
+
+  const STATUS_LABELS = Object.freeze({
+    active: 'Etapa atual',
+    completed: 'Concluída',
+    locked: 'Bloqueada',
+    maintenance: 'Manutenção',
+    loading: 'Carregando',
+    error: 'Atenção necessária'
+  });
+
+  const UX_COPY = Object.freeze({
+    overviewTitle: 'Seu caminho agora',
+    overviewDescription: 'A jornada mostra somente o que ajuda você a continuar: o passo atual, o que já foi concluído e manutenção quando estiver disponível.',
+    backToOverview: 'Voltar para a visão geral',
+    requiredFields: 'Campos obrigatórios mantêm seu plano simples e acionável.',
+    lockedHint: 'Ainda bloqueada. Conclua o passo anterior para liberar esta etapa.',
+    completedHint: 'Concluída. Fica visível para consulta, sem nova ação obrigatória.'
+  });
+
   const selectors = {
     root: '#project-lm-v5-root',
     pageTitle: '[data-plmv5="page-title"]',
@@ -105,6 +124,10 @@
     return ACTION_LABELS[action] || text(action, 'Aguardando próxima ação');
   }
 
+  function readableStatus(status) {
+    return STATUS_LABELS[status] || text(status, 'Status indisponível');
+  }
+
   function getCurrentActionScreen(state) {
     return contracts.getScreenForNextRequiredAction(state?.progress?.next_required_action);
   }
@@ -146,6 +169,15 @@
     elements.heroCta.appendChild(cta);
   }
 
+  function renderOverviewIntro(state) {
+    const intro = el('section', 'plmv5-ux-intro');
+    intro.appendChild(el('p', 'plmv5-kicker', '◆ Foco da jornada'));
+    intro.appendChild(el('h2', '', UX_COPY.overviewTitle));
+    intro.appendChild(el('p', '', UX_COPY.overviewDescription));
+    if (state?.progress?.next_required_action) intro.appendChild(el('strong', 'plmv5-next-action', readableAction(state.progress.next_required_action)));
+    return intro;
+  }
+
   function renderOverview(state) {
     const viewModel = state?.view_model || {};
     clear(elements.overview);
@@ -162,6 +194,7 @@
     safeText(elements.nextAction, `◆ Próxima ação: ${readableAction(state?.progress?.next_required_action)}`);
     updateHeroCta(state, viewModel);
 
+    elements.overview.appendChild(renderOverviewIntro(state));
     const summary = el('div', 'plmv5-overview-panel');
     summary.appendChild(el('p', 'plmv5-message', text(viewModel.primary_message, 'Sua jornada será exibida aqui assim que os dados forem carregados.')));
     if (state?.progress?.next_required_action) summary.appendChild(el('p', 'plmv5-next-action', `◆ ${readableAction(state.progress.next_required_action)}`));
@@ -187,10 +220,12 @@
       if (button.disabled) button.setAttribute('aria-disabled', 'true');
       button.appendChild(el('span', 'plmv5-card-marker', '◆'));
       button.appendChild(el('strong', 'plmv5-card-title', text(card.title || card.label || card.name, 'Etapa')));
-      button.appendChild(el('span', 'plmv5-card-status', text(card.status_label, status)));
+      button.appendChild(el('span', 'plmv5-card-status', text(card.status_label, readableStatus(status))));
       if (card.subtitle || card.description) button.appendChild(el('span', 'plmv5-card-subtitle', text(card.subtitle || card.description)));
       if (card.progress_text) button.appendChild(el('span', 'plmv5-card-progress', card.progress_text));
-      if (card.empty_state) button.appendChild(el('small', 'plmv5-empty', card.empty_state));
+      if (status === 'locked') button.appendChild(el('small', 'plmv5-empty', UX_COPY.lockedHint));
+      else if (status === 'completed') button.appendChild(el('small', 'plmv5-empty', UX_COPY.completedHint));
+      else if (card.empty_state) button.appendChild(el('small', 'plmv5-empty', card.empty_state));
       button.addEventListener('click', () => {
         if (screen && status !== 'locked' && status !== 'completed') navigateToScreen(screen.key);
       });
@@ -227,7 +262,7 @@
       wrapper.appendChild(input);
       form.appendChild(wrapper);
     });
-    const feedback = el('p', currentState?.error ? 'plmv5-form-feedback plmv5-error' : 'plmv5-form-feedback', currentState?.error || 'A validação principal acontece ao salvar.');
+    const feedback = el('p', currentState?.error ? 'plmv5-form-feedback plmv5-error' : 'plmv5-form-feedback', currentState?.error || UX_COPY.requiredFields);
     feedback.id = 'plmv5-form-feedback';
     feedback.setAttribute('aria-live', 'polite');
     form.appendChild(feedback);
@@ -305,10 +340,13 @@
     const screenState = contracts.buildScreenState(screenKey, state) || contracts.buildScreenState('journey_overview', state);
     clear(elements.screen);
     const header = el('header', 'plmv5-screen-header');
+    const backLink = el('a', 'plmv5-back-link', UX_COPY.backToOverview);
+    backLink.href = '#project-lm/journey';
+    header.appendChild(backLink);
     header.appendChild(el('p', 'plmv5-kicker', '◆ Etapa da jornada'));
     header.appendChild(el('h2', '', screenState.title));
     header.appendChild(el('p', '', screenState.subtitle));
-    header.appendChild(el('span', `plmv5-badge is-${screenState.status}`, text(screenState.status)));
+    header.appendChild(el('span', `plmv5-badge is-${screenState.status}`, readableStatus(screenState.status)));
     elements.screen.appendChild(header);
     if (screenState.status === 'loading') elements.screen.appendChild(el('p', 'plmv5-message', 'Carregando sua jornada...'));
     if (state?.saving) elements.screen.appendChild(el('p', 'plmv5-message', 'Salvando alterações...'));
@@ -347,6 +385,11 @@
     }
   }
 
+  function focusMainContent() {
+    const main = elements?.root?.querySelector('#plmv5-main-content');
+    if (main && typeof main.focus === 'function') main.focus({ preventScroll: true });
+  }
+
   function render(state) {
     currentState = state;
     renderCurrentRoute(state);
@@ -363,7 +406,10 @@
       return acc;
     }, {});
     ensureRoute();
-    hashChangeHandler = () => render(store.getState());
+    hashChangeHandler = () => {
+      render(store.getState());
+      focusMainContent();
+    };
     globalScope.addEventListener('hashchange', hashChangeHandler);
     unsubscribe = store.subscribe(render);
     store.loadJourney();
