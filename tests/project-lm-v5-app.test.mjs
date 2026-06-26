@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const appSource = await readFile('public/assets/js/project-lm-v5-app.js', 'utf8');
 const htmlSource = await readFile('public/project-lm-v5.html', 'utf8');
+const cssSource = await readFile('public/assets/css/project-lm-v5.css', 'utf8');
 
 const officialRoutes = [
   '#project-lm/journey',
@@ -21,6 +22,17 @@ test('Project LM V5 app integrates only with V5 state and screen contracts', () 
   assert.match(htmlSource, /project-lm-v5-state\.js/);
   assert.match(htmlSource, /project-lm-v5-screen-contracts\.js/);
   assert.match(htmlSource, /project-lm-v5-app\.js/);
+  assert.match(htmlSource, /assets\/css\/project-lm-v5\.css/);
+});
+
+test('Project LM V5 HTML loads only isolated V5 assets', () => {
+  const assetRefs = [...htmlSource.matchAll(/(?:src|href)="([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(assetRefs, [
+    '/assets/css/project-lm-v5.css',
+    '/assets/js/project-lm-v5-state.js',
+    '/assets/js/project-lm-v5-screen-contracts.js',
+    '/assets/js/project-lm-v5-app.js'
+  ]);
 });
 
 test('Project LM V5 app registers hash router with official routes', () => {
@@ -73,21 +85,49 @@ test('Project LM V5 app renders form_contract placeholders and actions', () => {
   assert.match(appSource, /createMaintenanceGoal/);
   assert.match(appSource, /completeStage1Action/);
   assert.match(appSource, /actions:\s*formContract\.fields\.map/);
+  assert.match(appSource, /field\.type === 'textarea'/);
+  assert.match(appSource, /input\.required = Boolean\(field\.required\)/);
 });
 
 test('Project LM V5 app simplifies journey navigation and prevents locked cards from navigating', () => {
   assert.match(appSource, /appendRouteLink\(contracts\.getScreenByKey\('journey_overview'\), screenKey, 'Visão geral'\)/);
   assert.match(appSource, /appendRouteLink\(nextScreen, screenKey, 'Próxima ação'\)/);
   assert.doesNotMatch(appSource, /contracts\.screens\.forEach/);
-  assert.match(appSource, /status === 'active' \|\| status === 'completed' \|\| status === 'maintenance'/);
+  assert.match(appSource, /status === 'active' \|\| status === 'completed' \|\| status === 'locked' \|\| status === 'maintenance'/);
   assert.match(appSource, /button\.disabled = !screen \|\| status === 'locked' \|\| status === 'completed'/);
   assert.match(appSource, /if \(screen && status !== 'locked' && status !== 'completed'\) navigateToScreen\(screen\.key\)/);
 });
 
-test('Project LM V5 app stays isolated from Premium references', () => {
-  const combined = `${appSource}\n${htmlSource}`.toLowerCase();
+test('Project LM V5 UI foundation renders header, progress, cards and visual states', () => {
+  assert.match(htmlSource, /Projeto LM/);
+  assert.match(htmlSource, /Continue mesmo nos dias difíceis\./);
+  assert.match(htmlSource, /data-plmv5="percentage-text"/);
+  assert.match(appSource, /state\?\.progress\?\.percentage/);
+  assert.match(appSource, /readableAction\(state\?\.progress\?\.next_required_action\)/);
+  assert.match(appSource, /plmv5-stage-card is-/);
+  assert.match(appSource, /screenState\.status === 'locked'/);
+  assert.match(appSource, /screenState\.status === 'completed'/);
+  assert.match(appSource, /screenState\.status === 'maintenance'/);
+  assert.match(appSource, /state\?\.saving/);
+});
+
+test('Project LM V5 CSS remains prefixed and responsive', () => {
+  assert.match(cssSource, /\.plmv5-header/);
+  assert.match(cssSource, /\.plmv5-status/);
+  assert.match(cssSource, /\.plmv5-stage-card/);
+  assert.match(cssSource, /\.plmv5-form/);
+  assert.match(cssSource, /@media \(max-width: 900px\)/);
+  assert.match(cssSource, /@media \(max-width: 560px\)/);
+  assert.doesNotMatch(cssSource, /\.(?!plmv5|is-|:root|body|button|input|textarea|\*)[a-z][a-z0-9_-]*\s*\{/i);
+});
+
+test('Project LM V5 app stays isolated from prohibited product and gamified references', () => {
+  const combined = `${appSource}\n${htmlSource}\n${cssSource}`.toLowerCase();
   assert.doesNotMatch(combined, /student\s*360/);
   assert.doesNotMatch(combined, /check-in\s*premium/);
   assert.doesNotMatch(combined, /plano\s*alimentar\s*premium/);
-  assert.doesNotMatch(combined, /premium/);
+  assert.doesNotMatch(combined, /biblioteca/);
+  assert.doesNotMatch(combined, /miss[oõ]es/);
+  assert.doesNotMatch(combined, /streak/);
+  assert.doesNotMatch(combined, /conquistas/);
 });
