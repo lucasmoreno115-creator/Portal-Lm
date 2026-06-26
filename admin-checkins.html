@@ -67,7 +67,7 @@ async function loadCheckins(){
   list.innerHTML = '';
 
   try {
-    const response = await fetch('/api/admin/checkins?' + params.toString(), { headers: { 'x-admin-token': token }});
+    const response = await fetch('/api/admin/checkins?' + params.toString(), { headers: { 'x-admin-session': token }});
     const payload = await response.json();
     if (!response.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao carregar');
 
@@ -132,7 +132,7 @@ list.addEventListener('click', async (event) => {
   try {
     const response = await fetch(`/api/admin/checkins/${encodeURIComponent(id)}/reply`, {
       method:'PATCH',
-      headers:{'Content-Type':'application/json','x-admin-token':token},
+      headers:{'Content-Type':'application/json','x-admin-session':token},
       body: JSON.stringify({ coach_reply: coachReply, coach_status: 'replied' })
     });
     const payload = await response.json();

@@ -15,7 +15,7 @@ test('Command Center carrega o painel mínimo de saúde com os endpoints adminis
   assert.match(source, /id=['"]systemHealthStatus['"]/);
   assert.match(source, /fetch\(['"]\/api\/admin\/health-check['"]/);
   assert.match(source, /fetch\(['"]\/api\/admin\/operational-logs\?level=error&limit=5['"]/);
-  assert.match(source, /'x-admin-token': token/);
+  assert.match(source, /'x-admin-session': token/);
 });
 
 test('painel de saúde renderiza status healthy e warning com total de inconsistências', async () => {

@@ -186,7 +186,7 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
       try {
         const response = await fetch('/api/admin/retention-action', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+          headers: { 'Content-Type': 'application/json', 'x-admin-session': token },
           body: JSON.stringify({
             student_email: student.email,
             financial_reason: student.reason,
@@ -206,7 +206,7 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
     }
 
     async function loadRetentionHistory(token) {
-      const response = await fetch('/api/admin/retention-actions', { method: 'GET', headers: { 'x-admin-token': token } });
+      const response = await fetch('/api/admin/retention-actions', { method: 'GET', headers: { 'x-admin-session': token } });
       const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao carregar histórico de retenção');
 
@@ -339,7 +339,7 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-admin-token': token
+            'x-admin-session': token
           },
           body: JSON.stringify({
             student_email: student.email,
@@ -390,7 +390,7 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
     async function loadLogs(token) {
       const response = await fetch('/api/admin/followup-logs', {
         method: 'GET',
-        headers: { 'x-admin-token': token }
+        headers: { 'x-admin-session': token }
       });
 
       const payload = await response.json().catch(() => null);
@@ -428,7 +428,7 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
     async function loadFollowups(token) {
       const response = await fetch('/api/admin/followup-alerts', {
         method: 'GET',
-        headers: { 'x-admin-token': token }
+        headers: { 'x-admin-session': token }
       });
 
       const payload = await response.json().catch(() => null);
