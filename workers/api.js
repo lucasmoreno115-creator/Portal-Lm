@@ -258,6 +258,12 @@ export default {
           return json(result.payload, result.status);
         }
 
+        if (url.pathname === '/api/project-lm-2/activate-week-2' && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
+          const result = await projectLm2ActivateWeek2(env.DB, auth.student);
+          return json(result.payload, result.status);
+        }
+
         if (url.pathname === '/api/project-lm-2/week-2/video-complete' && method === 'POST') {
           if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
           const result = await projectLm2CompleteWeek2Video(env.DB, auth.student);
@@ -2259,9 +2265,14 @@ async function ensureSchema(db) {
     status TEXT NOT NULL DEFAULT 'active',
     started_at TEXT NOT NULL,
     completed_at TEXT,
+    week_started_at TEXT,
+    week_completed_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`).run();
+
+  await ensureColumn(db, 'lm2_journeys', 'week_started_at', 'TEXT');
+  await ensureColumn(db, 'lm2_journeys', 'week_completed_at', 'TEXT');
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS lm2_week_1_foundation (
     student_id TEXT PRIMARY KEY,
@@ -3316,6 +3327,8 @@ function projectLm2HomeData(profile, journey, week1 = null, progress = projectLm
     name: profile?.name,
     onboarding_completed: true,
     current_week: Number(journey?.current_week || 1),
+    week_started_at: journey?.week_started_at || null,
+    week_completed_at: journey?.week_completed_at || null,
     continuity_days_count: progress.continuity_days_count,
     required_days_count: progress.required_days_count,
     remaining_days: progress.remaining_days,
@@ -3459,7 +3472,7 @@ async function projectLm2SaveOnboarding(db, student, body) {
   }
   let journey = await projectLm2GetJourney(db, student);
   if (!journey) {
-    await db.prepare(`INSERT INTO lm2_journeys (student_id, current_week, status, started_at, completed_at, created_at, updated_at) VALUES (?, 1, 'active', ?, NULL, ?, ?)`).bind(studentId, now, now, now).run();
+    await db.prepare(`INSERT INTO lm2_journeys (student_id, current_week, status, started_at, completed_at, week_started_at, week_completed_at, created_at, updated_at) VALUES (?, 1, 'active', ?, NULL, NULL, NULL, ?, ?)`).bind(studentId, now, now, now).run();
     journey = await projectLm2GetJourney(db, student);
   }
   const profile = await projectLm2GetProfile(db, student);
@@ -3501,6 +3514,28 @@ async function projectLm2SavePlanB(db, student, body) {
   const week1 = await projectLm2GetWeek1(db, student);
   const journey = await projectLm2GetJourney(db, student);
   return projectLm2Success(projectLm2HomeData(profile, journey || { current_week: 1 }, week1, await projectLm2Progress(db, student, journey || { current_week: 1 })));
+}
+
+async function projectLm2ActivateWeek2(db, student) {
+  const profile = await projectLm2GetProfile(db, student);
+  if (!profile) return projectLm2Error('Onboarding obrigatório antes da ativação da Semana 2.', 409, 'ONBOARDING_REQUIRED');
+  const journey = await projectLm2GetJourney(db, student);
+  if (!journey) return projectLm2Error('Jornada obrigatória antes da ativação da Semana 2.', 409, 'JOURNEY_REQUIRED');
+
+  if (Number(journey.current_week || 1) >= 2) {
+    await projectLm2EnsureWeek2(db, student);
+    return projectLm2Success({ current_week: 2, activated: true });
+  }
+
+  const week1 = await projectLm2EnsureWeek1(db, student);
+  const progress = await projectLm2Progress(db, student, journey);
+  const weekStatus = projectLm2BuildWeekStatus(journey, week1, progress);
+  if (!weekStatus.week_completed) return projectLm2Error('Semana 1 precisa estar concluída antes de ativar a Semana 2.', 409, 'WEEK_1_NOT_COMPLETED');
+
+  const now = new Date().toISOString();
+  await db.prepare(`UPDATE lm2_journeys SET current_week=2, week_completed_at=COALESCE(week_completed_at, ?), week_started_at=COALESCE(week_started_at, ?), updated_at=? WHERE student_id=? AND current_week=1`).bind(now, now, now, projectLm2StudentId(student)).run();
+  await projectLm2EnsureWeek2(db, student);
+  return projectLm2Success({ current_week: 2, activated: true });
 }
 
 async function projectLm2CompleteWeek2Video(db, student) {

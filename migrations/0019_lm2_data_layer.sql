@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS lm2_journeys (
   status TEXT NOT NULL DEFAULT 'active',
   started_at TEXT NOT NULL,
   completed_at TEXT,
+  week_started_at TEXT,
+  week_completed_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

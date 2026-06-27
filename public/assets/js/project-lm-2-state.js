@@ -6,6 +6,8 @@
     weight_kg: null,
     onboarding_completed: false,
     current_week: 1,
+    week_started_at: null,
+    week_completed_at: null,
     continuity_days_count: 0,
     required_days_count: 5,
     goal_reached: false,

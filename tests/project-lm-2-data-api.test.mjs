@@ -16,6 +16,8 @@ test('LM 2.0 schema is isolated and created by migration and ensureSchema', () =
     assert.match(source, /CREATE TABLE IF NOT EXISTS lm2_journeys/);
     assert.match(source, /current_week INTEGER NOT NULL DEFAULT 1/);
     assert.match(source, /status TEXT NOT NULL DEFAULT 'active'/);
+    assert.match(source, /week_started_at TEXT/);
+    assert.match(source, /week_completed_at TEXT/);
     assert.match(source, /CREATE TABLE IF NOT EXISTS lm2_checkins/);
     assert.match(source, /CREATE TABLE IF NOT EXISTS lm2_week_2_foundation/);
     assert.match(source, /minimum_response TEXT/);
@@ -186,6 +188,51 @@ test('LM 2.0 home returns week_1_complete when all Week 1 criteria are fulfilled
   assert.equal(home.body.data.week_completed, true);
 });
 
+test('LM 2.0 activate-week-2 rejects incomplete Week 1', async () => {
+  const db = new FakeD1('projeto_lm');
+  await completeFoundation(db);
+  addCheckins(db, ['on_track', 'adapted', 'on_track']);
+  const activation = await api(db, 'POST', '/api/project-lm-2/activate-week-2');
+  assert.equal(activation.status, 409);
+  assert.equal(activation.body.code, 'WEEK_1_NOT_COMPLETED');
+  assert.equal(db.tables.lm2_journeys[0].current_week, 1);
+});
+
+test('LM 2.0 activate-week-2 promotes journey once and persists week timestamps', async () => {
+  const db = new FakeD1('projeto_lm');
+  await completeFoundation(db);
+  addCheckins(db, ['on_track', 'adapted', 'on_track', 'adapted', 'on_track']);
+
+  const first = await api(db, 'POST', '/api/project-lm-2/activate-week-2');
+  assert.equal(first.status, 200);
+  assert.deepEqual(first.body.data, { current_week: 2, activated: true });
+  assert.equal(db.tables.lm2_journeys[0].current_week, 2);
+  assert.ok(db.tables.lm2_journeys[0].week_started_at);
+  assert.ok(db.tables.lm2_journeys[0].week_completed_at);
+  const startedAt = db.tables.lm2_journeys[0].week_started_at;
+  const completedAt = db.tables.lm2_journeys[0].week_completed_at;
+
+  const second = await api(db, 'POST', '/api/project-lm-2/activate-week-2');
+  assert.equal(second.status, 200);
+  assert.deepEqual(second.body.data, { current_week: 2, activated: true });
+  assert.equal(db.tables.lm2_journeys[0].current_week, 2);
+  assert.equal(db.tables.lm2_journeys[0].week_started_at, startedAt);
+  assert.equal(db.tables.lm2_journeys[0].week_completed_at, completedAt);
+});
+
+test('LM 2.0 home switches to Week 2 flow after official activation', async () => {
+  const db = new FakeD1('projeto_lm');
+  await completeFoundation(db);
+  addCheckins(db, ['on_track', 'adapted', 'on_track', 'adapted', 'on_track']);
+  await api(db, 'POST', '/api/project-lm-2/activate-week-2');
+  const home = await api(db, 'GET', '/api/project-lm-2/home');
+  assert.equal(home.body.data.current_week, 2);
+  assert.equal(home.body.data.next_action, 'week_2_video');
+  assert.equal(home.body.data.week_2_video_completed, false);
+  assert.ok(home.body.data.week_started_at);
+  assert.ok(home.body.data.week_completed_at);
+});
+
 test('LM 2.0 Week 2 video, reflection, minimum response and status are isolated', async () => {
   const db = new FakeD1('projeto_lm');
   await completeFoundation(db);
@@ -257,7 +304,8 @@ class FakeD1Statement {
     if (/^(CREATE|ALTER|DROP) /i.test(s) || /^CREATE (UNIQUE )?INDEX/i.test(s) || /^INSERT OR IGNORE/i.test(s)) return { meta: { changes: 0 } };
     if (s.startsWith('INSERT INTO lm2_profiles')) { this.db.tables.lm2_profiles.push({ student_id: p[0], name: p[1], goal: p[2], sex: p[3], weight_kg: p[4], nutrition_plan_id: p[5], training_plan_id: p[6], created_at: p[7], updated_at: p[8] }); return { meta: { changes: 1 } }; }
     if (s.startsWith('UPDATE lm2_profiles')) { const r = this.db.tables.lm2_profiles.find(x => x.student_id === p[7]); Object.assign(r, { name: p[0], goal: p[1], sex: p[2], weight_kg: p[3], nutrition_plan_id: p[4], training_plan_id: p[5], updated_at: p[6] }); return { meta: { changes: 1 } }; }
-    if (s.startsWith('INSERT INTO lm2_journeys')) { this.db.tables.lm2_journeys.push({ student_id: p[0], current_week: 1, status: 'active', started_at: p[1], completed_at: null, created_at: p[2], updated_at: p[3] }); return { meta: { changes: 1 } }; }
+    if (s.startsWith('INSERT INTO lm2_journeys')) { this.db.tables.lm2_journeys.push({ student_id: p[0], current_week: 1, status: 'active', started_at: p[1], completed_at: null, week_started_at: null, week_completed_at: null, created_at: p[2], updated_at: p[3] }); return { meta: { changes: 1 } }; }
+    if (s.startsWith('UPDATE lm2_journeys SET current_week=2')) { const r = this.db.tables.lm2_journeys.find(x => x.student_id === p[3] && x.current_week === 1); if (r) Object.assign(r, { current_week: 2, week_completed_at: r.week_completed_at || p[0], week_started_at: r.week_started_at || p[1], updated_at: p[2] }); return { meta: { changes: r ? 1 : 0 } }; }
     if (s.startsWith('INSERT INTO lm2_week_1_foundation')) { this.db.tables.lm2_week_1_foundation.push({ student_id: p[0], video_completed: 0, unable_to_train: null, overeating: null, no_motivation: null, video_completed_at: null, plan_b_saved_at: null, created_at: p[1], updated_at: p[2] }); return { meta: { changes: 1 } }; }
     if (s.startsWith('INSERT INTO lm2_week_2_foundation')) { this.db.tables.lm2_week_2_foundation.push({ student_id: p[0], video_completed: 0, reflection: null, minimum_response: null, created_at: p[1], updated_at: p[2] }); return { meta: { changes: 1 } }; }
     if (s.startsWith('UPDATE lm2_week_2_foundation SET video_completed=1')) { const r = this.db.tables.lm2_week_2_foundation.find(x => x.student_id === p[1]); Object.assign(r, { video_completed: 1, updated_at: p[0] }); return { meta: { changes: 1 } }; }
