@@ -3,7 +3,9 @@
     onboarding: '/api/project-lm-2/onboarding',
     home: '/api/project-lm-2/home',
     week1VideoComplete: '/api/project-lm-2/week-1/video-complete',
-    planB: '/api/project-lm-2/plan-b'
+    planB: '/api/project-lm-2/plan-b',
+    progress: '/api/project-lm-2/progress',
+    checkin: '/api/project-lm-2/checkin'
   };
 
   // Semana 1 será liberada em breve.
@@ -45,6 +47,8 @@
       current_week: homeData.current_week || currentState.current_week,
       continuity_days_count: Number(homeData.continuity_days_count || 0),
       required_days_count: homeData.required_days_count || currentState.required_days_count,
+      goal_reached: Boolean(homeData.goal_reached),
+      today_checkin_completed: Boolean(homeData.today_checkin_completed),
       next_action: homeData.next_action || currentState.next_action,
       week_1_video_completed: Boolean(homeData.week_1_video_completed),
       plan_b_completed: Boolean(homeData.plan_b_completed),
@@ -55,16 +59,19 @@
   function nextActionLabel(nextAction) {
     if (nextAction === 'week_1_video') return 'Assistir à aula da Semana 1.';
     if (nextAction === 'create_plan_b') return 'Criar seu Plano B inicial.';
-    if (nextAction === 'checkin_pending_placeholder') return 'Próxima etapa em breve.';
+    if (nextAction === 'daily_checkin') return 'Registrar check-in de hoje';
+    if (nextAction === 'checkin_completed_today') return 'Check-in de hoje registrado.';
+    if (nextAction === 'checkin_pending_placeholder') return 'Registrar check-in de hoje';
     return 'Sua jornada começa na Semana 1.';
   }
 
   async function loadHome(root) {
     try {
-      const response = await global.fetch(api.home);
-      if (!response.ok) throw new Error('home_failed');
+      const [response, progressResponse] = await Promise.all([global.fetch(api.home), global.fetch(api.progress)]);
+      if (!response.ok || !progressResponse.ok) throw new Error('home_failed');
       const home = await response.json();
-      applyHomeData(home.data || home);
+      const progress = await progressResponse.json();
+      applyHomeData({ ...(home.data || home), ...(progress.data || {}) });
       render(root, 'home');
     } catch (error) {
       setError(root, 'Não foi possível carregar sua jornada. Tente novamente.');
@@ -124,7 +131,7 @@
         <h1 id="lm2-home-title">Olá ${escapeHtml(state.name)}</h1>
         <p>Semana ${state.current_week} de 4</p><p>Dias de continuidade</p><p>${state.continuity_days_count} de ${state.required_days_count} necessários</p><p>Próxima ação:</p><p>${nextActionLabel(state.next_action)}</p>
         <p class="lm2-error" data-lm2-error role="alert"></p>
-        <button class="lm2-primary-button" type="button" data-route="week-1-placeholder">CONTINUAR</button>
+        <button class="lm2-primary-button" type="button" data-route="${state.next_action === 'daily_checkin' ? 'daily-checkin' : 'week-1-placeholder'}">${state.next_action === 'daily_checkin' ? 'FAZER CHECK-IN' : 'CONTINUAR'}</button>
         <button class="lm2-secondary-button" type="button" data-route="direction">MINHA DIREÇÃO</button>
       </section>`;
     if (route === 'direction') root.innerHTML = `
@@ -155,6 +162,20 @@
           <button class="lm2-primary-button" type="button" data-save-plan-b>SALVAR MEU PLANO B</button>
         </form>
         <p class="lm2-error" data-lm2-error role="alert"></p>
+        <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
+      </section>`;
+
+    if (route === 'daily-checkin') root.innerHTML = `
+      <section class="lm2-card" aria-labelledby="lm2-checkin-title">
+        <h1 id="lm2-checkin-title">Como foi seu dia hoje?</h1>
+        <div class="lm2-options" data-checkin-options>
+          ${optionButton('daily_checkin_answer', 'on_track', 'Segui minha direção', state.daily_checkin_answer)}
+          ${optionButton('daily_checkin_answer', 'adapted', 'Precisei adaptar', state.daily_checkin_answer)}
+          ${optionButton('daily_checkin_answer', 'off_track', 'Saí da direção', state.daily_checkin_answer)}
+        </div>
+        <p class="lm2-feedback" data-lm2-feedback></p>
+        <p class="lm2-error" data-lm2-error role="alert"></p>
+        <button class="lm2-primary-button" type="button" data-submit-checkin>REGISTRAR DIA</button>
         <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
       </section>`;
 
@@ -214,6 +235,29 @@
     }
   }
 
+  async function submitCheckin(root) {
+    const answer = global.ProjectLm2State.getState().daily_checkin_answer;
+    const messages = {
+      on_track: 'Excelente. Mais um dia construído.',
+      adapted: 'Você não precisou ser perfeito. Precisou continuar.',
+      off_track: 'Tudo bem. Amanhã você retoma a direção.'
+    };
+    if (!answer) return setError(root, 'Selecione como foi seu dia.');
+    try {
+      const response = await global.fetch(api.checkin, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ answer }) });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || 'Não foi possível registrar seu dia.');
+      }
+      const payload = await response.json();
+      global.ProjectLm2State.updateState({ ...(payload.data || {}), today_checkin_completed: true, next_action: 'checkin_completed_today' });
+      const feedback = root.querySelector('[data-lm2-feedback]');
+      if (feedback) feedback.textContent = messages[answer];
+    } catch (error) {
+      setError(root, error.message || 'Não foi possível registrar seu dia.');
+    }
+  }
+
   function bind(root) {
     root.addEventListener('click', event => {
       const target = event.target.closest('button');
@@ -240,6 +284,7 @@
       if (target.hasAttribute('data-create-direction')) submitOnboarding(root);
       if (target.hasAttribute('data-complete-week-1-video')) completeWeek1Video(root);
       if (target.hasAttribute('data-save-plan-b')) savePlanB(root);
+      if (target.hasAttribute('data-submit-checkin')) submitCheckin(root);
     });
   }
 

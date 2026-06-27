@@ -16,8 +16,8 @@ test('Home renders the requested minimum journey data from GET home', () => {
   for (const text of ['Olá ${escapeHtml(state.name)}', 'Semana ${state.current_week} de 4', 'Dias de continuidade', '${state.continuity_days_count} de ${state.required_days_count} necessários', 'Próxima ação:', 'Sua jornada começa na Semana 1.']) {
     assert.match(lm2App, new RegExp(escapeRegExp(text)));
   }
-  assert.match(lm2App, /await global\.fetch\(api\.home\)/);
-  assert.match(lm2App, /applyHomeData\(home\.data \|\| home\)/);
+  assert.match(lm2App, /global\.fetch\(api\.home\)/);
+  assert.match(lm2App, /applyHomeData\(\{ \.\.\.\(home\.data \|\| home\), \.\.\.\(progress\.data \|\| \{\}\) \}\)/);
 });
 
 test('Minha Direção renders exactly the three requested blocks', () => {
@@ -33,7 +33,7 @@ test('Home, Direction, and Week 1 navigation is wired', () => {
   }
   assert.match(lm2App, /data-route="direction">MINHA DIREÇÃO/);
   assert.match(lm2App, /data-route="home">VOLTAR PARA HOME/);
-  assert.match(lm2App, /data-route="week-1-placeholder">CONTINUAR/);
+  assert.match(lm2App, /week-1-placeholder/);
   assert.match(lm2App, /Pare de Recomeçar/);
   assert.match(lm2App, /Por que você sempre recomeça\?/);
   assert.match(lm2App, /SALVAR MEU PLANO B/);
@@ -44,7 +44,7 @@ test('LM 2.0 state tracks only the requested new screen flags', () => {
   for (const field of ['home_loaded', 'home_data', 'direction_loaded']) {
     assert.match(lm2State, new RegExp(`${field}:`));
   }
-  assert.doesNotMatch(lm2State, /week_1_loaded|check_in|unlock|progress/i);
+  assert.doesNotMatch(lm2State, /week_1_loaded|unlock/i);
 });
 
 test('V5, Premium, Admin, and LM 2.0 asset isolation remain intact', () => {

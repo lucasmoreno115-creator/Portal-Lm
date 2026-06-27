@@ -8,6 +8,8 @@
     current_week: 1,
     continuity_days_count: 0,
     required_days_count: 5,
+    goal_reached: false,
+    today_checkin_completed: false,
     next_action: 'start_onboarding',
     home_loaded: false,
     home_data: null,

@@ -9,6 +9,7 @@
     home: { path: '#home', label: 'Início' },
     direction: { path: '#direction', label: 'Minha Direção' },
     'week-1': { path: '#week-1', label: 'Semana 1' },
+    'daily-checkin': { path: '#daily-checkin', label: 'Check-in diário' },
     'week-1-placeholder': { path: '#week-1', label: 'Semana 1' },
     'home-placeholder': { path: '#home-placeholder', label: 'Início' }
   });
