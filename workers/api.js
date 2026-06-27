@@ -283,6 +283,12 @@ export default {
           return json(result.payload, result.status);
         }
 
+        if (url.pathname === '/api/project-lm-2/activate-week-3' && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
+          const result = await projectLm2ActivateWeek3(env.DB, auth.student);
+          return json(result.payload, result.status);
+        }
+
         if (url.pathname === '/api/project-lm/journey' && method === 'GET') {
           if (!isProjectLmPlan(auth.student)) return json(projectLmV5Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
           const journey = await projectLmV5GetOrCreateJourney(env.DB, auth.student);
@@ -3266,22 +3272,35 @@ function projectLm2ValidateOnboarding(body) {
   return { ok: true, profile: { name, goal, sex, weightKg } };
 }
 
-function projectLm2Week2StatusData(week2 = null) {
+function projectLm2BuildWeek2Status(journey, week2 = null, progress = projectLm2ProgressData(0, false)) {
+  const continuityDaysCount = Number(progress.continuity_days_count || 0);
+  const requiredDaysCount = Number(progress.required_days_count || 5);
   const videoCompleted = Boolean(week2?.video_completed);
   const reflectionCompleted = Boolean(week2?.reflection);
-  const responseCompleted = Boolean(week2?.minimum_response);
+  const minimumResponseCompleted = Boolean(week2?.minimum_response);
+  const weekCompleted = videoCompleted && reflectionCompleted && minimumResponseCompleted && continuityDaysCount >= requiredDaysCount;
   return {
+    current_week: Number(journey?.current_week || 2),
+    week_completed: weekCompleted,
     video_completed: videoCompleted,
     reflection_completed: reflectionCompleted,
-    minimum_response_completed: responseCompleted,
-    week_completed: videoCompleted && reflectionCompleted && responseCompleted
+    minimum_response_completed: minimumResponseCompleted,
+    continuity_days_count: continuityDaysCount,
+    required_days_count: requiredDaysCount,
+    remaining_days: Math.max(requiredDaysCount - continuityDaysCount, 0),
+    next_week_available: weekCompleted
   };
+}
+
+function projectLm2Week2StatusData(week2 = null, progress = projectLm2ProgressData(0, false), journey = { current_week: 2 }) {
+  return projectLm2BuildWeek2Status(journey, week2, progress);
 }
 
 function projectLm2NextAction(week1, todayCheckinCompleted = false, weekStatus = null, journey = null, week2 = null) {
   const currentWeek = Number(journey?.current_week || 1);
   if (currentWeek === 2) {
-    const week2Status = projectLm2Week2StatusData(week2);
+    const week2Status = projectLm2Week2StatusData(week2, weekStatus || projectLm2ProgressData(0, todayCheckinCompleted), journey);
+    if (week2Status.week_completed) return 'week_2_complete';
     if (!week2Status.video_completed) return 'week_2_video';
     if (!week2Status.reflection_completed) return 'week_2_reflection';
     if (!week2Status.minimum_response_completed) return 'week_2_minimum_response';
@@ -3314,14 +3333,16 @@ function projectLm2BuildWeekStatus(journey, week1 = null, progress = projectLm2P
 }
 
 function projectLm2HomeData(profile, journey, week1 = null, progress = projectLm2ProgressData(0, false), week2 = null) {
-  const weekStatus = projectLm2BuildWeekStatus(journey, week1, progress);
-  const week2Status = projectLm2Week2StatusData(week2);
+  const currentWeek = Number(journey?.current_week || 1);
+  const weekStatus = currentWeek === 2 ? projectLm2BuildWeek2Status(journey, week2, progress) : projectLm2BuildWeekStatus(journey, week1, progress);
+  const week2Status = projectLm2Week2StatusData(week2, progress, journey);
   const nextAction = projectLm2NextAction(week1, progress.today_checkin_completed, weekStatus, journey, week2);
   const nextActionLabels = {
     week_1_complete: 'Continuar para Semana 2',
     week_2_video: 'Assistir à aula da Semana 2',
     week_2_reflection: 'Salvar reflexão da Semana 2',
-    week_2_minimum_response: 'Salvar resposta mínima da Semana 2'
+    week_2_minimum_response: 'Salvar resposta mínima da Semana 2',
+    week_2_complete: 'Continuar para Semana 3'
   };
   return {
     name: profile?.name,
@@ -3350,6 +3371,8 @@ function projectLm2HomeData(profile, journey, week1 = null, progress = projectLm
     week_2_video_completed: week2Status.video_completed,
     week_2_reflection_completed: week2Status.reflection_completed,
     week_2_response_completed: week2Status.minimum_response_completed,
+    week_2_completed: week2Status.week_completed,
+    week_3_available: week2Status.next_week_available,
     week_2_reflection: week2?.reflection || '',
     week_2_minimum_response: week2?.minimum_response || '',
     nutrition_ready: true,
@@ -3394,16 +3417,23 @@ async function projectLm2GetWeekStatus(db, student) {
   const profile = await projectLm2GetProfile(db, student);
   if (!profile) return projectLm2Error('Onboarding obrigatório antes do status semanal.', 409, 'ONBOARDING_REQUIRED');
   const journey = await projectLm2GetJourney(db, student);
+  const currentJourney = journey || { current_week: 1 };
+  const progress = await projectLm2Progress(db, student, currentJourney);
+  if (Number(currentJourney.current_week || 1) === 2) {
+    const week2 = await projectLm2EnsureWeek2(db, student);
+    return projectLm2Success(projectLm2BuildWeek2Status(currentJourney, week2, progress));
+  }
   const week1 = await projectLm2EnsureWeek1(db, student);
-  const progress = await projectLm2Progress(db, student, journey || { current_week: 1 });
-  return projectLm2Success(projectLm2BuildWeekStatus(journey || { current_week: 1 }, week1, progress));
+  return projectLm2Success(projectLm2BuildWeekStatus(currentJourney, week1, progress));
 }
 
 async function projectLm2GetWeek2Status(db, student) {
   const profile = await projectLm2GetProfile(db, student);
   if (!profile) return projectLm2Error('Onboarding obrigatório antes do status da Semana 2.', 409, 'ONBOARDING_REQUIRED');
+  const journey = await projectLm2GetJourney(db, student);
   const week2 = await projectLm2EnsureWeek2(db, student);
-  return projectLm2Success(projectLm2Week2StatusData(week2));
+  const progress = await projectLm2Progress(db, student, journey || { current_week: 2 });
+  return projectLm2Success(projectLm2BuildWeek2Status(journey || { current_week: 2 }, week2, progress));
 }
 
 async function projectLm2SaveCheckin(db, student, body) {
@@ -3536,6 +3566,22 @@ async function projectLm2ActivateWeek2(db, student) {
   await db.prepare(`UPDATE lm2_journeys SET current_week=2, week_completed_at=COALESCE(week_completed_at, ?), week_started_at=COALESCE(week_started_at, ?), updated_at=? WHERE student_id=? AND current_week=1`).bind(now, now, now, projectLm2StudentId(student)).run();
   await projectLm2EnsureWeek2(db, student);
   return projectLm2Success({ current_week: 2, activated: true });
+}
+
+async function projectLm2ActivateWeek3(db, student) {
+  const profile = await projectLm2GetProfile(db, student);
+  if (!profile) return projectLm2Error('Onboarding obrigatório antes da ativação da Semana 3.', 409, 'ONBOARDING_REQUIRED');
+  const journey = await projectLm2GetJourney(db, student);
+  if (!journey) return projectLm2Error('Jornada obrigatória antes da ativação da Semana 3.', 409, 'JOURNEY_REQUIRED');
+  if (Number(journey.current_week || 1) >= 3) return projectLm2Success({ current_week: Number(journey.current_week), activated: true });
+  if (Number(journey.current_week || 1) !== 2) return projectLm2Error('Semana 2 precisa estar ativa antes de liberar a Semana 3.', 409, 'WEEK_2_NOT_ACTIVE');
+  const week2 = await projectLm2EnsureWeek2(db, student);
+  const progress = await projectLm2Progress(db, student, journey);
+  const weekStatus = projectLm2BuildWeek2Status(journey, week2, progress);
+  if (!weekStatus.week_completed) return projectLm2Error('Semana 2 precisa estar concluída antes de ativar a Semana 3.', 409, 'WEEK_2_NOT_COMPLETED');
+  const now = new Date().toISOString();
+  await db.prepare(`UPDATE lm2_journeys SET current_week=3, week_completed_at=COALESCE(week_completed_at, ?), week_started_at=COALESCE(week_started_at, ?), updated_at=? WHERE student_id=? AND current_week=2`).bind(now, now, now, projectLm2StudentId(student)).run();
+  return projectLm2Success({ current_week: 3, activated: true });
 }
 
 async function projectLm2CompleteWeek2Video(db, student) {

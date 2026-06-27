@@ -10,7 +10,8 @@
     week2VideoComplete: '/api/project-lm-2/week-2/video-complete',
     week2Reflection: '/api/project-lm-2/week-2/reflection',
     week2Status: '/api/project-lm-2/week-2/status',
-    activateWeek2: '/api/project-lm-2/activate-week-2'
+    activateWeek2: '/api/project-lm-2/activate-week-2',
+    activateWeek3: '/api/project-lm-2/activate-week-3'
   };
 
   // Semana 1 será liberada em breve.
@@ -69,7 +70,9 @@
       week_2_reflection_completed: Boolean(homeData.week_2_reflection_completed),
       week_2_response_completed: Boolean(homeData.week_2_response_completed),
       week_2_reflection: homeData.week_2_reflection || currentState.week_2_reflection,
-      week_2_minimum_response: homeData.week_2_minimum_response || currentState.week_2_minimum_response
+      week_2_minimum_response: homeData.week_2_minimum_response || currentState.week_2_minimum_response,
+      week_2_completed: Boolean(homeData.week_2_completed || homeData.week_2_status?.week_completed),
+      week_3_available: Boolean(homeData.week_3_available || homeData.week_2_status?.next_week_available)
     });
   }
 
@@ -83,6 +86,7 @@
     if (nextAction === 'week_2_video') return 'Assistir à aula da Semana 2.';
     if (nextAction === 'week_2_reflection') return 'Salvar reflexão da Semana 2.';
     if (nextAction === 'week_2_minimum_response') return 'Salvar resposta mínima da Semana 2.';
+    if (nextAction === 'week_2_complete') return 'Continuar para Semana 3';
     return 'Sua jornada começa na Semana 1.';
   }
 
@@ -152,8 +156,9 @@
         <h1 id="lm2-home-title">Olá ${escapeHtml(state.name)}</h1>
         <p>Semana ${state.current_week} de 4</p><p>Dias de continuidade</p><p>${state.continuity_days_count} de ${state.required_days_count} necessários</p><p>Próxima ação:</p><p>${nextActionLabel(state.next_action)}</p>
         ${state.next_action === 'week_1_complete' ? '<div class="lm2-celebration-cta"><p>Parabéns.</p><p>Você concluiu sua primeira semana.</p></div>' : ''}
+        ${state.next_action === 'week_2_complete' ? '<div class="lm2-celebration-cta"><p>Parabéns.</p><p>Você concluiu a Semana 2.</p></div>' : ''}
         <p class="lm2-error" data-lm2-error role="alert"></p>
-        <button class="lm2-primary-button" type="button" data-route="${state.next_action === 'week_1_complete' ? 'week-complete' : state.next_action === 'daily_checkin' ? 'daily-checkin' : state.next_action && state.next_action.startsWith('week_2_') ? 'week-2' : 'week-1-placeholder'}">${state.next_action === 'week_1_complete' ? 'CONTINUAR PARA SEMANA 2' : state.next_action === 'daily_checkin' ? 'FAZER CHECK-IN' : 'CONTINUAR'}</button>
+        <button class="lm2-primary-button" type="button" data-route="${state.next_action === 'week_1_complete' ? 'week-complete' : state.next_action === 'week_2_complete' ? 'week-2-complete' : state.next_action === 'daily_checkin' ? 'daily-checkin' : state.next_action && state.next_action.startsWith('week_2_') ? 'week-2' : 'week-1-placeholder'}">${state.next_action === 'week_1_complete' ? 'CONTINUAR PARA SEMANA 2' : state.next_action === 'week_2_complete' ? 'CONTINUAR PARA SEMANA 3' : state.next_action === 'daily_checkin' ? 'FAZER CHECK-IN' : 'CONTINUAR'}</button>
         <button class="lm2-secondary-button" type="button" data-route="direction">MINHA DIREÇÃO</button>
       </section>`;
     if (route === 'direction') root.innerHTML = `
@@ -221,6 +226,27 @@
         </form>
         <p class="lm2-error" data-lm2-error role="alert"></p>
         <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
+      </section>`;
+
+
+    if (route === 'week-2-complete') root.innerHTML = `
+      <section class="lm2-card" aria-labelledby="lm2-week-2-complete-title">
+        <h1 id="lm2-week-2-complete-title">Você continuou nos dias difíceis.</h1>
+        <p>Nesta semana você praticou uma habilidade essencial:</p>
+        <p>continuar mesmo quando o dia não saiu como planejado.</p>
+        <p>Você não precisou fazer tudo perfeito.</p>
+        <p>Você precisou encontrar uma resposta mínima.</p>
+        <p>E isso é exatamente o que transforma o processo de emagrecimento em algo sustentável.</p>
+        <button class="lm2-primary-button" type="button" data-route="week-3-placeholder">IR PARA SEMANA 3</button>
+      </section>`;
+
+    if (route === 'week-3-placeholder') root.innerHTML = `
+      <section class="lm2-card" aria-labelledby="lm2-week-3-title">
+        <h1 id="lm2-week-3-title">Semana 3</h1>
+        <h2>Pequenas vitórias importam.</h2>
+        <p>Na Semana 3 você vai aprender a reconhecer progresso antes de esperar grandes resultados.</p>
+        <p>Por enquanto, esta etapa permanece em breve.</p>
+        <button class="lm2-primary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
       </section>`;
 
     if (route === 'daily-checkin') root.innerHTML = `

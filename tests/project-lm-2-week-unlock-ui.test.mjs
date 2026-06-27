@@ -33,6 +33,23 @@ test('LM 2.0 week-2 oficial existe e state acompanha Semana 2', () => {
   assert.match(lm2State, /week_2_video_completed: false/);
   assert.match(lm2State, /week_2_reflection_completed: false/);
   assert.match(lm2State, /week_2_response_completed: false/);
+  assert.match(lm2State, /week_2_completed: false/);
+  assert.match(lm2State, /week_3_available: false/);
+});
+
+test('LM 2.0 Home renderiza CTA CONTINUAR PARA SEMANA 3 quando Semana 2 conclui', () => {
+  assert.match(lm2App, /week_2_complete/);
+  assert.match(lm2App, /Você concluiu a Semana 2\./);
+  assert.match(lm2App, /CONTINUAR PARA SEMANA 3/);
+  assert.match(lm2App, /data-route="\$\{state\.next_action === 'week_1_complete' \? 'week-complete' : state\.next_action === 'week_2_complete' \? 'week-2-complete'/);
+});
+
+test('LM 2.0 week-2-complete renderiza celebração e week-3-placeholder existe', () => {
+  assert.match(lm2Router, /'week-2-complete': \{ path: '#week-2-complete'/);
+  assert.match(lm2Router, /'week-3-placeholder': \{ path: '#week-3-placeholder'/);
+  for (const text of ['Você continuou nos dias difíceis.', 'continuar mesmo quando o dia não saiu como planejado.', 'Você precisou encontrar uma resposta mínima.', 'IR PARA SEMANA 3', 'Pequenas vitórias importam.', 'Por enquanto, esta etapa permanece em breve.', 'VOLTAR PARA HOME']) {
+    assert.match(lm2App, new RegExp(escapeRegExp(text)));
+  }
 });
 
 test('V5, Premium e Admin permanecem intactos', () => {

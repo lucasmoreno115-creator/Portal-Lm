@@ -56,3 +56,16 @@ Quando a Semana 1 é concluída, a Home retorna:
 ## Fora de escopo preservado
 
 Este PR não implementa Semana 2 real, aula da Semana 2, Plano B da Semana 2, Premium, Admin, dashboard, gamificação ou estatísticas complexas.
+
+## Regra oficial da Semana 2
+
+Quando `current_week = 2`, `GET /api/project-lm-2/week-status` usa os critérios da Semana 2:
+
+1. Aula da Semana 2 assistida.
+2. Reflexão preenchida.
+3. Resposta mínima preenchida.
+4. `continuity_days_count >= 5` na Semana 2.
+
+Os 5 dias continuam não consecutivos. `on_track` e `adapted` contam 1 ponto; `off_track` conta 0 ponto.
+
+Quando concluída, a Home retorna `next_action: "week_2_complete"` e `next_action_label: "Continuar para Semana 3"`. A Semana 3 aparece somente como placeholder (`week-3-placeholder`).

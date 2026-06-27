@@ -43,3 +43,19 @@ Este incremento cria somente a persistência inicial e os contratos de onboardin
 ## LM 2.0-11 — Week Unlock & Continuity Logic
 
 Implementada a conclusão oficial da Semana 1 com aula assistida, Plano B inicial e 5 dias de continuidade não consecutivos. A Semana 2 permanece apenas como placeholder e é precedida por uma tela de celebração da Semana 1.
+
+## LM 2.0-14 — Week 2 Completion Status & Transition Guardrails
+
+Este incremento consolida a conclusão oficial da Semana 2 e prepara apenas a transição futura para a Semana 3.
+
+### Entregas
+
+- Cálculo oficial de conclusão da Semana 2: aula + reflexão + resposta mínima + 5 dias de continuidade.
+- `GET /api/project-lm-2/week-status` expandido para `current_week = 2`.
+- Home passa a retornar `week_2_complete` quando os critérios forem cumpridos.
+- Rotas `week-2-complete` e `week-3-placeholder`.
+- Guardrail técnico `POST /api/project-lm-2/activate-week-3` sem implementar conteúdo real da Semana 3.
+
+### Fora de escopo preservado
+
+Não há aula, vitórias, gamificação, dashboard ou estatísticas complexas da Semana 3. V5, Premium, Admin e `lm-access.js` permanecem fora do escopo.

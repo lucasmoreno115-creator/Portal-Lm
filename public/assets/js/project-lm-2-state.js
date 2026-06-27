@@ -29,7 +29,9 @@
     week_2_reflection_completed: false,
     week_2_response_completed: false,
     week_2_reflection: '',
-    week_2_minimum_response: ''
+    week_2_minimum_response: '',
+    week_2_completed: false,
+    week_3_available: false
   });
 
   let state = { ...initialState };
