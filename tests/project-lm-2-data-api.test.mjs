@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import worker from '../workers/api.js';
 
 const apiSource = await readFile('workers/api.js', 'utf8');
-const migration = await readFile('migrations/0019_lm2_data_layer.sql', 'utf8');
+const migration = `${await readFile('migrations/0019_lm2_data_layer.sql', 'utf8')}
+${await readFile('migrations/0020_lm2_daily_checkins.sql', 'utf8')}`;
 
 test('LM 2.0 schema is isolated and created by migration and ensureSchema', () => {
   for (const source of [apiSource, migration]) {
@@ -15,6 +16,12 @@ test('LM 2.0 schema is isolated and created by migration and ensureSchema', () =
     assert.match(source, /CREATE TABLE IF NOT EXISTS lm2_journeys/);
     assert.match(source, /current_week INTEGER NOT NULL DEFAULT 1/);
     assert.match(source, /status TEXT NOT NULL DEFAULT 'active'/);
+    assert.match(source, /CREATE TABLE IF NOT EXISTS lm2_checkins/);
+    assert.match(source, /student_id TEXT NOT NULL/);
+    assert.match(source, /checkin_date TEXT NOT NULL/);
+    assert.match(source, /week_number INTEGER NOT NULL/);
+    assert.match(source, /continuity_point INTEGER NOT NULL/);
+    assert.match(source, /CREATE UNIQUE INDEX IF NOT EXISTS idx_lm2_checkins_student_date/);
   }
 });
 
@@ -84,11 +91,43 @@ test('LM 2.0 Week 1 video and Plano B update next action', async () => {
 
   const plan = await api(db, 'POST', '/api/project-lm-2/plan-b', { unable_to_train: 'caminhar 10 min', overeating: 'voltar na próxima refeição', no_motivation: 'fazer o mínimo' });
   assert.equal(plan.status, 200);
-  assert.equal(plan.body.data.next_action, 'checkin_pending_placeholder');
+  assert.equal(plan.body.data.next_action, 'daily_checkin');
   assert.equal(plan.body.data.plan_b_completed, true);
 
   const home = await api(db, 'GET', '/api/project-lm-2/home');
-  assert.equal(home.body.data.next_action, 'checkin_pending_placeholder');
+  assert.equal(home.body.data.next_action, 'daily_checkin');
+});
+
+
+test('LM 2.0 daily check-in scores continuity and blocks duplicate daily submissions', async () => {
+  const db = new FakeD1('projeto_lm');
+  await api(db, 'POST', '/api/project-lm-2/onboarding', { name: 'Lucas', goal: 'emagrecer', sex: 'male', weight_kg: 87 });
+  const first = await api(db, 'POST', '/api/project-lm-2/checkin', { answer: 'on_track' });
+  assert.equal(first.status, 201);
+  assert.equal(first.body.data.continuity_days_count, 1);
+  assert.equal(first.body.data.required_days_count, 5);
+  assert.equal(first.body.data.remaining_days, 4);
+  assert.equal(first.body.data.goal_reached, false);
+  assert.equal(db.tables.lm2_checkins[0].continuity_point, 1);
+  const duplicate = await api(db, 'POST', '/api/project-lm-2/checkin', { answer: 'adapted' });
+  assert.equal(duplicate.status, 409);
+  assert.equal(db.tables.lm2_checkins.length, 1);
+});
+
+test('LM 2.0 check-in maps adapted to 1, off_track to 0, and returns progress', async () => {
+  const adaptedDb = new FakeD1('projeto_lm');
+  await api(adaptedDb, 'POST', '/api/project-lm-2/onboarding', { name: 'Lucas', goal: 'emagrecer', sex: 'male', weight_kg: 87 });
+  const adapted = await api(adaptedDb, 'POST', '/api/project-lm-2/checkin', { answer: 'adapted' });
+  assert.equal(adapted.status, 201);
+  assert.equal(adaptedDb.tables.lm2_checkins[0].continuity_point, 1);
+
+  const offTrackDb = new FakeD1('projeto_lm');
+  await api(offTrackDb, 'POST', '/api/project-lm-2/onboarding', { name: 'Lucas', goal: 'emagrecer', sex: 'male', weight_kg: 87 });
+  const offTrack = await api(offTrackDb, 'POST', '/api/project-lm-2/checkin', { answer: 'off_track' });
+  assert.equal(offTrack.status, 201);
+  assert.equal(offTrackDb.tables.lm2_checkins[0].continuity_point, 0);
+  const progress = await api(offTrackDb, 'GET', '/api/project-lm-2/progress');
+  assert.deepEqual(progress.body.data, { continuity_days_count: 0, required_days_count: 5, remaining_days: 5, goal_reached: false, today_checkin_completed: true });
 });
 
 test('LM 2.0 API is isolated from V5, Premium and Admin namespaces', () => {
@@ -110,7 +149,7 @@ async function api(db, method, pathname, body) {
 }
 
 class FakeD1 {
-  constructor(plan) { this.plan = plan; this.tables = { lm2_profiles: [], lm2_journeys: [], lm2_week_1_foundation: [] }; }
+  constructor(plan) { this.plan = plan; this.tables = { lm2_profiles: [], lm2_journeys: [], lm2_week_1_foundation: [], lm2_checkins: [] }; }
   prepare(sql) { return new FakeD1Statement(this, sql); }
 }
 class FakeD1Statement {
@@ -124,6 +163,7 @@ class FakeD1Statement {
     if (s.startsWith('INSERT INTO lm2_journeys')) { this.db.tables.lm2_journeys.push({ student_id: p[0], current_week: 1, status: 'active', started_at: p[1], completed_at: null, created_at: p[2], updated_at: p[3] }); return { meta: { changes: 1 } }; }
     if (s.startsWith('INSERT INTO lm2_week_1_foundation')) { this.db.tables.lm2_week_1_foundation.push({ student_id: p[0], video_completed: 0, unable_to_train: null, overeating: null, no_motivation: null, video_completed_at: null, plan_b_saved_at: null, created_at: p[1], updated_at: p[2] }); return { meta: { changes: 1 } }; }
     if (s.startsWith('UPDATE lm2_week_1_foundation SET video_completed=1')) { const r = this.db.tables.lm2_week_1_foundation.find(x => x.student_id === p[2]); Object.assign(r, { video_completed: 1, video_completed_at: r.video_completed_at || p[0], updated_at: p[1] }); return { meta: { changes: 1 } }; }
+    if (s.startsWith('INSERT INTO lm2_checkins')) { this.db.tables.lm2_checkins.push({ student_id: p[0], checkin_date: p[1], week_number: p[2], answer: p[3], continuity_point: p[4], created_at: p[5], updated_at: p[6] }); return { meta: { changes: 1 } }; }
     if (s.startsWith('UPDATE lm2_week_1_foundation SET unable_to_train')) { const r = this.db.tables.lm2_week_1_foundation.find(x => x.student_id === p[5]); Object.assign(r, { unable_to_train: p[0], overeating: p[1], no_motivation: p[2], plan_b_saved_at: p[3], updated_at: p[4] }); return { meta: { changes: 1 } }; }
     return { meta: { changes: 0 } };
   }
@@ -133,6 +173,8 @@ class FakeD1Statement {
     if (s.startsWith('SELECT * FROM lm2_profiles')) return this.db.tables.lm2_profiles.find(x => x.student_id === p[0]) || null;
     if (s.startsWith('SELECT * FROM lm2_journeys')) return this.db.tables.lm2_journeys.find(x => x.student_id === p[0]) || null;
     if (s.startsWith('SELECT * FROM lm2_week_1_foundation')) return this.db.tables.lm2_week_1_foundation.find(x => x.student_id === p[0]) || null;
+    if (s.startsWith('SELECT COALESCE(SUM(continuity_point)')) return { total: this.db.tables.lm2_checkins.filter(x => x.student_id === p[0] && x.week_number === p[1]).reduce((sum, x) => sum + x.continuity_point, 0) };
+    if (s.startsWith('SELECT answer FROM lm2_checkins')) return this.db.tables.lm2_checkins.find(x => x.student_id === p[0] && x.checkin_date === p[1]) || null;
     return null;
   }
   async all() { return { results: [] }; }
