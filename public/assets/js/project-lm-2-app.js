@@ -9,7 +9,8 @@
     checkin: '/api/project-lm-2/checkin',
     week2VideoComplete: '/api/project-lm-2/week-2/video-complete',
     week2Reflection: '/api/project-lm-2/week-2/reflection',
-    week2Status: '/api/project-lm-2/week-2/status'
+    week2Status: '/api/project-lm-2/week-2/status',
+    activateWeek2: '/api/project-lm-2/activate-week-2'
   };
 
   // Semana 1 será liberada em breve.
@@ -49,6 +50,8 @@
       name: homeData.name || currentState.name,
       onboarding_completed: homeData.onboarding_completed ?? currentState.onboarding_completed,
       current_week: homeData.current_week || currentState.current_week,
+      week_started_at: homeData.week_started_at || currentState.week_started_at,
+      week_completed_at: homeData.week_completed_at || currentState.week_completed_at,
       continuity_days_count: Number(homeData.continuity_days_count || 0),
       required_days_count: homeData.required_days_count || currentState.required_days_count,
       goal_reached: Boolean(homeData.goal_reached),
@@ -192,7 +195,8 @@
         <p>Nos dias bons, você continuou.</p>
         <p>Nos dias difíceis, você também encontrou uma forma de continuar.</p>
         <p>E isso é o que realmente gera resultado.</p>
-        <button class="lm2-primary-button" type="button" data-route="week-2">IR PARA SEMANA 2</button>
+        <p class="lm2-error" data-lm2-error role="alert"></p>
+        <button class="lm2-primary-button" type="button" data-activate-week-2>IR PARA SEMANA 2</button>
       </section>`;
 
     if (route === 'week-2') root.innerHTML = `
@@ -289,6 +293,18 @@
     }
   }
 
+  async function activateWeek2(root) {
+    try {
+      const response = await global.fetch(api.activateWeek2, { method: 'POST' });
+      if (!response.ok) throw new Error('activate_week_2_failed');
+      const payload = await response.json();
+      global.ProjectLm2State.updateState({ ...(payload.data || {}), current_week: 2, home_loaded: false });
+      routeTo(root, 'week-2');
+    } catch (error) {
+      setError(root, 'Não foi possível ativar a Semana 2. Conclua os requisitos da Semana 1.');
+    }
+  }
+
   async function completeWeek2Video(root) {
     try {
       await refreshHomeState(root, await global.fetch(api.week2VideoComplete, { method: 'POST' }));
@@ -366,6 +382,7 @@
       if (target.hasAttribute('data-create-direction')) submitOnboarding(root);
       if (target.hasAttribute('data-complete-week-1-video')) completeWeek1Video(root);
       if (target.hasAttribute('data-save-plan-b')) savePlanB(root);
+      if (target.hasAttribute('data-activate-week-2')) activateWeek2(root);
       if (target.hasAttribute('data-complete-week-2-video')) completeWeek2Video(root);
       if (target.hasAttribute('data-save-week-2-reflection')) saveWeek2Reflection(root);
       if (target.hasAttribute('data-save-week-2-response')) saveWeek2Response(root);
