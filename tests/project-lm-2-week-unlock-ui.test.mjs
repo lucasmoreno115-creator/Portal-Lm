@@ -52,6 +52,20 @@ test('LM 2.0 week-2-complete renderiza celebração e week-3-placeholder existe'
   }
 });
 
+test('LM 2.0 week-3-complete replica padrão de conclusão para Semana 4', () => {
+  assert.match(lm2Router, /'week-3-complete': \{ path: '#week-3-complete'/);
+  assert.match(lm2Router, /'week-4-placeholder': \{ path: '#week-4-placeholder'/);
+  assert.match(lm2State, /week_3_video_completed: false/);
+  assert.match(lm2State, /week_3_reflection_completed: false/);
+  assert.match(lm2State, /week_3_response_completed: false/);
+  assert.match(lm2State, /week_3_completed: false/);
+  for (const text of ['Semana 3 concluída.', 'Você percebeu que evolução vai muito além da balança.', 'As pequenas mudanças que aconteceram nas últimas semanas são o que tornam os grandes resultados possíveis.', 'Continue observando esses sinais.', 'Eles mostram que você está construindo uma rotina capaz de durar.', 'Continuar para a Semana 4']) {
+    assert.match(lm2App, new RegExp(escapeRegExp(text)));
+  }
+  assert.match(lm2App, /isWeek3Completed/);
+  assert.match(lm2App, /data-route="week-4-placeholder"/);
+});
+
 test('V5, Premium e Admin permanecem intactos', () => {
   assert.doesNotMatch(v5Html, /week-complete|week-2|CONTINUAR PARA SEMANA 2/);
   assert.doesNotMatch(premiumHtml, /week-complete|week-2|CONTINUAR PARA SEMANA 2/);

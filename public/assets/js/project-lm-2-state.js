@@ -32,8 +32,12 @@
     week_2_minimum_response: '',
     week_2_completed: false,
     week_3_available: false,
+    week_3_video_completed: false,
     week_3_reflection: '',
-    week_3_reflection_completed: false
+    week_3_reflection_completed: false,
+    week_3_minimum_response: '',
+    week_3_response_completed: false,
+    week_3_completed: false
   });
 
   let state = { ...initialState };
