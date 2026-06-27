@@ -126,14 +126,25 @@ test('LM 2.0 week-4-complete reutiliza conclusão e navega para Program Completi
   assert.match(lm2App, /routeTo\(root, 'week-4-complete'\)/);
 });
 
-test('LM 2.0 Program Completion registra conclusão e navega para Premium Bridge placeholder', () => {
+test('LM 2.0 Program Completion registra conclusão e navega para Premium Bridge oficial', () => {
   assert.match(lm2Router, /'premium-bridge': \{ path: '#premium-bridge'/);
   assert.match(lm2State, /program_completed: false/);
   assert.match(lm2App, /data-complete-program/);
   assert.match(lm2App, /program_completed: true/);
   assert.match(lm2App, /routeTo\(root, 'premium-bridge'\)/);
-  assert.match(lm2App, /Premium Bridge/);
-  assert.match(lm2App, /Placeholder/);
+  for (const text of [
+    'Você aprendeu a continuar.',
+    'Agora existe uma forma de continuar evoluindo com acompanhamento.',
+    'Consultoria Premium',
+    'Treino personalizado',
+    'Plano alimentar individualizado',
+    'Quero conhecer a Consultoria Premium',
+    'Agora não'
+  ]) {
+    assert.match(lm2App, new RegExp(escapeRegExp(text)));
+  }
+  assert.match(lm2App, /data-premium-consulting-cta/);
+  assert.match(lm2App, /data-route="home"/);
 });
 
 test('V5, Premium e Admin permanecem intactos', () => {

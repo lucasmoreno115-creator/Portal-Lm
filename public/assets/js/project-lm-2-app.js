@@ -1,4 +1,6 @@
 (function initializeProjectLm2App(global, document) {
+  const premiumConsultingCtaUrl = 'https://wa.me/5514991174500?text=Ol%C3%A1%20Lucas,%20quero%20conhecer%20a%20Consultoria%20Premium.';
+
   const api = {
     onboarding: '/api/project-lm-2/onboarding',
     home: '/api/project-lm-2/home',
@@ -382,8 +384,31 @@
 
     if (route === 'premium-bridge') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-premium-bridge-title">
-        <h1 id="lm2-premium-bridge-title">Premium Bridge</h1>
-        <p>Placeholder</p>
+        <h1 id="lm2-premium-bridge-title">Você aprendeu a continuar.</h1>
+        <div class="lm2-subtitle">
+          <p>Agora existe uma forma de continuar evoluindo com acompanhamento.</p>
+        </div>
+        <p>Durante as últimas quatro semanas você construiu algo muito importante.</p>
+        <p>Aprendeu que motivação não é o que sustenta resultados.</p>
+        <p>Aprendeu a lidar com dias difíceis.</p>
+        <p>Aprendeu que pequenas mudanças acontecem antes da balança mostrar qualquer diferença.</p>
+        <p>E, principalmente, aprendeu que consegue continuar.</p>
+        <p>Se você deseja dar o próximo passo, existe um acompanhamento criado exatamente para isso.</p>
+        <p>Na Consultoria Premium, o objetivo deixa de ser apenas construir consistência.</p>
+        <p>Passa a ser evoluir continuamente com estratégia, ajustes e acompanhamento individual.</p>
+        <article class="lm2-block" aria-labelledby="lm2-premium-card-title">
+          <h2 id="lm2-premium-card-title">Consultoria Premium</h2>
+          <p>Inclui</p>
+          <ul class="lm2-list">
+            <li>Treino personalizado</li>
+            <li>Plano alimentar individualizado</li>
+            <li>Ajustes contínuos</li>
+            <li>Acompanhamento próximo</li>
+            <li>Evolução baseada na sua rotina</li>
+          </ul>
+        </article>
+        <button class="lm2-primary-button" type="button" data-premium-consulting-cta>Quero conhecer a Consultoria Premium</button>
+        <button class="lm2-secondary-button" type="button" data-route="home">Agora não</button>
       </section>`;
 
     if (route === 'daily-checkin') root.innerHTML = `
@@ -550,6 +575,10 @@
     routeTo(root, 'week-4-complete');
   }
 
+  function openPremiumConsulting() {
+    global.location.href = premiumConsultingCtaUrl;
+  }
+
   function completeProgram(root) {
     global.ProjectLm2State.updateState({ program_completed: true });
     routeTo(root, 'premium-bridge');
@@ -617,6 +646,7 @@
       if (target.hasAttribute('data-save-week-4-response')) saveWeek4Response(root);
       if (target.hasAttribute('data-complete-week-4')) completeWeek4(root);
       if (target.hasAttribute('data-complete-program')) completeProgram(root);
+      if (target.hasAttribute('data-premium-consulting-cta')) openPremiumConsulting();
       if (target.hasAttribute('data-submit-checkin')) submitCheckin(root);
     });
   }
