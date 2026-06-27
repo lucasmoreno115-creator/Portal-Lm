@@ -28,7 +28,8 @@ body {
   padding: 24px;
 }
 
-.lm2-hero {
+.lm2-hero,
+.lm2-card {
   padding: clamp(32px, 8vw, 72px);
   border: 1px solid var(--lm2-border);
   border-radius: 28px;
@@ -76,4 +77,67 @@ body {
 .lm2-primary-button:hover,
 .lm2-primary-button:focus-visible {
   background: var(--lm2-primary-dark);
+}
+
+
+.lm2-card {
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.lm2-card h1 {
+  margin: 0 0 24px;
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  line-height: 1.05;
+}
+
+.lm2-card p {
+  color: var(--lm2-muted);
+  font-size: 1.1rem;
+  line-height: 1.45;
+}
+
+.lm2-input {
+  width: 100%;
+  border: 1px solid var(--lm2-border);
+  border-radius: 18px;
+  padding: 16px 18px;
+  color: var(--lm2-text);
+  font: inherit;
+  font-size: 1.1rem;
+}
+
+.lm2-options {
+  display: grid;
+  gap: 12px;
+  margin: 8px 0 22px;
+}
+
+.lm2-option {
+  width: 100%;
+  border: 1px solid var(--lm2-border);
+  border-radius: 18px;
+  padding: 16px 18px;
+  background: #fffaf4;
+  color: var(--lm2-text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  text-align: left;
+}
+
+.lm2-option.is-selected,
+.lm2-option:hover,
+.lm2-option:focus-visible {
+  border-color: var(--lm2-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(155, 92, 37, 0.14);
+}
+
+.lm2-error {
+  min-height: 1.4em;
+  margin: 12px 0 18px;
+  color: #b42318;
+  font-weight: 800;
 }
