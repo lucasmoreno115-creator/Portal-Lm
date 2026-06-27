@@ -20,8 +20,9 @@ const lm2AssetPaths = [
 const lm2Sources = [lm2App, lm2State, lm2Router, lm2Css];
 
 test('project-lm-2.html exists and loads only the LM 2.0 foundation assets', () => {
-  assert.match(lm2Html, /Projeto LM 2\.0/);
-  assert.match(lm2Html, /Programa guiado de 30 dias para emagrecer sem recomeçar toda semana\./);
+  assert.match(lm2Html, /Projeto LM/);
+  assert.match(lm2Html, /Você não precisa de mais motivação\./);
+  assert.match(lm2Html, /Precisa de direção\./);
   assert.match(lm2Html, />COMEÇAR</);
 
   for (const assetPath of lm2AssetPaths) {
@@ -55,7 +56,7 @@ test('LM 2.0 state layer exposes the minimum initial state contract', () => {
 });
 
 test('LM 2.0 router prepares the minimum internal routes', () => {
-  for (const route of ['welcome', 'onboarding', 'home', 'direction', 'week-1']) {
+  for (const route of ['welcome', 'onboarding-name', 'onboarding-goal', 'onboarding-sex', 'onboarding-weight', 'direction-created', 'home-placeholder']) {
     assert.match(lm2Router, new RegExp(`${route}:|['"]${route}['"]`));
   }
 });
