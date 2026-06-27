@@ -1,4 +1,5 @@
 (function initializeProjectLm2State(global) {
+  const storageKey = 'project-lm-2-state';
   const initialState = Object.freeze({
     name: '',
     goal: '',
@@ -47,10 +48,61 @@
     program_completed: false
   });
 
-  let state = { ...initialState };
+  const booleanFields = [
+    'onboarding_completed', 'goal_reached', 'today_checkin_completed', 'week_completed', 'next_week_available',
+    'home_loaded', 'direction_loaded', 'week_1_video_completed', 'plan_b_completed', 'week_2_video_completed',
+    'week_2_reflection_completed', 'week_2_response_completed', 'week_2_completed', 'week_3_available',
+    'week_3_video_completed', 'week_3_reflection_completed', 'week_3_response_completed', 'week_3_completed',
+    'week_4_video_completed', 'week_4_reflection_completed', 'week_4_response_completed', 'week_4_completed',
+    'program_completed'
+  ];
+
+  function readStoredState() {
+    try {
+      if (!global.localStorage) return {};
+      const raw = global.localStorage.getItem(storageKey);
+      return raw ? JSON.parse(raw) : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function normalizeNumber(value, fallback, min, max) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return fallback;
+    if (typeof min === 'number' && number < min) return fallback;
+    if (typeof max === 'number' && number > max) return fallback;
+    return number;
+  }
+
+  function sanitizeState(candidate = {}) {
+    const safe = { ...initialState, ...candidate };
+    safe.name = String(safe.name || '').slice(0, 120);
+    safe.goal = String(safe.goal || '');
+    safe.sex = String(safe.sex || '');
+    safe.weight_kg = safe.weight_kg === null || safe.weight_kg === '' ? null : normalizeNumber(safe.weight_kg, null, 1, 500);
+    safe.current_week = normalizeNumber(safe.current_week, initialState.current_week, 1, 4);
+    safe.continuity_days_count = normalizeNumber(safe.continuity_days_count, 0, 0, 31);
+    safe.required_days_count = normalizeNumber(safe.required_days_count, initialState.required_days_count, 1, 31);
+    safe.next_action = String(safe.next_action || initialState.next_action);
+    safe.next_action_label = String(safe.next_action_label || '');
+    safe.plan_b = typeof safe.plan_b === 'object' && safe.plan_b !== null ? { ...initialState.plan_b, ...safe.plan_b } : initialState.plan_b;
+    for (const field of booleanFields) safe[field] = Boolean(safe[field]);
+    return safe;
+  }
+
+  function persistState(nextState) {
+    try {
+      if (global.localStorage) global.localStorage.setItem(storageKey, JSON.stringify(nextState));
+    } catch (error) {
+      // Storage can be unavailable in private browsing or embedded contexts; state remains in memory.
+    }
+  }
+
+  let state = sanitizeState({ ...readStoredState(), home_loaded: false, direction_loaded: false });
 
   function createState(overrides = {}) {
-    return Object.freeze({ ...initialState, ...state, ...overrides });
+    return Object.freeze(sanitizeState({ ...state, ...overrides }));
   }
 
   function getState() {
@@ -58,12 +110,14 @@
   }
 
   function updateState(patch = {}) {
-    state = { ...state, ...patch };
+    state = sanitizeState({ ...state, ...patch });
+    persistState(state);
     return getState();
   }
 
   function resetState(overrides = {}) {
-    state = { ...initialState, ...overrides };
+    state = sanitizeState({ ...initialState, ...overrides });
+    persistState(state);
     return getState();
   }
 

@@ -36,7 +36,8 @@
   }
 
   function optionButton(name, value, label, selected) {
-    return `<button class="lm2-option${selected === value ? ' is-selected' : ''}" type="button" data-option-name="${name}" data-option-value="${value}">${label}</button>`;
+    const isSelected = selected === value;
+    return `<button class="lm2-option${isSelected ? ' is-selected' : ''}" type="button" data-option-name="${name}" data-option-value="${value}" aria-pressed="${isSelected ? 'true' : 'false'}">${label}</button>`;
   }
 
   function setError(root, message) {
@@ -114,6 +115,7 @@
   }
 
   function render(root, route) {
+    route = global.ProjectLm2Router.normalizeRoute(route);
     const state = global.ProjectLm2State.getState();
     root.dataset.lm2Route = route;
     root.dataset.lm2NextAction = state.next_action;
@@ -122,7 +124,7 @@
     if (route === 'onboarding-name') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-name-title">
         <h1 id="lm2-name-title">Como gostaria de ser chamado?</h1>
-        <input class="lm2-input" name="name" data-lm2-name autocomplete="given-name" value="${escapeHtml(state.name)}">
+        <input class="lm2-input" name="name" data-lm2-name autocomplete="given-name" aria-label="Como gostaria de ser chamado?" value="${escapeHtml(state.name)}">
         <p class="lm2-error" data-lm2-error role="alert"></p>
         <button class="lm2-primary-button" type="button" data-continue-name>CONTINUAR</button>
       </section>`;
@@ -150,7 +152,7 @@
     if (route === 'onboarding-weight') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-weight-title">
         <h1 id="lm2-weight-title">Qual seu peso atual?</h1>
-        <input class="lm2-input" name="weight_kg" data-lm2-weight inputmode="decimal" type="number" min="1" step="0.1" value="${state.weight_kg || ''}">
+        <input class="lm2-input" name="weight_kg" data-lm2-weight inputmode="decimal" type="number" min="1" step="0.1" aria-label="Qual seu peso atual?" value="${state.weight_kg || ''}">
         <p class="lm2-error" data-lm2-error role="alert"></p>
         <button class="lm2-primary-button" type="button" data-create-direction>CRIAR MINHA DIREÇÃO</button>
       </section>`;
@@ -654,9 +656,15 @@
   function boot() {
     const root = document.querySelector('#project-lm-2-root');
     if (!root) return;
-    bind(root);
+    if (!root.dataset.lm2BoundClick) {
+      root.dataset.lm2BoundClick = 'true';
+      bind(root);
+    }
     render(root, global.ProjectLm2Router.getCurrentRoute());
-    global.addEventListener('hashchange', () => render(root, global.ProjectLm2Router.getCurrentRoute()));
+    if (!root.dataset.lm2BoundHashchange) {
+      root.dataset.lm2BoundHashchange = 'true';
+      global.addEventListener('hashchange', () => render(root, global.ProjectLm2Router.getCurrentRoute()));
+    }
   }
 
   global.ProjectLm2App = { boot, render, api };
