@@ -9,6 +9,9 @@
     continuity_days_count: 0,
     required_days_count: 5,
     next_action: 'start_onboarding',
+    home_loaded: false,
+    home_data: null,
+    direction_loaded: false,
     home: null
   });
 

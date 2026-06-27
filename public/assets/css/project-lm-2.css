@@ -141,3 +141,35 @@ body {
   color: #b42318;
   font-weight: 800;
 }
+
+.lm2-secondary-button {
+  min-width: 180px;
+  margin: 10px 10px 0 0;
+  border: 1px solid var(--lm2-border);
+  border-radius: 999px;
+  padding: 14px 24px;
+  background: #fffaf4;
+  color: var(--lm2-primary-dark);
+  cursor: pointer;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
+.lm2-secondary-button:hover,
+.lm2-secondary-button:focus-visible {
+  border-color: var(--lm2-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(155, 92, 37, 0.14);
+}
+
+.lm2-block {
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px solid var(--lm2-border);
+  border-radius: 20px;
+  background: #fffaf4;
+}
+
+.lm2-block h2 {
+  margin: 0 0 8px;
+}

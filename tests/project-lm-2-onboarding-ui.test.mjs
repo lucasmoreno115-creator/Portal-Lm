@@ -20,14 +20,19 @@ test('LM 2.0 renders the minimum welcome and onboarding screen copy', () => {
     'Sexo',
     'Qual seu peso atual?',
     'Sua direção está pronta.',
-    'Semana 1 será liberada em breve.'
+    'Semana 1 será liberada em breve.',
+    'Sua jornada começa na Semana 1.',
+    'Minha Direção',
+    'Meu Treino',
+    'Minha Alimentação',
+    'Meu Plano B'
   ]) {
     assert.match(lm2Html + lm2App, new RegExp(escapeRegExp(text)));
   }
 });
 
 test('LM 2.0 onboarding navigation advances only through the requested routes', () => {
-  for (const route of ['welcome', 'onboarding-name', 'onboarding-goal', 'onboarding-sex', 'onboarding-weight', 'direction-created', 'home-placeholder']) {
+  for (const route of ['welcome', 'onboarding-name', 'onboarding-goal', 'onboarding-sex', 'onboarding-weight', 'direction-created', 'home', 'direction', 'week-1-placeholder', 'home-placeholder']) {
     assert.match(lm2Router, new RegExp(`["']?${escapeRegExp(route)}["']?:|["']${escapeRegExp(route)}["']`));
   }
   assert.match(lm2App, /data-route="onboarding-name"/);
@@ -35,7 +40,9 @@ test('LM 2.0 onboarding navigation advances only through the requested routes', 
   assert.match(lm2App, /routeTo\(root, 'onboarding-sex'\)/);
   assert.match(lm2App, /routeTo\(root, 'onboarding-weight'\)/);
   assert.match(lm2App, /routeTo\(root, 'direction-created'\)/);
-  assert.match(lm2App, /data-route="home-placeholder"/);
+  assert.match(lm2App, /data-route="home"/);
+  assert.match(lm2App, /data-route="direction"/);
+  assert.match(lm2App, /data-route="week-1-placeholder"/);
   assert.doesNotMatch(lm2App + lm2Router, /check-in|progress|premium|admin/i);
 });
 
@@ -61,7 +68,7 @@ test('LM 2.0 onboarding integrates POST onboarding and GET home on success', () 
 });
 
 test('LM 2.0 state tracks onboarding fields and completion only in LM 2.0 layer', () => {
-  for (const field of ['name', 'goal', 'sex', 'weight_kg', 'onboarding_completed']) {
+  for (const field of ['name', 'goal', 'sex', 'weight_kg', 'onboarding_completed', 'home_loaded', 'home_data', 'direction_loaded']) {
     assert.match(lm2State, new RegExp(`${field}:`));
   }
   assert.match(lm2State, /updateState/);
