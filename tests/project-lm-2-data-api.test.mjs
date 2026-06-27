@@ -254,11 +254,72 @@ test('LM 2.0 Week 2 video, reflection, minimum response and status are isolated'
   assert.equal(response.body.data.week_2_response_completed, true);
 
   const status = await api(db, 'GET', '/api/project-lm-2/week-2/status');
-  assert.deepEqual(status.body.data, { video_completed: true, reflection_completed: true, minimum_response_completed: true, week_completed: true });
+  assert.equal(status.body.data.video_completed, true);
+  assert.equal(status.body.data.reflection_completed, true);
+  assert.equal(status.body.data.minimum_response_completed, true);
+  assert.equal(status.body.data.week_completed, false);
 
   const home = await api(db, 'GET', '/api/project-lm-2/home');
   assert.equal(home.body.data.current_week, 2);
   assert.equal(home.body.data.next_action, 'daily_checkin');
+});
+
+async function completeWeek2Foundation(db) {
+  await completeFoundation(db);
+  db.tables.lm2_journeys[0].current_week = 2;
+  await api(db, 'POST', '/api/project-lm-2/week-2/video-complete');
+  await api(db, 'POST', '/api/project-lm-2/week-2/reflection', { reflection: 'Viagem costuma bagunçar minha rotina.' });
+  await api(db, 'POST', '/api/project-lm-2/week-2/reflection', { minimum_response: 'Caminhar 10 minutos e fazer uma refeição simples.' });
+}
+
+test('LM 2.0 week-status Semana 2 permanece incompleto com menos de 5 dias', async () => {
+  const db = new FakeD1('projeto_lm');
+  await completeWeek2Foundation(db);
+  addCheckins(db, ['on_track', 'adapted', 'off_track', 'on_track'], 10, 2);
+  const status = await api(db, 'GET', '/api/project-lm-2/week-status');
+  assert.deepEqual(status.body.data, { current_week: 2, week_completed: false, video_completed: true, reflection_completed: true, minimum_response_completed: true, continuity_days_count: 3, required_days_count: 5, remaining_days: 2, next_week_available: false });
+});
+
+test('LM 2.0 week-status Semana 2 exige reflexão e resposta mínima', async () => {
+  const noReflection = new FakeD1('projeto_lm');
+  await completeWeek2Foundation(noReflection);
+  noReflection.tables.lm2_week_2_foundation[0].reflection = null;
+  addCheckins(noReflection, ['on_track', 'adapted', 'on_track', 'adapted', 'on_track'], 10, 2);
+  assert.equal((await api(noReflection, 'GET', '/api/project-lm-2/week-status')).body.data.week_completed, false);
+
+  const noResponse = new FakeD1('projeto_lm');
+  await completeWeek2Foundation(noResponse);
+  noResponse.tables.lm2_week_2_foundation[0].minimum_response = null;
+  addCheckins(noResponse, ['on_track', 'adapted', 'on_track', 'adapted', 'on_track'], 10, 2);
+  assert.equal((await api(noResponse, 'GET', '/api/project-lm-2/week-status')).body.data.week_completed, false);
+});
+
+test('LM 2.0 week-status Semana 2 conclui com aula, reflexão, resposta mínima e 5 dias', async () => {
+  const db = new FakeD1('projeto_lm');
+  await completeWeek2Foundation(db);
+  addCheckins(db, ['on_track', 'adapted', 'off_track', 'on_track', 'adapted', 'on_track'], 10, 2);
+  const status = await api(db, 'GET', '/api/project-lm-2/week-status');
+  assert.deepEqual(status.body.data, { current_week: 2, week_completed: true, video_completed: true, reflection_completed: true, minimum_response_completed: true, continuity_days_count: 5, required_days_count: 5, remaining_days: 0, next_week_available: true });
+  const home = await api(db, 'GET', '/api/project-lm-2/home');
+  assert.equal(home.body.data.next_action, 'week_2_complete');
+  assert.equal(home.body.data.next_action_label, 'Continuar para Semana 3');
+});
+
+test('LM 2.0 activate-week-3 bloqueia sem requisitos e promove com requisitos', async () => {
+  const blocked = new FakeD1('projeto_lm');
+  await completeWeek2Foundation(blocked);
+  addCheckins(blocked, ['on_track', 'adapted'], 10, 2);
+  const blockedActivation = await api(blocked, 'POST', '/api/project-lm-2/activate-week-3');
+  assert.equal(blockedActivation.status, 409);
+  assert.equal(blockedActivation.body.code, 'WEEK_2_NOT_COMPLETED');
+
+  const db = new FakeD1('projeto_lm');
+  await completeWeek2Foundation(db);
+  addCheckins(db, ['on_track', 'adapted', 'on_track', 'adapted', 'on_track'], 10, 2);
+  const activation = await api(db, 'POST', '/api/project-lm-2/activate-week-3');
+  assert.equal(activation.status, 200);
+  assert.deepEqual(activation.body.data, { current_week: 3, activated: true });
+  assert.equal(db.tables.lm2_journeys[0].current_week, 3);
 });
 
 test('LM 2.0 API is isolated from V5, Premium and Admin namespaces', () => {
@@ -275,10 +336,10 @@ async function completeFoundation(db) {
   await api(db, 'POST', '/api/project-lm-2/plan-b', { unable_to_train: 'caminhar 10 min', overeating: 'voltar na próxima refeição', no_motivation: 'fazer o mínimo' });
 }
 
-function addCheckins(db, answers, startDay = 1) {
+function addCheckins(db, answers, startDay = 1, weekNumber = 1) {
   const student_id = 'student-1';
   answers.forEach((answer, index) => {
-    db.tables.lm2_checkins.push({ student_id, checkin_date: `2026-06-${String(startDay + index).padStart(2, '0')}`, week_number: 1, answer, continuity_point: answer === 'off_track' ? 0 : 1, created_at: '2026-06-01T00:00:00.000Z', updated_at: '2026-06-01T00:00:00.000Z' });
+    db.tables.lm2_checkins.push({ student_id, checkin_date: `2026-06-${String(startDay + index).padStart(2, '0')}`, week_number: weekNumber, answer, continuity_point: answer === 'off_track' ? 0 : 1, created_at: '2026-06-01T00:00:00.000Z', updated_at: '2026-06-01T00:00:00.000Z' });
   });
 }
 
@@ -305,6 +366,7 @@ class FakeD1Statement {
     if (s.startsWith('INSERT INTO lm2_profiles')) { this.db.tables.lm2_profiles.push({ student_id: p[0], name: p[1], goal: p[2], sex: p[3], weight_kg: p[4], nutrition_plan_id: p[5], training_plan_id: p[6], created_at: p[7], updated_at: p[8] }); return { meta: { changes: 1 } }; }
     if (s.startsWith('UPDATE lm2_profiles')) { const r = this.db.tables.lm2_profiles.find(x => x.student_id === p[7]); Object.assign(r, { name: p[0], goal: p[1], sex: p[2], weight_kg: p[3], nutrition_plan_id: p[4], training_plan_id: p[5], updated_at: p[6] }); return { meta: { changes: 1 } }; }
     if (s.startsWith('INSERT INTO lm2_journeys')) { this.db.tables.lm2_journeys.push({ student_id: p[0], current_week: 1, status: 'active', started_at: p[1], completed_at: null, week_started_at: null, week_completed_at: null, created_at: p[2], updated_at: p[3] }); return { meta: { changes: 1 } }; }
+    if (s.startsWith('UPDATE lm2_journeys SET current_week=3')) { const r = this.db.tables.lm2_journeys.find(x => x.student_id === p[3] && x.current_week === 2); if (r) Object.assign(r, { current_week: 3, week_completed_at: r.week_completed_at || p[0], week_started_at: r.week_started_at || p[1], updated_at: p[2] }); return { meta: { changes: r ? 1 : 0 } }; }
     if (s.startsWith('UPDATE lm2_journeys SET current_week=2')) { const r = this.db.tables.lm2_journeys.find(x => x.student_id === p[3] && x.current_week === 1); if (r) Object.assign(r, { current_week: 2, week_completed_at: r.week_completed_at || p[0], week_started_at: r.week_started_at || p[1], updated_at: p[2] }); return { meta: { changes: r ? 1 : 0 } }; }
     if (s.startsWith('INSERT INTO lm2_week_1_foundation')) { this.db.tables.lm2_week_1_foundation.push({ student_id: p[0], video_completed: 0, unable_to_train: null, overeating: null, no_motivation: null, video_completed_at: null, plan_b_saved_at: null, created_at: p[1], updated_at: p[2] }); return { meta: { changes: 1 } }; }
     if (s.startsWith('INSERT INTO lm2_week_2_foundation')) { this.db.tables.lm2_week_2_foundation.push({ student_id: p[0], video_completed: 0, reflection: null, minimum_response: null, created_at: p[1], updated_at: p[2] }); return { meta: { changes: 1 } }; }

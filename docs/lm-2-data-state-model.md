@@ -48,3 +48,15 @@ Os códigos internos de plano alimentar (`M1`, `M2`, `M3`, `H1`, `H2`, `H3`) sã
 O estado LM 2.0 passa a acompanhar `week_status`, `week_completed` e `next_week_available`.
 
 A Semana 1 é concluída quando `video_completed = true`, `plan_b_completed = true` e `continuity_days_count >= required_days_count` (5). `on_track` e `adapted` contam como continuidade; `off_track` não conta.
+
+## PR LM 2.0-14 — Estado de conclusão da Semana 2
+
+O estado LM 2.0 passa a acompanhar também:
+
+| Field | Purpose |
+| --- | --- |
+| `week_2_completed` | Indica que aula, reflexão, resposta mínima e 5 dias de continuidade da Semana 2 foram cumpridos. |
+| `week_3_available` | Indica que a próxima etapa pode ser apresentada apenas como transição/placeholder. |
+| `current_week` | Permanece a fonte oficial da semana ativa e pode ser promovido para `3` somente pelo guardrail técnico. |
+
+A conclusão da Semana 2 não altera a regra 5/7: `on_track` e `adapted` contam 1 ponto; `off_track` conta 0 ponto.

@@ -39,3 +39,21 @@ Tela de celebração intermediária da Semana 1. O CTA `IR PARA SEMANA 2` navega
 ### `week-2-placeholder`
 
 Tela placeholder da Semana 2, com texto de etapa em breve e CTA `VOLTAR PARA HOME`.
+
+## LM 2.0-14 — Semana 2 concluída e placeholder da Semana 3
+
+### Home com Semana 2 concluída
+
+Quando `next_action = "week_2_complete"`, a Home exibe:
+
+- `Parabéns.`
+- `Você concluiu a Semana 2.`
+- CTA `CONTINUAR PARA SEMANA 3`, navegando para `week-2-complete`.
+
+### `week-2-complete`
+
+Tela de celebração intermediária da Semana 2. O título é `Você continuou nos dias difíceis.` e o CTA `IR PARA SEMANA 3` navega para `week-3-placeholder`.
+
+### `week-3-placeholder`
+
+Placeholder da Semana 3. A tela comunica `Pequenas vitórias importam.`, informa que a etapa permanece em breve e oferece CTA `VOLTAR PARA HOME`. Nenhum conteúdo real da Semana 3 é implementado.
