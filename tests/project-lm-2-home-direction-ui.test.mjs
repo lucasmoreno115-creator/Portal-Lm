@@ -37,14 +37,17 @@ test('Home, Direction, and Week 1 navigation is wired', () => {
   assert.match(lm2App, /Pare de Recomeçar/);
   assert.match(lm2App, /Por que você sempre recomeça\?/);
   assert.match(lm2App, /SALVAR MEU PLANO B/);
-  assert.doesNotMatch(lm2Bundle, /data-check-in|unlock|desbloque|progression|progressão/i);
+  assert.doesNotMatch(lm2Bundle, /data-check-in|progression|progressão/i);
 });
 
 test('LM 2.0 state tracks only the requested new screen flags', () => {
   for (const field of ['home_loaded', 'home_data', 'direction_loaded']) {
     assert.match(lm2State, new RegExp(`${field}:`));
   }
-  assert.doesNotMatch(lm2State, /week_1_loaded|unlock/i);
+  assert.match(lm2State, /week_status:/);
+  assert.match(lm2State, /week_completed: false/);
+  assert.match(lm2State, /next_week_available: false/);
+  assert.doesNotMatch(lm2State, /week_1_loaded/i);
 });
 
 test('V5, Premium, Admin, and LM 2.0 asset isolation remain intact', () => {

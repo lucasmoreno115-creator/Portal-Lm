@@ -42,3 +42,9 @@ Após o onboarding, a home mínima expõe somente estado pronto para UI:
 - `training_ready: true`
 
 Os códigos internos de plano alimentar (`M1`, `M2`, `M3`, `H1`, `H2`, `H3`) são persistidos em `lm2_profiles.nutrition_plan_id`, mas não compõem o contrato visual da API.
+
+## Week status state
+
+O estado LM 2.0 passa a acompanhar `week_status`, `week_completed` e `next_week_available`.
+
+A Semana 1 é concluída quando `video_completed = true`, `plan_b_completed = true` e `continuity_days_count >= required_days_count` (5). `on_track` e `adapted` contam como continuidade; `off_track` não conta.

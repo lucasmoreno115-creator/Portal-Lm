@@ -5,6 +5,7 @@
     week1VideoComplete: '/api/project-lm-2/week-1/video-complete',
     planB: '/api/project-lm-2/plan-b',
     progress: '/api/project-lm-2/progress',
+    weekStatus: '/api/project-lm-2/week-status',
     checkin: '/api/project-lm-2/checkin'
   };
 
@@ -50,6 +51,10 @@
       goal_reached: Boolean(homeData.goal_reached),
       today_checkin_completed: Boolean(homeData.today_checkin_completed),
       next_action: homeData.next_action || currentState.next_action,
+      next_action_label: homeData.next_action_label || currentState.next_action_label,
+      week_status: homeData.week_status || currentState.week_status,
+      week_completed: Boolean(homeData.week_completed),
+      next_week_available: Boolean(homeData.next_week_available),
       week_1_video_completed: Boolean(homeData.week_1_video_completed),
       plan_b_completed: Boolean(homeData.plan_b_completed),
       plan_b: homeData.plan_b || currentState.plan_b
@@ -62,6 +67,7 @@
     if (nextAction === 'daily_checkin') return 'Registrar check-in de hoje';
     if (nextAction === 'checkin_completed_today') return 'Check-in de hoje registrado.';
     if (nextAction === 'checkin_pending_placeholder') return 'Registrar check-in de hoje';
+    if (nextAction === 'week_1_complete') return 'Continuar para Semana 2';
     return 'Sua jornada começa na Semana 1.';
   }
 
@@ -130,8 +136,9 @@
       <section class="lm2-card" aria-labelledby="lm2-home-title">
         <h1 id="lm2-home-title">Olá ${escapeHtml(state.name)}</h1>
         <p>Semana ${state.current_week} de 4</p><p>Dias de continuidade</p><p>${state.continuity_days_count} de ${state.required_days_count} necessários</p><p>Próxima ação:</p><p>${nextActionLabel(state.next_action)}</p>
+        ${state.next_action === 'week_1_complete' ? '<div class="lm2-celebration-cta"><p>Parabéns.</p><p>Você concluiu sua primeira semana.</p></div>' : ''}
         <p class="lm2-error" data-lm2-error role="alert"></p>
-        <button class="lm2-primary-button" type="button" data-route="${state.next_action === 'daily_checkin' ? 'daily-checkin' : 'week-1-placeholder'}">${state.next_action === 'daily_checkin' ? 'FAZER CHECK-IN' : 'CONTINUAR'}</button>
+        <button class="lm2-primary-button" type="button" data-route="${state.next_action === 'week_1_complete' ? 'week-complete' : state.next_action === 'daily_checkin' ? 'daily-checkin' : 'week-1-placeholder'}">${state.next_action === 'week_1_complete' ? 'CONTINUAR PARA SEMANA 2' : state.next_action === 'daily_checkin' ? 'FAZER CHECK-IN' : 'CONTINUAR'}</button>
         <button class="lm2-secondary-button" type="button" data-route="direction">MINHA DIREÇÃO</button>
       </section>`;
     if (route === 'direction') root.innerHTML = `
@@ -163,6 +170,26 @@
         </form>
         <p class="lm2-error" data-lm2-error role="alert"></p>
         <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
+      </section>`;
+
+    if (route === 'week-complete') root.innerHTML = `
+      <section class="lm2-card" aria-labelledby="lm2-week-complete-title">
+        <h1 id="lm2-week-complete-title">Parabéns.</h1>
+        <p>Você não precisou ser perfeito.</p>
+        <p>Você precisou continuar.</p>
+        <p>Nos dias bons, você continuou.</p>
+        <p>Nos dias difíceis, você também encontrou uma forma de continuar.</p>
+        <p>E isso é o que realmente gera resultado.</p>
+        <button class="lm2-primary-button" type="button" data-route="week-2-placeholder">IR PARA SEMANA 2</button>
+      </section>`;
+
+    if (route === 'week-2-placeholder') root.innerHTML = `
+      <section class="lm2-card" aria-labelledby="lm2-week-2-title">
+        <h1 id="lm2-week-2-title">Semana 2</h1>
+        <h2>Dias difíceis fazem parte.</h2>
+        <p>A Semana 2 será construída a partir da habilidade que você começou a desenvolver: continuar mesmo quando a vida não sai como planejado.</p>
+        <p>Por enquanto, esta etapa permanece em breve.</p>
+        <button class="lm2-primary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
       </section>`;
 
     if (route === 'daily-checkin') root.innerHTML = `
