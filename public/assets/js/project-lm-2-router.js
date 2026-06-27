@@ -18,6 +18,7 @@
     'week-4-placeholder': { path: '#week-4-placeholder', label: 'Semana 4' },
     'week-4-complete': { path: '#week-4-complete', label: 'Semana 4 concluída' },
     'program-completion': { path: '#program-completion', label: 'Program Completion' },
+    'premium-bridge': { path: '#premium-bridge', label: 'Premium Bridge' },
     'week-1-placeholder': { path: '#week-1', label: 'Semana 1' },
     'home-placeholder': { path: '#home-placeholder', label: 'Início' }
   });

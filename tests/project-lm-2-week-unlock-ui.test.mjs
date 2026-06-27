@@ -93,7 +93,7 @@ test('LM 2.0 week-4-placeholder foi substituído pelo conteúdo oficial da Seman
 });
 
 
-test('LM 2.0 week-4-complete reutiliza conclusão e navega para Program Completion placeholder', () => {
+test('LM 2.0 week-4-complete reutiliza conclusão e navega para Program Completion oficial', () => {
   assert.match(lm2Router, /'week-4-complete': \{ path: '#week-4-complete'/);
   assert.match(lm2Router, /'program-completion': \{ path: '#program-completion'/);
   for (const text of [
@@ -104,14 +104,36 @@ test('LM 2.0 week-4-complete reutiliza conclusão e navega para Program Completi
     'Mas agora você sabe que eles não significam recomeçar.',
     'Eles significam apenas ajustar a rota e seguir em frente.',
     'Finalizar programa',
-    'Program Completion',
-    'Placeholder'
+    'Parabéns por chegar até aqui.',
+    'O mais importante não foi terminar quatro semanas.',
+    'Foi construir a capacidade de continuar.',
+    'Durante este programa você descobriu que:',
+    'Recomeçar não precisa fazer parte da sua rotina.',
+    'Dias difíceis não significam fracasso.',
+    'A evolução acontece antes da balança mostrar resultados.',
+    'A direção é mais importante do que a motivação.',
+    'Essas quatro ideias são a base para continuar evoluindo.',
+    'O programa termina aqui.',
+    'Mas a sua direção continua.',
+    'Você não precisa mais provar que consegue começar.',
+    'Agora sabe que consegue continuar.',
+    'Concluir Projeto LM'
   ]) {
     assert.match(lm2App, new RegExp(escapeRegExp(text)));
   }
   assert.match(lm2App, /isWeek4Completed/);
   assert.match(lm2App, /data-route="program-completion"/);
   assert.match(lm2App, /routeTo\(root, 'week-4-complete'\)/);
+});
+
+test('LM 2.0 Program Completion registra conclusão e navega para Premium Bridge placeholder', () => {
+  assert.match(lm2Router, /'premium-bridge': \{ path: '#premium-bridge'/);
+  assert.match(lm2State, /program_completed: false/);
+  assert.match(lm2App, /data-complete-program/);
+  assert.match(lm2App, /program_completed: true/);
+  assert.match(lm2App, /routeTo\(root, 'premium-bridge'\)/);
+  assert.match(lm2App, /Premium Bridge/);
+  assert.match(lm2App, /Placeholder/);
 });
 
 test('V5, Premium e Admin permanecem intactos', () => {
