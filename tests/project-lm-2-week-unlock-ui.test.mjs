@@ -47,7 +47,7 @@ test('LM 2.0 Home renderiza CTA CONTINUAR PARA SEMANA 3 quando Semana 2 conclui'
 test('LM 2.0 week-2-complete renderiza celebração e week-3-placeholder existe', () => {
   assert.match(lm2Router, /'week-2-complete': \{ path: '#week-2-complete'/);
   assert.match(lm2Router, /'week-3-placeholder': \{ path: '#week-3-placeholder'/);
-  for (const text of ['Você continuou nos dias difíceis.', 'continuar mesmo quando o dia não saiu como planejado.', 'Você precisou encontrar uma resposta mínima.', 'IR PARA SEMANA 3', 'Pequenas vitórias importam.', 'Por enquanto, esta etapa permanece em breve.', 'VOLTAR PARA HOME']) {
+  for (const text of ['Você continuou nos dias difíceis.', 'continuar mesmo quando o dia não saiu como planejado.', 'Você precisou encontrar uma resposta mínima.', 'IR PARA SEMANA 3', 'As mudanças começam antes da balança', 'Você já está mudando. Talvez apenas ainda não consiga enxergar tudo.', 'Olhe além da balança', 'Qual mudança você percebe em você desde que iniciou o Projeto LM?', 'Perceber sua evolução fortalece sua confiança.', 'VOLTAR PARA HOME']) {
     assert.match(lm2App, new RegExp(escapeRegExp(text)));
   }
 });

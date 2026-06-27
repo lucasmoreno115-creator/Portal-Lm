@@ -242,11 +242,40 @@
 
     if (route === 'week-3-placeholder') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-week-3-title">
-        <h1 id="lm2-week-3-title">Semana 3</h1>
-        <h2>Pequenas vitórias importam.</h2>
-        <p>Na Semana 3 você vai aprender a reconhecer progresso antes de esperar grandes resultados.</p>
-        <p>Por enquanto, esta etapa permanece em breve.</p>
-        <button class="lm2-primary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
+        <h1 id="lm2-week-3-title">As mudanças começam antes da balança</h1>
+        <h2>Você já está mudando. Talvez apenas ainda não consiga enxergar tudo.</h2>
+        <article class="lm2-lesson">
+          <h3>Aula</h3>
+          <p>Durante muito tempo, talvez você tenha acreditado que progresso significa apenas perder peso.</p>
+          <p>Mas essa é apenas uma parte da história.</p>
+          <p>Antes da balança mudar, outras mudanças acontecem primeiro.</p>
+          <p>Você começa a organizar melhor sua rotina.</p>
+          <p>Volta mais rápido depois de um dia difícil.</p>
+          <p>Faz escolhas melhores sem precisar pensar tanto.</p>
+          <p>Treina mesmo sem vontade.</p>
+          <p>Começa a confiar mais em si.</p>
+          <p>Essas mudanças não aparecem em números.</p>
+          <p>Mas são justamente elas que tornam os resultados possíveis.</p>
+          <p>Quem aprende a reconhecer essas pequenas vitórias cria algo muito mais importante do que motivação.</p>
+          <p>Cria consistência.</p>
+          <p>E pessoas consistentes continuam.</p>
+        </article>
+        <form class="lm2-plan-b" data-week-3-form>
+          <h3>Olhe além da balança</h3>
+          <p>Pense nas últimas semanas.</p>
+          <p>Existe alguma mudança que aconteceu e que não pode ser medida pelo peso?</p>
+          <p>Talvez você esteja mais organizado.</p>
+          <p>Talvez esteja desistindo menos.</p>
+          <p>Talvez esteja mais confiante.</p>
+          <p>Talvez esteja conseguindo voltar mais rápido quando erra.</p>
+          <p>Essas mudanças merecem ser reconhecidas.</p>
+          <p>Porque são elas que sustentam os resultados futuros.</p>
+          <label>Qual mudança você percebe em você desde que iniciou o Projeto LM?<textarea class="lm2-input" name="reflection" maxlength="300" required>${escapeHtml(state.week_3_reflection)}</textarea></label>
+          <button class="lm2-primary-button" type="button" data-save-week-3-reflection>SALVAR REFLEXÃO</button>
+        </form>
+        <p class="lm2-feedback" data-lm2-week-3-feedback>${state.week_3_reflection_completed ? 'Perceber sua evolução fortalece sua confiança. E confiança facilita continuar amanhã. Continue observando pequenas vitórias. Elas costumam aparecer antes dos grandes resultados.' : ''}</p>
+        <p class="lm2-error" data-lm2-error role="alert"></p>
+        <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
       </section>`;
 
     if (route === 'daily-checkin') root.innerHTML = `
@@ -359,6 +388,14 @@
     }
   }
 
+
+  function saveWeek3Reflection(root) {
+    const value = root.querySelector('[data-week-3-form]')?.elements.reflection.value.trim();
+    if (!value) return setError(root, 'Preencha sua reflexão.');
+    global.ProjectLm2State.updateState({ week_3_reflection: value, week_3_reflection_completed: true });
+    render(root, global.ProjectLm2Router.getCurrentRoute());
+  }
+
   async function submitCheckin(root) {
     const answer = global.ProjectLm2State.getState().daily_checkin_answer;
     const messages = {
@@ -412,6 +449,7 @@
       if (target.hasAttribute('data-complete-week-2-video')) completeWeek2Video(root);
       if (target.hasAttribute('data-save-week-2-reflection')) saveWeek2Reflection(root);
       if (target.hasAttribute('data-save-week-2-response')) saveWeek2Response(root);
+      if (target.hasAttribute('data-save-week-3-reflection')) saveWeek3Reflection(root);
       if (target.hasAttribute('data-submit-checkin')) submitCheckin(root);
     });
   }
