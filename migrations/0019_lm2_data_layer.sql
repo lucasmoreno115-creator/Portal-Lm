@@ -19,3 +19,15 @@ CREATE TABLE IF NOT EXISTS lm2_journeys (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS lm2_week_1_foundation (
+  student_id TEXT PRIMARY KEY,
+  video_completed INTEGER NOT NULL DEFAULT 0,
+  unable_to_train TEXT,
+  overeating TEXT,
+  no_motivation TEXT,
+  video_completed_at TEXT,
+  plan_b_saved_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
