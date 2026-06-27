@@ -23,16 +23,16 @@ const officialAssets = [
   '/assets/css/project-lm-v5.css'
 ];
 
-test('official V5 entrypoint exists inside the published public assets directory', async () => {
+test('official V5 entrypoint remains present in the public assets directory', async () => {
   await assert.doesNotReject(() => access(v5Entrypoint));
-  assert.match(wrangler, /\[assets\][\s\S]*directory\s*=\s*"\.\/public"/);
-  assert.match(wrangler, /\[assets\][\s\S]*binding\s*=\s*"ASSETS"/);
+  assert.doesNotMatch(wrangler, /\[assets\][\s\S]*binding\s*=\s*"ASSETS"/);
 });
 
-test('/project-lm-v5.html is served as the official static entrypoint', () => {
-  assert.match(wrangler, /pattern\s*=\s*"portal\.lucasmorenopersonal\.com\.br\/\*"/);
-  assert.match(worker, /!url\.pathname\.startsWith\('\/api\/'\)[\s\S]*serveStaticAsset\(request, env\)/);
-  assert.match(worker, /env\?\.ASSETS\?\.fetch[\s\S]*env\.ASSETS\.fetch\(request\)/);
+test('hotfix keeps Worker scoped to APIs and out of static hosting', () => {
+  assert.match(wrangler, /pattern\s*=\s*"portal\.lucasmorenopersonal\.com\.br\/api\/\*"/);
+  assert.doesNotMatch(wrangler, /pattern\s*=\s*"portal\.lucasmorenopersonal\.com\.br\/\*"/);
+  assert.doesNotMatch(worker, /!url\.pathname\.startsWith\('\/api\/'\)[\s\S]*serveStaticAsset\(request, env\)/);
+  assert.doesNotMatch(worker, /env\?\.ASSETS\?\.fetch[\s\S]*env\.ASSETS\.fetch\(request\)/);
   assert.ok(v5Entrypoint.endsWith(officialPath));
 });
 

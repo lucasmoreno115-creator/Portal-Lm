@@ -20,10 +20,6 @@ export default {
     if (method === 'OPTIONS') return corsResponse();
 
     try {
-      if (!url.pathname.startsWith('/api/')) {
-        return serveStaticAsset(request, env);
-      }
-
       await ensureSchema(env.DB);
 
       if (url.pathname === '/api/health' && method === 'GET') {
@@ -2128,14 +2124,6 @@ Me responde aqui para ajustarmos o próximo passo e evitar que sua semana fique 
     }
   }
 };
-
-function serveStaticAsset(request, env) {
-  if (env?.ASSETS?.fetch) {
-    return env.ASSETS.fetch(request);
-  }
-
-  return rawJson({ ok: false, error: 'Static assets binding is not configured.' }, 404);
-}
 
 async function ensureSchema(db) {
   await db.prepare(`CREATE TABLE IF NOT EXISTS leads (
