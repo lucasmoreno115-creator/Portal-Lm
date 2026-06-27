@@ -66,6 +66,29 @@ test('LM 2.0 week-3-complete replica padrão de conclusão para Semana 4', () =>
   assert.match(lm2App, /data-route="week-4-placeholder"/);
 });
 
+test('LM 2.0 week-4-placeholder foi substituído pelo conteúdo oficial da Semana 4', () => {
+  assert.match(lm2Router, /'week-4-placeholder': \{ path: '#week-4-placeholder'/);
+  assert.match(lm2State, /week_4_video_completed: false/);
+  assert.match(lm2State, /week_4_reflection: ''/);
+  assert.match(lm2State, /week_4_reflection_completed: false/);
+  assert.match(lm2State, /week_4_completed: false/);
+  for (const text of [
+    'Continue mesmo sem motivação',
+    'O que sustenta seus resultados não é a motivação. É a direção que você escolhe seguir.',
+    'Motivação é passageira.',
+    'Direção permanece.',
+    'Você termina preparado para continuar.',
+    'O que você leva daqui?',
+    'O que você quer continuar fazendo quando este programa terminar?',
+    'Você não precisa fazer tudo perfeitamente.',
+    'Precisa apenas continuar.',
+    'Sempre que surgirem dias difíceis, lembre-se da direção que escolheu seguir.'
+  ]) {
+    assert.match(lm2App, new RegExp(escapeRegExp(text)));
+  }
+  assert.doesNotMatch(lm2App, /Semana 4 será liberada em breve\./);
+});
+
 test('V5, Premium e Admin permanecem intactos', () => {
   assert.doesNotMatch(v5Html, /week-complete|week-2|CONTINUAR PARA SEMANA 2/);
   assert.doesNotMatch(premiumHtml, /week-complete|week-2|CONTINUAR PARA SEMANA 2/);
