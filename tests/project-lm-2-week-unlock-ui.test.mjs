@@ -14,7 +14,8 @@ test('LM 2.0 Home renderiza CTA CONTINUAR PARA SEMANA 2', () => {
   assert.match(lm2App, /Parabéns\./);
   assert.match(lm2App, /Você concluiu sua primeira semana\./);
   assert.match(lm2App, /CONTINUAR PARA SEMANA 2/);
-  assert.match(lm2App, /data-route="\$\{state\.next_action === 'week_1_complete' \? 'week-complete'/);
+  assert.match(lm2App, /function getHomePrimaryRoute\(state\)/);
+  assert.match(lm2App, /if \(state\.next_action === 'week_1_complete'\) return 'week-complete'/);
 });
 
 test('LM 2.0 week-complete renderiza mensagem de celebração', () => {
@@ -41,7 +42,7 @@ test('LM 2.0 Home renderiza CTA CONTINUAR PARA SEMANA 3 quando Semana 2 conclui'
   assert.match(lm2App, /week_2_complete/);
   assert.match(lm2App, /Você concluiu a Semana 2\./);
   assert.match(lm2App, /CONTINUAR PARA SEMANA 3/);
-  assert.match(lm2App, /data-route="\$\{state\.next_action === 'week_1_complete' \? 'week-complete' : state\.next_action === 'week_2_complete' \? 'week-2-complete'/);
+  assert.match(lm2App, /if \(state\.next_action === 'week_2_complete'\) return 'week-2-complete'/);
 });
 
 test('LM 2.0 week-2-complete renderiza celebração e week-3-placeholder existe', () => {
@@ -145,6 +146,7 @@ test('LM 2.0 Program Completion registra conclusão e navega para Premium Bridge
   }
   assert.match(lm2App, /data-premium-consulting-cta/);
   assert.match(lm2App, /data-route="home"/);
+  assert.match(lm2App, /if \(state\.program_completed\) return 'premium-bridge'/);
 });
 
 test('V5, Premium e Admin permanecem intactos', () => {

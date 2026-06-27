@@ -87,6 +87,29 @@
     return Boolean(state.week_4_video_completed && state.week_4_reflection_completed && state.week_4_response_completed);
   }
 
+  function getHomePrimaryRoute(state) {
+    if (state.program_completed) return 'premium-bridge';
+    if (state.week_4_completed) return 'week-4-complete';
+    if (state.current_week >= 4 || state.week_3_completed) return 'week-4-placeholder';
+    if (state.current_week >= 3 || state.week_3_available) return 'week-3-placeholder';
+    if (state.next_action === 'week_1_complete') return 'week-complete';
+    if (state.next_action === 'week_2_complete') return 'week-2-complete';
+    if (state.next_action === 'daily_checkin') return 'daily-checkin';
+    if (state.next_action && state.next_action.startsWith('week_2_')) return 'week-2';
+    return 'week-1-placeholder';
+  }
+
+  function getHomePrimaryLabel(state) {
+    if (state.program_completed) return 'CONTINUAR';
+    if (state.week_4_completed) return 'CONTINUAR';
+    if (state.current_week >= 4 || state.week_3_completed) return 'CONTINUAR';
+    if (state.current_week >= 3 || state.week_3_available) return 'CONTINUAR';
+    if (state.next_action === 'week_1_complete') return 'CONTINUAR PARA SEMANA 2';
+    if (state.next_action === 'week_2_complete') return 'CONTINUAR PARA SEMANA 3';
+    if (state.next_action === 'daily_checkin') return 'FAZER CHECK-IN';
+    return 'CONTINUAR';
+  }
+
   function nextActionLabel(nextAction) {
     if (nextAction === 'week_1_video') return 'Assistir à aula da Semana 1.';
     if (nextAction === 'create_plan_b') return 'Criar seu Plano B inicial.';
@@ -170,7 +193,7 @@
         ${state.next_action === 'week_1_complete' ? '<div class="lm2-celebration-cta"><p>Parabéns.</p><p>Você concluiu sua primeira semana.</p></div>' : ''}
         ${state.next_action === 'week_2_complete' ? '<div class="lm2-celebration-cta"><p>Parabéns.</p><p>Você concluiu a Semana 2.</p></div>' : ''}
         <p class="lm2-error" data-lm2-error role="alert"></p>
-        <button class="lm2-primary-button" type="button" data-route="${state.next_action === 'week_1_complete' ? 'week-complete' : state.next_action === 'week_2_complete' ? 'week-2-complete' : state.next_action === 'daily_checkin' ? 'daily-checkin' : state.next_action && state.next_action.startsWith('week_2_') ? 'week-2' : 'week-1-placeholder'}">${state.next_action === 'week_1_complete' ? 'CONTINUAR PARA SEMANA 2' : state.next_action === 'week_2_complete' ? 'CONTINUAR PARA SEMANA 3' : state.next_action === 'daily_checkin' ? 'FAZER CHECK-IN' : 'CONTINUAR'}</button>
+        <button class="lm2-primary-button" type="button" data-route="${getHomePrimaryRoute(state)}">${getHomePrimaryLabel(state)}</button>
         <button class="lm2-secondary-button" type="button" data-route="direction">MINHA DIREÇÃO</button>
       </section>`;
     if (route === 'direction') root.innerHTML = `
@@ -252,6 +275,7 @@
         <button class="lm2-primary-button" type="button" data-route="week-3-placeholder">IR PARA SEMANA 3</button>
       </section>`;
 
+    if (route === 'week-3-placeholder' && state.current_week < 3) global.ProjectLm2State.updateState({ current_week: 3, week_3_available: true });
     if (route === 'week-3-placeholder') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-week-3-title">
         <h1 id="lm2-week-3-title">As mudanças começam antes da balança</h1>
@@ -306,6 +330,7 @@
         <button class="lm2-primary-button" type="button" data-route="week-4-placeholder">Continuar para a Semana 4</button>
       </section>`;
 
+    if (route === 'week-4-placeholder' && state.current_week < 4) global.ProjectLm2State.updateState({ current_week: 4 });
     if (route === 'week-4-placeholder') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-week-4-title">
         <h1 id="lm2-week-4-title">Continue mesmo sem motivação</h1>
@@ -546,7 +571,7 @@
   function completeWeek3(root) {
     const state = global.ProjectLm2State.getState();
     if (!isWeek3Completed(state)) return setError(root, 'Assista à aula, salve sua reflexão e salve sua resposta mínima antes de concluir a Semana 3.');
-    global.ProjectLm2State.updateState({ week_3_completed: true });
+    global.ProjectLm2State.updateState({ week_3_completed: true, current_week: 4 });
     routeTo(root, 'week-3-complete');
   }
 
@@ -573,7 +598,7 @@
   function completeWeek4(root) {
     const state = global.ProjectLm2State.getState();
     if (!isWeek4Completed(state)) return setError(root, 'Assista à aula, salve sua reflexão e salve sua resposta mínima antes de concluir a Semana 4.');
-    global.ProjectLm2State.updateState({ week_4_completed: true });
+    global.ProjectLm2State.updateState({ week_4_completed: true, current_week: 4 });
     routeTo(root, 'week-4-complete');
   }
 
