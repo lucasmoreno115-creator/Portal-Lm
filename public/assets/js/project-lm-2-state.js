@@ -21,7 +21,13 @@
     home: null,
     week_1_video_completed: false,
     plan_b_completed: false,
-    plan_b: { unable_to_train: '', overeating: '', no_motivation: '' }
+    plan_b: { unable_to_train: '', overeating: '', no_motivation: '' },
+    week_2_status: null,
+    week_2_video_completed: false,
+    week_2_reflection_completed: false,
+    week_2_response_completed: false,
+    week_2_reflection: '',
+    week_2_minimum_response: ''
   });
 
   let state = { ...initialState };

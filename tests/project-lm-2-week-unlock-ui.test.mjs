@@ -24,19 +24,21 @@ test('LM 2.0 week-complete renderiza mensagem de celebração', () => {
   }
 });
 
-test('LM 2.0 week-2-placeholder existe e state acompanha unlock', () => {
-  assert.match(lm2Router, /'week-2-placeholder': \{ path: '#week-2-placeholder'/);
-  assert.match(lm2App, /Semana 2/);
-  assert.match(lm2App, /Dias difíceis fazem parte\./);
-  assert.match(lm2App, /Por enquanto, esta etapa permanece em breve\./);
-  assert.match(lm2State, /week_status: null/);
-  assert.match(lm2State, /next_week_available: false/);
+test('LM 2.0 week-2 oficial existe e state acompanha Semana 2', () => {
+  assert.match(lm2Router, /'week-2': \{ path: '#week-2'/);
+  for (const text of ['Semana 2', 'Dias difíceis fazem parte.', 'Como continuar quando o dia sai do controle', 'Qual situação costuma fazer você abandonar o plano?', 'Quando essa situação acontecer novamente, qual será sua resposta mínima?', 'SALVAR REFLEXÃO', 'SALVAR RESPOSTA']) {
+    assert.match(lm2App, new RegExp(escapeRegExp(text)));
+  }
+  assert.match(lm2State, /week_2_status: null/);
+  assert.match(lm2State, /week_2_video_completed: false/);
+  assert.match(lm2State, /week_2_reflection_completed: false/);
+  assert.match(lm2State, /week_2_response_completed: false/);
 });
 
 test('V5, Premium e Admin permanecem intactos', () => {
-  assert.doesNotMatch(v5Html, /week-complete|week-2-placeholder|CONTINUAR PARA SEMANA 2/);
-  assert.doesNotMatch(premiumHtml, /week-complete|week-2-placeholder|CONTINUAR PARA SEMANA 2/);
-  assert.doesNotMatch(adminHtml, /week-complete|week-2-placeholder|CONTINUAR PARA SEMANA 2/);
+  assert.doesNotMatch(v5Html, /week-complete|week-2|CONTINUAR PARA SEMANA 2/);
+  assert.doesNotMatch(premiumHtml, /week-complete|week-2|CONTINUAR PARA SEMANA 2/);
+  assert.doesNotMatch(adminHtml, /week-complete|week-2|CONTINUAR PARA SEMANA 2/);
 });
 
 function escapeRegExp(value) {

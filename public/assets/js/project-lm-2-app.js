@@ -6,7 +6,10 @@
     planB: '/api/project-lm-2/plan-b',
     progress: '/api/project-lm-2/progress',
     weekStatus: '/api/project-lm-2/week-status',
-    checkin: '/api/project-lm-2/checkin'
+    checkin: '/api/project-lm-2/checkin',
+    week2VideoComplete: '/api/project-lm-2/week-2/video-complete',
+    week2Reflection: '/api/project-lm-2/week-2/reflection',
+    week2Status: '/api/project-lm-2/week-2/status'
   };
 
   // Semana 1 será liberada em breve.
@@ -57,7 +60,13 @@
       next_week_available: Boolean(homeData.next_week_available),
       week_1_video_completed: Boolean(homeData.week_1_video_completed),
       plan_b_completed: Boolean(homeData.plan_b_completed),
-      plan_b: homeData.plan_b || currentState.plan_b
+      plan_b: homeData.plan_b || currentState.plan_b,
+      week_2_status: homeData.week_2_status || currentState.week_2_status,
+      week_2_video_completed: Boolean(homeData.week_2_video_completed),
+      week_2_reflection_completed: Boolean(homeData.week_2_reflection_completed),
+      week_2_response_completed: Boolean(homeData.week_2_response_completed),
+      week_2_reflection: homeData.week_2_reflection || currentState.week_2_reflection,
+      week_2_minimum_response: homeData.week_2_minimum_response || currentState.week_2_minimum_response
     });
   }
 
@@ -68,6 +77,9 @@
     if (nextAction === 'checkin_completed_today') return 'Check-in de hoje registrado.';
     if (nextAction === 'checkin_pending_placeholder') return 'Registrar check-in de hoje';
     if (nextAction === 'week_1_complete') return 'Continuar para Semana 2';
+    if (nextAction === 'week_2_video') return 'Assistir à aula da Semana 2.';
+    if (nextAction === 'week_2_reflection') return 'Salvar reflexão da Semana 2.';
+    if (nextAction === 'week_2_minimum_response') return 'Salvar resposta mínima da Semana 2.';
     return 'Sua jornada começa na Semana 1.';
   }
 
@@ -138,7 +150,7 @@
         <p>Semana ${state.current_week} de 4</p><p>Dias de continuidade</p><p>${state.continuity_days_count} de ${state.required_days_count} necessários</p><p>Próxima ação:</p><p>${nextActionLabel(state.next_action)}</p>
         ${state.next_action === 'week_1_complete' ? '<div class="lm2-celebration-cta"><p>Parabéns.</p><p>Você concluiu sua primeira semana.</p></div>' : ''}
         <p class="lm2-error" data-lm2-error role="alert"></p>
-        <button class="lm2-primary-button" type="button" data-route="${state.next_action === 'week_1_complete' ? 'week-complete' : state.next_action === 'daily_checkin' ? 'daily-checkin' : 'week-1-placeholder'}">${state.next_action === 'week_1_complete' ? 'CONTINUAR PARA SEMANA 2' : state.next_action === 'daily_checkin' ? 'FAZER CHECK-IN' : 'CONTINUAR'}</button>
+        <button class="lm2-primary-button" type="button" data-route="${state.next_action === 'week_1_complete' ? 'week-complete' : state.next_action === 'daily_checkin' ? 'daily-checkin' : state.next_action && state.next_action.startsWith('week_2_') ? 'week-2' : 'week-1-placeholder'}">${state.next_action === 'week_1_complete' ? 'CONTINUAR PARA SEMANA 2' : state.next_action === 'daily_checkin' ? 'FAZER CHECK-IN' : 'CONTINUAR'}</button>
         <button class="lm2-secondary-button" type="button" data-route="direction">MINHA DIREÇÃO</button>
       </section>`;
     if (route === 'direction') root.innerHTML = `
@@ -180,16 +192,31 @@
         <p>Nos dias bons, você continuou.</p>
         <p>Nos dias difíceis, você também encontrou uma forma de continuar.</p>
         <p>E isso é o que realmente gera resultado.</p>
-        <button class="lm2-primary-button" type="button" data-route="week-2-placeholder">IR PARA SEMANA 2</button>
+        <button class="lm2-primary-button" type="button" data-route="week-2">IR PARA SEMANA 2</button>
       </section>`;
 
-    if (route === 'week-2-placeholder') root.innerHTML = `
+    if (route === 'week-2') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-week-2-title">
         <h1 id="lm2-week-2-title">Semana 2</h1>
         <h2>Dias difíceis fazem parte.</h2>
-        <p>A Semana 2 será construída a partir da habilidade que você começou a desenvolver: continuar mesmo quando a vida não sai como planejado.</p>
-        <p>Por enquanto, esta etapa permanece em breve.</p>
-        <button class="lm2-primary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
+        <p>O problema não é ter dias difíceis.</p>
+        <p>O problema é acreditar que um dia difícil apaga todo o progresso construído.</p>
+        <p>Nesta semana você vai praticar uma habilidade simples:</p>
+        <p>Continuar.</p>
+        <p>Mesmo quando a rotina não sair como planejado.</p>
+        <article class="lm2-lesson">
+          <h3>Como continuar quando o dia sai do controle</h3>
+          <p>${state.week_2_video_completed ? 'Assistida' : 'Não assistida'}</p>
+          <button class="lm2-primary-button" type="button" data-complete-week-2-video>${state.week_2_video_completed ? 'ASSISTIDA' : 'MARCAR COMO ASSISTIDA'}</button>
+        </article>
+        <form class="lm2-plan-b" data-week-2-form>
+          <label>Qual situação costuma fazer você abandonar o plano?<textarea class="lm2-input" name="reflection" maxlength="300">${escapeHtml(state.week_2_reflection)}</textarea></label>
+          <button class="lm2-primary-button" type="button" data-save-week-2-reflection>SALVAR REFLEXÃO</button>
+          <label>Quando essa situação acontecer novamente, qual será sua resposta mínima?<textarea class="lm2-input" name="minimum_response" maxlength="300">${escapeHtml(state.week_2_minimum_response)}</textarea></label>
+          <button class="lm2-primary-button" type="button" data-save-week-2-response>SALVAR RESPOSTA</button>
+        </form>
+        <p class="lm2-error" data-lm2-error role="alert"></p>
+        <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
       </section>`;
 
     if (route === 'daily-checkin') root.innerHTML = `
@@ -262,6 +289,34 @@
     }
   }
 
+  async function completeWeek2Video(root) {
+    try {
+      await refreshHomeState(root, await global.fetch(api.week2VideoComplete, { method: 'POST' }));
+    } catch (error) {
+      setError(root, 'Não foi possível marcar a aula da Semana 2 como assistida.');
+    }
+  }
+
+  async function saveWeek2Reflection(root) {
+    const value = root.querySelector('[data-week-2-form]')?.elements.reflection.value.trim();
+    if (!value) return setError(root, 'Preencha sua reflexão.');
+    try {
+      await refreshHomeState(root, await global.fetch(api.week2Reflection, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reflection: value }) }));
+    } catch (error) {
+      setError(root, 'Não foi possível salvar sua reflexão.');
+    }
+  }
+
+  async function saveWeek2Response(root) {
+    const value = root.querySelector('[data-week-2-form]')?.elements.minimum_response.value.trim();
+    if (!value) return setError(root, 'Preencha sua resposta mínima.');
+    try {
+      await refreshHomeState(root, await global.fetch(api.week2Reflection, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ minimum_response: value }) }));
+    } catch (error) {
+      setError(root, 'Não foi possível salvar sua resposta mínima.');
+    }
+  }
+
   async function submitCheckin(root) {
     const answer = global.ProjectLm2State.getState().daily_checkin_answer;
     const messages = {
@@ -311,6 +366,9 @@
       if (target.hasAttribute('data-create-direction')) submitOnboarding(root);
       if (target.hasAttribute('data-complete-week-1-video')) completeWeek1Video(root);
       if (target.hasAttribute('data-save-plan-b')) savePlanB(root);
+      if (target.hasAttribute('data-complete-week-2-video')) completeWeek2Video(root);
+      if (target.hasAttribute('data-save-week-2-reflection')) saveWeek2Reflection(root);
+      if (target.hasAttribute('data-save-week-2-response')) saveWeek2Response(root);
       if (target.hasAttribute('data-submit-checkin')) submitCheckin(root);
     });
   }
