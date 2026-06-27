@@ -80,6 +80,10 @@
     return Boolean(state.week_3_video_completed && state.week_3_reflection_completed && state.week_3_response_completed);
   }
 
+  function isWeek4Completed(state) {
+    return Boolean(state.week_4_video_completed && state.week_4_reflection_completed && state.week_4_response_completed);
+  }
+
   function nextActionLabel(nextAction) {
     if (nextAction === 'week_1_video') return 'Assistir à aula da Semana 1.';
     if (nextAction === 'create_plan_b') return 'Criar seu Plano B inicial.';
@@ -331,11 +335,30 @@
           <p>Essa resposta será um lembrete da direção que você escolheu seguir.</p>
           <label>O que você quer continuar fazendo quando este programa terminar?<textarea class="lm2-input" name="reflection" maxlength="300" required>${escapeHtml(state.week_4_reflection)}</textarea></label>
           <button class="lm2-primary-button" type="button" data-save-week-4-reflection>SALVAR REFLEXÃO</button>
+          <label>Qual será sua resposta mínima para seguir em frente nos dias difíceis?<textarea class="lm2-input" name="minimum_response" maxlength="300" required>${escapeHtml(state.week_4_minimum_response)}</textarea></label>
+          <button class="lm2-primary-button" type="button" data-save-week-4-response>SALVAR RESPOSTA</button>
         </form>
         <p class="lm2-feedback" data-lm2-week-4-feedback>${state.week_4_reflection_completed ? 'Você não precisa fazer tudo perfeitamente. Precisa apenas continuar. Sempre que surgirem dias difíceis, lembre-se da direção que escolheu seguir.' : ''}</p>
         <p class="lm2-error" data-lm2-error role="alert"></p>
         <button class="lm2-primary-button" type="button" data-complete-week-4>CONCLUIR SEMANA 4</button>
         <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
+      </section>`;
+
+    if (route === 'week-4-complete') root.innerHTML = `
+      <section class="lm2-card" aria-labelledby="lm2-week-4-complete-title">
+        <h1 id="lm2-week-4-complete-title">Semana 4 concluída.</h1>
+        <p>Você chegou ao fim das quatro semanas do Projeto LM.</p>
+        <p>Mais importante do que terminar este programa foi aprender que continuar é uma habilidade que pode ser construída.</p>
+        <p>Os dias difíceis ainda existirão.</p>
+        <p>Mas agora você sabe que eles não significam recomeçar.</p>
+        <p>Eles significam apenas ajustar a rota e seguir em frente.</p>
+        <button class="lm2-primary-button" type="button" data-route="program-completion">Finalizar programa</button>
+      </section>`;
+
+    if (route === 'program-completion') root.innerHTML = `
+      <section class="lm2-card" aria-labelledby="lm2-program-completion-title">
+        <h1 id="lm2-program-completion-title">Program Completion</h1>
+        <p>Placeholder</p>
       </section>`;
 
     if (route === 'daily-checkin') root.innerHTML = `
@@ -488,11 +511,18 @@
     render(root, global.ProjectLm2Router.getCurrentRoute());
   }
 
+  function saveWeek4Response(root) {
+    const value = root.querySelector('[data-week-4-form]')?.elements.minimum_response.value.trim();
+    if (!value) return setError(root, 'Preencha sua resposta mínima.');
+    global.ProjectLm2State.updateState({ week_4_minimum_response: value, week_4_response_completed: true });
+    render(root, global.ProjectLm2Router.getCurrentRoute());
+  }
+
   function completeWeek4(root) {
     const state = global.ProjectLm2State.getState();
-    if (!state.week_4_video_completed || !state.week_4_reflection_completed) return setError(root, 'Assista à aula e salve sua reflexão antes de concluir a Semana 4.');
+    if (!isWeek4Completed(state)) return setError(root, 'Assista à aula, salve sua reflexão e salve sua resposta mínima antes de concluir a Semana 4.');
     global.ProjectLm2State.updateState({ week_4_completed: true });
-    render(root, global.ProjectLm2Router.getCurrentRoute());
+    routeTo(root, 'week-4-complete');
   }
 
   async function submitCheckin(root) {
@@ -554,6 +584,7 @@
       if (target.hasAttribute('data-complete-week-3')) completeWeek3(root);
       if (target.hasAttribute('data-complete-week-4-video')) completeWeek4Video(root);
       if (target.hasAttribute('data-save-week-4-reflection')) saveWeek4Reflection(root);
+      if (target.hasAttribute('data-save-week-4-response')) saveWeek4Response(root);
       if (target.hasAttribute('data-complete-week-4')) completeWeek4(root);
       if (target.hasAttribute('data-submit-checkin')) submitCheckin(root);
     });
