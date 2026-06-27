@@ -195,7 +195,7 @@ export default {
         });
       }
 
-      if (url.pathname.startsWith('/api/portal/') || url.pathname.startsWith('/api/project-lm/')) {
+      if (url.pathname.startsWith('/api/portal/') || url.pathname.startsWith('/api/project-lm/') || url.pathname.startsWith('/api/project-lm-2/')) {
         const auth = await validateStudent(request, env.DB);
         if (!auth.ok) {
           await logOperationalEvent(env.DB, {
@@ -212,6 +212,19 @@ export default {
 
         const studentEmail = auth.student.email;
 
+
+        if (url.pathname === '/api/project-lm-2/onboarding' && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
+          const body = await safeJson(request);
+          const result = await projectLm2SaveOnboarding(env.DB, auth.student, body);
+          return json(result.payload, result.status);
+        }
+
+        if (url.pathname === '/api/project-lm-2/home' && method === 'GET') {
+          if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
+          const result = await projectLm2GetHome(env.DB, auth.student);
+          return json(result.payload, result.status);
+        }
 
         if (url.pathname === '/api/project-lm/journey' && method === 'GET') {
           if (!isProjectLmPlan(auth.student)) return json(projectLmV5Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
@@ -2177,6 +2190,28 @@ async function ensureSchema(db) {
   await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_project_lm_profiles_user_id
     ON project_lm_profiles(user_id)`).run();
 
+  await db.prepare(`CREATE TABLE IF NOT EXISTS lm2_profiles (
+    student_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    goal TEXT NOT NULL,
+    sex TEXT NOT NULL CHECK (sex IN ('female', 'male')),
+    weight_kg REAL NOT NULL,
+    nutrition_plan_id TEXT NOT NULL,
+    training_plan_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`).run();
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS lm2_journeys (
+    student_id TEXT PRIMARY KEY,
+    current_week INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'active',
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`).run();
+
   await db.prepare(`CREATE TABLE IF NOT EXISTS project_lm_daily_actions (
     id TEXT PRIMARY KEY,
     student_email TEXT NOT NULL,
@@ -3095,6 +3130,99 @@ const PROJECT_LM_DAILY_ACTION_TYPES = new Set([
   'alimentacao'
 ]);
 
+
+function projectLm2Error(error, status = 400, code = 'PROJECT_LM_2_ERROR') {
+  return { status, payload: { ok: false, error, code } };
+}
+
+function projectLm2Success(data, status = 200) {
+  return { status, payload: { ok: true, data } };
+}
+
+function projectLm2StudentId(student) {
+  return String(student?.id || student?.email || '').trim();
+}
+
+function projectLm2NutritionPlanId(sex, weightKg) {
+  if (sex === 'female') {
+    if (weightKg < 70) return 'M1';
+    if (weightKg < 90) return 'M2';
+    return 'M3';
+  }
+  if (weightKg < 80) return 'H1';
+  if (weightKg < 100) return 'H2';
+  return 'H3';
+}
+
+function projectLm2TrainingPlanId(sex) {
+  return sex === 'female' ? 'gym_female' : 'gym_male';
+}
+
+function projectLm2ValidateOnboarding(body) {
+  const name = requiredText(body?.name);
+  if (!name) return projectLm2Error('name é obrigatório.', 400, 'NAME_REQUIRED');
+  const goal = requiredText(body?.goal);
+  if (!goal) return projectLm2Error('goal é obrigatório.', 400, 'GOAL_REQUIRED');
+  const sex = String(body?.sex || '').trim().toLowerCase();
+  if (!['male', 'female'].includes(sex)) return projectLm2Error('sex deve ser male ou female.', 400, 'INVALID_SEX');
+  const weightKg = Number(body?.weight_kg);
+  if (!Number.isFinite(weightKg) || weightKg <= 30 || weightKg >= 250) return projectLm2Error('weight_kg deve ser numérico e maior que 30 e menor que 250.', 400, 'INVALID_WEIGHT');
+  return { ok: true, profile: { name, goal, sex, weightKg } };
+}
+
+function projectLm2HomeData(profile, journey) {
+  return {
+    name: profile?.name,
+    onboarding_completed: true,
+    current_week: Number(journey?.current_week || 1),
+    continuity_days_count: 0,
+    required_days_count: 5,
+    next_action: 'week_1_video',
+    nutrition_ready: true,
+    training_ready: true,
+    nutrition_label: 'Seu plano alimentar está pronto.',
+    training_label: 'Seu treino está pronto.'
+  };
+}
+
+async function projectLm2GetProfile(db, student) {
+  return db.prepare(`SELECT * FROM lm2_profiles WHERE student_id=? LIMIT 1`).bind(projectLm2StudentId(student)).first();
+}
+
+async function projectLm2GetJourney(db, student) {
+  return db.prepare(`SELECT * FROM lm2_journeys WHERE student_id=? LIMIT 1`).bind(projectLm2StudentId(student)).first();
+}
+
+async function projectLm2SaveOnboarding(db, student, body) {
+  const validation = projectLm2ValidateOnboarding(body);
+  if (!validation.ok) return validation;
+  const studentId = projectLm2StudentId(student);
+  if (!studentId) return projectLm2Error('student_id autenticado é obrigatório.', 401, 'STUDENT_REQUIRED');
+  const { name, goal, sex, weightKg } = validation.profile;
+  const nutritionPlanId = projectLm2NutritionPlanId(sex, weightKg);
+  const trainingPlanId = projectLm2TrainingPlanId(sex);
+  const now = new Date().toISOString();
+  const existingProfile = await projectLm2GetProfile(db, student);
+  if (existingProfile) {
+    await db.prepare(`UPDATE lm2_profiles SET name=?, goal=?, sex=?, weight_kg=?, nutrition_plan_id=?, training_plan_id=?, updated_at=? WHERE student_id=?`).bind(name, goal, sex, weightKg, nutritionPlanId, trainingPlanId, now, studentId).run();
+  } else {
+    await db.prepare(`INSERT INTO lm2_profiles (student_id, name, goal, sex, weight_kg, nutrition_plan_id, training_plan_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(studentId, name, goal, sex, weightKg, nutritionPlanId, trainingPlanId, now, now).run();
+  }
+  let journey = await projectLm2GetJourney(db, student);
+  if (!journey) {
+    await db.prepare(`INSERT INTO lm2_journeys (student_id, current_week, status, started_at, completed_at, created_at, updated_at) VALUES (?, 1, 'active', ?, NULL, ?, ?)`).bind(studentId, now, now, now).run();
+    journey = await projectLm2GetJourney(db, student);
+  }
+  const profile = await projectLm2GetProfile(db, student);
+  return projectLm2Success(projectLm2HomeData(profile, journey));
+}
+
+async function projectLm2GetHome(db, student) {
+  const profile = await projectLm2GetProfile(db, student);
+  if (!profile) return projectLm2Success({ onboarding_completed: false, state: 'onboarding_required', next_action: 'start_onboarding' });
+  const journey = await projectLm2GetJourney(db, student);
+  return projectLm2Success(projectLm2HomeData(profile, journey || { current_week: 1 }));
+}
 
 // Projeto LM V5 foundation: isolated from legacy library, weekly missions, current mission, streak, hard day mode, and consistency flows.
 const PROJECT_LM_V5_RECOVERY_FIELDS = ['overeating', 'missed_workout', 'travel', 'difficult_week', 'lack_of_motivation'];
