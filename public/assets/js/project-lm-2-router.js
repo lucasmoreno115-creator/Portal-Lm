@@ -6,6 +6,9 @@
     'onboarding-sex': { path: '#onboarding-sex', label: 'Sexo' },
     'onboarding-weight': { path: '#onboarding-weight', label: 'Peso' },
     'direction-created': { path: '#direction-created', label: 'Direção criada' },
+    home: { path: '#home', label: 'Início' },
+    direction: { path: '#direction', label: 'Minha Direção' },
+    'week-1-placeholder': { path: '#week-1-placeholder', label: 'Semana 1' },
     'home-placeholder': { path: '#home-placeholder', label: 'Início' }
   });
 

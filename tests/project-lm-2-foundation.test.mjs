@@ -53,10 +53,13 @@ test('LM 2.0 state layer exposes the minimum initial state contract', () => {
   assert.match(lm2State, /continuity_days_count:\s*0/);
   assert.match(lm2State, /required_days_count:\s*5/);
   assert.match(lm2State, /next_action:\s*'start_onboarding'/);
+  assert.match(lm2State, /home_loaded:\s*false/);
+  assert.match(lm2State, /home_data:\s*null/);
+  assert.match(lm2State, /direction_loaded:\s*false/);
 });
 
 test('LM 2.0 router prepares the minimum internal routes', () => {
-  for (const route of ['welcome', 'onboarding-name', 'onboarding-goal', 'onboarding-sex', 'onboarding-weight', 'direction-created', 'home-placeholder']) {
+  for (const route of ['welcome', 'onboarding-name', 'onboarding-goal', 'onboarding-sex', 'onboarding-weight', 'direction-created', 'home', 'direction', 'week-1-placeholder', 'home-placeholder']) {
     assert.match(lm2Router, new RegExp(`${route}:|['"]${route}['"]`));
   }
 });

@@ -31,6 +31,33 @@
     if (error) error.textContent = message || '';
   }
 
+  function applyHomeData(homeData = {}) {
+    const currentState = global.ProjectLm2State.getState();
+    global.ProjectLm2State.updateState({
+      home_loaded: true,
+      home_data: homeData,
+      home: homeData,
+      name: homeData.name || currentState.name,
+      onboarding_completed: homeData.onboarding_completed ?? currentState.onboarding_completed,
+      current_week: homeData.current_week || currentState.current_week,
+      continuity_days_count: Number(homeData.continuity_days_count || 0),
+      required_days_count: homeData.required_days_count || currentState.required_days_count,
+      next_action: homeData.next_action || currentState.next_action
+    });
+  }
+
+  async function loadHome(root) {
+    try {
+      const response = await global.fetch(api.home);
+      if (!response.ok) throw new Error('home_failed');
+      const home = await response.json();
+      applyHomeData(home.data || home);
+      render(root, 'home');
+    } catch (error) {
+      setError(root, 'Não foi possível carregar sua jornada. Tente novamente.');
+    }
+  }
+
   function render(root, route) {
     const state = global.ProjectLm2State.getState();
     root.dataset.lm2Route = route;
@@ -76,14 +103,37 @@
       <section class="lm2-card" aria-labelledby="lm2-direction-title">
         <h1 id="lm2-direction-title">Olá ${escapeHtml(state.name)}</h1>
         <p>Sua direção está pronta.</p><p>Seu treino está pronto.</p><p>Seu plano alimentar está pronto.</p><p>Mas existe algo importante:</p><p>Você não precisa emagrecer tudo em 30 dias.</p><p>Você precisa aprender a continuar por mais de 30 dias.</p><p>É isso que realmente gera resultado.</p>
-        <button class="lm2-primary-button" type="button" data-route="home-placeholder">IR PARA MINHA JORNADA</button>
+        <button class="lm2-primary-button" type="button" data-route="home">IR PARA MINHA JORNADA</button>
       </section>`;
-    if (route === 'home-placeholder') root.innerHTML = `
+    if (route === 'home-placeholder') route = 'home';
+    if (route === 'home') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-home-title">
         <h1 id="lm2-home-title">Olá ${escapeHtml(state.name)}</h1>
-        <p>Semana ${state.current_week} de 4</p><p>Dias de continuidade</p><p>${state.continuity_days_count} de ${state.required_days_count} necessários</p><p>Próxima ação:</p><p>Semana 1 será liberada em breve.</p>
-        <button class="lm2-primary-button" type="button">MINHA DIREÇÃO</button>
+        <p>Semana ${state.current_week} de 4</p><p>Dias de continuidade</p><p>${state.continuity_days_count} de ${state.required_days_count} necessários</p><p>Próxima ação:</p><p>Sua jornada começa na Semana 1.</p>
+        <p class="lm2-error" data-lm2-error role="alert"></p>
+        <button class="lm2-primary-button" type="button" data-route="week-1-placeholder">CONTINUAR</button>
+        <button class="lm2-secondary-button" type="button" data-route="direction">MINHA DIREÇÃO</button>
       </section>`;
+    if (route === 'direction') root.innerHTML = `
+      <section class="lm2-card" aria-labelledby="lm2-direction-tools-title">
+        <h1 id="lm2-direction-tools-title">Minha Direção</h1>
+        <p>As ferramentas que vão ajudar você a continuar.</p>
+        <article class="lm2-block"><h2>Meu Treino</h2><p>Seu treino já foi definido para esta jornada.</p><button class="lm2-secondary-button" type="button">ABRIR TREINO</button></article>
+        <article class="lm2-block"><h2>Minha Alimentação</h2><p>Seu plano alimentar já foi definido para esta jornada.</p><button class="lm2-secondary-button" type="button">ABRIR PLANO</button></article>
+        <article class="lm2-block"><h2>Meu Plano B</h2><p>Sua estratégia para continuar quando a vida não sair como planejado.</p><button class="lm2-secondary-button" type="button">EM BREVE</button></article>
+        <button class="lm2-primary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
+      </section>`;
+    if (route === 'week-1-placeholder') root.innerHTML = `
+      <section class="lm2-card" aria-labelledby="lm2-week-placeholder-title">
+        <h1 id="lm2-week-placeholder-title">Semana 1</h1>
+        <h2>Pare de Recomeçar</h2>
+        <p>Nenhum plano de emagrecimento funciona se você precisa começar de novo toda segunda-feira.</p>
+        <p>A Semana 1 será liberada em breve.</p>
+        <button class="lm2-primary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
+      </section>`;
+
+    if (route === 'home' && !state.home_loaded) loadHome(root);
+    if (route === 'direction' && !state.direction_loaded) global.ProjectLm2State.updateState({ direction_loaded: true });
   }
 
   function routeTo(root, route) {
@@ -101,14 +151,7 @@
       const homeResponse = await global.fetch(api.home);
       if (!homeResponse.ok) throw new Error('home_failed');
       const home = await homeResponse.json();
-      const homeData = home.data || home;
-      global.ProjectLm2State.updateState({
-        home: homeData,
-        current_week: homeData.current_week || state.current_week,
-        continuity_days_count: homeData.continuity_days_count || 0,
-        required_days_count: homeData.required_days_count || state.required_days_count,
-        next_action: homeData.next_action || state.next_action
-      });
+      applyHomeData(home.data || home);
       routeTo(root, 'direction-created');
     } catch (error) {
       setError(root, 'Não foi possível criar sua direção. Tente novamente.');
