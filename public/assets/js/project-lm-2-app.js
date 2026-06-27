@@ -300,8 +300,41 @@
 
     if (route === 'week-4-placeholder') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-week-4-title">
-        <h1 id="lm2-week-4-title">Semana 4</h1>
-        <p>Semana 4 será liberada em breve.</p>
+        <h1 id="lm2-week-4-title">Continue mesmo sem motivação</h1>
+        <h2>O que sustenta seus resultados não é a motivação. É a direção que você escolhe seguir.</h2>
+        <article class="lm2-lesson">
+          <h3>Aula</h3>
+          <p>${state.week_4_video_completed ? 'Assistida' : 'Não assistida'}</p>
+          <button class="lm2-primary-button" type="button" data-complete-week-4-video>${state.week_4_video_completed ? 'ASSISTIDA' : 'MARCAR COMO ASSISTIDA'}</button>
+          <p>Se você chegou até aqui, provavelmente percebeu algo importante.</p>
+          <p>A motivação nunca esteve presente todos os dias.</p>
+          <p>Houve dias em que foi fácil.</p>
+          <p>Outros em que tudo parecia mais difícil.</p>
+          <p>E mesmo assim, você continuou.</p>
+          <p>Esse sempre foi o objetivo do Projeto LM.</p>
+          <p>Não fazer você depender da motivação.</p>
+          <p>Mas mostrar que ela não precisa estar presente para que você continue.</p>
+          <p>Motivação é passageira.</p>
+          <p>Direção permanece.</p>
+          <p>Daqui para frente ainda existirão dias difíceis.</p>
+          <p>Ainda existirão imprevistos.</p>
+          <p>Ainda existirão semanas em que nem tudo acontecerá como planejado.</p>
+          <p>Mas agora você sabe que isso não significa recomeçar.</p>
+          <p>Significa apenas ajustar e seguir.</p>
+          <p>Você não termina este programa perfeito.</p>
+          <p>Você termina preparado para continuar.</p>
+        </article>
+        <form class="lm2-plan-b" data-week-4-form>
+          <h3>O que você leva daqui?</h3>
+          <p>Pense em tudo o que aconteceu nas últimas semanas.</p>
+          <p>Existe alguma ideia, hábito ou mudança de perspectiva que você deseja manter mesmo após o fim deste programa?</p>
+          <p>Essa resposta será um lembrete da direção que você escolheu seguir.</p>
+          <label>O que você quer continuar fazendo quando este programa terminar?<textarea class="lm2-input" name="reflection" maxlength="300" required>${escapeHtml(state.week_4_reflection)}</textarea></label>
+          <button class="lm2-primary-button" type="button" data-save-week-4-reflection>SALVAR REFLEXÃO</button>
+        </form>
+        <p class="lm2-feedback" data-lm2-week-4-feedback>${state.week_4_reflection_completed ? 'Você não precisa fazer tudo perfeitamente. Precisa apenas continuar. Sempre que surgirem dias difíceis, lembre-se da direção que escolheu seguir.' : ''}</p>
+        <p class="lm2-error" data-lm2-error role="alert"></p>
+        <button class="lm2-primary-button" type="button" data-complete-week-4>CONCLUIR SEMANA 4</button>
         <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
       </section>`;
 
@@ -442,6 +475,26 @@
     routeTo(root, 'week-3-complete');
   }
 
+
+  function completeWeek4Video(root) {
+    global.ProjectLm2State.updateState({ week_4_video_completed: true });
+    render(root, global.ProjectLm2Router.getCurrentRoute());
+  }
+
+  function saveWeek4Reflection(root) {
+    const value = root.querySelector('[data-week-4-form]')?.elements.reflection.value.trim();
+    if (!value) return setError(root, 'Preencha sua reflexão.');
+    global.ProjectLm2State.updateState({ week_4_reflection: value, week_4_reflection_completed: true });
+    render(root, global.ProjectLm2Router.getCurrentRoute());
+  }
+
+  function completeWeek4(root) {
+    const state = global.ProjectLm2State.getState();
+    if (!state.week_4_video_completed || !state.week_4_reflection_completed) return setError(root, 'Assista à aula e salve sua reflexão antes de concluir a Semana 4.');
+    global.ProjectLm2State.updateState({ week_4_completed: true });
+    render(root, global.ProjectLm2Router.getCurrentRoute());
+  }
+
   async function submitCheckin(root) {
     const answer = global.ProjectLm2State.getState().daily_checkin_answer;
     const messages = {
@@ -499,6 +552,9 @@
       if (target.hasAttribute('data-save-week-3-reflection')) saveWeek3Reflection(root);
       if (target.hasAttribute('data-save-week-3-response')) saveWeek3Response(root);
       if (target.hasAttribute('data-complete-week-3')) completeWeek3(root);
+      if (target.hasAttribute('data-complete-week-4-video')) completeWeek4Video(root);
+      if (target.hasAttribute('data-save-week-4-reflection')) saveWeek4Reflection(root);
+      if (target.hasAttribute('data-complete-week-4')) completeWeek4(root);
       if (target.hasAttribute('data-submit-checkin')) submitCheckin(root);
     });
   }
