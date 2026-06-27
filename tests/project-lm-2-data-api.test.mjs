@@ -73,6 +73,24 @@ test('LM 2.0 home returns onboarding_required before profile and week 1 after on
   assert.doesNotMatch(JSON.stringify(after.body), /\b[MH][123]\b/);
 });
 
+
+test('LM 2.0 Week 1 video and Plano B update next action', async () => {
+  const db = new FakeD1('projeto_lm');
+  await api(db, 'POST', '/api/project-lm-2/onboarding', { name: 'Lucas', goal: 'emagrecer', sex: 'male', weight_kg: 87 });
+  const video = await api(db, 'POST', '/api/project-lm-2/week-1/video-complete');
+  assert.equal(video.status, 200);
+  assert.equal(video.body.data.next_action, 'create_plan_b');
+  assert.equal(video.body.data.week_1_video_completed, true);
+
+  const plan = await api(db, 'POST', '/api/project-lm-2/plan-b', { unable_to_train: 'caminhar 10 min', overeating: 'voltar na próxima refeição', no_motivation: 'fazer o mínimo' });
+  assert.equal(plan.status, 200);
+  assert.equal(plan.body.data.next_action, 'checkin_pending_placeholder');
+  assert.equal(plan.body.data.plan_b_completed, true);
+
+  const home = await api(db, 'GET', '/api/project-lm-2/home');
+  assert.equal(home.body.data.next_action, 'checkin_pending_placeholder');
+});
+
 test('LM 2.0 API is isolated from V5, Premium and Admin namespaces', () => {
   assert.match(apiSource, /\/api\/project-lm-2\/onboarding/);
   assert.match(apiSource, /\/api\/project-lm-2\/home/);
@@ -92,7 +110,7 @@ async function api(db, method, pathname, body) {
 }
 
 class FakeD1 {
-  constructor(plan) { this.plan = plan; this.tables = { lm2_profiles: [], lm2_journeys: [] }; }
+  constructor(plan) { this.plan = plan; this.tables = { lm2_profiles: [], lm2_journeys: [], lm2_week_1_foundation: [] }; }
   prepare(sql) { return new FakeD1Statement(this, sql); }
 }
 class FakeD1Statement {
@@ -104,6 +122,9 @@ class FakeD1Statement {
     if (s.startsWith('INSERT INTO lm2_profiles')) { this.db.tables.lm2_profiles.push({ student_id: p[0], name: p[1], goal: p[2], sex: p[3], weight_kg: p[4], nutrition_plan_id: p[5], training_plan_id: p[6], created_at: p[7], updated_at: p[8] }); return { meta: { changes: 1 } }; }
     if (s.startsWith('UPDATE lm2_profiles')) { const r = this.db.tables.lm2_profiles.find(x => x.student_id === p[7]); Object.assign(r, { name: p[0], goal: p[1], sex: p[2], weight_kg: p[3], nutrition_plan_id: p[4], training_plan_id: p[5], updated_at: p[6] }); return { meta: { changes: 1 } }; }
     if (s.startsWith('INSERT INTO lm2_journeys')) { this.db.tables.lm2_journeys.push({ student_id: p[0], current_week: 1, status: 'active', started_at: p[1], completed_at: null, created_at: p[2], updated_at: p[3] }); return { meta: { changes: 1 } }; }
+    if (s.startsWith('INSERT INTO lm2_week_1_foundation')) { this.db.tables.lm2_week_1_foundation.push({ student_id: p[0], video_completed: 0, unable_to_train: null, overeating: null, no_motivation: null, video_completed_at: null, plan_b_saved_at: null, created_at: p[1], updated_at: p[2] }); return { meta: { changes: 1 } }; }
+    if (s.startsWith('UPDATE lm2_week_1_foundation SET video_completed=1')) { const r = this.db.tables.lm2_week_1_foundation.find(x => x.student_id === p[2]); Object.assign(r, { video_completed: 1, video_completed_at: r.video_completed_at || p[0], updated_at: p[1] }); return { meta: { changes: 1 } }; }
+    if (s.startsWith('UPDATE lm2_week_1_foundation SET unable_to_train')) { const r = this.db.tables.lm2_week_1_foundation.find(x => x.student_id === p[5]); Object.assign(r, { unable_to_train: p[0], overeating: p[1], no_motivation: p[2], plan_b_saved_at: p[3], updated_at: p[4] }); return { meta: { changes: 1 } }; }
     return { meta: { changes: 0 } };
   }
   async first() {
@@ -111,6 +132,7 @@ class FakeD1Statement {
     if (s.startsWith('SELECT id, name, email, plan_type, plan FROM student_access')) return { id: 'student-1', name: 'Student', email: 'student@example.com', plan_type: this.db.plan === 'premium' ? 'PREMIUM' : 'PROJECT_LM', plan: this.db.plan };
     if (s.startsWith('SELECT * FROM lm2_profiles')) return this.db.tables.lm2_profiles.find(x => x.student_id === p[0]) || null;
     if (s.startsWith('SELECT * FROM lm2_journeys')) return this.db.tables.lm2_journeys.find(x => x.student_id === p[0]) || null;
+    if (s.startsWith('SELECT * FROM lm2_week_1_foundation')) return this.db.tables.lm2_week_1_foundation.find(x => x.student_id === p[0]) || null;
     return null;
   }
   async all() { return { results: [] }; }

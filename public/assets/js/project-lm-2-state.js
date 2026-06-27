@@ -12,7 +12,10 @@
     home_loaded: false,
     home_data: null,
     direction_loaded: false,
-    home: null
+    home: null,
+    week_1_video_completed: false,
+    plan_b_completed: false,
+    plan_b: { unable_to_train: '', overeating: '', no_motivation: '' }
   });
 
   let state = { ...initialState };

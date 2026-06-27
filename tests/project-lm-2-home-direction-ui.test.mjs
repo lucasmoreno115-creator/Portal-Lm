@@ -27,15 +27,16 @@ test('Minha Direção renders exactly the three requested blocks', () => {
   assert.equal((lm2App.match(/<article class="lm2-block">/g) || []).length, 3);
 });
 
-test('Home, Direction, and Week placeholder navigation is wired without implementing Semana 1', () => {
-  for (const route of ['home', 'direction', 'week-1-placeholder']) {
+test('Home, Direction, and Week 1 navigation is wired', () => {
+  for (const route of ['home', 'direction', 'week-1']) {
     assert.match(lm2Router, new RegExp(`${route}:|['"]${route}['"]`));
   }
   assert.match(lm2App, /data-route="direction">MINHA DIREÇÃO/);
   assert.match(lm2App, /data-route="home">VOLTAR PARA HOME/);
   assert.match(lm2App, /data-route="week-1-placeholder">CONTINUAR/);
   assert.match(lm2App, /Pare de Recomeçar/);
-  assert.match(lm2App, /A Semana 1 será liberada em breve\./);
+  assert.match(lm2App, /Por que você sempre recomeça\?/);
+  assert.match(lm2App, /SALVAR MEU PLANO B/);
   assert.doesNotMatch(lm2Bundle, /data-check-in|unlock|desbloque|progression|progressão/i);
 });
 
@@ -47,9 +48,9 @@ test('LM 2.0 state tracks only the requested new screen flags', () => {
 });
 
 test('V5, Premium, Admin, and LM 2.0 asset isolation remain intact', () => {
-  assert.doesNotMatch(v5Html, /project-lm-2-app\.js|Minha Direção|week-1-placeholder/);
-  assert.doesNotMatch(premiumHtml, /project-lm-2-app\.js|Minha Direção|week-1-placeholder/);
-  assert.doesNotMatch(portalHtml, /project-lm-2-app\.js|Minha Direção|week-1-placeholder/);
+  assert.doesNotMatch(v5Html, /project-lm-2-app\.js|Minha Direção|week-1/);
+  assert.doesNotMatch(premiumHtml, /project-lm-2-app\.js|Minha Direção|week-1/);
+  assert.doesNotMatch(portalHtml, /project-lm-2-app\.js|Minha Direção|week-1/);
   assert.match(lm2Html, /project-lm-2-app\.js/);
 });
 

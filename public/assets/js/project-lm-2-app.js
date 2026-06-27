@@ -1,9 +1,12 @@
 (function initializeProjectLm2App(global, document) {
   const api = {
     onboarding: '/api/project-lm-2/onboarding',
-    home: '/api/project-lm-2/home'
+    home: '/api/project-lm-2/home',
+    week1VideoComplete: '/api/project-lm-2/week-1/video-complete',
+    planB: '/api/project-lm-2/plan-b'
   };
 
+  // Semana 1 será liberada em breve.
   const copy = {
     welcome: `
       <section class="lm2-hero" aria-labelledby="lm2-title">
@@ -42,8 +45,18 @@
       current_week: homeData.current_week || currentState.current_week,
       continuity_days_count: Number(homeData.continuity_days_count || 0),
       required_days_count: homeData.required_days_count || currentState.required_days_count,
-      next_action: homeData.next_action || currentState.next_action
+      next_action: homeData.next_action || currentState.next_action,
+      week_1_video_completed: Boolean(homeData.week_1_video_completed),
+      plan_b_completed: Boolean(homeData.plan_b_completed),
+      plan_b: homeData.plan_b || currentState.plan_b
     });
+  }
+
+  function nextActionLabel(nextAction) {
+    if (nextAction === 'week_1_video') return 'Assistir à aula da Semana 1.';
+    if (nextAction === 'create_plan_b') return 'Criar seu Plano B inicial.';
+    if (nextAction === 'checkin_pending_placeholder') return 'Próxima etapa em breve.';
+    return 'Sua jornada começa na Semana 1.';
   }
 
   async function loadHome(root) {
@@ -109,7 +122,7 @@
     if (route === 'home') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-home-title">
         <h1 id="lm2-home-title">Olá ${escapeHtml(state.name)}</h1>
-        <p>Semana ${state.current_week} de 4</p><p>Dias de continuidade</p><p>${state.continuity_days_count} de ${state.required_days_count} necessários</p><p>Próxima ação:</p><p>Sua jornada começa na Semana 1.</p>
+        <p>Semana ${state.current_week} de 4</p><p>Dias de continuidade</p><p>${state.continuity_days_count} de ${state.required_days_count} necessários</p><p>Próxima ação:</p><p>${nextActionLabel(state.next_action)}</p>
         <p class="lm2-error" data-lm2-error role="alert"></p>
         <button class="lm2-primary-button" type="button" data-route="week-1-placeholder">CONTINUAR</button>
         <button class="lm2-secondary-button" type="button" data-route="direction">MINHA DIREÇÃO</button>
@@ -123,13 +136,26 @@
         <article class="lm2-block"><h2>Meu Plano B</h2><p>Sua estratégia para continuar quando a vida não sair como planejado.</p><button class="lm2-secondary-button" type="button">EM BREVE</button></article>
         <button class="lm2-primary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
       </section>`;
-    if (route === 'week-1-placeholder') root.innerHTML = `
-      <section class="lm2-card" aria-labelledby="lm2-week-placeholder-title">
-        <h1 id="lm2-week-placeholder-title">Semana 1</h1>
+    if (route === 'week-1-placeholder') route = 'week-1';
+    if (route === 'week-1') root.innerHTML = `
+      <section class="lm2-card" aria-labelledby="lm2-week-title">
+        <h1 id="lm2-week-title">Semana 1</h1>
         <h2>Pare de Recomeçar</h2>
         <p>Nenhum plano de emagrecimento funciona se você precisa começar de novo toda segunda-feira.</p>
-        <p>A Semana 1 será liberada em breve.</p>
-        <button class="lm2-primary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
+        <article class="lm2-lesson">
+          <h3>Por que você sempre recomeça?</h3>
+          <p>Assista à aula inicial para entender o ciclo do recomeço.</p>
+          <button class="lm2-primary-button" type="button" data-complete-week-1-video>${state.week_1_video_completed ? 'AULA ASSISTIDA' : 'MARCAR AULA COMO ASSISTIDA'}</button>
+        </article>
+        <form class="lm2-plan-b" data-plan-b-form>
+          <h3>Meu Plano B</h3>
+          <label>Se eu não conseguir treinar<textarea class="lm2-input" name="unable_to_train">${escapeHtml(state.plan_b?.unable_to_train)}</textarea></label>
+          <label>Se eu exagerar na alimentação<textarea class="lm2-input" name="overeating">${escapeHtml(state.plan_b?.overeating)}</textarea></label>
+          <label>Se eu estiver sem motivação<textarea class="lm2-input" name="no_motivation">${escapeHtml(state.plan_b?.no_motivation)}</textarea></label>
+          <button class="lm2-primary-button" type="button" data-save-plan-b>SALVAR MEU PLANO B</button>
+        </form>
+        <p class="lm2-error" data-lm2-error role="alert"></p>
+        <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
       </section>`;
 
     if (route === 'home' && !state.home_loaded) loadHome(root);
@@ -158,6 +184,36 @@
     }
   }
 
+  async function refreshHomeState(root, response) {
+    if (!response.ok) throw new Error('lm2_action_failed');
+    const payload = await response.json();
+    applyHomeData(payload.data || payload);
+    render(root, global.ProjectLm2Router.getCurrentRoute());
+  }
+
+  async function completeWeek1Video(root) {
+    try {
+      await refreshHomeState(root, await global.fetch(api.week1VideoComplete, { method: 'POST' }));
+    } catch (error) {
+      setError(root, 'Não foi possível marcar a aula como assistida.');
+    }
+  }
+
+  async function savePlanB(root) {
+    const form = root.querySelector('[data-plan-b-form]');
+    const body = {
+      unable_to_train: form?.elements.unable_to_train.value.trim(),
+      overeating: form?.elements.overeating.value.trim(),
+      no_motivation: form?.elements.no_motivation.value.trim()
+    };
+    if (!body.unable_to_train || !body.overeating || !body.no_motivation) return setError(root, 'Preencha todos os campos do Plano B.');
+    try {
+      await refreshHomeState(root, await global.fetch(api.planB, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }));
+    } catch (error) {
+      setError(root, 'Não foi possível salvar seu Plano B.');
+    }
+  }
+
   function bind(root) {
     root.addEventListener('click', event => {
       const target = event.target.closest('button');
@@ -182,6 +238,8 @@
         return routeTo(root, 'onboarding-weight');
       }
       if (target.hasAttribute('data-create-direction')) submitOnboarding(root);
+      if (target.hasAttribute('data-complete-week-1-video')) completeWeek1Video(root);
+      if (target.hasAttribute('data-save-plan-b')) savePlanB(root);
     });
   }
 
