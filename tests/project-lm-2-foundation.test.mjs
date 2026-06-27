@@ -11,10 +11,10 @@ const portalHtml = await readFile('portal.html', 'utf8');
 const v5Html = await readFile('public/project-lm-v5.html', 'utf8');
 
 const lm2AssetPaths = [
-  '/assets/js/project-lm-2-app.js',
-  '/assets/js/project-lm-2-state.js',
-  '/assets/js/project-lm-2-router.js',
-  '/assets/css/project-lm-2.css'
+  'assets/js/project-lm-2-app.js',
+  'assets/js/project-lm-2-state.js',
+  'assets/js/project-lm-2-router.js',
+  'assets/css/project-lm-2.css'
 ];
 
 const lm2Sources = [lm2App, lm2State, lm2Router, lm2Css];
