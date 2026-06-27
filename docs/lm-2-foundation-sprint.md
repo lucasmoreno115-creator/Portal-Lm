@@ -39,3 +39,7 @@ Este incremento cria somente a persistência inicial e os contratos de onboardin
 - `GET /api/project-lm-2/home` para validar o estado inicial do aluno.
 - Seleção interna automática de plano alimentar por sexo/peso e treino por sexo.
 - Garantia de atualização do perfil existente sem duplicar jornada ativa.
+
+## LM 2.0-11 — Week Unlock & Continuity Logic
+
+Implementada a conclusão oficial da Semana 1 com aula assistida, Plano B inicial e 5 dias de continuidade não consecutivos. A Semana 2 permanece apenas como placeholder e é precedida por uma tela de celebração da Semana 1.

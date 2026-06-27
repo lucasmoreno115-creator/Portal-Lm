@@ -130,6 +130,60 @@ test('LM 2.0 check-in maps adapted to 1, off_track to 0, and returns progress', 
   assert.deepEqual(progress.body.data, { continuity_days_count: 0, required_days_count: 5, remaining_days: 5, goal_reached: false, today_checkin_completed: true });
 });
 
+
+test('LM 2.0 week-status returns incomplete with less than 5 days and completed with 5 or more days', async () => {
+  const db = new FakeD1('projeto_lm');
+  await completeFoundation(db);
+  addCheckins(db, ['on_track', 'adapted', 'off_track', 'on_track']);
+  const incomplete = await api(db, 'GET', '/api/project-lm-2/week-status');
+  assert.equal(incomplete.status, 200);
+  assert.deepEqual(incomplete.body.data, { current_week: 1, week_completed: false, video_completed: true, plan_b_completed: true, continuity_days_count: 3, required_days_count: 5, remaining_days: 2, next_week_available: false });
+
+  addCheckins(db, ['adapted', 'on_track'], 5);
+  const complete = await api(db, 'GET', '/api/project-lm-2/week-status');
+  assert.equal(complete.body.data.week_completed, true);
+  assert.equal(complete.body.data.continuity_days_count, 5);
+  assert.equal(complete.body.data.remaining_days, 0);
+  assert.equal(complete.body.data.next_week_available, true);
+
+  addCheckins(db, ['on_track'], 8);
+  const over = await api(db, 'GET', '/api/project-lm-2/week-status');
+  assert.equal(over.body.data.week_completed, true);
+  assert.equal(over.body.data.continuity_days_count, 6);
+  assert.equal(over.body.data.remaining_days, 0);
+});
+
+test('LM 2.0 week-status requires video, Plano B and 5 continuity days', async () => {
+  const noVideo = new FakeD1('projeto_lm');
+  await api(noVideo, 'POST', '/api/project-lm-2/onboarding', { name: 'Lucas', goal: 'emagrecer', sex: 'male', weight_kg: 87 });
+  await api(noVideo, 'POST', '/api/project-lm-2/plan-b', { unable_to_train: 'caminhar', overeating: 'retomar', no_motivation: 'mínimo' });
+  addCheckins(noVideo, ['on_track', 'adapted', 'on_track', 'adapted', 'on_track']);
+  assert.equal((await api(noVideo, 'GET', '/api/project-lm-2/week-status')).body.data.week_completed, false);
+
+  const noPlan = new FakeD1('projeto_lm');
+  await api(noPlan, 'POST', '/api/project-lm-2/onboarding', { name: 'Lucas', goal: 'emagrecer', sex: 'male', weight_kg: 87 });
+  await api(noPlan, 'POST', '/api/project-lm-2/week-1/video-complete');
+  addCheckins(noPlan, ['on_track', 'adapted', 'on_track', 'adapted', 'on_track']);
+  assert.equal((await api(noPlan, 'GET', '/api/project-lm-2/week-status')).body.data.week_completed, false);
+
+  const noDays = new FakeD1('projeto_lm');
+  await completeFoundation(noDays);
+  addCheckins(noDays, ['on_track', 'adapted', 'off_track', 'on_track']);
+  const status = await api(noDays, 'GET', '/api/project-lm-2/week-status');
+  assert.equal(status.body.data.week_completed, false);
+  assert.equal(status.body.data.continuity_days_count, 3);
+});
+
+test('LM 2.0 home returns week_1_complete when all Week 1 criteria are fulfilled', async () => {
+  const db = new FakeD1('projeto_lm');
+  await completeFoundation(db);
+  addCheckins(db, ['on_track', 'adapted', 'on_track', 'adapted', 'on_track']);
+  const home = await api(db, 'GET', '/api/project-lm-2/home');
+  assert.equal(home.body.data.next_action, 'week_1_complete');
+  assert.equal(home.body.data.next_action_label, 'Continuar para Semana 2');
+  assert.equal(home.body.data.week_completed, true);
+});
+
 test('LM 2.0 API is isolated from V5, Premium and Admin namespaces', () => {
   assert.match(apiSource, /\/api\/project-lm-2\/onboarding/);
   assert.match(apiSource, /\/api\/project-lm-2\/home/);
@@ -137,6 +191,19 @@ test('LM 2.0 API is isolated from V5, Premium and Admin namespaces', () => {
   assert.doesNotMatch(lm2Block, /admin_/);
   assert.doesNotMatch(lm2Block, /premium_/);
 });
+
+async function completeFoundation(db) {
+  await api(db, 'POST', '/api/project-lm-2/onboarding', { name: 'Lucas', goal: 'emagrecer', sex: 'male', weight_kg: 87 });
+  await api(db, 'POST', '/api/project-lm-2/week-1/video-complete');
+  await api(db, 'POST', '/api/project-lm-2/plan-b', { unable_to_train: 'caminhar 10 min', overeating: 'voltar na próxima refeição', no_motivation: 'fazer o mínimo' });
+}
+
+function addCheckins(db, answers, startDay = 1) {
+  const student_id = 'student-1';
+  answers.forEach((answer, index) => {
+    db.tables.lm2_checkins.push({ student_id, checkin_date: `2026-06-${String(startDay + index).padStart(2, '0')}`, week_number: 1, answer, continuity_point: answer === 'off_track' ? 0 : 1, created_at: '2026-06-01T00:00:00.000Z', updated_at: '2026-06-01T00:00:00.000Z' });
+  });
+}
 
 async function api(db, method, pathname, body) {
   const request = new Request(`https://portal.test${pathname}`, {

@@ -239,6 +239,12 @@ export default {
           return json(result.payload, result.status);
         }
 
+        if (url.pathname === '/api/project-lm-2/week-status' && method === 'GET') {
+          if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
+          const result = await projectLm2GetWeekStatus(env.DB, auth.student);
+          return json(result.payload, result.status);
+        }
+
         if (url.pathname === '/api/project-lm-2/week-1/video-complete' && method === 'POST') {
           if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
           const result = await projectLm2CompleteWeek1Video(env.DB, auth.student);
@@ -3221,14 +3227,35 @@ function projectLm2ValidateOnboarding(body) {
   return { ok: true, profile: { name, goal, sex, weightKg } };
 }
 
-function projectLm2NextAction(week1, todayCheckinCompleted = false) {
+function projectLm2NextAction(week1, todayCheckinCompleted = false, weekStatus = null) {
+  if (weekStatus?.week_completed) return 'week_1_complete';
   if (!week1?.video_completed) return 'week_1_video';
   if (!week1?.plan_b_saved_at) return 'create_plan_b';
   if (!todayCheckinCompleted) return 'daily_checkin';
   return 'checkin_completed_today';
 }
 
+function projectLm2BuildWeekStatus(journey, week1 = null, progress = projectLm2ProgressData(0, false)) {
+  const continuityDaysCount = Number(progress.continuity_days_count || 0);
+  const requiredDaysCount = Number(progress.required_days_count || 5);
+  const videoCompleted = Boolean(week1?.video_completed);
+  const planBCompleted = Boolean(week1?.plan_b_saved_at);
+  const weekCompleted = videoCompleted && planBCompleted && continuityDaysCount >= requiredDaysCount;
+  return {
+    current_week: Number(journey?.current_week || 1),
+    week_completed: weekCompleted,
+    video_completed: videoCompleted,
+    plan_b_completed: planBCompleted,
+    continuity_days_count: continuityDaysCount,
+    required_days_count: requiredDaysCount,
+    remaining_days: Math.max(requiredDaysCount - continuityDaysCount, 0),
+    next_week_available: weekCompleted
+  };
+}
+
 function projectLm2HomeData(profile, journey, week1 = null, progress = projectLm2ProgressData(0, false)) {
+  const weekStatus = projectLm2BuildWeekStatus(journey, week1, progress);
+  const nextAction = projectLm2NextAction(week1, progress.today_checkin_completed, weekStatus);
   return {
     name: profile?.name,
     onboarding_completed: true,
@@ -3238,7 +3265,11 @@ function projectLm2HomeData(profile, journey, week1 = null, progress = projectLm
     remaining_days: progress.remaining_days,
     goal_reached: progress.goal_reached,
     today_checkin_completed: progress.today_checkin_completed,
-    next_action: projectLm2NextAction(week1, progress.today_checkin_completed),
+    week_status: weekStatus,
+    week_completed: weekStatus.week_completed,
+    next_week_available: weekStatus.next_week_available,
+    next_action: nextAction,
+    next_action_label: nextAction === 'week_1_complete' ? 'Continuar para Semana 2' : null,
     week_1_video_completed: Boolean(week1?.video_completed),
     plan_b_completed: Boolean(week1?.plan_b_saved_at),
     plan_b: {
@@ -3282,6 +3313,15 @@ async function projectLm2Progress(db, student, journey = null) {
 async function projectLm2GetProgress(db, student) {
   const journey = await projectLm2GetJourney(db, student);
   return projectLm2Success(await projectLm2Progress(db, student, journey || { current_week: 1 }));
+}
+
+async function projectLm2GetWeekStatus(db, student) {
+  const profile = await projectLm2GetProfile(db, student);
+  if (!profile) return projectLm2Error('Onboarding obrigatório antes do status semanal.', 409, 'ONBOARDING_REQUIRED');
+  const journey = await projectLm2GetJourney(db, student);
+  const week1 = await projectLm2EnsureWeek1(db, student);
+  const progress = await projectLm2Progress(db, student, journey || { current_week: 1 });
+  return projectLm2Success(projectLm2BuildWeekStatus(journey || { current_week: 1 }, week1, progress));
 }
 
 async function projectLm2SaveCheckin(db, student, body) {
