@@ -357,7 +357,32 @@
 
     if (route === 'program-completion') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-program-completion-title">
-        <h1 id="lm2-program-completion-title">Program Completion</h1>
+        <h1 id="lm2-program-completion-title">Parabéns por chegar até aqui.</h1>
+        <div class="lm2-subtitle">
+          <p>O mais importante não foi terminar quatro semanas.</p>
+          <p>Foi construir a capacidade de continuar.</p>
+        </div>
+        <p>Durante este programa você descobriu que:</p>
+        <ul class="lm2-list">
+          <li>Recomeçar não precisa fazer parte da sua rotina.</li>
+          <li>Dias difíceis não significam fracasso.</li>
+          <li>A evolução acontece antes da balança mostrar resultados.</li>
+          <li>A direção é mais importante do que a motivação.</li>
+        </ul>
+        <p>Essas quatro ideias são a base para continuar evoluindo.</p>
+        <p>O programa termina aqui.</p>
+        <p>Mas a sua direção continua.</p>
+        <div class="lm2-block">
+          <p>Você não precisa mais provar que consegue começar.</p>
+          <p>Agora sabe que consegue continuar.</p>
+        </div>
+        <p class="lm2-error" data-lm2-error role="alert"></p>
+        <button class="lm2-primary-button" type="button" data-complete-program>Concluir Projeto LM</button>
+      </section>`;
+
+    if (route === 'premium-bridge') root.innerHTML = `
+      <section class="lm2-card" aria-labelledby="lm2-premium-bridge-title">
+        <h1 id="lm2-premium-bridge-title">Premium Bridge</h1>
         <p>Placeholder</p>
       </section>`;
 
@@ -525,6 +550,11 @@
     routeTo(root, 'week-4-complete');
   }
 
+  function completeProgram(root) {
+    global.ProjectLm2State.updateState({ program_completed: true });
+    routeTo(root, 'premium-bridge');
+  }
+
   async function submitCheckin(root) {
     const answer = global.ProjectLm2State.getState().daily_checkin_answer;
     const messages = {
@@ -586,6 +616,7 @@
       if (target.hasAttribute('data-save-week-4-reflection')) saveWeek4Reflection(root);
       if (target.hasAttribute('data-save-week-4-response')) saveWeek4Response(root);
       if (target.hasAttribute('data-complete-week-4')) completeWeek4(root);
+      if (target.hasAttribute('data-complete-program')) completeProgram(root);
       if (target.hasAttribute('data-submit-checkin')) submitCheckin(root);
     });
   }

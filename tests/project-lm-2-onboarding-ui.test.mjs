@@ -43,7 +43,8 @@ test('LM 2.0 onboarding navigation advances only through the requested routes', 
   assert.match(lm2App, /data-route="home"/);
   assert.match(lm2App, /data-route="direction"/);
   assert.match(lm2App, /week-1-placeholder/);
-  assert.doesNotMatch(lm2App + lm2Router, /premium|admin/i);
+  assert.doesNotMatch(lm2App + lm2Router, /admin/i);
+  assert.doesNotMatch(lm2App, /\/api\/.*premium/i);
 });
 
 test('LM 2.0 onboarding validates required fields with specified errors', () => {

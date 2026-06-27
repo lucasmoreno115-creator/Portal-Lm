@@ -43,7 +43,8 @@
     week_4_reflection_completed: false,
     week_4_minimum_response: '',
     week_4_response_completed: false,
-    week_4_completed: false
+    week_4_completed: false,
+    program_completed: false
   });
 
   let state = { ...initialState };
