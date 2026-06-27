@@ -16,6 +16,8 @@
     'week-3-placeholder': { path: '#week-3-placeholder', label: 'Semana 3' },
     'week-3-complete': { path: '#week-3-complete', label: 'Semana 3 concluída' },
     'week-4-placeholder': { path: '#week-4-placeholder', label: 'Semana 4' },
+    'week-4-complete': { path: '#week-4-complete', label: 'Semana 4 concluída' },
+    'program-completion': { path: '#program-completion', label: 'Program Completion' },
     'week-1-placeholder': { path: '#week-1', label: 'Semana 1' },
     'home-placeholder': { path: '#home-placeholder', label: 'Início' }
   });

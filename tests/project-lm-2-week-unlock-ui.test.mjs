@@ -71,6 +71,8 @@ test('LM 2.0 week-4-placeholder foi substituído pelo conteúdo oficial da Seman
   assert.match(lm2State, /week_4_video_completed: false/);
   assert.match(lm2State, /week_4_reflection: ''/);
   assert.match(lm2State, /week_4_reflection_completed: false/);
+  assert.match(lm2State, /week_4_minimum_response: ''/);
+  assert.match(lm2State, /week_4_response_completed: false/);
   assert.match(lm2State, /week_4_completed: false/);
   for (const text of [
     'Continue mesmo sem motivação',
@@ -80,6 +82,7 @@ test('LM 2.0 week-4-placeholder foi substituído pelo conteúdo oficial da Seman
     'Você termina preparado para continuar.',
     'O que você leva daqui?',
     'O que você quer continuar fazendo quando este programa terminar?',
+    'Qual será sua resposta mínima para seguir em frente nos dias difíceis?',
     'Você não precisa fazer tudo perfeitamente.',
     'Precisa apenas continuar.',
     'Sempre que surgirem dias difíceis, lembre-se da direção que escolheu seguir.'
@@ -87,6 +90,28 @@ test('LM 2.0 week-4-placeholder foi substituído pelo conteúdo oficial da Seman
     assert.match(lm2App, new RegExp(escapeRegExp(text)));
   }
   assert.doesNotMatch(lm2App, /Semana 4 será liberada em breve\./);
+});
+
+
+test('LM 2.0 week-4-complete reutiliza conclusão e navega para Program Completion placeholder', () => {
+  assert.match(lm2Router, /'week-4-complete': \{ path: '#week-4-complete'/);
+  assert.match(lm2Router, /'program-completion': \{ path: '#program-completion'/);
+  for (const text of [
+    'Semana 4 concluída.',
+    'Você chegou ao fim das quatro semanas do Projeto LM.',
+    'Mais importante do que terminar este programa foi aprender que continuar é uma habilidade que pode ser construída.',
+    'Os dias difíceis ainda existirão.',
+    'Mas agora você sabe que eles não significam recomeçar.',
+    'Eles significam apenas ajustar a rota e seguir em frente.',
+    'Finalizar programa',
+    'Program Completion',
+    'Placeholder'
+  ]) {
+    assert.match(lm2App, new RegExp(escapeRegExp(text)));
+  }
+  assert.match(lm2App, /isWeek4Completed/);
+  assert.match(lm2App, /data-route="program-completion"/);
+  assert.match(lm2App, /routeTo\(root, 'week-4-complete'\)/);
 });
 
 test('V5, Premium e Admin permanecem intactos', () => {
