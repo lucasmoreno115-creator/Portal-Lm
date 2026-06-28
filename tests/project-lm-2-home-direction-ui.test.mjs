@@ -16,7 +16,7 @@ test('Home renders the requested minimum journey data from GET home', () => {
   for (const text of ['Olá ${escapeHtml(state.name)}', 'Semana ${state.current_week} de 4', 'Dias de continuidade', '${state.continuity_days_count} de ${state.required_days_count} necessários', 'Próxima ação:', 'Sua jornada começa na Semana 1.']) {
     assert.match(lm2App, new RegExp(escapeRegExp(text)));
   }
-  assert.match(lm2App, /global\.fetch\(api\.home\)/);
+  assert.match(lm2App, /requestLm2\(api\.home\)/);
   assert.match(lm2App, /applyHomeData\(\{ \.\.\.\(home\.data \|\| home\), \.\.\.\(progress\.data \|\| \{\}\) \}\)/);
 });
 
