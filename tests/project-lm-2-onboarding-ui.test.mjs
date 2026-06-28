@@ -65,7 +65,7 @@ test('LM 2.0 onboarding integrates POST onboarding and GET home on success', () 
   assert.match(lm2App, /method: 'POST'/);
   for (const field of ['name', 'goal', 'sex', 'weight_kg']) assert.match(lm2App, new RegExp(`\\b${field}\\b`));
   assert.match(lm2App, /onboarding_completed:\s*true/);
-  assert.match(lm2App, /await global\.fetch\(api\.home\)/);
+  assert.match(lm2App, /await requestLm2\(api\.home\)/);
 });
 
 test('LM 2.0 state tracks onboarding fields and completion only in LM 2.0 layer', () => {

@@ -31,6 +31,46 @@
       </section>`
   };
 
+
+  function getAuth() {
+    const storage = global.localStorage;
+    if (!storage || typeof storage.getItem !== 'function') return { email: '', token: '' };
+    return {
+      email: storage.getItem('lm_student_email') || '',
+      token: storage.getItem('lm_student_token') || ''
+    };
+  }
+
+  function hasSession() {
+    const auth = getAuth();
+    return Boolean(auth.email && auth.token);
+  }
+
+  function redirectToLogin() {
+    if (global.location) global.location.href = '/portal-login.html';
+  }
+
+  function requireSession() {
+    if (hasSession()) return true;
+    redirectToLogin();
+    return false;
+  }
+
+  function getAuthHeaders() {
+    const auth = getAuth();
+    if (!auth.email || !auth.token) return {};
+    return { 'x-student-email': auth.email, 'x-student-token': auth.token };
+  }
+
+  function requestLm2(url, options = {}) {
+    if (!requireSession()) return Promise.reject(new Error('auth_required'));
+    const headers = {
+      ...getAuthHeaders(),
+      ...(options.headers || {})
+    };
+    return global.fetch(url, { ...options, headers });
+  }
+
   function escapeHtml(value) {
     return String(value || '').replace(/[&<>"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
   }
@@ -126,7 +166,7 @@
 
   async function loadHome(root) {
     try {
-      const [response, progressResponse] = await Promise.all([global.fetch(api.home), global.fetch(api.progress)]);
+      const [response, progressResponse] = await Promise.all([requestLm2(api.home), requestLm2(api.progress)]);
       if (!response.ok || !progressResponse.ok) throw new Error('home_failed');
       const home = await response.json();
       const progress = await progressResponse.json();
@@ -465,10 +505,10 @@
     if (!Number.isFinite(weight) || weight <= 0) return setError(root, 'Informe um peso válido.');
     const state = global.ProjectLm2State.updateState({ weight_kg: weight });
     try {
-      const response = await global.fetch(api.onboarding, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: state.name, goal: state.goal, sex: state.sex, weight_kg: state.weight_kg }) });
+      const response = await requestLm2(api.onboarding, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: state.name, goal: state.goal, sex: state.sex, weight_kg: state.weight_kg }) });
       if (!response.ok) throw new Error('onboarding_failed');
       global.ProjectLm2State.updateState({ onboarding_completed: true });
-      const homeResponse = await global.fetch(api.home);
+      const homeResponse = await requestLm2(api.home);
       if (!homeResponse.ok) throw new Error('home_failed');
       const home = await homeResponse.json();
       applyHomeData(home.data || home);
@@ -487,7 +527,7 @@
 
   async function completeWeek1Video(root) {
     try {
-      await refreshHomeState(root, await global.fetch(api.week1VideoComplete, { method: 'POST' }));
+      await refreshHomeState(root, await requestLm2(api.week1VideoComplete, { method: 'POST' }));
     } catch (error) {
       setError(root, 'Não foi possível marcar a aula como assistida.');
     }
@@ -502,7 +542,7 @@
     };
     if (!body.unable_to_train || !body.overeating || !body.no_motivation) return setError(root, 'Preencha todos os campos do Plano B.');
     try {
-      await refreshHomeState(root, await global.fetch(api.planB, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }));
+      await refreshHomeState(root, await requestLm2(api.planB, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }));
     } catch (error) {
       setError(root, 'Não foi possível salvar seu Plano B.');
     }
@@ -510,7 +550,7 @@
 
   async function activateWeek2(root) {
     try {
-      const response = await global.fetch(api.activateWeek2, { method: 'POST' });
+      const response = await requestLm2(api.activateWeek2, { method: 'POST' });
       if (!response.ok) throw new Error('activate_week_2_failed');
       const payload = await response.json();
       global.ProjectLm2State.updateState({ ...(payload.data || {}), current_week: 2, home_loaded: false });
@@ -522,7 +562,7 @@
 
   async function completeWeek2Video(root) {
     try {
-      await refreshHomeState(root, await global.fetch(api.week2VideoComplete, { method: 'POST' }));
+      await refreshHomeState(root, await requestLm2(api.week2VideoComplete, { method: 'POST' }));
     } catch (error) {
       setError(root, 'Não foi possível marcar a aula da Semana 2 como assistida.');
     }
@@ -532,7 +572,7 @@
     const value = root.querySelector('[data-week-2-form]')?.elements.reflection.value.trim();
     if (!value) return setError(root, 'Preencha sua reflexão.');
     try {
-      await refreshHomeState(root, await global.fetch(api.week2Reflection, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reflection: value }) }));
+      await refreshHomeState(root, await requestLm2(api.week2Reflection, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reflection: value }) }));
     } catch (error) {
       setError(root, 'Não foi possível salvar sua reflexão.');
     }
@@ -542,7 +582,7 @@
     const value = root.querySelector('[data-week-2-form]')?.elements.minimum_response.value.trim();
     if (!value) return setError(root, 'Preencha sua resposta mínima.');
     try {
-      await refreshHomeState(root, await global.fetch(api.week2Reflection, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ minimum_response: value }) }));
+      await refreshHomeState(root, await requestLm2(api.week2Reflection, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ minimum_response: value }) }));
     } catch (error) {
       setError(root, 'Não foi possível salvar sua resposta mínima.');
     }
@@ -620,7 +660,7 @@
     };
     if (!answer) return setError(root, 'Selecione como foi seu dia.');
     try {
-      const response = await global.fetch(api.checkin, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ answer }) });
+      const response = await requestLm2(api.checkin, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ answer }) });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
         throw new Error(payload.error || 'Não foi possível registrar seu dia.');
@@ -681,6 +721,7 @@
   function boot() {
     const root = document.querySelector('#project-lm-2-root');
     if (!root) return;
+    if (!requireSession()) return;
     if (!root.dataset.lm2BoundClick) {
       root.dataset.lm2BoundClick = 'true';
       bind(root);
@@ -692,7 +733,7 @@
     }
   }
 
-  global.ProjectLm2App = { boot, render, api };
+  global.ProjectLm2App = { boot, render, api, getAuthHeaders, hasSession, requireSession, requestLm2 };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot, { once: true });
