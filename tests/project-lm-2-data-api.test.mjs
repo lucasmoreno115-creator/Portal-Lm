@@ -29,6 +29,34 @@ test('LM 2.0 schema is isolated and created by migration and ensureSchema', () =
   }
 });
 
+
+test('LM 2.0 onboarding requires portal student auth headers and never writes anonymously', async () => {
+  const db = new FakeD1('projeto_lm');
+  const res = await apiWithHeaders(db, 'POST', '/api/project-lm-2/onboarding', {}, { name: 'Lucas', goal: 'emagrecer', sex: 'male', weight_kg: 87 });
+  assert.equal(res.status, 401);
+  assert.equal(res.body.error, 'Unauthorized');
+  assert.equal(db.tables.lm2_profiles.length, 0);
+  assert.equal(db.tables.lm2_journeys.length, 0);
+});
+
+test('LM 2.0 onboarding rejects invalid portal student token and never writes', async () => {
+  const db = new FakeD1('projeto_lm');
+  const res = await apiWithHeaders(db, 'POST', '/api/project-lm-2/onboarding', { 'x-student-email': 'student@example.com', 'x-student-token': 'bad-token' }, { name: 'Lucas', goal: 'emagrecer', sex: 'male', weight_kg: 87 });
+  assert.equal(res.status, 401);
+  assert.equal(res.body.error, 'Unauthorized');
+  assert.equal(db.tables.lm2_profiles.length, 0);
+  assert.equal(db.tables.lm2_journeys.length, 0);
+});
+
+test('LM 2.0 onboarding rejects Premium students before writing', async () => {
+  const db = new FakeD1('premium');
+  const res = await api(db, 'POST', '/api/project-lm-2/onboarding', { name: 'Lucas', goal: 'emagrecer', sex: 'male', weight_kg: 87 });
+  assert.equal(res.status, 403);
+  assert.equal(res.body.code, 'PROJECT_LM_ONLY');
+  assert.equal(db.tables.lm2_profiles.length, 0);
+  assert.equal(db.tables.lm2_journeys.length, 0);
+});
+
 test('LM 2.0 onboarding creates profile and journey with selected plans', async () => {
   const db = new FakeD1('projeto_lm');
   const res = await api(db, 'POST', '/api/project-lm-2/onboarding', { name: 'Lucas', goal: 'emagrecer', sex: 'male', weight_kg: 87 });
@@ -344,9 +372,13 @@ function addCheckins(db, answers, startDay = 1, weekNumber = 1) {
 }
 
 async function api(db, method, pathname, body) {
+  return apiWithHeaders(db, method, pathname, { 'x-student-email': 'student@example.com', 'x-student-token': 'token' }, body);
+}
+
+async function apiWithHeaders(db, method, pathname, headers, body) {
   const request = new Request(`https://portal.test${pathname}`, {
     method,
-    headers: { 'content-type': 'application/json', 'x-student-email': 'student@example.com', 'x-student-token': 'token' },
+    headers: { 'content-type': 'application/json', ...headers },
     body: body ? JSON.stringify(body) : undefined
   });
   const response = await worker.fetch(request, { DB: db });
@@ -354,7 +386,7 @@ async function api(db, method, pathname, body) {
 }
 
 class FakeD1 {
-  constructor(plan) { this.plan = plan; this.tables = { lm2_profiles: [], lm2_journeys: [], lm2_week_1_foundation: [], lm2_week_2_foundation: [], lm2_checkins: [] }; }
+  constructor(plan) { this.plan = plan; this.studentToken = 'token'; this.tables = { lm2_profiles: [], lm2_journeys: [], lm2_week_1_foundation: [], lm2_week_2_foundation: [], lm2_checkins: [] }; }
   prepare(sql) { return new FakeD1Statement(this, sql); }
 }
 class FakeD1Statement {
@@ -380,7 +412,10 @@ class FakeD1Statement {
   }
   async first() {
     const s = this.sql, p = this.params;
-    if (s.startsWith('SELECT id, name, email, plan_type, plan FROM student_access')) return { id: 'student-1', name: 'Student', email: 'student@example.com', plan_type: this.db.plan === 'premium' ? 'PREMIUM' : 'PROJECT_LM', plan: this.db.plan };
+    if (s.startsWith('SELECT id, name, email, plan_type, plan FROM student_access')) {
+      if (p[0] !== 'student@example.com' || p[1] !== this.db.studentToken) return null;
+      return { id: 'student-1', name: 'Student', email: 'student@example.com', plan_type: this.db.plan === 'premium' ? 'PREMIUM' : 'PROJECT_LM', plan: this.db.plan };
+    }
     if (s.startsWith('SELECT * FROM lm2_profiles')) return this.db.tables.lm2_profiles.find(x => x.student_id === p[0]) || null;
     if (s.startsWith('SELECT * FROM lm2_journeys')) return this.db.tables.lm2_journeys.find(x => x.student_id === p[0]) || null;
     if (s.startsWith('SELECT * FROM lm2_week_1_foundation')) return this.db.tables.lm2_week_1_foundation.find(x => x.student_id === p[0]) || null;

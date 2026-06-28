@@ -207,7 +207,8 @@ export default {
             student_email: request.headers.get('x-student-email'),
             message: auth.error
           });
-          return json({ ok: false, error: auth.error }, 401);
+          const isLm2Route = url.pathname.startsWith('/api/project-lm-2/');
+          return json({ ok: false, error: isLm2Route ? 'Unauthorized' : auth.error }, 401);
         }
 
         const studentEmail = auth.student.email;
@@ -3996,7 +3997,9 @@ async function projectLmV5CreateMaintenanceGoal(db, student, body) {
 }
 
 function isProjectLmPlan(student) {
-  return normalizeStudentPlan(student?.plan) === 'projeto_lm';
+  const plan = normalizeStudentPlan(student?.plan);
+  const planType = String(student?.planType || '').trim().toLowerCase();
+  return plan === 'projeto_lm' || planType === 'projeto_lm' || planType === 'project_lm';
 }
 
 function canUseProjectLmProgress(student) {
