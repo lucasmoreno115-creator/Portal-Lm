@@ -8,8 +8,8 @@ const lm2Html = await readFile('public/project-lm-2.html', 'utf8');
 const legacyInventory = await readFile('docs/project-lm-legacy-inventory.md', 'utf8');
 const lm2Router = await readFile('public/assets/js/project-lm-2-router.js', 'utf8');
 
-const officialPortalRoute = 'public/project-lm-2.html#home';
-const officialRuntimeRoute = '/project-lm-2.html#home';
+const officialPortalRoute = '/projeto-lm#home';
+const officialRuntimeRoute = '/projeto-lm#home';
 const officialRoutes = [
   '#home',
   '#onboarding-name',
@@ -35,7 +35,7 @@ const legacyEntrypoints = [
 test('Projeto LM 2.0 is the official frontend route for new Projeto LM users', () => {
   assert.ok(portal.includes(`window.location.replace('${officialPortalRoute}')`));
   assert.match(access, /projectLm2Route\('home'\)/);
-  assert.equal('/project-lm-2.html#home', officialRuntimeRoute);
+  assert.equal('/projeto-lm#home', officialRuntimeRoute);
 
   for (const legacyEntrypoint of legacyEntrypoints) {
     assert.doesNotMatch(portal, new RegExp(`href=['"]${escapeRegExp(legacyEntrypoint)}['"]`));

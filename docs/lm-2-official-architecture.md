@@ -13,13 +13,14 @@ LM 2.0 is a new, isolated 30-day guided program for weight loss through continui
 
 ## Isolation Boundaries
 
+- Canonical public route: `/projeto-lm`, rewritten to the LM 2.0 HTML entrypoint.
 - HTML entrypoint: `public/project-lm-2.html`.
 - JavaScript namespace: `ProjectLm2*` globals only.
 - CSS namespace: `lm2-*` classes only.
 - No database objects are created in this PR.
 - No APIs are created in this PR.
-- No official route is replaced in this PR.
-- `wrangler.toml`, deploy routing, V5, Premium, Admin, and `lm-access.js` remain untouched.
+- The official public route is `/projeto-lm`; the underlying LM 2.0 entrypoint remains `public/project-lm-2.html`.
+- V5, Premium and Admin remain isolated from the LM 2.0 route.
 
 ## Foundation Assets
 

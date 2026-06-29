@@ -1,4 +1,5 @@
-const LM_PROJECT_LM_2_ENTRY = ['/project-lm-2', 'html'].join('.');
+const LM_PROJECT_LM_2_ENTRY = '/projeto-lm';
+const LM_PROJECT_LM_2_LEGACY_ENTRY = ['/project-lm-2', 'html'].join('.');
 const projectLm2Route = (hash) => `${LM_PROJECT_LM_2_ENTRY}#${hash}`;
 
 const LM_ACCESS = {
@@ -125,7 +126,7 @@ async function shouldShowProjectOnboarding() {
 async function redirectProjectLmOnboardingIfNeeded() {
   if (!isProjectLm()) return false;
   const path = window.location.pathname;
-  if (path.endsWith(LM_PROJECT_LM_2_ENTRY) || path.endsWith(LM_PROJECT_LM_2_ENTRY.replace(/^\//, ''))) {
+  if (path === LM_PROJECT_LM_2_ENTRY || path.endsWith(LM_PROJECT_LM_2_ENTRY) || path.endsWith(LM_PROJECT_LM_2_LEGACY_ENTRY) || path.endsWith(LM_PROJECT_LM_2_LEGACY_ENTRY.replace(/^\//, ''))) {
     return false;
   }
   const shouldRedirect = await shouldShowProjectOnboarding();

@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 
 const rootDir = process.cwd();
 const inventoryPath = path.join(rootDir, 'docs/v4-dependency-inventory.md');
+const redirectsPath = path.join(rootDir, 'public/_redirects');
 
 const protectedEntrypoints = [
   'admin.html',
@@ -33,6 +34,21 @@ async function listFilesInDir(relativeDir, pattern) {
       .map((entry) => path.posix.join(relativeDir, entry.name));
   } catch (error) {
     if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+
+async function canonicalRewriteTargets() {
+  try {
+    const redirects = await readFile(redirectsPath, 'utf8');
+    return new Set(redirects
+      .split(/\r?\n/)
+      .map((line) => line.trim().split(/\s+/))
+      .filter(([source, target, status]) => source && target && status === '200')
+      .map(([source]) => source.replace(/^\//, '')));
+  } catch (error) {
+    if (error.code === 'ENOENT') return new Set();
     throw error;
   }
 }
@@ -148,6 +164,7 @@ test('referências HTML para scripts, stylesheets e páginas internas existem', 
   const htmlSet = new Set(files.htmlFiles);
   const jsSet = new Set(files.jsFiles);
   const cssSet = new Set(files.cssFiles);
+  const rewriteTargets = await canonicalRewriteTargets();
 
   for (const script of references.filter((reference) => reference.kind === 'script')) {
     assert.ok(jsSet.has(script.target), `${script.source} referencia script inexistente: ${script.target}`);
@@ -156,7 +173,7 @@ test('referências HTML para scripts, stylesheets e páginas internas existem', 
     assert.ok(cssSet.has(stylesheet.target), `${stylesheet.source} referencia stylesheet inexistente: ${stylesheet.target}`);
   }
   for (const html of references.filter((reference) => reference.kind === 'html')) {
-    assert.ok(htmlSet.has(html.target), `${html.source} referencia HTML interno inexistente: ${html.target}`);
+    assert.ok(htmlSet.has(html.target) || rewriteTargets.has(html.target), `${html.source} referencia HTML interno inexistente: ${html.target}`);
   }
 });
 
