@@ -17,14 +17,15 @@ Após a Fase 2, o runtime oficial usa o backend `lm2_*` como fonte principal de 
 | URL pública oficial | `/projeto-lm` | Oficial |
 | Rewrite estático | `/projeto-lm /project-lm-2.html 200` | Correto |
 | Entrypoint interno | `public/project-lm-2.html` | Implementação interna, não deve ser link público |
+| Alias físico GitHub Pages | `public/projeto-lm/index.html` | Fallback compatível com host estático sem `_redirects` |
 | Router interno | Hash routes (`#home`, `#week-1`, etc.) | Oficial |
 | Outro entrypoint ativo no runtime de `/projeto-lm` | Não identificado | V5/legado congelados |
 
-`public/project-lm-2.html` é apenas detalhe de implementação: a URL canônica de aluno é `/projeto-lm`, preservando a navegação por hash. O login compartilhado também envia alunos `projeto_lm` para `/projeto-lm`, e o menu compartilhado constrói links canônicos `/projeto-lm#...`.
+`public/project-lm-2.html` é apenas detalhe de implementação: a URL canônica de aluno é `/projeto-lm`, preservando a navegação por hash. O login compartilhado também envia alunos `projeto_lm` para `/projeto-lm`, e o menu compartilhado constrói links canônicos `/projeto-lm#...`. Para GitHub Pages ou outro host que não aplica `public/_redirects`, `public/projeto-lm/index.html` existe como alias físico seguro, carregando somente os mesmos assets oficiais do LM 2.0 com caminhos relativos ao diretório. A limitação do GitHub Pages é que a resolução exata de `/projeto-lm` pode normalizar para `/projeto-lm/`; servir `/projeto-lm` sem barra ou extensão de forma estrita exige rewrite/redirect configurado no provedor.
 
 ### Bootstrap real
 
-1. O host estático reescreve `/projeto-lm` para `/project-lm-2.html`.
+1. O host estático reescreve `/projeto-lm` para `/project-lm-2.html`; quando o host não suporta `_redirects`, GitHub Pages pode servir o alias físico `public/projeto-lm/index.html`.
 2. O HTML carrega o CSS oficial.
 3. O HTML carrega os scripts na ordem: estado, router, app.
 4. `ProjectLm2App.boot()` exige sessão local (`lm_student_email` + `lm_student_token`).

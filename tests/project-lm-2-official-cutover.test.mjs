@@ -6,9 +6,12 @@ import assert from 'node:assert/strict';
 const portal = await readFile('portal.html', 'utf8');
 const access = await readFile('public/assets/js/lm-access.js', 'utf8');
 const lm2Html = await readFile('public/project-lm-2.html', 'utf8');
+const lm2CanonicalAlias = await readFile('public/projeto-lm/index.html', 'utf8');
 const redirects = await readFile('public/_redirects', 'utf8');
 const lm2App = await readFile('public/assets/js/project-lm-2-app.js', 'utf8');
 const apiSource = await readFile('workers/api.js', 'utf8');
+const premiumHtml = await readFile('anamnese-premium.html', 'utf8');
+const adminHtml = await readFile('admin.html', 'utf8');
 
 const officialPortalRoute = '/projeto-lm#home';
 const officialRuntimeRoute = '/projeto-lm#home';
@@ -39,6 +42,7 @@ test('Projeto LM login officially cuts over to LM 2.0 while Premium remains on p
   assert.equal(officialRuntimeRoute, '/projeto-lm#home');
   assert.match(access, /const LM_PROJECT_LM_2_ENTRY = '\/projeto-lm'/);
   assert.match(redirects, /^\/projeto-lm \/project-lm-2\.html 200$/m);
+  assert.match(lm2CanonicalAlias, /id="project-lm-2-root"/);
   assert.match(access, /\{ feature: 'dashboard', label: 'Página inicial', href: 'portal\.html' \}/);
 });
 
@@ -66,6 +70,29 @@ test('active Projeto LM student navigation no longer points to legacy entrypoint
 
   assert.doesNotMatch(access, /project-lm-v5|projeto-lm-jornada\.html|project-lm-profile\.html|projeto-lm-planejamento\.html/);
   assert.doesNotMatch(access, /project-lm-2\.html#|public\/project-lm-2\.html/);
+});
+
+
+test('GitHub Pages physical canonical alias serves LM 2.0 without V5 or legacy assets', () => {
+  const canonicalAliasAssets = [
+    '../assets/css/project-lm-2.css',
+    '../assets/js/project-lm-2-state.js',
+    '../assets/js/project-lm-2-router.js',
+    '../assets/js/project-lm-2-app.js'
+  ];
+
+  assert.match(lm2CanonicalAlias, /<title>Projeto LM 2\.0<\/title>/);
+  assert.match(lm2CanonicalAlias, /<main id="project-lm-2-root"/);
+  for (const asset of canonicalAliasAssets) {
+    assert.match(lm2CanonicalAlias, new RegExp(`(?:href|src)="${escapeRegExp(asset)}"`));
+  }
+  assert.doesNotMatch(lm2CanonicalAlias, /project-lm-v5|projeto-lm-jornada|projeto-lm-onboarding|projeto-lm-planejamento|project-lm-profile/);
+  assert.doesNotMatch(lm2CanonicalAlias, /project-lm-v5-app\.js|project-lm-v5-state\.js|project-lm-v5\.css/);
+});
+
+test('Premium and Admin entrypoints remain isolated from LM 2.0 production alias assets', () => {
+  assert.doesNotMatch(premiumHtml, /project-lm-2-(?:state|router|app)\.js|project-lm-2\.css|project-lm-2-root/);
+  assert.doesNotMatch(adminHtml, /project-lm-2-(?:state|router|app)\.js|project-lm-2\.css|project-lm-2-root/);
 });
 
 test('LM 2.0 uses relative assets so public/project-lm-2.html can load without 404s', () => {
