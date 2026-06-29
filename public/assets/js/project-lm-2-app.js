@@ -14,7 +14,14 @@
     week2Reflection: '/api/project-lm-2/week-2/reflection',
     week2Status: '/api/project-lm-2/week-2/status',
     activateWeek2: '/api/project-lm-2/activate-week-2',
-    activateWeek3: '/api/project-lm-2/activate-week-3'
+    activateWeek3: '/api/project-lm-2/activate-week-3',
+    week3VideoComplete: '/api/project-lm-2/week-3/video-complete',
+    week3Reflection: '/api/project-lm-2/week-3/reflection',
+    week3Complete: '/api/project-lm-2/week-3/complete',
+    week4VideoComplete: '/api/project-lm-2/week-4/video-complete',
+    week4Reflection: '/api/project-lm-2/week-4/reflection',
+    week4Complete: '/api/project-lm-2/week-4/complete',
+    programCompletion: '/api/project-lm-2/program-completion'
   };
 
   // Semana 1 será liberada em breve.
@@ -122,7 +129,22 @@
       week_2_reflection: homeData.week_2_reflection || currentState.week_2_reflection,
       week_2_minimum_response: homeData.week_2_minimum_response || currentState.week_2_minimum_response,
       week_2_completed: Boolean(homeData.week_2_completed || homeData.week_2_status?.week_completed),
-      week_3_available: Boolean(homeData.week_3_available || homeData.week_2_status?.next_week_available)
+      week_3_available: Boolean(homeData.week_3_available || homeData.week_2_status?.next_week_available),
+      week_3_video_completed: Boolean(homeData.week_3_video_completed),
+      week_3_reflection: homeData.week_3_reflection || currentState.week_3_reflection,
+      week_3_reflection_completed: Boolean(homeData.week_3_reflection_completed),
+      week_3_minimum_response: homeData.week_3_minimum_response || currentState.week_3_minimum_response,
+      week_3_response_completed: Boolean(homeData.week_3_response_completed),
+      week_3_completed: Boolean(homeData.week_3_completed),
+      week_4_video_completed: Boolean(homeData.week_4_video_completed),
+      week_4_reflection: homeData.week_4_reflection || currentState.week_4_reflection,
+      week_4_reflection_completed: Boolean(homeData.week_4_reflection_completed),
+      week_4_minimum_response: homeData.week_4_minimum_response || currentState.week_4_minimum_response,
+      week_4_response_completed: Boolean(homeData.week_4_response_completed),
+      week_4_completed: Boolean(homeData.week_4_completed),
+      program_completed: Boolean(homeData.program_completed),
+      program_completed_at: homeData.program_completed_at || currentState.program_completed_at,
+      premium_bridge_eligible: Boolean(homeData.premium_bridge_eligible)
     });
   }
 
@@ -337,10 +359,10 @@
         <p>Você não precisou fazer tudo perfeito.</p>
         <p>Você precisou encontrar uma resposta mínima.</p>
         <p>E isso é exatamente o que transforma o processo de emagrecimento em algo sustentável.</p>
-        <button class="lm2-primary-button" type="button" data-route="week-3-placeholder">IR PARA SEMANA 3</button>
+        <p class="lm2-error" data-lm2-error role="alert"></p>
+        <button class="lm2-primary-button" type="button" data-activate-week-3>IR PARA SEMANA 3</button>
       </section>`;
 
-    if (route === 'week-3-placeholder' && state.current_week < 3) global.ProjectLm2State.updateState({ current_week: 3, week_3_available: true });
     if (route === 'week-3-placeholder') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-week-3-title">
         <h1 id="lm2-week-3-title">As mudanças começam antes da balança</h1>
@@ -395,7 +417,6 @@
         <button class="lm2-primary-button" type="button" data-route="week-4-placeholder">Continuar para a Semana 4</button>
       </section>`;
 
-    if (route === 'week-4-placeholder' && state.current_week < 4) global.ProjectLm2State.updateState({ current_week: 4 });
     if (route === 'week-4-placeholder') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-week-4-title">
         <h1 id="lm2-week-4-title">Continue mesmo sem motivação</h1>
@@ -594,6 +615,18 @@
     }
   }
 
+  async function activateWeek3(root) {
+    try {
+      const response = await requestLm2(api.activateWeek3, { method: 'POST' });
+      if (!response.ok) throw new Error('activate_week_3_failed');
+      const payload = await response.json();
+      global.ProjectLm2State.updateState({ ...(payload.data || {}), current_week: 3, week_3_available: true, home_loaded: false });
+      routeTo(root, 'week-3-placeholder');
+    } catch (error) {
+      setError(root, 'Não foi possível ativar a Semana 3. Conclua os requisitos da Semana 2.');
+    }
+  }
+
   async function completeWeek2Video(root) {
     try {
       await refreshHomeState(root, await requestLm2(api.week2VideoComplete, { method: 'POST' }));
@@ -623,66 +656,105 @@
   }
 
 
-  function completeWeek3Video(root) {
-    global.ProjectLm2State.updateState({ week_3_video_completed: true });
-    render(root, global.ProjectLm2Router.getCurrentRoute());
+  async function completeWeek3Video(root) {
+    try {
+      await refreshHomeState(root, await requestLm2(api.week3VideoComplete, { method: 'POST' }));
+    } catch (error) {
+      setError(root, 'Não foi possível marcar a aula da Semana 3 como assistida.');
+    }
   }
 
-  function saveWeek3Reflection(root) {
+  async function saveWeek3Reflection(root) {
     const value = root.querySelector('[data-week-3-form]')?.elements.reflection.value.trim();
     if (!value) return setError(root, 'Preencha sua reflexão.');
-    global.ProjectLm2State.updateState({ week_3_reflection: value, week_3_reflection_completed: true });
-    render(root, global.ProjectLm2Router.getCurrentRoute());
+    try {
+      await refreshHomeState(root, await requestLm2(api.week3Reflection, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reflection: value }) }));
+    } catch (error) {
+      setError(root, 'Não foi possível salvar sua reflexão.');
+    }
   }
 
-  function saveWeek3Response(root) {
+  async function saveWeek3Response(root) {
     const value = root.querySelector('[data-week-3-form]')?.elements.minimum_response.value.trim();
     if (!value) return setError(root, 'Preencha sua resposta mínima.');
-    global.ProjectLm2State.updateState({ week_3_minimum_response: value, week_3_response_completed: true });
-    render(root, global.ProjectLm2Router.getCurrentRoute());
+    try {
+      await refreshHomeState(root, await requestLm2(api.week3Reflection, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ minimum_response: value }) }));
+    } catch (error) {
+      setError(root, 'Não foi possível salvar sua resposta mínima.');
+    }
   }
 
-  function completeWeek3(root) {
+  async function completeWeek3(root) {
     const state = global.ProjectLm2State.getState();
     if (!isWeek3Completed(state)) return setError(root, 'Assista à aula, salve sua reflexão e salve sua resposta mínima antes de concluir a Semana 3.');
-    global.ProjectLm2State.updateState({ week_3_completed: true, current_week: 4 });
-    routeTo(root, 'week-3-complete');
+    try {
+      const response = await requestLm2(api.week3Complete, { method: 'POST' });
+      if (!response.ok) throw new Error('week_3_complete_failed');
+      const payload = await response.json();
+      applyHomeData(payload.data || payload);
+      routeTo(root, 'week-3-complete');
+    } catch (error) {
+      setError(root, 'Não foi possível concluir a Semana 3.');
+    }
   }
 
 
-  function completeWeek4Video(root) {
-    global.ProjectLm2State.updateState({ week_4_video_completed: true });
-    render(root, global.ProjectLm2Router.getCurrentRoute());
+  async function completeWeek4Video(root) {
+    try {
+      await refreshHomeState(root, await requestLm2(api.week4VideoComplete, { method: 'POST' }));
+    } catch (error) {
+      setError(root, 'Não foi possível marcar a aula da Semana 4 como assistida.');
+    }
   }
 
-  function saveWeek4Reflection(root) {
+  async function saveWeek4Reflection(root) {
     const value = root.querySelector('[data-week-4-form]')?.elements.reflection.value.trim();
     if (!value) return setError(root, 'Preencha sua reflexão.');
-    global.ProjectLm2State.updateState({ week_4_reflection: value, week_4_reflection_completed: true });
-    render(root, global.ProjectLm2Router.getCurrentRoute());
+    try {
+      await refreshHomeState(root, await requestLm2(api.week4Reflection, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reflection: value }) }));
+    } catch (error) {
+      setError(root, 'Não foi possível salvar sua reflexão.');
+    }
   }
 
-  function saveWeek4Response(root) {
+  async function saveWeek4Response(root) {
     const value = root.querySelector('[data-week-4-form]')?.elements.minimum_response.value.trim();
     if (!value) return setError(root, 'Preencha sua resposta mínima.');
-    global.ProjectLm2State.updateState({ week_4_minimum_response: value, week_4_response_completed: true });
-    render(root, global.ProjectLm2Router.getCurrentRoute());
+    try {
+      await refreshHomeState(root, await requestLm2(api.week4Reflection, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ minimum_response: value }) }));
+    } catch (error) {
+      setError(root, 'Não foi possível salvar sua resposta mínima.');
+    }
   }
 
-  function completeWeek4(root) {
+  async function completeWeek4(root) {
     const state = global.ProjectLm2State.getState();
     if (!isWeek4Completed(state)) return setError(root, 'Assista à aula, salve sua reflexão e salve sua resposta mínima antes de concluir a Semana 4.');
-    global.ProjectLm2State.updateState({ week_4_completed: true, current_week: 4 });
-    routeTo(root, 'week-4-complete');
+    try {
+      const response = await requestLm2(api.week4Complete, { method: 'POST' });
+      if (!response.ok) throw new Error('week_4_complete_failed');
+      const payload = await response.json();
+      applyHomeData(payload.data || payload);
+      routeTo(root, 'week-4-complete');
+    } catch (error) {
+      setError(root, 'Não foi possível concluir a Semana 4.');
+    }
   }
 
   function openPremiumConsulting() {
     global.location.href = premiumConsultingCtaUrl;
   }
 
-  function completeProgram(root) {
-    global.ProjectLm2State.updateState({ program_completed: true });
-    routeTo(root, 'premium-bridge');
+  async function completeProgram(root) {
+    try {
+      const response = await requestLm2(api.programCompletion, { method: 'POST' });
+      if (!response.ok) throw new Error('program_completion_failed');
+      const payload = await response.json();
+      applyHomeData(payload.data || payload);
+      routeTo(root, 'premium-bridge');
+    } catch (error) {
+      setError(root, 'Não foi possível concluir o Projeto LM.');
+    }
   }
 
   async function submitCheckin(root) {
@@ -763,6 +835,7 @@
       if (target.hasAttribute('data-complete-week-1-video')) completeWeek1Video(root);
       if (target.hasAttribute('data-save-plan-b')) savePlanB(root);
       if (target.hasAttribute('data-activate-week-2')) activateWeek2(root);
+      if (target.hasAttribute('data-activate-week-3')) activateWeek3(root);
       if (target.hasAttribute('data-complete-week-2-video')) completeWeek2Video(root);
       if (target.hasAttribute('data-save-week-2-reflection')) saveWeek2Reflection(root);
       if (target.hasAttribute('data-save-week-2-response')) saveWeek2Response(root);

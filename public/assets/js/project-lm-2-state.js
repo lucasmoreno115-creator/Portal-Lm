@@ -48,7 +48,9 @@
     week_4_minimum_response: '',
     week_4_response_completed: false,
     week_4_completed: false,
-    program_completed: false
+    program_completed: false,
+    program_completed_at: null,
+    premium_bridge_eligible: false
   });
 
   const booleanFields = [
@@ -57,7 +59,7 @@
     'week_2_reflection_completed', 'week_2_response_completed', 'week_2_completed', 'week_3_available',
     'week_3_video_completed', 'week_3_reflection_completed', 'week_3_response_completed', 'week_3_completed',
     'week_4_video_completed', 'week_4_reflection_completed', 'week_4_response_completed', 'week_4_completed',
-    'program_completed'
+    'program_completed', 'premium_bridge_eligible'
   ];
 
   function readStoredState() {
