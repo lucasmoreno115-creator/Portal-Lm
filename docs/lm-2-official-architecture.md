@@ -2,7 +2,7 @@
 
 ## Purpose
 
-LM 2.0 is a new, isolated 30-day guided program for weight loss through continuity. It is introduced alongside the existing V5 experience and must not replace or mutate V5, Premium, Admin, routing, database, or API behavior in this foundation sprint.
+LM 2.0 is the official Projeto LM experience: an isolated 30-day guided program for weight loss through continuity. V5 and earlier Projeto LM surfaces are historical/deprecated and must not be used for new public navigation or implementation work.
 
 ## Core Method
 
@@ -19,8 +19,8 @@ LM 2.0 is a new, isolated 30-day guided program for weight loss through continui
 - CSS namespace: `lm2-*` classes only.
 - No database objects are created in this PR.
 - No APIs are created in this PR.
-- The official public route is `/projeto-lm`; the underlying LM 2.0 entrypoint remains `public/project-lm-2.html`.
-- V5, Premium and Admin remain isolated from the LM 2.0 route.
+- The official public route is `/projeto-lm`; the underlying LM 2.0 entrypoint remains `public/project-lm-2.html` and must not be linked directly from public navigation.
+- V5 and earlier Projeto LM files are legacy/historical. Premium and Admin remain isolated from the LM 2.0 route.
 
 ## Foundation Assets
 

@@ -71,7 +71,7 @@ test('legacy Project LM files are classified and marked as non-official entrypoi
   }
 
   assert.match(legacyInventory, /\| Componente \| Legado \| V5 \| Status \|/);
-  assert.match(legacyInventory, /OFFICIAL/);
+  assert.match(legacyInventory, /HISTÓRICO V5|oficial é `\/projeto-lm`/);
   assert.match(legacyInventory, /LEGACY/);
 });
 

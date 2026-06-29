@@ -1,6 +1,6 @@
 # Projeto LM — Inventário Legado Controlado
 
-Este inventário marca os pontos do Projeto LM anteriores ao cutover oficial V5. Eles permanecem no repositório para consulta, compatibilidade e rollback controlado, mas não devem receber novas extensões de produto.
+Este inventário marca os pontos do Projeto LM anteriores ao freeze oficial LM 2.0. Eles permanecem no repositório para consulta, compatibilidade e rollback controlado, mas não devem receber novas extensões de produto.
 
 ## Regra de manutenção
 
@@ -9,6 +9,8 @@ Todos os arquivos abaixo estão classificados como **LEGACY** e receberam o come
 ```text
 LEGACY - DO NOT EXTEND
 SUPERSEDED BY PROJECT LM V5
+
+Observação PR 27: V5 também está congelado como legado/deprecated e foi substituído como fluxo oficial por `/projeto-lm` (LM 2.0).
 ```
 
 ## Inventário
@@ -34,13 +36,18 @@ SUPERSEDED BY PROJECT LM V5
 
 | Componente | Legado | V5 | Status |
 |------------|---------|-----|--------|
-| Jornada principal | `projeto-lm-jornada.html` | `public/project-lm-v5.html` | OFFICIAL para V5 / LEGACY para legado |
+| Jornada principal | `projeto-lm-jornada.html` | `public/project-lm-v5.html` | HISTÓRICO V5 / LEGACY para legado |
 | Perfil inicial | `project-lm-profile.html`, `project-lm-profile.js` | `public/project-lm-v5.html#project-lm/journey` | LEGACY |
-| Planejamento | `projeto-lm-planejamento.html`, `project-lm-planning.js` | `#project-lm/stage-1-actions` | LEGACY / OFFICIAL |
-| Plano B | `projeto-lm-dia-dificil.html` | `#project-lm/plan-b` | LEGACY / OFFICIAL |
-| Conquistas | `projeto-lm-conquistas.html` | `#project-lm/victories` | LEGACY / OFFICIAL |
+| Planejamento | `projeto-lm-planejamento.html`, `project-lm-planning.js` | `#project-lm/stage-1-actions` | LEGACY / HISTÓRICO V5 |
+| Plano B | `projeto-lm-dia-dificil.html` | `#project-lm/plan-b` | LEGACY / HISTÓRICO V5 |
+| Conquistas | `projeto-lm-conquistas.html` | `#project-lm/victories` | LEGACY / HISTÓRICO V5 |
 | Consistência/estatísticas | `projeto-lm-consistencia.html`, `projeto-lm-estatisticas.html` | View model V5 | LEGACY |
 | Biblioteca | `projeto-lm-biblioteca.html`, `projeto-lm-conteudo.html` | Fora do cutover oficial V5 | LEGACY |
-| Assets CSS | `project-lm.css`, estilos em `portal.css` | `public/assets/css/project-lm-v5.css` | OFFICIAL para V5 / LEGACY para legado |
-| Assets JS | `project-lm-profile.js`, `project-lm-planning.js` | `project-lm-v5-app.js`, `project-lm-v5-state.js`, `project-lm-v5-screen-contracts.js` | OFFICIAL para V5 / LEGACY para legado |
-| Endpoints legados | `/api/portal/project-lm/*`, `/api/project-lm/profile` | `/api/project-lm/journey`, `/stage-1/actions`, `/plan-b`, `/victories`, `/recovery`, `/maintenance-goals` | LEGACY / OFFICIAL |
+| Assets CSS | `project-lm.css`, estilos em `portal.css` | `public/assets/css/project-lm-v5.css` | HISTÓRICO V5 / LEGACY para legado |
+| Assets JS | `project-lm-profile.js`, `project-lm-planning.js` | `project-lm-v5-app.js`, `project-lm-v5-state.js`, `project-lm-v5-screen-contracts.js` | HISTÓRICO V5 / LEGACY para legado |
+| Endpoints legados | `/api/portal/project-lm/*`, `/api/project-lm/profile` | `/api/project-lm/journey`, `/stage-1/actions`, `/plan-b`, `/victories`, `/recovery`, `/maintenance-goals` | LEGACY / HISTÓRICO V5 |
+
+
+## Freeze PR 27
+
+A partir do freeze legado do Projeto LM, a URL pública oficial é `/projeto-lm`. O entrypoint `public/project-lm-2.html` é interno. V5 (`public/project-lm-v5.html`, assets `project-lm-v5-*`, docs e testes V5) e o legado antigo (`projeto-lm-*.html`, `project-lm-profile.html`, APIs `/api/portal/project-lm/*`, `/api/project-lm/profile` e tabelas antigas `project_lm_*`) permanecem apenas como histórico/deprecated. Novas implementações não devem criar links públicos para esses entrypoints.
