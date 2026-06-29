@@ -221,6 +221,13 @@ export default {
           return json(result.payload, result.status);
         }
 
+        if (url.pathname === '/api/project-lm-2/profile' && method === 'PUT') {
+          if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
+          const body = await safeJson(request);
+          const result = await projectLm2SaveOnboarding(env.DB, auth.student, body);
+          return json(result.payload, result.status);
+        }
+
         if (url.pathname === '/api/project-lm-2/home' && method === 'GET') {
           if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
           const result = await projectLm2GetHome(env.DB, auth.student);
@@ -2260,11 +2267,14 @@ async function ensureSchema(db) {
     goal TEXT NOT NULL,
     sex TEXT NOT NULL CHECK (sex IN ('female', 'male')),
     weight_kg REAL NOT NULL,
+    height_cm REAL,
     nutrition_plan_id TEXT NOT NULL,
     training_plan_id TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`).run();
+
+  await ensureColumn(db, 'lm2_profiles', 'height_cm', 'REAL');
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS lm2_journeys (
     student_id TEXT PRIMARY KEY,
@@ -3270,7 +3280,10 @@ function projectLm2ValidateOnboarding(body) {
   if (!['male', 'female'].includes(sex)) return projectLm2Error('sex deve ser male ou female.', 400, 'INVALID_SEX');
   const weightKg = Number(body?.weight_kg);
   if (!Number.isFinite(weightKg) || weightKg <= 30 || weightKg >= 250) return projectLm2Error('weight_kg deve ser numérico e maior que 30 e menor que 250.', 400, 'INVALID_WEIGHT');
-  return { ok: true, profile: { name, goal, sex, weightKg } };
+  const rawHeight = body?.height_cm ?? body?.heightCm;
+  const heightCm = rawHeight === undefined || rawHeight === null || rawHeight === '' ? null : Number(rawHeight);
+  if (heightCm !== null && (!Number.isFinite(heightCm) || heightCm <= 120 || heightCm >= 230)) return projectLm2Error('height_cm deve ser numérico e maior que 120 e menor que 230.', 400, 'INVALID_HEIGHT');
+  return { ok: true, profile: { name, goal, sex, weightKg, heightCm } };
 }
 
 function projectLm2BuildWeek2Status(journey, week2 = null, progress = projectLm2ProgressData(0, false)) {
@@ -3379,7 +3392,11 @@ function projectLm2HomeData(profile, journey, week1 = null, progress = projectLm
     nutrition_ready: true,
     training_ready: true,
     nutrition_label: 'Seu plano alimentar está pronto.',
-    training_label: 'Seu treino está pronto.'
+    training_label: 'Seu treino está pronto.',
+    goal: profile?.goal,
+    sex: profile?.sex,
+    weight_kg: profile?.weight_kg,
+    height_cm: profile?.height_cm || null
   };
 }
 
@@ -3491,15 +3508,15 @@ async function projectLm2SaveOnboarding(db, student, body) {
   if (!validation.ok) return validation;
   const studentId = projectLm2StudentId(student);
   if (!studentId) return projectLm2Error('student_id autenticado é obrigatório.', 401, 'STUDENT_REQUIRED');
-  const { name, goal, sex, weightKg } = validation.profile;
+  const { name, goal, sex, weightKg, heightCm } = validation.profile;
   const nutritionPlanId = projectLm2NutritionPlanId(sex, weightKg);
   const trainingPlanId = projectLm2TrainingPlanId(sex);
   const now = new Date().toISOString();
   const existingProfile = await projectLm2GetProfile(db, student);
   if (existingProfile) {
-    await db.prepare(`UPDATE lm2_profiles SET name=?, goal=?, sex=?, weight_kg=?, nutrition_plan_id=?, training_plan_id=?, updated_at=? WHERE student_id=?`).bind(name, goal, sex, weightKg, nutritionPlanId, trainingPlanId, now, studentId).run();
+    await db.prepare(`UPDATE lm2_profiles SET name=?, goal=?, sex=?, weight_kg=?, height_cm=?, nutrition_plan_id=?, training_plan_id=?, updated_at=? WHERE student_id=?`).bind(name, goal, sex, weightKg, heightCm, nutritionPlanId, trainingPlanId, now, studentId).run();
   } else {
-    await db.prepare(`INSERT INTO lm2_profiles (student_id, name, goal, sex, weight_kg, nutrition_plan_id, training_plan_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(studentId, name, goal, sex, weightKg, nutritionPlanId, trainingPlanId, now, now).run();
+    await db.prepare(`INSERT INTO lm2_profiles (student_id, name, goal, sex, weight_kg, height_cm, nutrition_plan_id, training_plan_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(studentId, name, goal, sex, weightKg, heightCm, nutritionPlanId, trainingPlanId, now, now).run();
   }
   let journey = await projectLm2GetJourney(db, student);
   if (!journey) {
