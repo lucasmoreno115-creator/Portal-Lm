@@ -8,7 +8,7 @@ const access = await readFile('public/assets/js/lm-access.js', 'utf8');
 const adminLogin = await readFile('admin-login.html', 'utf8');
 const legacyFreeze = await readFile('docs/project-lm-legacy-freeze.md', 'utf8');
 
-const officialProjectRoute = '/projeto-lm';
+const officialProjectRoute = '/projeto-lm/';
 const forbiddenOfficialTargets = [
   'project-lm-v5.html',
   'projeto-lm-jornada.html',
@@ -19,7 +19,7 @@ const forbiddenOfficialTargets = [
 const lm2AssetPattern = /project-lm-2-(?:app|state|router|[\w-]+)\.js|project-lm-2\.css/;
 
 test('legacy freeze document defines official and deprecated Projeto LM surfaces', () => {
-  assert.match(legacyFreeze, /URL pública oficial: `\/projeto-lm`/);
+  assert.match(legacyFreeze, /URL pública oficial: `\/projeto-lm\/`/);
   assert.match(legacyFreeze, /Entrypoint interno: `public\/project-lm-2\.html`/);
   assert.match(legacyFreeze, /API oficial: `\/api\/project-lm-2\/\*`/);
   assert.match(legacyFreeze, /Banco oficial: tabelas `lm2_\*`/);
@@ -29,12 +29,12 @@ test('legacy freeze document defines official and deprecated Projeto LM surfaces
 });
 
 test('portal-login sends Projeto LM students to the canonical public route', () => {
-  assert.match(portalLogin, /r\.data\.plan==='projeto_lm'\?'\/projeto-lm':'portal\.html'/);
+  assert.match(portalLogin, /r\.data\.plan==='projeto_lm'\?'\/projeto-lm\/':'portal\.html'/);
   assert.doesNotMatch(portalLogin, /project-lm-2\.html|project-lm-v5\.html|projeto-lm-(?:jornada|onboarding|planejamento)\.html|project-lm-profile\.html/);
 });
 
-test('Projeto LM menus use canonical /projeto-lm hash routes only', () => {
-  assert.match(access, /const LM_PROJECT_LM_2_ENTRY = '\/projeto-lm'/);
+test('Projeto LM menus use canonical /projeto-lm/ hash routes only', () => {
+  assert.match(access, /const LM_PROJECT_LM_2_ENTRY = '\/projeto-lm\/'/);
   assert.match(access, /const projectLm2Route = \(hash\) => `\$\{LM_PROJECT_LM_2_ENTRY\}#\$\{hash\}`/);
 
   const projectMenuBlock = access.slice(access.indexOf('const LM_MENU_ITEMS'), access.indexOf('function getCurrentUser'));

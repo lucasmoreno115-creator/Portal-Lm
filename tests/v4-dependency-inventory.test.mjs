@@ -59,7 +59,8 @@ async function inventoryFiles() {
 
   const htmlFiles = [
     ...rootFiles.filter((file) => file.endsWith('.html')),
-    ...(await listFilesInDir('public', /\.html$/))
+    ...(await listFilesInDir('public', /\.html$/)),
+    ...(await listFilesInDir('projeto-lm', /\.html$/))
   ].sort();
   const jsFiles = [
     ...rootFiles.filter((file) => file.endsWith('.js')),
@@ -173,7 +174,7 @@ test('referências HTML para scripts, stylesheets e páginas internas existem', 
     assert.ok(cssSet.has(stylesheet.target), `${stylesheet.source} referencia stylesheet inexistente: ${stylesheet.target}`);
   }
   for (const html of references.filter((reference) => reference.kind === 'html')) {
-    assert.ok(htmlSet.has(html.target) || rewriteTargets.has(html.target), `${html.source} referencia HTML interno inexistente: ${html.target}`);
+    assert.ok(htmlSet.has(html.target) || htmlSet.has(`${html.target}index.html`) || rewriteTargets.has(html.target), `${html.source} referencia HTML interno inexistente: ${html.target}`);
   }
 });
 

@@ -2,7 +2,7 @@
 
 ## Resumo executivo
 
-Esta auditoria cobre exclusivamente o Projeto LM e não propõe alteração funcional. O estado atual indica que a versão em produção para alunos `projeto_lm` é o **LM 2.0**, servido pela URL canônica `/projeto-lm`, que reescreve para o entrypoint oficial `public/project-lm-2.html` e preserva as rotas por hash. O login em `portal-login.html` envia alunos com plano `projeto_lm` para `/projeto-lm`; além disso, o controle de acesso em `public/assets/js/lm-access.js` aponta o menu do Projeto LM para `/projeto-lm#...`.
+Esta auditoria cobre exclusivamente o Projeto LM e não propõe alteração funcional. O estado atual indica que a versão em produção para alunos `projeto_lm` é o **LM 2.0**, servido pela URL canônica `/projeto-lm/`, que reescreve para o entrypoint oficial `public/project-lm-2.html` e preserva as rotas por hash. O login em `portal-login.html` envia alunos com plano `projeto_lm` para `/projeto-lm/`; além disso, o controle de acesso em `public/assets/js/lm-access.js` aponta o menu do Projeto LM para `/projeto-lm/#...`.
 
 Há pelo menos três camadas históricas coexistindo:
 
@@ -63,7 +63,7 @@ flowchart TD
 Pontos de mudança de rota identificados:
 
 - `index.html` redireciona para `portal-login.html`.
-- `portal-login.html` salva `lm_student_email`, `lm_student_token`, `lm_student_name`, `lm_student_plan` e `lm_student_plan_type`; em seguida envia `projeto_lm` para `/projeto-lm` e demais planos para `portal.html`.
+- `portal-login.html` salva `lm_student_email`, `lm_student_token`, `lm_student_name`, `lm_student_plan` e `lm_student_plan_type`; em seguida envia `projeto_lm` para `/projeto-lm/` e demais planos para `portal.html`.
 - `public/assets/js/lm-access.js` monta menus do Projeto LM apontando para `projectLm2Route(...)`, principalmente `#home`, `#week-1`, `#daily-checkin` e `#premium-bridge`.
 - `project-lm-2-app.js` exige sessão; sem sessão redireciona para `/portal-login.html`.
 - `ProjectLm2Router.navigate()` muda `window.location.hash`.
@@ -75,7 +75,7 @@ Pontos de mudança de rota identificados:
 ```mermaid
 flowchart TD
   Landing[Landing/Login] --> Login[portal-login.html]
-  Login --> Onboarding[/projeto-lm#welcome / #onboarding-*]
+  Login --> Onboarding[/projeto-lm/#welcome / #onboarding-*]
   Onboarding --> Home[#home]
   Home --> Jornada[#home: semana, continuidade, próxima ação]
   Jornada --> Treino[#direction: Meu Treino]
@@ -99,7 +99,7 @@ Observação: “Minha Jornada”, “Treino”, “Plano Alimentar”, “Plano
 
 | Caminho | Finalidade | Utilizado atualmente? | Classificação |
 |---|---|---:|---|
-| `/projeto-lm` via `public/_redirects` | URL pública canônica com rewrite para o entrypoint LM 2.0 | Sim | Oficial |
+| `/projeto-lm/` via `public/_redirects` | URL pública canônica com rewrite para o entrypoint LM 2.0 | Sim | Oficial |
 | `public/project-lm-2.html` | Entrypoint HTML oficial LM 2.0 | Sim | Oficial |
 | `public/assets/css/project-lm-2.css` | CSS oficial LM 2.0 | Sim | Oficial |
 | `public/assets/js/project-lm-2-state.js` | Estado local LM 2.0 | Sim | Oficial |
@@ -270,7 +270,7 @@ Testes potencialmente obsoletos para a versão atual:
 
 | Tipo | Arquivos/endpoints | Oficial aparente | Legado aparente | Motivo |
 |---|---|---|---|---|
-| Home/Jornada | `/projeto-lm#home`, `project-lm-2.html#home`, `project-lm-v5.html#project-lm/journey`, `projeto-lm-jornada.html` | `/projeto-lm` + LM 2.0 | V5 e HTML legado | Login e menu apontam para a URL canônica LM 2.0 |
+| Home/Jornada | `/projeto-lm/#home`, `project-lm-2.html#home`, `project-lm-v5.html#project-lm/journey`, `projeto-lm-jornada.html` | `/projeto-lm/` + LM 2.0 | V5 e HTML legado | Login e menu apontam para a URL canônica LM 2.0 |
 | Onboarding | Hash `onboarding-*`, `project-lm-profile.html`, `projeto-lm-onboarding.html`, V5 jornada | LM 2.0 | Perfil/onboarding legado | API oficial é `/api/project-lm-2/onboarding` |
 | Router | `project-lm-2-router.js`, router V5, links multi-página `projeto-lm-*` | `project-lm-2-router.js` | demais | Fluxo oficial é SPA por hash |
 | CSS | `project-lm-2.css`, `project-lm-v5.css`, `project-lm.css`, blocos Projeto LM em `portal.css` | `project-lm-2.css` | demais para Projeto LM | Entrypoint oficial carrega CSS isolado |

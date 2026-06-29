@@ -10,7 +10,7 @@
   <script>
     requireAuth();
     if (getUserPlan() === 'projeto_lm') {
-      window.location.replace('/projeto-lm#home');
+      window.location.replace('/projeto-lm/#home');
     }
   </script>
 </head>
@@ -136,9 +136,9 @@
     function renderQuickLinksForPlan() {
       if (currentPlan === 'projeto_lm') {
         quickLinksEl.innerHTML = `
-          <a class='secondary-link' href='/projeto-lm#home'><span class='quick-icon'>🗺</span><span>Minha Jornada</span></a>
-          <a class='secondary-link' href='/projeto-lm#home'><span class='quick-icon'>📈</span><span>Consistência</span></a>
-          <a class='secondary-link' href='/projeto-lm#daily-checkin'><span class='quick-icon'>🧭</span><span>Modo Dia Difícil</span></a>
+          <a class='secondary-link' href='/projeto-lm/#home'><span class='quick-icon'>🗺</span><span>Minha Jornada</span></a>
+          <a class='secondary-link' href='/projeto-lm/#home'><span class='quick-icon'>📈</span><span>Consistência</span></a>
+          <a class='secondary-link' href='/projeto-lm/#daily-checkin'><span class='quick-icon'>🧭</span><span>Modo Dia Difícil</span></a>
           <a class='secondary-link' href='portal-biblioteca.html'><span class='quick-icon'>📚</span><span>Biblioteca</span></a>
         `;
         return;
@@ -160,7 +160,7 @@
       document.getElementById('nextTitle').textContent = 'Modo Dia Difícil';
       document.getElementById('nextMsg').textContent = 'Quando o dia ficar difícil, use o mínimo viável para continuar em movimento.';
       document.getElementById('nextBtn').textContent = 'Abrir Modo Dia Difícil';
-      document.getElementById('nextBtn').href = '/projeto-lm#daily-checkin';
+      document.getElementById('nextBtn').href = '/projeto-lm/#daily-checkin';
       document.getElementById('nextBtn').dataset.feature = 'modo-dia-dificil';
       document.getElementById('statusLabel1').textContent = 'Foco do dia';
       document.getElementById('checkStatus').textContent = 'Manter o básico';

@@ -74,6 +74,6 @@ test('LM 2.0 redirects direct anonymous entry without attempting onboarding or A
 });
 
 test('student login sends Projeto LM users to LM 2.0 and keeps Premium on portal.html', () => {
-  assert.match(portalLogin, /r\.data\.plan==='projeto_lm'\?'\/projeto-lm':'portal\.html'/);
+  assert.match(portalLogin, /r\.data\.plan==='projeto_lm'\?'\/projeto-lm\/':'portal\.html'/);
   assert.doesNotMatch(portalLogin, /r\.data\.plan==='premium'\?'\/projeto-lm'/);
 });

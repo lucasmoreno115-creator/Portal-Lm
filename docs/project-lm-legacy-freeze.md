@@ -4,7 +4,7 @@
 
 A versão oficial atual do **Projeto LM** é a experiência LM 2.0, publicada exclusivamente pela URL pública:
 
-- URL pública oficial: `/projeto-lm`
+- URL pública oficial: `/projeto-lm/`
 - Entrypoint interno: `public/project-lm-2.html`
 - CSS oficial: `public/assets/css/project-lm-2.css`
 - JavaScript oficial:
@@ -14,12 +14,12 @@ A versão oficial atual do **Projeto LM** é a experiência LM 2.0, publicada ex
 - API oficial: `/api/project-lm-2/*`
 - Banco oficial: tabelas `lm2_*`
 
-`public/project-lm-2.html` é apenas detalhe de implementação interna. Links públicos, menus, redirects de login e documentação de produto devem usar `/projeto-lm`.
+`public/project-lm-2.html` é apenas detalhe de implementação interna. Links públicos, menus, redirects de login e documentação de produto devem usar `/projeto-lm/`.
 
 ## Regras de freeze
 
 1. Novas implementações do Projeto LM **não podem** usar arquivos, APIs, rotas ou tabelas legadas.
-2. Toda navegação pública do Projeto LM deve apontar para `/projeto-lm` ou `/projeto-lm#...`.
+2. Toda navegação pública do Projeto LM deve apontar para `/projeto-lm/` ou `/projeto-lm/#...`.
 3. Não criar novos links públicos para `project-lm-2.html`, `project-lm-v5.html`, `projeto-lm-*.html` ou `project-lm-profile.html`.
 4. V5 e as superfícies antigas permanecem no repositório apenas como histórico, compatibilidade operacional ou referência controlada.
 5. Consultoria Premium e Admin permanecem isolados do Projeto LM 2.0 e não devem carregar assets `project-lm-2-*`.
@@ -67,9 +67,9 @@ Esses arquivos e contratos não devem receber novas extensões de produto. Qualq
 
 A suíte deve proteger que:
 
-- `portal-login.html` envia alunos Projeto LM para `/projeto-lm`.
-- Menus do Projeto LM apontam para `/projeto-lm#...`.
+- `portal-login.html` envia alunos Projeto LM para `/projeto-lm/`.
+- Menus do Projeto LM apontam para `/projeto-lm/#...`.
 - Navegação oficial não aponta para `project-lm-v5.html`, `projeto-lm-jornada.html`, `projeto-lm-onboarding.html`, `projeto-lm-planejamento.html` ou `project-lm-profile.html`.
-- Links públicos do Projeto LM usam `/projeto-lm` em vez de entrypoints internos.
+- Links públicos do Projeto LM usam `/projeto-lm/` em vez de entrypoints internos.
 - Consultoria Premium não carrega assets `project-lm-2-*`.
 - Admin não é alterado por este freeze.

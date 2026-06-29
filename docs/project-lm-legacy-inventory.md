@@ -10,7 +10,7 @@ Todos os arquivos abaixo estão classificados como **LEGACY** e receberam o come
 LEGACY - DO NOT EXTEND
 SUPERSEDED BY PROJECT LM V5
 
-Observação PR 27: V5 também está congelado como legado/deprecated e foi substituído como fluxo oficial por `/projeto-lm` (LM 2.0).
+Observação PR 27: V5 também está congelado como legado/deprecated e foi substituído como fluxo oficial por `/projeto-lm/` (LM 2.0).
 ```
 
 ## Inventário
@@ -50,4 +50,4 @@ Observação PR 27: V5 também está congelado como legado/deprecated e foi subs
 
 ## Freeze PR 27
 
-A partir do freeze legado do Projeto LM, a URL pública oficial é `/projeto-lm`. O entrypoint `public/project-lm-2.html` é interno. V5 (`public/project-lm-v5.html`, assets `project-lm-v5-*`, docs e testes V5) e o legado antigo (`projeto-lm-*.html`, `project-lm-profile.html`, APIs `/api/portal/project-lm/*`, `/api/project-lm/profile` e tabelas antigas `project_lm_*`) permanecem apenas como histórico/deprecated. Novas implementações não devem criar links públicos para esses entrypoints.
+A partir do freeze legado do Projeto LM, a URL pública oficial é `/projeto-lm/`. O entrypoint `public/project-lm-2.html` é interno. V5 (`public/project-lm-v5.html`, assets `project-lm-v5-*`, docs e testes V5) e o legado antigo (`projeto-lm-*.html`, `project-lm-profile.html`, APIs `/api/portal/project-lm/*`, `/api/project-lm/profile` e tabelas antigas `project_lm_*`) permanecem apenas como histórico/deprecated. Novas implementações não devem criar links públicos para esses entrypoints.
