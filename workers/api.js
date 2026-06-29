@@ -297,6 +297,50 @@ export default {
           return json(result.payload, result.status);
         }
 
+        if (url.pathname === '/api/project-lm-2/week-3/video-complete' && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
+          const result = await projectLm2CompleteWeekVideo(env.DB, auth.student, 3);
+          return json(result.payload, result.status);
+        }
+
+        if (url.pathname === '/api/project-lm-2/week-3/reflection' && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
+          const body = await safeJson(request);
+          const result = await projectLm2SaveWeekReflection(env.DB, auth.student, body, 3);
+          return json(result.payload, result.status);
+        }
+
+        if (url.pathname === '/api/project-lm-2/week-3/complete' && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
+          const result = await projectLm2CompleteWeek(env.DB, auth.student, 3);
+          return json(result.payload, result.status);
+        }
+
+        if (url.pathname === '/api/project-lm-2/week-4/video-complete' && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
+          const result = await projectLm2CompleteWeekVideo(env.DB, auth.student, 4);
+          return json(result.payload, result.status);
+        }
+
+        if (url.pathname === '/api/project-lm-2/week-4/reflection' && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
+          const body = await safeJson(request);
+          const result = await projectLm2SaveWeekReflection(env.DB, auth.student, body, 4);
+          return json(result.payload, result.status);
+        }
+
+        if (url.pathname === '/api/project-lm-2/week-4/complete' && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
+          const result = await projectLm2CompleteWeek(env.DB, auth.student, 4);
+          return json(result.payload, result.status);
+        }
+
+        if (url.pathname === '/api/project-lm-2/program-completion' && method === 'POST') {
+          if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
+          const result = await projectLm2CompleteProgram(env.DB, auth.student);
+          return json(result.payload, result.status);
+        }
+
         if (url.pathname === '/api/project-lm/journey' && method === 'GET') {
           if (!isProjectLmPlan(auth.student)) return json(projectLmV5Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
           const journey = await projectLmV5GetOrCreateJourney(env.DB, auth.student);
@@ -2284,12 +2328,16 @@ async function ensureSchema(db) {
     completed_at TEXT,
     week_started_at TEXT,
     week_completed_at TEXT,
+    program_completed_at TEXT,
+    premium_bridge_eligible INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`).run();
 
   await ensureColumn(db, 'lm2_journeys', 'week_started_at', 'TEXT');
   await ensureColumn(db, 'lm2_journeys', 'week_completed_at', 'TEXT');
+  await ensureColumn(db, 'lm2_journeys', 'program_completed_at', 'TEXT');
+  await ensureColumn(db, 'lm2_journeys', 'premium_bridge_eligible', 'INTEGER NOT NULL DEFAULT 0');
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS lm2_week_1_foundation (
     student_id TEXT PRIMARY KEY,
@@ -2308,6 +2356,26 @@ async function ensureSchema(db) {
     video_completed INTEGER NOT NULL DEFAULT 0,
     reflection TEXT,
     minimum_response TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`).run();
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS lm2_week_3_foundation (
+    student_id TEXT PRIMARY KEY,
+    video_completed INTEGER NOT NULL DEFAULT 0,
+    reflection TEXT,
+    minimum_response TEXT,
+    completed_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`).run();
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS lm2_week_4_foundation (
+    student_id TEXT PRIMARY KEY,
+    video_completed INTEGER NOT NULL DEFAULT 0,
+    reflection TEXT,
+    minimum_response TEXT,
+    completed_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`).run();
@@ -3312,6 +3380,7 @@ function projectLm2Week2StatusData(week2 = null, progress = projectLm2ProgressDa
 
 function projectLm2NextAction(week1, todayCheckinCompleted = false, weekStatus = null, journey = null, week2 = null) {
   const currentWeek = Number(journey?.current_week || 1);
+  if (journey?.status === 'completed' || journey?.program_completed_at) return 'program_completed';
   if (currentWeek === 2) {
     const week2Status = projectLm2Week2StatusData(week2, weekStatus || projectLm2ProgressData(0, todayCheckinCompleted), journey);
     if (week2Status.week_completed) return 'week_2_complete';
@@ -3326,6 +3395,24 @@ function projectLm2NextAction(week1, todayCheckinCompleted = false, weekStatus =
   if (!week1?.plan_b_saved_at) return 'create_plan_b';
   if (!todayCheckinCompleted) return 'daily_checkin';
   return 'checkin_completed_today';
+}
+
+function projectLm2WeekFoundationStatus(week = null) {
+  const videoCompleted = Boolean(week?.video_completed);
+  const reflectionCompleted = Boolean(week?.reflection);
+  const minimumResponseCompleted = Boolean(week?.minimum_response);
+  return {
+    video_completed: videoCompleted,
+    reflection_completed: reflectionCompleted,
+    minimum_response_completed: minimumResponseCompleted,
+    week_completed: Boolean(week?.completed_at)
+  };
+}
+
+function projectLm2WeekTable(weekNumber) {
+  if (Number(weekNumber) === 3) return 'lm2_week_3_foundation';
+  if (Number(weekNumber) === 4) return 'lm2_week_4_foundation';
+  return null;
 }
 
 function projectLm2BuildWeekStatus(journey, week1 = null, progress = projectLm2ProgressData(0, false)) {
@@ -3346,17 +3433,20 @@ function projectLm2BuildWeekStatus(journey, week1 = null, progress = projectLm2P
   };
 }
 
-function projectLm2HomeData(profile, journey, week1 = null, progress = projectLm2ProgressData(0, false), week2 = null) {
+function projectLm2HomeData(profile, journey, week1 = null, progress = projectLm2ProgressData(0, false), week2 = null, week3 = null, week4 = null) {
   const currentWeek = Number(journey?.current_week || 1);
   const weekStatus = currentWeek === 2 ? projectLm2BuildWeek2Status(journey, week2, progress) : projectLm2BuildWeekStatus(journey, week1, progress);
   const week2Status = projectLm2Week2StatusData(week2, progress, journey);
   const nextAction = projectLm2NextAction(week1, progress.today_checkin_completed, weekStatus, journey, week2);
+  const week3Status = projectLm2WeekFoundationStatus(week3);
+  const week4Status = projectLm2WeekFoundationStatus(week4);
   const nextActionLabels = {
     week_1_complete: 'Continuar para Semana 2',
     week_2_video: 'Assistir à aula da Semana 2',
     week_2_reflection: 'Salvar reflexão da Semana 2',
     week_2_minimum_response: 'Salvar resposta mínima da Semana 2',
-    week_2_complete: 'Continuar para Semana 3'
+    week_2_complete: 'Continuar para Semana 3',
+    program_completed: 'Conhecer Consultoria Premium'
   };
   return {
     name: profile?.name,
@@ -3386,9 +3476,24 @@ function projectLm2HomeData(profile, journey, week1 = null, progress = projectLm
     week_2_reflection_completed: week2Status.reflection_completed,
     week_2_response_completed: week2Status.minimum_response_completed,
     week_2_completed: week2Status.week_completed,
-    week_3_available: week2Status.next_week_available,
+    week_3_available: week2Status.next_week_available || currentWeek >= 3,
     week_2_reflection: week2?.reflection || '',
     week_2_minimum_response: week2?.minimum_response || '',
+    week_3_video_completed: week3Status.video_completed,
+    week_3_reflection_completed: week3Status.reflection_completed,
+    week_3_response_completed: week3Status.minimum_response_completed,
+    week_3_completed: week3Status.week_completed,
+    week_3_reflection: week3?.reflection || '',
+    week_3_minimum_response: week3?.minimum_response || '',
+    week_4_video_completed: week4Status.video_completed,
+    week_4_reflection_completed: week4Status.reflection_completed,
+    week_4_response_completed: week4Status.minimum_response_completed,
+    week_4_completed: week4Status.week_completed,
+    week_4_reflection: week4?.reflection || '',
+    week_4_minimum_response: week4?.minimum_response || '',
+    program_completed: Boolean(journey?.program_completed_at || journey?.status === 'completed'),
+    program_completed_at: journey?.program_completed_at || journey?.completed_at || null,
+    premium_bridge_eligible: Boolean(journey?.premium_bridge_eligible),
     nutrition_ready: true,
     training_ready: true,
     nutrition_label: 'Seu plano alimentar está pronto.',
@@ -3503,6 +3608,22 @@ async function projectLm2EnsureWeek2(db, student) {
   return projectLm2GetWeek2(db, student);
 }
 
+async function projectLm2GetWeekFoundation(db, student, weekNumber) {
+  const table = projectLm2WeekTable(weekNumber);
+  if (!table) return null;
+  return db.prepare(`SELECT * FROM ${table} WHERE student_id=? LIMIT 1`).bind(projectLm2StudentId(student)).first();
+}
+
+async function projectLm2EnsureWeekFoundation(db, student, weekNumber) {
+  const table = projectLm2WeekTable(weekNumber);
+  if (!table) return null;
+  const existing = await projectLm2GetWeekFoundation(db, student, weekNumber);
+  if (existing) return existing;
+  const now = new Date().toISOString();
+  await db.prepare(`INSERT INTO ${table} (student_id, video_completed, created_at, updated_at) VALUES (?, 0, ?, ?)`).bind(projectLm2StudentId(student), now, now).run();
+  return projectLm2GetWeekFoundation(db, student, weekNumber);
+}
+
 async function projectLm2SaveOnboarding(db, student, body) {
   const validation = projectLm2ValidateOnboarding(body);
   if (!validation.ok) return validation;
@@ -3534,8 +3655,10 @@ async function projectLm2GetHome(db, student) {
   const journey = await projectLm2GetJourney(db, student);
   const week1 = await projectLm2EnsureWeek1(db, student);
   const week2 = Number(journey?.current_week || 1) === 2 ? await projectLm2EnsureWeek2(db, student) : null;
+  const week3 = Number(journey?.current_week || 1) >= 3 ? await projectLm2EnsureWeekFoundation(db, student, 3) : null;
+  const week4 = Number(journey?.current_week || 1) >= 4 || journey?.program_completed_at ? await projectLm2EnsureWeekFoundation(db, student, 4) : null;
   const progress = await projectLm2Progress(db, student, journey || { current_week: 1 });
-  return projectLm2Success(projectLm2HomeData(profile, journey || { current_week: 1 }, week1, progress, week2));
+  return projectLm2Success(projectLm2HomeData(profile, journey || { current_week: 1 }, week1, progress, week2, week3, week4));
 }
 
 async function projectLm2CompleteWeek1Video(db, student) {
@@ -3546,7 +3669,7 @@ async function projectLm2CompleteWeek1Video(db, student) {
   await db.prepare(`UPDATE lm2_week_1_foundation SET video_completed=1, video_completed_at=COALESCE(video_completed_at, ?), updated_at=? WHERE student_id=?`).bind(now, now, projectLm2StudentId(student)).run();
   const week1 = await projectLm2GetWeek1(db, student);
   const journey = await projectLm2GetJourney(db, student);
-  return projectLm2Success(projectLm2HomeData(profile, journey || { current_week: 1 }, week1, await projectLm2Progress(db, student, journey || { current_week: 1 })));
+  return projectLm2Success(await projectLm2BuildCurrentHome(db, student, profile, journey || { current_week: 1 }, week1));
 }
 
 async function projectLm2SavePlanB(db, student, body) {
@@ -3561,7 +3684,7 @@ async function projectLm2SavePlanB(db, student, body) {
   await db.prepare(`UPDATE lm2_week_1_foundation SET unable_to_train=?, overeating=?, no_motivation=?, plan_b_saved_at=?, updated_at=? WHERE student_id=?`).bind(unableToTrain, overeating, noMotivation, now, now, projectLm2StudentId(student)).run();
   const week1 = await projectLm2GetWeek1(db, student);
   const journey = await projectLm2GetJourney(db, student);
-  return projectLm2Success(projectLm2HomeData(profile, journey || { current_week: 1 }, week1, await projectLm2Progress(db, student, journey || { current_week: 1 })));
+  return projectLm2Success(await projectLm2BuildCurrentHome(db, student, profile, journey || { current_week: 1 }, week1));
 }
 
 async function projectLm2ActivateWeek2(db, student) {
@@ -3630,11 +3753,90 @@ async function projectLm2SaveWeek2Reflection(db, student, body) {
   return projectLm2Success(await projectLm2BuildWeek2Home(db, student, profile));
 }
 
+async function projectLm2CompleteWeekVideo(db, student, weekNumber) {
+  const profile = await projectLm2GetProfile(db, student);
+  if (!profile) return projectLm2Error(`Onboarding obrigatório antes da Semana ${weekNumber}.`, 409, 'ONBOARDING_REQUIRED');
+  const journey = await projectLm2GetJourney(db, student);
+  if (!journey || Number(journey.current_week || 1) < weekNumber) return projectLm2Error(`Semana ${weekNumber} ainda não está ativa.`, 409, `WEEK_${weekNumber}_NOT_ACTIVE`);
+  const table = projectLm2WeekTable(weekNumber);
+  await projectLm2EnsureWeekFoundation(db, student, weekNumber);
+  const now = new Date().toISOString();
+  await db.prepare(`UPDATE ${table} SET video_completed=1, updated_at=? WHERE student_id=?`).bind(now, projectLm2StudentId(student)).run();
+  return projectLm2Success(await projectLm2BuildCurrentHome(db, student, profile));
+}
+
+async function projectLm2SaveWeekReflection(db, student, body, weekNumber) {
+  const profile = await projectLm2GetProfile(db, student);
+  if (!profile) return projectLm2Error(`Onboarding obrigatório antes da Semana ${weekNumber}.`, 409, 'ONBOARDING_REQUIRED');
+  const journey = await projectLm2GetJourney(db, student);
+  if (!journey || Number(journey.current_week || 1) < weekNumber) return projectLm2Error(`Semana ${weekNumber} ainda não está ativa.`, 409, `WEEK_${weekNumber}_NOT_ACTIVE`);
+  const reflection = requiredText(body?.reflection);
+  const minimumResponse = requiredText(body?.minimum_response);
+  if (reflection && reflection.length > 300) return projectLm2Error('reflection deve ter no máximo 300 caracteres.', 400, 'REFLECTION_TOO_LONG');
+  if (minimumResponse && minimumResponse.length > 300) return projectLm2Error('minimum_response deve ter no máximo 300 caracteres.', 400, 'MINIMUM_RESPONSE_TOO_LONG');
+  if (!reflection && !minimumResponse) return projectLm2Error('reflection ou minimum_response é obrigatório.', 400, `WEEK_${weekNumber}_FIELD_REQUIRED`);
+  const table = projectLm2WeekTable(weekNumber);
+  await projectLm2EnsureWeekFoundation(db, student, weekNumber);
+  const now = new Date().toISOString();
+  if (reflection) {
+    await db.prepare(`UPDATE ${table} SET reflection=?, updated_at=? WHERE student_id=?`).bind(reflection, now, projectLm2StudentId(student)).run();
+  }
+  if (minimumResponse) {
+    await db.prepare(`UPDATE ${table} SET minimum_response=?, updated_at=? WHERE student_id=?`).bind(minimumResponse, now, projectLm2StudentId(student)).run();
+  }
+  return projectLm2Success(await projectLm2BuildCurrentHome(db, student, profile));
+}
+
+async function projectLm2CompleteWeek(db, student, weekNumber) {
+  const profile = await projectLm2GetProfile(db, student);
+  if (!profile) return projectLm2Error(`Onboarding obrigatório antes da Semana ${weekNumber}.`, 409, 'ONBOARDING_REQUIRED');
+  const journey = await projectLm2GetJourney(db, student);
+  if (!journey || Number(journey.current_week || 1) < weekNumber) return projectLm2Error(`Semana ${weekNumber} ainda não está ativa.`, 409, `WEEK_${weekNumber}_NOT_ACTIVE`);
+  const table = projectLm2WeekTable(weekNumber);
+  const week = await projectLm2EnsureWeekFoundation(db, student, weekNumber);
+  const status = projectLm2WeekFoundationStatus(week);
+  if (!status.video_completed || !status.reflection_completed || !status.minimum_response_completed) {
+    return projectLm2Error(`Semana ${weekNumber} precisa estar concluída antes de avançar.`, 409, `WEEK_${weekNumber}_NOT_COMPLETED`);
+  }
+  const now = new Date().toISOString();
+  await db.prepare(`UPDATE ${table} SET completed_at=COALESCE(completed_at, ?), updated_at=? WHERE student_id=?`).bind(now, now, projectLm2StudentId(student)).run();
+  if (weekNumber === 3) {
+    await db.prepare(`UPDATE lm2_journeys SET current_week=4, week_completed_at=?, week_started_at=?, updated_at=? WHERE student_id=? AND current_week=3`).bind(now, now, now, projectLm2StudentId(student)).run();
+    await projectLm2EnsureWeekFoundation(db, student, 4);
+  }
+  return projectLm2Success(await projectLm2BuildCurrentHome(db, student, profile));
+}
+
+async function projectLm2CompleteProgram(db, student) {
+  const profile = await projectLm2GetProfile(db, student);
+  if (!profile) return projectLm2Error('Onboarding obrigatório antes de concluir o programa.', 409, 'ONBOARDING_REQUIRED');
+  const journey = await projectLm2GetJourney(db, student);
+  if (!journey || Number(journey.current_week || 1) < 4) return projectLm2Error('Semana 4 precisa estar ativa antes de concluir o programa.', 409, 'WEEK_4_NOT_ACTIVE');
+  const week4 = await projectLm2EnsureWeekFoundation(db, student, 4);
+  const week4Status = projectLm2WeekFoundationStatus(week4);
+  if (!week4Status.week_completed) return projectLm2Error('Semana 4 precisa estar concluída antes de concluir o programa.', 409, 'WEEK_4_NOT_COMPLETED');
+  const now = new Date().toISOString();
+  await db.prepare(`UPDATE lm2_journeys SET status='completed', completed_at=COALESCE(completed_at, ?), program_completed_at=COALESCE(program_completed_at, ?), premium_bridge_eligible=1, updated_at=? WHERE student_id=?`).bind(now, now, now, projectLm2StudentId(student)).run();
+  return projectLm2Success(await projectLm2BuildCurrentHome(db, student, profile));
+}
+
+async function projectLm2BuildCurrentHome(db, student, profile = null, journey = null, week1 = null) {
+  const currentProfile = profile || await projectLm2GetProfile(db, student);
+  const currentJourney = journey || await projectLm2GetJourney(db, student) || { current_week: 1 };
+  const currentWeek1 = week1 || await projectLm2EnsureWeek1(db, student);
+  const week2 = Number(currentJourney?.current_week || 1) >= 2 ? await projectLm2EnsureWeek2(db, student) : null;
+  const week3 = Number(currentJourney?.current_week || 1) >= 3 ? await projectLm2EnsureWeekFoundation(db, student, 3) : null;
+  const week4 = Number(currentJourney?.current_week || 1) >= 4 || currentJourney?.program_completed_at ? await projectLm2EnsureWeekFoundation(db, student, 4) : null;
+  return projectLm2HomeData(currentProfile, currentJourney, currentWeek1, await projectLm2Progress(db, student, currentJourney), week2, week3, week4);
+}
+
 async function projectLm2BuildWeek2Home(db, student, profile) {
   const journey = await projectLm2GetJourney(db, student);
   const week1 = await projectLm2EnsureWeek1(db, student);
   const week2 = await projectLm2EnsureWeek2(db, student);
-  return projectLm2HomeData(profile, journey || { current_week: 2 }, week1, await projectLm2Progress(db, student, journey || { current_week: 2 }), week2);
+  const week3 = Number(journey?.current_week || 2) >= 3 ? await projectLm2EnsureWeekFoundation(db, student, 3) : null;
+  const week4 = Number(journey?.current_week || 2) >= 4 || journey?.program_completed_at ? await projectLm2EnsureWeekFoundation(db, student, 4) : null;
+  return projectLm2HomeData(profile, journey || { current_week: 2 }, week1, await projectLm2Progress(db, student, journey || { current_week: 2 }), week2, week3, week4);
 }
 
 // Projeto LM V5 foundation: isolated from legacy library, weekly missions, current mission, streak, hard day mode, and consistency flows.

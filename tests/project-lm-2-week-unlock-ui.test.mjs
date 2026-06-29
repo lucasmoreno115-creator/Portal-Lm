@@ -131,7 +131,8 @@ test('LM 2.0 Program Completion registra conclusão e navega para Premium Bridge
   assert.match(lm2Router, /'premium-bridge': \{ path: '#premium-bridge'/);
   assert.match(lm2State, /program_completed: false/);
   assert.match(lm2App, /data-complete-program/);
-  assert.match(lm2App, /program_completed: true/);
+  assert.match(lm2App, /\/api\/project-lm-2\/program-completion/);
+  assert.match(lm2App, /applyHomeData\(payload\.data \|\| payload\)/);
   assert.match(lm2App, /routeTo\(root, 'premium-bridge'\)/);
   for (const text of [
     'Você aprendeu a continuar.',
