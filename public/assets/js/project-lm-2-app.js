@@ -7,6 +7,7 @@
     week1VideoComplete: '/api/project-lm-2/week-1/video-complete',
     planB: '/api/project-lm-2/plan-b',
     progress: '/api/project-lm-2/progress',
+    profile: '/api/project-lm-2/profile',
     weekStatus: '/api/project-lm-2/week-status',
     checkin: '/api/project-lm-2/checkin',
     week2VideoComplete: '/api/project-lm-2/week-2/video-complete',
@@ -92,6 +93,12 @@
       home_data: homeData,
       home: homeData,
       name: homeData.name || currentState.name,
+      goal: homeData.goal || currentState.goal,
+      sex: homeData.sex || currentState.sex,
+      weight_kg: homeData.weight_kg || currentState.weight_kg,
+      height_cm: homeData.height_cm || currentState.height_cm,
+      nutrition_plan_id: homeData.nutrition_plan_id || currentState.nutrition_plan_id,
+      training_plan_id: homeData.training_plan_id || currentState.training_plan_id,
       onboarding_completed: homeData.onboarding_completed ?? currentState.onboarding_completed,
       current_week: homeData.current_week || currentState.current_week,
       week_started_at: homeData.week_started_at || currentState.week_started_at,
@@ -170,8 +177,9 @@
       if (!response.ok || !progressResponse.ok) throw new Error('home_failed');
       const home = await response.json();
       const progress = await progressResponse.json();
-      applyHomeData({ ...(home.data || home), ...(progress.data || {}) });
-      render(root, 'home');
+      const homeData = { ...(home.data || home), ...(progress.data || {}) };
+      applyHomeData(homeData);
+      render(root, homeData.onboarding_completed === false ? 'welcome' : 'home');
     } catch (error) {
       setError(root, 'Não foi possível carregar sua jornada. Tente novamente.');
     }
@@ -214,15 +222,16 @@
       </section>`;
     if (route === 'onboarding-weight') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-weight-title">
-        <h1 id="lm2-weight-title">Qual seu peso atual?</h1>
-        <input class="lm2-input" name="weight_kg" data-lm2-weight inputmode="decimal" type="number" min="1" step="0.1" aria-label="Qual seu peso atual?" value="${state.weight_kg || ''}">
+        <h1 id="lm2-weight-title">Qual seu peso e altura atuais?</h1>
+        <label>Peso (kg)<input class="lm2-input" name="weight_kg" data-lm2-weight inputmode="decimal" type="number" min="1" step="0.1" aria-label="Qual seu peso atual?" value="${state.weight_kg || ''}"></label>
+        <label>Altura (cm)<input class="lm2-input" name="height_cm" data-lm2-height inputmode="numeric" type="number" min="1" step="1" aria-label="Qual sua altura atual?" value="${state.height_cm || ''}"></label>
         <p class="lm2-error" data-lm2-error role="alert"></p>
         <button class="lm2-primary-button" type="button" data-create-direction>CRIAR MINHA DIREÇÃO</button>
       </section>`;
     if (route === 'direction-created') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-direction-title">
         <h1 id="lm2-direction-title">Olá ${escapeHtml(state.name)}</h1>
-        <p>Sua direção está pronta.</p><p>Seu treino está pronto.</p><p>Seu plano alimentar está pronto.</p><p>Mas existe algo importante:</p><p>Você não precisa emagrecer tudo em 30 dias.</p><p>Você precisa aprender a continuar por mais de 30 dias.</p><p>É isso que realmente gera resultado.</p>
+        <p>Olá, ${escapeHtml(state.name)}. Sua direção está pronta: treino, plano alimentar e primeiros passos organizados. Mas lembre-se: o objetivo não é resolver tudo em 30 dias, e sim aprender a continuar por mais de 30 dias. É isso que constrói resultados de verdade.</p>
         <button class="lm2-primary-button" type="button" data-route="home">IR PARA MINHA JORNADA</button>
       </section>`;
     if (route === 'home-placeholder') route = 'home';
@@ -235,13 +244,29 @@
         <p class="lm2-error" data-lm2-error role="alert"></p>
         <button class="lm2-primary-button" type="button" data-route="${getHomePrimaryRoute(state)}">${getHomePrimaryLabel(state)}</button>
         <button class="lm2-secondary-button" type="button" data-route="direction">MINHA DIREÇÃO</button>
+        <button class="lm2-secondary-button" type="button" data-route="profile-edit">Atualizar informações</button>
+      </section>`;
+
+    if (route === 'profile-edit') root.innerHTML = `
+      <section class="lm2-card" aria-labelledby="lm2-profile-title">
+        <h1 id="lm2-profile-title">Atualizar informações</h1>
+        <form data-profile-form>
+          <label>Nome<input class="lm2-input" name="name" value="${escapeHtml(state.name)}"></label>
+          <label>Objetivo<input class="lm2-input" name="goal" value="${escapeHtml(state.goal)}"></label>
+          <label>Sexo<div class="lm2-options">${optionButton('sex', 'male', 'male', state.sex)}${optionButton('sex', 'female', 'female', state.sex)}</div></label>
+          <label>Peso (kg)<input class="lm2-input" name="weight_kg" type="number" step="0.1" value="${state.weight_kg || ''}"></label>
+          <label>Altura (cm)<input class="lm2-input" name="height_cm" type="number" step="1" value="${state.height_cm || ''}"></label>
+        </form>
+        <p class="lm2-error" data-lm2-error role="alert"></p>
+        <button class="lm2-primary-button" type="button" data-save-profile>Salvar informações</button>
+        <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
       </section>`;
     if (route === 'direction') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-direction-tools-title">
         <h1 id="lm2-direction-tools-title">Minha Direção</h1>
         <p>As ferramentas que vão ajudar você a continuar.</p>
-        <article class="lm2-block"><h2>Meu Treino</h2><p>Seu treino já foi definido para esta jornada.</p><button class="lm2-secondary-button" type="button">ABRIR TREINO</button></article>
-        <article class="lm2-block"><h2>Minha Alimentação</h2><p>Seu plano alimentar já foi definido para esta jornada.</p><button class="lm2-secondary-button" type="button">ABRIR PLANO</button></article>
+        <article class="lm2-block"><h2>Meu Treino</h2><p>Seu treino já foi definido para esta jornada.</p><button class="lm2-secondary-button" type="button" data-open-training>Abrir meu treino</button></article>
+        <article class="lm2-block"><h2>Minha Alimentação</h2><p>Seu plano alimentar já foi definido para esta jornada.</p><button class="lm2-secondary-button" type="button" data-open-nutrition>Abrir meu plano alimentar</button></article>
         <article class="lm2-block"><h2>Meu Plano B</h2><p>Sua estratégia para continuar quando a vida não sair como planejado.</p><button class="lm2-secondary-button" type="button">EM BREVE</button></article>
         <button class="lm2-primary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
       </section>`;
@@ -502,10 +527,12 @@
 
   async function submitOnboarding(root) {
     const weight = Number(root.querySelector('[data-lm2-weight]').value);
+    const height = Number(root.querySelector('[data-lm2-height]')?.value);
     if (!Number.isFinite(weight) || weight <= 0) return setError(root, 'Informe um peso válido.');
-    const state = global.ProjectLm2State.updateState({ weight_kg: weight });
+    if (!Number.isFinite(height) || height <= 0) return setError(root, 'Informe uma altura válida.');
+    const state = global.ProjectLm2State.updateState({ weight_kg: weight, height_cm: height });
     try {
-      const response = await requestLm2(api.onboarding, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: state.name, goal: state.goal, sex: state.sex, weight_kg: state.weight_kg }) });
+      const response = await requestLm2(api.onboarding, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: state.name, goal: state.goal, sex: state.sex, weight_kg: state.weight_kg, height_cm: state.height_cm }) });
       if (!response.ok) throw new Error('onboarding_failed');
       global.ProjectLm2State.updateState({ onboarding_completed: true });
       const homeResponse = await requestLm2(api.home);
@@ -518,11 +545,18 @@
     }
   }
 
-  async function refreshHomeState(root, response) {
+  function showActionRegisteredModal(root) {
+    const existing = root.querySelector('[data-action-registered-modal]');
+    if (existing) existing.remove();
+    root.insertAdjacentHTML('beforeend', `<div class="lm2-modal-backdrop" data-action-registered-modal role="dialog" aria-modal="true" aria-labelledby="lm2-action-title"><div class="lm2-modal"><h2 id="lm2-action-title">Ação registrada</h2><p>O que deseja fazer agora?</p><button class="lm2-secondary-button" type="button" data-close-action-modal>Continuar editando</button><button class="lm2-primary-button" type="button" data-action-modal-home>Voltar para Home</button></div></div>`);
+  }
+
+  async function refreshHomeState(root, response, options = {}) {
     if (!response.ok) throw new Error('lm2_action_failed');
     const payload = await response.json();
     applyHomeData(payload.data || payload);
     render(root, global.ProjectLm2Router.getCurrentRoute());
+    if (options.showActionModal) showActionRegisteredModal(root);
   }
 
   async function completeWeek1Video(root) {
@@ -542,7 +576,7 @@
     };
     if (!body.unable_to_train || !body.overeating || !body.no_motivation) return setError(root, 'Preencha todos os campos do Plano B.');
     try {
-      await refreshHomeState(root, await requestLm2(api.planB, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }));
+      await refreshHomeState(root, await requestLm2(api.planB, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }), { showActionModal: true });
     } catch (error) {
       setError(root, 'Não foi possível salvar seu Plano B.');
     }
@@ -669,15 +703,43 @@
       global.ProjectLm2State.updateState({ ...(payload.data || {}), today_checkin_completed: true, next_action: 'checkin_completed_today' });
       const feedback = root.querySelector('[data-lm2-feedback]');
       if (feedback) feedback.textContent = messages[answer];
+      showActionRegisteredModal(root);
     } catch (error) {
       setError(root, error.message || 'Não foi possível registrar seu dia.');
     }
+  }
+
+  async function saveProfile(root) {
+    const form = root.querySelector('[data-profile-form]');
+    const body = {
+      name: form?.elements.name.value.trim(),
+      goal: form?.elements.goal.value.trim(),
+      sex: global.ProjectLm2State.getState().sex,
+      weight_kg: Number(form?.elements.weight_kg.value),
+      height_cm: Number(form?.elements.height_cm.value)
+    };
+    if (!body.name || !body.goal || !body.sex || !Number.isFinite(body.weight_kg) || !Number.isFinite(body.height_cm)) return setError(root, 'Preencha nome, objetivo, sexo, peso e altura.');
+    try {
+      await refreshHomeState(root, await requestLm2(api.profile, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }));
+      routeTo(root, 'home');
+    } catch (error) {
+      setError(root, 'Não foi possível atualizar suas informações.');
+    }
+  }
+
+  function openDirectionAsset(root, type) {
+    const state = global.ProjectLm2State.getState();
+    const id = type === 'training' ? state.training_plan_id : state.nutrition_plan_id;
+    if (!id) return setError(root, type === 'training' ? 'Seu treino ainda não está disponível. Tente novamente mais tarde.' : 'Seu plano alimentar ainda não está disponível. Tente novamente mais tarde.');
+    global.location.href = `/project-lm-2-${type}.html?plan=${encodeURIComponent(id)}`;
   }
 
   function bind(root) {
     root.addEventListener('click', event => {
       const target = event.target.closest('button');
       if (!target) return;
+      if (target.hasAttribute('data-close-action-modal')) return target.closest('[data-action-registered-modal]')?.remove();
+      if (target.hasAttribute('data-action-modal-home')) { target.closest('[data-action-registered-modal]')?.remove(); return routeTo(root, 'home'); }
       if (target.dataset.route) return routeTo(root, target.dataset.route);
       if (target.dataset.optionName) {
         global.ProjectLm2State.updateState({ [target.dataset.optionName]: target.dataset.optionValue });
@@ -715,6 +777,9 @@
       if (target.hasAttribute('data-complete-program')) completeProgram(root);
       if (target.hasAttribute('data-premium-consulting-cta')) openPremiumConsulting();
       if (target.hasAttribute('data-submit-checkin')) submitCheckin(root);
+      if (target.hasAttribute('data-save-profile')) saveProfile(root);
+      if (target.hasAttribute('data-open-training')) openDirectionAsset(root, 'training');
+      if (target.hasAttribute('data-open-nutrition')) openDirectionAsset(root, 'nutrition');
     });
   }
 
@@ -726,7 +791,7 @@
       root.dataset.lm2BoundClick = 'true';
       bind(root);
     }
-    render(root, global.ProjectLm2Router.getCurrentRoute());
+    render(root, 'home');
     if (!root.dataset.lm2BoundHashchange) {
       root.dataset.lm2BoundHashchange = 'true';
       global.addEventListener('hashchange', () => render(root, global.ProjectLm2Router.getCurrentRoute()));

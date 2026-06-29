@@ -8,6 +8,7 @@
     'direction-created': { path: '#direction-created', label: 'Direção criada' },
     home: { path: '#home', label: 'Início' },
     direction: { path: '#direction', label: 'Minha Direção' },
+    'profile-edit': { path: '#profile-edit', label: 'Atualizar informações' },
     'week-1': { path: '#week-1', label: 'Semana 1' },
     'daily-checkin': { path: '#daily-checkin', label: 'Check-in diário' },
     'week-complete': { path: '#week-complete', label: 'Semana 1 concluída' },

@@ -30,13 +30,13 @@ function createDbMock({ expectedUserId, rejectedEmail }) {
               }
 
               if (sql.includes('FROM project_lm_weekly_missions')) {
-                assert.equal(value, 3);
+                assert.equal(value, 4);
                 return {
-                  week_number: 3,
-                  title: 'Semana 3',
-                  description: 'Descrição da semana 3',
-                  main_mission: 'Missão da semana 3',
-                  success_criteria: 'Critério da semana 3'
+                  week_number: 4,
+                  title: 'Semana 4',
+                  description: 'Descrição da semana 4',
+                  main_mission: 'Missão da semana 4',
+                  success_criteria: 'Critério da semana 4'
                 };
               }
 
@@ -54,7 +54,7 @@ test('getProjectLmCurrentMission uses user_id to load profile and calculate the 
 
   const mission = await getProjectLmCurrentMission(db, 123);
 
-  assert.equal(mission.week, 3);
-  assert.equal(mission.title, 'Semana 3');
-  assert.deepEqual(db.bindings.map((binding) => binding.value), [123, 3]);
+  assert.equal(mission.week, 4);
+  assert.equal(mission.title, 'Semana 4');
+  assert.deepEqual(db.bindings.map((binding) => binding.value), [123, 4]);
 });

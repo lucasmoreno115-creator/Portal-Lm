@@ -17,11 +17,12 @@ test('Home renders the requested minimum journey data from GET home', () => {
     assert.match(lm2App, new RegExp(escapeRegExp(text)));
   }
   assert.match(lm2App, /requestLm2\(api\.home\)/);
-  assert.match(lm2App, /applyHomeData\(\{ \.\.\.\(home\.data \|\| home\), \.\.\.\(progress\.data \|\| \{\}\) \}\)/);
+  assert.match(lm2App, /const homeData = \{ \.\.\.\(home\.data \|\| home\), \.\.\.\(progress\.data \|\| \{\}\) \}/);
+  assert.match(lm2App, /applyHomeData\(homeData\)/);
 });
 
 test('Minha Direção renders exactly the three requested blocks', () => {
-  for (const text of ['Minha Direção', 'As ferramentas que vão ajudar você a continuar.', 'Meu Treino', 'Seu treino já foi definido para esta jornada.', 'ABRIR TREINO', 'Minha Alimentação', 'Seu plano alimentar já foi definido para esta jornada.', 'ABRIR PLANO', 'Meu Plano B', 'Sua estratégia para continuar quando a vida não sair como planejado.', 'EM BREVE']) {
+  for (const text of ['Minha Direção', 'As ferramentas que vão ajudar você a continuar.', 'Meu Treino', 'Seu treino já foi definido para esta jornada.', 'Abrir meu treino', 'Minha Alimentação', 'Seu plano alimentar já foi definido para esta jornada.', 'Abrir meu plano alimentar', 'Meu Plano B', 'Sua estratégia para continuar quando a vida não sair como planejado.', 'EM BREVE']) {
     assert.match(lm2App, new RegExp(escapeRegExp(text)));
   }
   assert.equal((lm2App.match(/<article class="lm2-block">/g) || []).length, 3);

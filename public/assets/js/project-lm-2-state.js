@@ -5,6 +5,9 @@
     goal: '',
     sex: '',
     weight_kg: null,
+    height_cm: null,
+    nutrition_plan_id: '',
+    training_plan_id: '',
     onboarding_completed: false,
     current_week: 1,
     week_started_at: null,
@@ -81,6 +84,9 @@
     safe.goal = String(safe.goal || '');
     safe.sex = String(safe.sex || '');
     safe.weight_kg = safe.weight_kg === null || safe.weight_kg === '' ? null : normalizeNumber(safe.weight_kg, null, 1, 500);
+    safe.height_cm = safe.height_cm === null || safe.height_cm === '' ? null : normalizeNumber(safe.height_cm, null, 1, 300);
+    safe.nutrition_plan_id = String(safe.nutrition_plan_id || '');
+    safe.training_plan_id = String(safe.training_plan_id || '');
     safe.current_week = normalizeNumber(safe.current_week, initialState.current_week, 1, 4);
     safe.continuity_days_count = normalizeNumber(safe.continuity_days_count, 0, 0, 31);
     safe.required_days_count = normalizeNumber(safe.required_days_count, initialState.required_days_count, 1, 31);
