@@ -1,4 +1,4 @@
-const LM_PROJECT_LM_2_ENTRY = '/projeto-lm';
+const LM_PROJECT_LM_2_ENTRY = '/projeto-lm/';
 const LM_PROJECT_LM_2_LEGACY_ENTRY = ['/project-lm-2', 'html'].join('.');
 const projectLm2Route = (hash) => `${LM_PROJECT_LM_2_ENTRY}#${hash}`;
 

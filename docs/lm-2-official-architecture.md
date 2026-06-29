@@ -13,13 +13,13 @@ LM 2.0 is the official Projeto LM experience: an isolated 30-day guided program 
 
 ## Isolation Boundaries
 
-- Canonical public route: `/projeto-lm`, rewritten to the LM 2.0 HTML entrypoint.
+- Canonical public route: `/projeto-lm/`, rewritten to the LM 2.0 HTML entrypoint.
 - HTML entrypoint: `public/project-lm-2.html`.
 - JavaScript namespace: `ProjectLm2*` globals only.
 - CSS namespace: `lm2-*` classes only.
 - No database objects are created in this PR.
 - No APIs are created in this PR.
-- The official public route is `/projeto-lm`; the underlying LM 2.0 entrypoint remains `public/project-lm-2.html` and must not be linked directly from public navigation.
+- The official public route is `/projeto-lm/`; the underlying LM 2.0 entrypoint remains `public/project-lm-2.html` and must not be linked directly from public navigation.
 - V5 and earlier Projeto LM files are legacy/historical. Premium and Admin remain isolated from the LM 2.0 route.
 
 ## Foundation Assets

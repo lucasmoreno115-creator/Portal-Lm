@@ -6,15 +6,14 @@ import assert from 'node:assert/strict';
 const portal = await readFile('portal.html', 'utf8');
 const access = await readFile('public/assets/js/lm-access.js', 'utf8');
 const lm2Html = await readFile('public/project-lm-2.html', 'utf8');
-const lm2CanonicalAlias = await readFile('public/projeto-lm/index.html', 'utf8');
-const redirects = await readFile('public/_redirects', 'utf8');
+const lm2CanonicalAlias = await readFile('projeto-lm/index.html', 'utf8');
 const lm2App = await readFile('public/assets/js/project-lm-2-app.js', 'utf8');
 const apiSource = await readFile('workers/api.js', 'utf8');
 const premiumHtml = await readFile('anamnese-premium.html', 'utf8');
 const adminHtml = await readFile('admin.html', 'utf8');
 
-const officialPortalRoute = '/projeto-lm#home';
-const officialRuntimeRoute = '/projeto-lm#home';
+const officialPortalRoute = '/projeto-lm/#home';
+const officialRuntimeRoute = '/projeto-lm/#home';
 const legacyStudentEntrypoints = [
   'projeto-lm-jornada.html',
   'projeto-lm-onboarding.html',
@@ -39,9 +38,8 @@ const lm2RelativeAssets = [
 test('Projeto LM login officially cuts over to LM 2.0 while Premium remains on portal.html', () => {
   assert.ok(portal.includes(`window.location.replace('${officialPortalRoute}')`));
   assert.match(access, /projectLm2Route\('home'\)/);
-  assert.equal(officialRuntimeRoute, '/projeto-lm#home');
-  assert.match(access, /const LM_PROJECT_LM_2_ENTRY = '\/projeto-lm'/);
-  assert.match(redirects, /^\/projeto-lm \/project-lm-2\.html 200$/m);
+  assert.equal(officialRuntimeRoute, '/projeto-lm/#home');
+  assert.match(access, /const LM_PROJECT_LM_2_ENTRY = '\/projeto-lm\/'/);
   assert.match(lm2CanonicalAlias, /id="project-lm-2-root"/);
   assert.match(access, /\{ feature: 'dashboard', label: 'Página inicial', href: 'portal\.html' \}/);
 });
@@ -51,15 +49,15 @@ test('/projeto-lm canonical hash aliases resolve to the official LM 2.0 route', 
   const context = {
     localStorage: { getItem: () => '' },
     sessionStorage: { setItem() {} },
-    window: { location: { href: '', pathname: '/projeto-lm' } },
+    window: { location: { href: '', pathname: '/projeto-lm/' } },
     api: async () => ({})
   };
   vm.runInNewContext(`${access}; globalThis.__lm2Routes = [projectLm2Route('home'), projectLm2Route('daily-checkin'), projectLm2Route('week-1'), projectLm2Route('premium-bridge')];`, context);
   assert.deepEqual(JSON.parse(JSON.stringify(context.__lm2Routes)), [
-    '/projeto-lm#home',
-    '/projeto-lm#daily-checkin',
-    '/projeto-lm#week-1',
-    '/projeto-lm#premium-bridge'
+    '/projeto-lm/#home',
+    '/projeto-lm/#daily-checkin',
+    '/projeto-lm/#week-1',
+    '/projeto-lm/#premium-bridge'
   ]);
 });
 
@@ -75,10 +73,10 @@ test('active Projeto LM student navigation no longer points to legacy entrypoint
 
 test('GitHub Pages physical canonical alias serves LM 2.0 without V5 or legacy assets', () => {
   const canonicalAliasAssets = [
-    '../assets/css/project-lm-2.css',
-    '../assets/js/project-lm-2-state.js',
-    '../assets/js/project-lm-2-router.js',
-    '../assets/js/project-lm-2-app.js'
+    '../public/assets/css/project-lm-2.css',
+    '../public/assets/js/project-lm-2-state.js',
+    '../public/assets/js/project-lm-2-router.js',
+    '../public/assets/js/project-lm-2-app.js'
   ];
 
   assert.match(lm2CanonicalAlias, /<title>Projeto LM 2\.0<\/title>/);

@@ -2,7 +2,7 @@
 
 ## 1. Resumo executivo
 
-Esta auditoria mapeia exclusivamente o runtime real do **Projeto LM oficial** quando um aluno acessa a URL pública `/projeto-lm`. O fluxo oficial atual é uma SPA estática servida por rewrite para `public/project-lm-2.html`, com CSS e JavaScript isolados em `public/assets/css/project-lm-2.css` e `public/assets/js/project-lm-2-*`. O runtime oficial não carrega assets V5, páginas antigas `projeto-lm-*.html`, CSS Premium, JS Premium, Admin ou componentes Premium.
+Esta auditoria mapeia exclusivamente o runtime real do **Projeto LM oficial** quando um aluno acessa a URL pública `/projeto-lm/`. O fluxo oficial atual é uma SPA estática servida por rewrite para `public/project-lm-2.html`, com CSS e JavaScript isolados em `public/assets/css/project-lm-2.css` e `public/assets/js/project-lm-2-*`. O runtime oficial não carrega assets V5, páginas antigas `projeto-lm-*.html`, CSS Premium, JS Premium, Admin ou componentes Premium.
 
 O frontend oficial consome endpoints `/api/project-lm-2/*` implementados no bloco central de `workers/api.js` e protegidos por autenticação compartilhada de aluno via `x-student-email` e `x-student-token`. O banco oficial efetivamente usado por esses endpoints é o conjunto `lm2_profiles`, `lm2_journeys`, `lm2_week_1_foundation`, `lm2_week_2_foundation`, `lm2_week_3_foundation`, `lm2_week_4_foundation` e `lm2_checkins`.
 
@@ -14,18 +14,18 @@ Após a Fase 2, o runtime oficial usa o backend `lm2_*` como fonte principal de 
 
 | Item | Mapeamento | Status |
 | --- | --- | --- |
-| URL pública oficial | `/projeto-lm` | Oficial |
-| Rewrite estático | `/projeto-lm /project-lm-2.html 200` | Correto |
+| URL pública oficial | `/projeto-lm/` | Oficial |
+| Alias físico GitHub Pages | `projeto-lm/index.html` | Oficial na raiz publicada |
 | Entrypoint interno | `public/project-lm-2.html` | Implementação interna, não deve ser link público |
-| Alias físico GitHub Pages | `public/projeto-lm/index.html` | Fallback compatível com host estático sem `_redirects` |
+| Alias legado sob `public/` | `public/projeto-lm/index.html` | Não é a rota pública principal quando Pages publica a raiz |
 | Router interno | Hash routes (`#home`, `#week-1`, etc.) | Oficial |
-| Outro entrypoint ativo no runtime de `/projeto-lm` | Não identificado | V5/legado congelados |
+| Outro entrypoint ativo no runtime de `/projeto-lm/` | Não identificado | V5/legado congelados |
 
-`public/project-lm-2.html` é apenas detalhe de implementação: a URL canônica de aluno é `/projeto-lm`, preservando a navegação por hash. O login compartilhado também envia alunos `projeto_lm` para `/projeto-lm`, e o menu compartilhado constrói links canônicos `/projeto-lm#...`. Para GitHub Pages ou outro host que não aplica `public/_redirects`, `public/projeto-lm/index.html` existe como alias físico seguro, carregando somente os mesmos assets oficiais do LM 2.0 com caminhos relativos ao diretório. A limitação do GitHub Pages é que a resolução exata de `/projeto-lm` pode normalizar para `/projeto-lm/`; servir `/projeto-lm` sem barra ou extensão de forma estrita exige rewrite/redirect configurado no provedor.
+`public/project-lm-2.html` é apenas detalhe de implementação: a URL canônica de aluno é `/projeto-lm/`, preservando a navegação por hash. O login compartilhado também envia alunos `projeto_lm` para `/projeto-lm/`, e o menu compartilhado constrói links canônicos `/projeto-lm/#...`. Para GitHub Pages publicando a raiz do repositório, `projeto-lm/index.html` existe como alias físico seguro, carregando somente os mesmos assets oficiais do LM 2.0 com caminhos relativos ao diretório. A limitação do GitHub Pages é que a resolução exata de `/projeto-lm/` pode normalizar para `/projeto-lm/`; servir `/projeto-lm/` sem barra ou extensão de forma estrita exige rewrite/redirect configurado no provedor.
 
 ### Bootstrap real
 
-1. O host estático reescreve `/projeto-lm` para `/project-lm-2.html`; quando o host não suporta `_redirects`, GitHub Pages pode servir o alias físico `public/projeto-lm/index.html`.
+1. O GitHub Pages serve `/projeto-lm/` pelo alias físico `projeto-lm/index.html`, sem depender de `_redirects` ou de `public/project-lm-2.html` como rota pública principal.
 2. O HTML carrega o CSS oficial.
 3. O HTML carrega os scripts na ordem: estado, router, app.
 4. `ProjectLm2App.boot()` exige sessão local (`lm_student_email` + `lm_student_token`).
@@ -180,9 +180,9 @@ O hash (`window.location.hash`) é a fonte de navegação interna. O router norm
 | --- | --- | --- | --- |
 | `portal-login.html` | Destino de redirect quando não há sessão; grava credenciais e plano em `localStorage` | Aceitável/necessária hoje | Acoplamento de autenticação compartilhada. |
 | `workers/api.js` | Implementa APIs LM 2.0 junto de Premium, Admin e legados | Risco técnico | Arquivo concentra muitas responsabilidades; mudanças em outras áreas podem afetar LM 2.0. |
-| `lm-access.js` | Menus e redirects compartilhados apontam para `/projeto-lm#...` | Aceitável com cautela | Não é carregado pela SPA, mas influencia navegação vinda do portal. Ainda contém helpers antigos de onboarding/profile legado. |
-| `portal.html` | Redireciona aluno `projeto_lm` para `/projeto-lm#home` e possui links canônicos | Temporária/aceitável | Premium/portal compartilham ponto de entrada e podem confundir inventário se alterados. |
-| `portal-shared.js` | Não carregado diretamente pelo entrypoint oficial | Sem dependência runtime direta | Fora do caminho oficial `/projeto-lm`. |
+| `lm-access.js` | Menus e redirects compartilhados apontam para `/projeto-lm/#...` | Aceitável com cautela | Não é carregado pela SPA, mas influencia navegação vinda do portal. Ainda contém helpers antigos de onboarding/profile legado. |
+| `portal.html` | Redireciona aluno `projeto_lm` para `/projeto-lm/#home` e possui links canônicos | Temporária/aceitável | Premium/portal compartilham ponto de entrada e podem confundir inventário se alterados. |
+| `portal-shared.js` | Não carregado diretamente pelo entrypoint oficial | Sem dependência runtime direta | Fora do caminho oficial `/projeto-lm/`. |
 | APIs legadas `/api/project-lm/*` e `/api/portal/project-lm/*` | Coexistem no mesmo Worker após bloco `/api/project-lm-2/*` | Risco de manutenção | Não são chamadas pelo runtime oficial, mas convivem no mesmo roteador. |
 
 ## 10. Limites com Consultoria Premium
@@ -218,7 +218,7 @@ Busca estática em `portal.html`, `portal-login.html`, páginas `portal*.html`, 
 4. **Manter persistência backend para Semanas 3/4 e conclusão do programa** como contrato obrigatório de futuras alterações.
 5. **Isolar o módulo `/api/project-lm-2/*` fora de `workers/api.js`** em refactor futuro sem alteração contratual, reduzindo risco de regressões cruzadas.
 6. **Documentar explicitamente os assets de treino/alimentação** (`project-lm-2-training.html` e `project-lm-2-nutrition.html`) ou removê-los do fluxo em PR futura se não existirem, após decisão de produto.
-7. **Manter `/projeto-lm` como única URL pública**; não criar links públicos para `project-lm-2.html`, V5 ou páginas legadas.
+7. **Manter `/projeto-lm/` como única URL pública**; não criar links públicos para `project-lm-2.html`, V5 ou páginas legadas.
 8. **Adicionar testes estáticos futuros** para garantir que `project-lm-2.html` continue carregando somente assets oficiais e que Premium não passe a carregar `project-lm-2-*`.
 
 ## 13. Plano sugerido para consolidação
