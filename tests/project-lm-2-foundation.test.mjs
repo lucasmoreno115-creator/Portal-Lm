@@ -63,3 +63,14 @@ test('LM 2.0 router prepares the minimum internal routes', () => {
     assert.match(lm2Router, new RegExp(`${route}:|['"]${route}['"]`));
   }
 });
+
+test('LM 2.0 visual polish centralizes cards, controls, typography, states and responsive rules', () => {
+  for (const token of ['--lm2-radius-card', '--lm2-radius-block', '--lm2-radius-control', '--lm2-shadow-card', '--lm2-shadow-focus']) {
+    assert.match(lm2Css, new RegExp(token));
+  }
+  assert.match(lm2Css, /\.lm2-hero,\n\.lm2-card \{/);
+  assert.match(lm2Css, /\.lm2-primary-button,\n\.lm2-secondary-button,\n\.lm2-option \{/);
+  assert.match(lm2Css, /\.lm2-input:focus,\n\.lm2-input:focus-visible \{/);
+  assert.match(lm2Css, /\.lm2-block,\n\.lm2-lesson,\n\.lm2-plan-b,\n\.lm2-celebration-cta \{/);
+  assert.match(lm2Css, /@media \(max-width: 480px\)/);
+});

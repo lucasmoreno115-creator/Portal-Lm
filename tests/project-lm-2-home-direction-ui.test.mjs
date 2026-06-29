@@ -25,7 +25,8 @@ test('Minha Direção renders exactly the three requested blocks', () => {
   for (const text of ['Minha Direção', 'As ferramentas que vão ajudar você a continuar.', 'Meu Treino', 'Seu treino já foi definido para esta jornada.', 'Abrir meu treino', 'Minha Alimentação', 'Seu plano alimentar já foi definido para esta jornada.', 'Abrir meu plano alimentar', 'Meu Plano B', 'Sua estratégia para continuar quando a vida não sair como planejado.', 'EM BREVE']) {
     assert.match(lm2App, new RegExp(escapeRegExp(text)));
   }
-  assert.equal((lm2App.match(/<article class="lm2-block">/g) || []).length, 3);
+  const directionScreen = lm2App.slice(lm2App.indexOf("if (route === 'direction')"), lm2App.indexOf("if (route === 'training')"));
+  assert.equal((directionScreen.match(/<article class="lm2-block">/g) || []).length, 3);
 });
 
 test('Home, Direction, and Week 1 navigation is wired', () => {
@@ -40,6 +41,39 @@ test('Home, Direction, and Week 1 navigation is wired', () => {
   assert.match(lm2App, /SALVAR MEU PLANO B/);
   assert.doesNotMatch(lm2Bundle, /data-check-in|progression|progressão/i);
 });
+
+
+test('Projeto LM router exposes internal training and nutrition routes', () => {
+  assert.match(lm2Router, /training: \{ path: '#training', label: 'Treino' \}/);
+  assert.match(lm2Router, /nutrition: \{ path: '#nutrition', label: 'Plano alimentar' \}/);
+});
+
+test('Projeto LM direction buttons navigate internally to training and nutrition screens', () => {
+  assert.match(lm2App, /data-route="training">Abrir meu treino/);
+  assert.match(lm2App, /data-route="nutrition">Abrir meu plano alimentar/);
+  assert.match(lm2App, /if \(route === 'training'\) root\.innerHTML = renderTrainingScreen\(state\)/);
+  assert.match(lm2App, /if \(route === 'nutrition'\) root\.innerHTML = renderNutritionScreen\(state\)/);
+  assert.doesNotMatch(lm2App, /data-open-training|data-open-nutrition|project-lm-2-\$\{type\}\.html/);
+});
+
+test('Projeto LM internal training and nutrition screens handle recognized ids and friendly fallbacks', () => {
+  for (const plan of ['gym_male', 'gym_female', 'home']) assert.match(lm2App, new RegExp(`${plan}:`));
+  for (const plan of ['H1', 'H2', 'H3', 'M1', 'M2', 'M3']) assert.match(lm2App, new RegExp(`${plan}:`));
+  assert.match(lm2App, /Seu treino ainda não está disponível\. Volte para a Home e tente novamente mais tarde\./);
+  assert.match(lm2App, /Seu plano alimentar ainda não está disponível\. Volte para a Home e tente novamente mais tarde\./);
+  assert.match(lm2App, /data-route="direction">VOLTAR PARA MINHA DIREÇÃO/);
+  assert.match(lm2App, /data-route="home">VOLTAR PARA HOME/);
+});
+
+test('Projeto LM training and nutrition integration does not use physical pages or forbidden destinations', async () => {
+  await assert.rejects(() => readFile('public/projeto-lm/treino/index.html', 'utf8'), /ENOENT/);
+  await assert.rejects(() => readFile('public/projeto-lm/plano-alimentar/index.html', 'utf8'), /ENOENT/);
+  for (const source of [lm2App, lm2Router]) {
+    assert.doesNotMatch(source, /portal-plano-alimentar\.html|MFIT|project-lm-profile\.html|project-lm-v5\.html/);
+    assert.doesNotMatch(source, /projeto-lm\/(treino|plano-alimentar)|projeto-lm-[\w-]+\.html|project-lm-2-\$\{type\}\.html/);
+  }
+});
+
 
 test('LM 2.0 state tracks only the requested new screen flags', () => {
   for (const field of ['home_loaded', 'home_data', 'direction_loaded']) {

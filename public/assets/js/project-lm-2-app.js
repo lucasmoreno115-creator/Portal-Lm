@@ -179,6 +179,53 @@
     return 'CONTINUAR';
   }
 
+  const trainingPlans = Object.freeze({
+    gym_male: { title: 'Treino Academia · Masculino', items: ['Destino oficial do seu treino dentro do Projeto LM.', 'Priorize técnica, controle e regularidade.', 'Registre sua execução para acompanhar evolução.'] },
+    gym_female: { title: 'Treino Academia · Feminino', items: ['Destino oficial do seu treino dentro do Projeto LM.', 'Priorize execução segura, amplitude e controle.', 'Registre sua execução para acompanhar evolução.'] },
+    home: { title: 'Treino em Casa', items: ['Destino oficial do seu treino dentro do Projeto LM.', 'Use o plano em casa quando a academia não couber na rotina.', 'Faça o mínimo possível bem feito e continue.'] }
+  });
+
+  const nutritionPlans = Object.freeze({
+    H1: 'Plano H1',
+    H2: 'Plano H2',
+    H3: 'Plano H3',
+    M1: 'Plano M1',
+    M2: 'Plano M2',
+    M3: 'Plano M3'
+  });
+
+  function renderTrainingScreen(state) {
+    const plan = trainingPlans[state.training_plan_id];
+    const content = plan
+      ? `<article class="lm2-block"><h2>${escapeHtml(plan.title)}</h2><ul class="lm2-list">${plan.items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul></article>`
+      : '<article class="lm2-block"><h2>Treino indisponível</h2><p>Seu treino ainda não está disponível. Volte para a Home e tente novamente mais tarde.</p></article>';
+    return `
+      <section class="lm2-card" aria-labelledby="lm2-training-title">
+        <p class="lm2-kicker">Projeto LM · Treino oficial</p>
+        <h1 id="lm2-training-title">Meu Treino</h1>
+        <p>Esta é a tela oficial do seu treino dentro do Projeto LM.</p>
+        ${content}
+        <button class="lm2-primary-button" type="button" data-route="direction">VOLTAR PARA MINHA DIREÇÃO</button>
+        <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
+      </section>`;
+  }
+
+  function renderNutritionScreen(state) {
+    const plan = nutritionPlans[state.nutrition_plan_id];
+    const content = plan
+      ? `<article class="lm2-block"><h2>${escapeHtml(plan)}</h2><p>Este é o destino oficial do seu plano alimentar dentro do Projeto LM.</p><ul class="lm2-list"><li>Siga o plano definido para você no onboarding.</li><li>Use consistência antes de buscar perfeição.</li><li>Se algo sair do previsto, retome na próxima refeição.</li></ul></article>`
+      : '<article class="lm2-block"><h2>Plano alimentar indisponível</h2><p>Seu plano alimentar ainda não está disponível. Volte para a Home e tente novamente mais tarde.</p></article>';
+    return `
+      <section class="lm2-card" aria-labelledby="lm2-nutrition-title">
+        <p class="lm2-kicker">Projeto LM · Plano alimentar oficial</p>
+        <h1 id="lm2-nutrition-title">Meu Plano Alimentar</h1>
+        <p>Esta é a tela oficial do seu plano alimentar dentro do Projeto LM.</p>
+        ${content}
+        <button class="lm2-primary-button" type="button" data-route="direction">VOLTAR PARA MINHA DIREÇÃO</button>
+        <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
+      </section>`;
+  }
+
   function nextActionLabel(nextAction) {
     if (nextAction === 'week_1_video') return 'Assistir à aula da Semana 1.';
     if (nextAction === 'create_plan_b') return 'Criar seu Plano B inicial.';
@@ -287,11 +334,13 @@
       <section class="lm2-card" aria-labelledby="lm2-direction-tools-title">
         <h1 id="lm2-direction-tools-title">Minha Direção</h1>
         <p>As ferramentas que vão ajudar você a continuar.</p>
-        <article class="lm2-block"><h2>Meu Treino</h2><p>Seu treino já foi definido para esta jornada.</p><button class="lm2-secondary-button" type="button" data-open-training>Abrir meu treino</button></article>
-        <article class="lm2-block"><h2>Minha Alimentação</h2><p>Seu plano alimentar já foi definido para esta jornada.</p><button class="lm2-secondary-button" type="button" data-open-nutrition>Abrir meu plano alimentar</button></article>
+        <article class="lm2-block"><h2>Meu Treino</h2><p>Seu treino já foi definido para esta jornada.</p><button class="lm2-secondary-button" type="button" data-route="training">Abrir meu treino</button></article>
+        <article class="lm2-block"><h2>Minha Alimentação</h2><p>Seu plano alimentar já foi definido para esta jornada.</p><button class="lm2-secondary-button" type="button" data-route="nutrition">Abrir meu plano alimentar</button></article>
         <article class="lm2-block"><h2>Meu Plano B</h2><p>Sua estratégia para continuar quando a vida não sair como planejado.</p><button class="lm2-secondary-button" type="button">EM BREVE</button></article>
         <button class="lm2-primary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
       </section>`;
+    if (route === 'training') root.innerHTML = renderTrainingScreen(state);
+    if (route === 'nutrition') root.innerHTML = renderNutritionScreen(state);
     if (route === 'week-1-placeholder') route = 'week-1';
     if (route === 'week-1') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-week-title">
@@ -799,13 +848,6 @@
     }
   }
 
-  function openDirectionAsset(root, type) {
-    const state = global.ProjectLm2State.getState();
-    const id = type === 'training' ? state.training_plan_id : state.nutrition_plan_id;
-    if (!id) return setError(root, type === 'training' ? 'Seu treino ainda não está disponível. Tente novamente mais tarde.' : 'Seu plano alimentar ainda não está disponível. Tente novamente mais tarde.');
-    global.location.href = `/project-lm-2-${type}.html?plan=${encodeURIComponent(id)}`;
-  }
-
   function bind(root) {
     root.addEventListener('click', event => {
       const target = event.target.closest('button');
@@ -851,8 +893,6 @@
       if (target.hasAttribute('data-premium-consulting-cta')) openPremiumConsulting();
       if (target.hasAttribute('data-submit-checkin')) submitCheckin(root);
       if (target.hasAttribute('data-save-profile')) saveProfile(root);
-      if (target.hasAttribute('data-open-training')) openDirectionAsset(root, 'training');
-      if (target.hasAttribute('data-open-nutrition')) openDirectionAsset(root, 'nutrition');
     });
   }
 
