@@ -10,6 +10,7 @@
     direction: { path: '#direction', label: 'Minha Direção' },
     training: { path: '#training', label: 'Treino' },
     nutrition: { path: '#nutrition', label: 'Plano alimentar' },
+    library: { path: '#library', label: 'Biblioteca' },
     'profile-edit': { path: '#profile-edit', label: 'Atualizar informações' },
     'week-1': { path: '#week-1', label: 'Semana 1' },
     'daily-checkin': { path: '#daily-checkin', label: 'Check-in diário' },
