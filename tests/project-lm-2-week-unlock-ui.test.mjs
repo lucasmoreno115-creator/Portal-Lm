@@ -11,9 +11,9 @@ const adminHtml = await readFile('admin.html', 'utf8');
 
 test('LM 2.0 Home renderiza CTA CONTINUAR PARA SEMANA 2', () => {
   assert.match(lm2App, /week_1_complete/);
-  assert.match(lm2App, /Parabéns\./);
-  assert.match(lm2App, /Você concluiu sua primeira semana\./);
-  assert.match(lm2App, /CONTINUAR PARA SEMANA 2/);
+  assert.match(lm2App, /Vamos continuar exatamente de onde você parou\./);
+  assert.match(lm2App, /avançar sem recomeçar/);
+  assert.match(lm2App, /Continuar Jornada/);
   assert.match(lm2App, /function getHomePrimaryRoute\(state\)/);
   assert.match(lm2App, /if \(state\.next_action === 'week_1_complete'\) return 'week-complete'/);
 });
@@ -40,8 +40,9 @@ test('LM 2.0 week-2 oficial existe e state acompanha Semana 2', () => {
 
 test('LM 2.0 Home renderiza CTA CONTINUAR PARA SEMANA 3 quando Semana 2 conclui', () => {
   assert.match(lm2App, /week_2_complete/);
-  assert.match(lm2App, /Você concluiu a Semana 2\./);
-  assert.match(lm2App, /CONTINUAR PARA SEMANA 3/);
+  assert.match(lm2App, /Vamos continuar exatamente de onde você parou\./);
+  assert.match(lm2App, /avançar sem recomeçar/);
+  assert.match(lm2App, /Continuar Jornada/);
   assert.match(lm2App, /if \(state\.next_action === 'week_2_complete'\) return 'week-2-complete'/);
 });
 

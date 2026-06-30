@@ -12,10 +12,24 @@ const portalHtml = await readFile('portal.html', 'utf8');
 
 const lm2Bundle = `${lm2App}\n${lm2State}\n${lm2Router}`;
 
-test('Home renders the requested minimum journey data from GET home', () => {
-  for (const text of ['Olá ${escapeHtml(state.name)}', 'Semana ${state.current_week} de 4', 'Dias de continuidade', '${state.continuity_days_count} de ${state.required_days_count} necessários', 'Próxima ação:', 'Sua jornada começa na Semana 1.']) {
+test('Home renders as a contextual assistant with one dominant primary action', () => {
+  for (const text of [
+    'function getHomeContext(state)',
+    'function renderHomeScreen(state)',
+    'Hoje registre seu check-in.',
+    'Vamos continuar exatamente de onde você parou.',
+    'Hoje reserve alguns minutos para assistir à aula da semana.',
+    'lm2-focus-card',
+    'lm2-progress-card',
+    'lm2-tools',
+    'lm2-insight'
+  ]) {
     assert.match(lm2App, new RegExp(escapeRegExp(text)));
   }
+  const homeRenderer = lm2App.slice(lm2App.indexOf('function renderHomeScreen'), lm2App.indexOf('async function loadHome'));
+  assert.equal((homeRenderer.match(/lm2-focus-cta/g) || []).length, 1);
+  assert.equal((homeRenderer.match(/lm2-primary-button/g) || []).length, 1);
+  assert.doesNotMatch(homeRenderer, /data-route=\"direction\">MINHA DIREÇÃO|Atualizar informações<\/button>/);
   assert.match(lm2App, /requestLm2\(api\.home\)/);
   assert.match(lm2App, /const homeData = \{ \.\.\.\(home\.data \|\| home\), \.\.\.\(progress\.data \|\| \{\}\) \}/);
   assert.match(lm2App, /applyHomeData\(homeData\)/);
@@ -30,10 +44,10 @@ test('Minha Direção renders exactly the three requested blocks', () => {
 });
 
 test('Home, Direction, and Week 1 navigation is wired', () => {
-  for (const route of ['home', 'direction', 'week-1']) {
-    assert.match(lm2Router, new RegExp(`${route}:|['"]${route}['"]`));
+  for (const route of ['home', 'direction', 'week-1', 'library']) {
+    assert.match(lm2Router, new RegExp(`[\'\"]?${escapeRegExp(route)}[\'\"]?:|[\'\"]${escapeRegExp(route)}[\'\"]`));
   }
-  assert.match(lm2App, /data-route="direction">MINHA DIREÇÃO/);
+  assert.match(lm2App, /if \(route === 'direction'\) root\.innerHTML/);
   assert.match(lm2App, /data-route="home">VOLTAR PARA HOME/);
   assert.match(lm2App, /week-1-placeholder/);
   assert.match(lm2App, /Pare de Recomeçar/);
@@ -42,6 +56,16 @@ test('Home, Direction, and Week 1 navigation is wired', () => {
   assert.doesNotMatch(lm2Bundle, /data-check-in|progression|progressão/i);
 });
 
+
+test('Home secondary tools have equal structure and do not compete with the Focus Card', () => {
+  const homeRenderer = lm2App.slice(lm2App.indexOf('function renderHomeScreen'), lm2App.indexOf('async function loadHome'));
+  for (const tool of ['Treino', 'Plano Alimentar', 'Plano B', 'Biblioteca', 'Perfil']) {
+    assert.match(homeRenderer, new RegExp(escapeRegExp(tool)));
+  }
+  assert.equal((homeRenderer.match(/renderToolButton\(/g) || []).length, 5);
+  assert.match(lm2App, /function renderToolButton\(route, label, description\)/);
+  assert.match(lm2Router, /library: \{ path: '#library', label: 'Biblioteca' \}/);
+});
 
 test('Projeto LM router exposes internal training and nutrition routes', () => {
   assert.match(lm2Router, /training: \{ path: '#training', label: 'Treino' \}/);
