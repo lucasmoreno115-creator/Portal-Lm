@@ -240,6 +240,158 @@
     return 'Sua jornada começa na Semana 1.';
   }
 
+
+  function getGreeting(date = new Date()) {
+    const hour = date.getHours();
+    if (hour < 12) return 'Bom dia';
+    if (hour < 18) return 'Boa tarde';
+    return 'Boa noite';
+  }
+
+  function getHomeContext(state) {
+    if (!state.onboarding_completed) {
+      return {
+        status: 'first_access',
+        eyebrow: 'Seu foco de hoje',
+        title: 'Vamos criar sua direção com calma.',
+        reason: 'Em poucos minutos, seu próximo passo fica claro e o método começa a trabalhar por você.',
+        route: 'onboarding-name',
+        cta: 'Começar agora',
+        progress: 'Todo método começa com uma direção simples.',
+        insight: 'Direção deixa o começo mais leve.'
+      };
+    }
+
+    if (state.program_completed) {
+      return {
+        status: 'completed',
+        eyebrow: 'Seu foco de hoje',
+        title: 'Você concluiu a jornada. Agora vamos sustentar sua direção.',
+        reason: 'O método agora é manter o que você construiu, sem pressa e sem recomeços.',
+        route: getHomePrimaryRoute(state),
+        cta: 'Ver próximo passo',
+        progress: 'Você atravessou as 4 semanas e construiu uma base real.',
+        insight: 'Você não termina perfeito. Você termina preparado para continuar.'
+      };
+    }
+
+    if (state.current_week >= 4 || state.week_3_completed) {
+      return {
+        status: 'last_week',
+        eyebrow: 'Seu foco de hoje',
+        title: 'Hoje é dia de consolidar sua direção.',
+        reason: 'A última etapa reforça o que sustenta o resultado: continuar com método.',
+        route: getHomePrimaryRoute(state),
+        cta: 'Continuar Jornada',
+        progress: 'Você está na reta final. Cada passo agora consolida o hábito.',
+        insight: 'Direção permanece mesmo quando a motivação oscila.'
+      };
+    }
+
+    if (state.next_action === 'daily_checkin' || state.next_action === 'checkin_pending_placeholder') {
+      return {
+        status: state.continuity_days_count > 0 && state.continuity_days_count < Math.max(2, state.required_days_count - 1) ? 'returning' : 'active',
+        eyebrow: 'Seu foco de hoje',
+        title: 'Hoje, registre como você continuou.',
+        reason: 'Um registro simples mostra que você está construindo consistência, um dia de cada vez.',
+        route: 'daily-checkin',
+        cta: 'Registrar meu dia',
+        progress: `Você escolheu continuar em ${state.continuity_days_count} dos últimos ${state.required_days_count} dias.`,
+        insight: 'Pessoas consistentes não acertam todos os dias. Elas apenas voltam mais rápido.'
+      };
+    }
+
+    if (state.next_action === 'week_1_video' || state.next_action === 'week_2_video') {
+      return {
+        status: 'active',
+        eyebrow: 'Seu foco de hoje',
+        title: 'Hoje, assista à aula da semana.',
+        reason: 'Ela mostra o porquê do próximo passo e deixa a prática mais simples.',
+        route: getHomePrimaryRoute(state),
+        cta: 'Assistir Aula',
+        progress: `Você está construindo a Semana ${state.current_week} com consistência.`,
+        insight: 'Clareza reduz esforço. Um passo bem escolhido já é progresso.'
+      };
+    }
+
+    if (state.next_action === 'create_plan_b') {
+      return {
+        status: 'active',
+        eyebrow: 'Seu foco de hoje',
+        title: 'Hoje, prepare seu Plano B.',
+        reason: 'Ele ajuda você a continuar mesmo quando o dia não sai como imaginou.',
+        route: 'week-1',
+        cta: 'Criar Plano B',
+        progress: 'Ter uma resposta simples pronta aumenta sua confiança.',
+        insight: 'Autonomia é saber o que fazer quando o dia não sai como planejado.'
+      };
+    }
+
+    if (state.next_action === 'week_1_complete' || state.next_action === 'week_2_complete') {
+      return {
+        status: 'active',
+        eyebrow: 'Seu foco de hoje',
+        title: 'Vamos continuar exatamente de onde você parou.',
+        reason: 'Você já deu o passo anterior. Agora basta seguir, sem recomeçar.',
+        route: getHomePrimaryRoute(state),
+        cta: 'Continuar Jornada',
+        progress: 'Mais um passo concluído. Vamos continuar com calma.',
+        insight: 'Continuidade é avançar com calma, não fazer tudo de uma vez.'
+      };
+    }
+
+    return {
+      status: 'active',
+      eyebrow: 'Seu foco de hoje',
+      title: 'Vamos continuar exatamente de onde você parou.',
+      reason: nextActionLabel(state.next_action),
+      route: getHomePrimaryRoute(state),
+      cta: getHomePrimaryLabel(state),
+      progress: `Você escolheu continuar em ${state.continuity_days_count} dos últimos ${state.required_days_count} dias.`,
+      insight: 'Quando o próximo passo é claro, continuar fica mais leve.'
+    };
+  }
+
+  function renderToolButton(route, icon, label, description) {
+    return `<button class="lm2-tool-card" type="button" data-route="${route}" aria-label="${label}: ${description}"><span class="lm2-tool-icon" aria-hidden="true">${icon}</span><span>${label}</span><small>${description}</small></button>`;
+  }
+
+  function renderHomeScreen(state) {
+    const context = getHomeContext(state);
+    const studentName = state.name || 'aluno';
+    return `
+      <section class="lm2-home" aria-labelledby="lm2-home-title" data-home-status="${context.status}">
+        <header class="lm2-home-header">
+          <p>${getGreeting()}, ${escapeHtml(studentName)} 👋</p>
+          <h1 id="lm2-home-title">Projeto LM</h1>
+        </header>
+
+        <article class="lm2-focus-card" aria-labelledby="lm2-focus-title" aria-label="Qual é a próxima melhor ação para este aluno hoje?">
+          <p class="lm2-kicker">${escapeHtml(context.eyebrow)}</p>
+          <h2 id="lm2-focus-title">${escapeHtml(context.title)}</h2>
+          <p>${escapeHtml(context.reason)}</p>
+          <button class="lm2-primary-button lm2-focus-cta" type="button" data-route="${context.route}">${escapeHtml(context.cta)}<span aria-hidden="true">→</span></button>
+        </article>
+
+        <article class="lm2-progress-card" aria-label="Resumo de progresso">
+          <p>${escapeHtml(context.progress)}</p>
+        </article>
+
+        <section class="lm2-tools" aria-label="Acessos secundários do Projeto LM">
+          <div class="lm2-tools-grid">
+            ${renderToolButton('training', '↗', 'Treino', 'Seu plano')}
+            ${renderToolButton('nutrition', '◐', 'Plano Alimentar', 'Sua base')}
+            ${renderToolButton('week-1', '◇', 'Plano B', 'Para imprevistos')}
+            ${renderToolButton('library', '□', 'Biblioteca', 'Aulas')}
+            ${renderToolButton('profile-edit', '○', 'Perfil', 'Seus dados')}
+          </div>
+        </section>
+
+        <p class="lm2-insight">“${escapeHtml(context.insight)}”</p>
+        <p class="lm2-error" data-lm2-error role="alert"></p>
+      </section>`;
+  }
+
   async function loadHome(root) {
     try {
       const [response, progressResponse] = await Promise.all([requestLm2(api.home), requestLm2(api.progress)]);
@@ -304,17 +456,7 @@
         <button class="lm2-primary-button" type="button" data-route="home">IR PARA MINHA JORNADA</button>
       </section>`;
     if (route === 'home-placeholder') route = 'home';
-    if (route === 'home') root.innerHTML = `
-      <section class="lm2-card" aria-labelledby="lm2-home-title">
-        <h1 id="lm2-home-title">Olá ${escapeHtml(state.name)}</h1>
-        <p>Semana ${state.current_week} de 4</p><p>Dias de continuidade</p><p>${state.continuity_days_count} de ${state.required_days_count} necessários</p><p>Próxima ação:</p><p>${nextActionLabel(state.next_action)}</p>
-        ${state.next_action === 'week_1_complete' ? '<div class="lm2-celebration-cta"><p>Parabéns.</p><p>Você concluiu sua primeira semana.</p></div>' : ''}
-        ${state.next_action === 'week_2_complete' ? '<div class="lm2-celebration-cta"><p>Parabéns.</p><p>Você concluiu a Semana 2.</p></div>' : ''}
-        <p class="lm2-error" data-lm2-error role="alert"></p>
-        <button class="lm2-primary-button" type="button" data-route="${getHomePrimaryRoute(state)}">${getHomePrimaryLabel(state)}</button>
-        <button class="lm2-secondary-button" type="button" data-route="direction">MINHA DIREÇÃO</button>
-        <button class="lm2-secondary-button" type="button" data-route="profile-edit">Atualizar informações</button>
-      </section>`;
+    if (route === 'home') root.innerHTML = renderHomeScreen(state);
 
     if (route === 'profile-edit') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-profile-title">
@@ -341,6 +483,14 @@
       </section>`;
     if (route === 'training') root.innerHTML = renderTrainingScreen(state);
     if (route === 'nutrition') root.innerHTML = renderNutritionScreen(state);
+    if (route === 'library') root.innerHTML = `
+      <section class="lm2-card" aria-labelledby="lm2-library-title">
+        <p class="lm2-kicker">Projeto LM · Biblioteca</p>
+        <h1 id="lm2-library-title">Biblioteca</h1>
+        <p>As aulas e conteúdos principais da sua jornada estão organizados dentro de cada semana.</p>
+        <p>Volte para a Home quando quiser retomar a próxima melhor ação.</p>
+        <button class="lm2-primary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
+      </section>`;
     if (route === 'week-1-placeholder') route = 'week-1';
     if (route === 'week-1') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-week-title">
