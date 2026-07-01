@@ -16,9 +16,9 @@ test('Home renders as a contextual assistant with one dominant primary action', 
   for (const text of [
     'function getHomeContext(state)',
     'function renderHomeScreen(state)',
-    'Hoje registre seu check-in.',
+    'Hoje, registre como você continuou.',
     'Vamos continuar exatamente de onde você parou.',
-    'Hoje reserve alguns minutos para assistir à aula da semana.',
+    'Hoje, assista à aula da semana.',
     'lm2-focus-card',
     'lm2-progress-card',
     'lm2-tools',
@@ -63,7 +63,7 @@ test('Home secondary tools have equal structure and do not compete with the Focu
     assert.match(homeRenderer, new RegExp(escapeRegExp(tool)));
   }
   assert.equal((homeRenderer.match(/renderToolButton\(/g) || []).length, 5);
-  assert.match(lm2App, /function renderToolButton\(route, label, description\)/);
+  assert.match(lm2App, /function renderToolButton\(route, icon, label, description\)/);
   assert.match(lm2Router, /library: \{ path: '#library', label: 'Biblioteca' \}/);
 });
 

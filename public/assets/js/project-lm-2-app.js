@@ -252,25 +252,25 @@
     if (!state.onboarding_completed) {
       return {
         status: 'first_access',
-        eyebrow: 'Primeiro acesso',
-        title: 'Vamos criar sua direção inicial.',
-        reason: 'Isso organiza treino, plano alimentar e o primeiro passo sem você precisar decidir tudo agora.',
+        eyebrow: 'Seu foco de hoje',
+        title: 'Vamos criar sua direção com calma.',
+        reason: 'Em poucos minutos, seu próximo passo fica claro e o método começa a trabalhar por você.',
         route: 'onboarding-name',
-        cta: 'Começar Projeto LM',
-        progress: 'Você está no começo da jornada. O próximo passo é simples: criar sua direção.',
-        insight: 'Começar com direção é mais leve do que depender de motivação.'
+        cta: 'Começar agora',
+        progress: 'Todo método começa com uma direção simples.',
+        insight: 'Direção deixa o começo mais leve.'
       };
     }
 
     if (state.program_completed) {
       return {
         status: 'completed',
-        eyebrow: 'Jornada concluída',
-        title: 'Você concluiu o Projeto LM. Agora é hora de sustentar sua direção.',
-        reason: 'O objetivo deixa de ser recomeçar e passa a ser continuar com clareza.',
+        eyebrow: 'Seu foco de hoje',
+        title: 'Você concluiu a jornada. Agora vamos sustentar sua direção.',
+        reason: 'O método agora é manter o que você construiu, sem pressa e sem recomeços.',
         route: getHomePrimaryRoute(state),
         cta: 'Ver próximo passo',
-        progress: 'Você completou as 4 semanas da jornada.',
+        progress: 'Você atravessou as 4 semanas e construiu uma base real.',
         insight: 'Você não termina perfeito. Você termina preparado para continuar.'
       };
     }
@@ -278,26 +278,25 @@
     if (state.current_week >= 4 || state.week_3_completed) {
       return {
         status: 'last_week',
-        eyebrow: 'Última semana',
-        title: 'Hoje reserve alguns minutos para concluir a Semana 4.',
-        reason: 'Esta etapa consolida a habilidade de continuar mesmo sem motivação.',
+        eyebrow: 'Seu foco de hoje',
+        title: 'Hoje é dia de consolidar sua direção.',
+        reason: 'A última etapa reforça o que sustenta o resultado: continuar com método.',
         route: getHomePrimaryRoute(state),
         cta: 'Continuar Jornada',
-        progress: `Você já chegou à Semana ${state.current_week} de 4 da jornada.`,
+        progress: 'Você está na reta final. Cada passo agora consolida o hábito.',
         insight: 'Direção permanece mesmo quando a motivação oscila.'
       };
     }
 
     if (state.next_action === 'daily_checkin' || state.next_action === 'checkin_pending_placeholder') {
-      const returning = state.continuity_days_count > 0 && state.continuity_days_count < Math.max(2, state.required_days_count - 1);
       return {
-        status: returning ? 'returning' : 'active',
-        eyebrow: returning ? 'Retomada simples' : 'Hoje',
-        title: 'Hoje registre seu check-in.',
-        reason: 'Esse registro mantém sua continuidade visível e ajuda você a voltar rápido quando a rotina oscila.',
+        status: state.continuity_days_count > 0 && state.continuity_days_count < Math.max(2, state.required_days_count - 1) ? 'returning' : 'active',
+        eyebrow: 'Seu foco de hoje',
+        title: 'Hoje, registre como você continuou.',
+        reason: 'Um registro simples mostra que você está construindo consistência, um dia de cada vez.',
         route: 'daily-checkin',
-        cta: 'Registrar Check-in',
-        progress: `Você manteve sua rotina em ${state.continuity_days_count} dos últimos ${state.required_days_count} dias necessários.`,
+        cta: 'Registrar meu dia',
+        progress: `Você escolheu continuar em ${state.continuity_days_count} dos últimos ${state.required_days_count} dias.`,
         insight: 'Pessoas consistentes não acertam todos os dias. Elas apenas voltam mais rápido.'
       };
     }
@@ -305,12 +304,12 @@
     if (state.next_action === 'week_1_video' || state.next_action === 'week_2_video') {
       return {
         status: 'active',
-        eyebrow: `Semana ${state.current_week}`,
-        title: 'Hoje reserve alguns minutos para assistir à aula da semana.',
-        reason: 'A aula dá contexto para a ação prática desta etapa da jornada.',
+        eyebrow: 'Seu foco de hoje',
+        title: 'Hoje, assista à aula da semana.',
+        reason: 'Ela mostra o porquê do próximo passo e deixa a prática mais simples.',
         route: getHomePrimaryRoute(state),
         cta: 'Assistir Aula',
-        progress: `Você já está na Semana ${state.current_week} de 4 da jornada.`,
+        progress: `Você está construindo a Semana ${state.current_week} com consistência.`,
         insight: 'Clareza reduz esforço. Um passo bem escolhido já é progresso.'
       };
     }
@@ -318,12 +317,12 @@
     if (state.next_action === 'create_plan_b') {
       return {
         status: 'active',
-        eyebrow: 'Plano B',
-        title: 'Hoje seu próximo passo é preparar seu Plano B.',
-        reason: 'Ele protege sua continuidade nos dias em que o plano ideal não couber na vida real.',
+        eyebrow: 'Seu foco de hoje',
+        title: 'Hoje, prepare seu Plano B.',
+        reason: 'Ele ajuda você a continuar mesmo quando o dia não sai como imaginou.',
         route: 'week-1',
         cta: 'Criar Plano B',
-        progress: `Você está construindo a base da Semana ${state.current_week}.`,
+        progress: 'Ter uma resposta simples pronta aumenta sua confiança.',
         insight: 'Autonomia é saber o que fazer quando o dia não sai como planejado.'
       };
     }
@@ -331,30 +330,30 @@
     if (state.next_action === 'week_1_complete' || state.next_action === 'week_2_complete') {
       return {
         status: 'active',
-        eyebrow: 'Continuidade',
+        eyebrow: 'Seu foco de hoje',
         title: 'Vamos continuar exatamente de onde você parou.',
-        reason: 'Você concluiu a etapa anterior. Agora o melhor passo é avançar sem recomeçar.',
+        reason: 'Você já deu o passo anterior. Agora basta seguir, sem recomeçar.',
         route: getHomePrimaryRoute(state),
         cta: 'Continuar Jornada',
-        progress: `Você já concluiu ${Math.max(1, state.current_week - 1)} semana(s) da jornada.`,
+        progress: 'Mais um passo concluído. Vamos continuar com calma.',
         insight: 'Continuidade é avançar com calma, não fazer tudo de uma vez.'
       };
     }
 
     return {
       status: 'active',
-      eyebrow: `Semana ${state.current_week}`,
+      eyebrow: 'Seu foco de hoje',
       title: 'Vamos continuar exatamente de onde você parou.',
       reason: nextActionLabel(state.next_action),
       route: getHomePrimaryRoute(state),
       cta: getHomePrimaryLabel(state),
-      progress: `Você manteve sua rotina em ${state.continuity_days_count} dos últimos ${state.required_days_count} dias necessários.`,
-      insight: 'Confiança cresce quando o próximo passo fica claro.'
+      progress: `Você escolheu continuar em ${state.continuity_days_count} dos últimos ${state.required_days_count} dias.`,
+      insight: 'Quando o próximo passo é claro, continuar fica mais leve.'
     };
   }
 
-  function renderToolButton(route, label, description) {
-    return `<button class="lm2-tool-card" type="button" data-route="${route}"><span>${label}</span><small>${description}</small></button>`;
+  function renderToolButton(route, icon, label, description) {
+    return `<button class="lm2-tool-card" type="button" data-route="${route}" aria-label="${label}: ${description}"><span class="lm2-tool-icon" aria-hidden="true">${icon}</span><span>${label}</span><small>${description}</small></button>`;
   }
 
   function renderHomeScreen(state) {
@@ -371,21 +370,20 @@
           <p class="lm2-kicker">${escapeHtml(context.eyebrow)}</p>
           <h2 id="lm2-focus-title">${escapeHtml(context.title)}</h2>
           <p>${escapeHtml(context.reason)}</p>
-          <button class="lm2-primary-button lm2-focus-cta" type="button" data-route="${context.route}">${escapeHtml(context.cta)}</button>
+          <button class="lm2-primary-button lm2-focus-cta" type="button" data-route="${context.route}">${escapeHtml(context.cta)}<span aria-hidden="true">→</span></button>
         </article>
 
         <article class="lm2-progress-card" aria-label="Resumo de progresso">
           <p>${escapeHtml(context.progress)}</p>
         </article>
 
-        <section class="lm2-tools" aria-labelledby="lm2-tools-title">
-          <h2 id="lm2-tools-title">Ferramentas</h2>
+        <section class="lm2-tools" aria-label="Acessos secundários do Projeto LM">
           <div class="lm2-tools-grid">
-            ${renderToolButton('training', 'Treino', 'Abrir plano de treino')}
-            ${renderToolButton('nutrition', 'Plano Alimentar', 'Abrir plano alimentar')}
-            ${renderToolButton('week-1', 'Plano B', 'Estratégia para dias difíceis')}
-            ${renderToolButton('library', 'Biblioteca', 'Aulas e conteúdos da jornada')}
-            ${renderToolButton('profile-edit', 'Perfil', 'Atualizar informações')}
+            ${renderToolButton('training', '↗', 'Treino', 'Seu plano')}
+            ${renderToolButton('nutrition', '◐', 'Plano Alimentar', 'Sua base')}
+            ${renderToolButton('week-1', '◇', 'Plano B', 'Para imprevistos')}
+            ${renderToolButton('library', '□', 'Biblioteca', 'Aulas')}
+            ${renderToolButton('profile-edit', '○', 'Perfil', 'Seus dados')}
           </div>
         </section>
 

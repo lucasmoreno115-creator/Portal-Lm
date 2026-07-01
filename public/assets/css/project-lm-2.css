@@ -349,28 +349,31 @@ textarea.lm2-input {
 
 .lm2-home {
   width: 100%;
-  max-width: 680px;
+  max-width: 700px;
   margin: 0 auto;
 }
 
 .lm2-home-header {
-  margin: 0 0 18px;
+  margin: 0 0 24px;
 }
 
 .lm2-home-header p {
-  margin: 0 0 4px;
-  color: var(--lm2-muted);
-  font-size: 1rem;
-  font-weight: 800;
-  line-height: 1.35;
+  margin: 0 0 6px;
+  color: var(--lm2-text);
+  font-size: clamp(1.2rem, 3vw, 1.55rem);
+  font-weight: 900;
+  line-height: 1.25;
+  letter-spacing: -0.03em;
 }
 
 .lm2-home-header h1 {
   margin: 0;
-  color: var(--lm2-text);
-  font-size: clamp(1.35rem, 4vw, 2rem);
-  line-height: 1.1;
-  letter-spacing: -0.03em;
+  color: rgba(200, 183, 166, 0.72);
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .lm2-focus-card,
@@ -383,35 +386,50 @@ textarea.lm2-input {
 }
 
 .lm2-focus-card {
-  padding: clamp(28px, 7vw, 56px);
+  padding: clamp(38px, 8vw, 72px);
 }
 
 .lm2-focus-card h2 {
   max-width: 560px;
-  margin: 0 0 14px;
+  margin: 0 0 20px;
   color: var(--lm2-text);
-  font-size: clamp(1.8rem, 6vw, 3.2rem);
+  font-size: clamp(1.9rem, 6vw, 3.35rem);
   font-weight: 900;
   line-height: 1.04;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.045em;
 }
 
 .lm2-focus-card p:not(.lm2-kicker) {
-  max-width: 560px;
-  margin: 0 0 24px;
+  max-width: 540px;
+  margin: 0 0 32px;
   color: var(--lm2-muted);
-  font-size: clamp(1rem, 2.4vw, 1.12rem);
-  line-height: 1.55;
+  font-size: clamp(1.02rem, 2.4vw, 1.14rem);
+  line-height: 1.68;
+}
+
+.lm2-focus-card .lm2-kicker {
+  margin-bottom: 22px;
+  color: rgba(213, 155, 91, 0.92);
 }
 
 .lm2-focus-cta {
+  gap: 10px;
   margin-top: 0;
+  border-color: rgba(255, 227, 191, 0.3);
+  background: linear-gradient(135deg, #e2ad70 0%, var(--lm2-primary) 48%, #c98949 100%);
+  box-shadow: 0 16px 36px rgba(111, 62, 23, 0.34);
+  letter-spacing: 0.035em;
+}
+
+.lm2-focus-cta span {
+  font-size: 1.05em;
+  line-height: 1;
 }
 
 .lm2-progress-card {
-  margin-top: 16px;
-  padding: 18px 20px;
-  background: rgba(16, 21, 34, 0.78);
+  margin-top: 22px;
+  padding: 20px 22px;
+  background: rgba(16, 21, 34, 0.7);
   box-shadow: none;
 }
 
@@ -423,32 +441,25 @@ textarea.lm2-input {
 }
 
 .lm2-tools {
-  margin-top: 16px;
-  padding: 20px;
-  background: rgba(16, 21, 34, 0.62);
+  margin-top: 28px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
   box-shadow: none;
-}
-
-.lm2-tools h2 {
-  margin: 0 0 12px;
-  color: var(--lm2-text);
-  font-size: 1rem;
-  font-weight: 900;
-  letter-spacing: -0.01em;
 }
 
 .lm2-tools-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .lm2-tool-card {
-  min-height: 86px;
-  border: 1px solid rgba(213, 155, 91, 0.2);
+  min-height: 104px;
+  border: 1px solid rgba(213, 155, 91, 0.18);
   border-radius: var(--lm2-radius-block);
-  padding: 14px;
-  background: var(--lm2-surface);
+  padding: 16px;
+  background: rgba(16, 21, 34, 0.74);
   color: var(--lm2-text);
   cursor: pointer;
   text-align: left;
@@ -460,14 +471,27 @@ textarea.lm2-input {
   display: block;
 }
 
-.lm2-tool-card span {
+.lm2-tool-icon {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(213, 155, 91, 0.22);
+  border-radius: 999px;
+  color: var(--lm2-primary);
+  display: inline-grid;
+  place-items: center;
+  font-size: 0.82rem;
+  line-height: 1;
+}
+
+.lm2-tool-card span:not(.lm2-tool-icon) {
   font-weight: 900;
   line-height: 1.25;
 }
 
 .lm2-tool-card small {
-  margin-top: 6px;
-  color: var(--lm2-muted);
+  margin-top: 5px;
+  color: rgba(200, 183, 166, 0.78);
   font-size: 0.78rem;
   line-height: 1.35;
 }
@@ -484,11 +508,12 @@ textarea.lm2-input {
 }
 
 .lm2-insight {
-  margin: 18px 4px 0;
-  color: var(--lm2-muted);
+  max-width: 560px;
+  margin: 26px 4px 0;
+  color: rgba(200, 183, 166, 0.82);
   font-size: 0.98rem;
   font-style: italic;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 @media (max-width: 720px) {
@@ -509,6 +534,6 @@ textarea.lm2-input {
   }
 
   .lm2-tool-card {
-    min-height: 72px;
+    min-height: 92px;
   }
 }
