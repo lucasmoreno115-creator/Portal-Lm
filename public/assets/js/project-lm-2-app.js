@@ -248,8 +248,8 @@
         </article>
 
         <div class="lm2-training-primary-action">
-          <button class="lm2-primary-button" type="button" aria-label="Continuar treino">Continuar</button>
-          <p>Registro de séries será conectado na PR-003B.</p>
+          <button class="lm2-primary-button" type="button" aria-label="Continuar treino">Continuar <span aria-hidden="true">→</span></button>
+          <p>Registro de séries entra na próxima etapa.</p>
         </div>
 
         <aside class="lm2-next-exercise" aria-label="Próximo exercício">
@@ -257,7 +257,7 @@
           <strong>${escapeHtml(session.nextExercise)}</strong>
         </aside>
 
-        <button class="lm2-training-exit" type="button" data-route="home">Sair do modo treino</button>
+        <button class="lm2-training-exit" type="button" data-route="home">Sair</button>
       </section>`;
   }
 

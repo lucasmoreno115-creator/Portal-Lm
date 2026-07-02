@@ -538,35 +538,46 @@ textarea.lm2-input {
   }
 }
 
+
 .lm2-shell[data-lm2-route="training"] {
-  width: min(100%, 920px);
+  width: min(100%, 1040px);
+  padding: clamp(10px, 3vw, 20px);
 }
 
 .lm2-training-mode {
+  position: relative;
   width: 100%;
-  min-height: calc(100vh - 48px);
+  min-height: calc(100vh - 40px);
   display: grid;
-  grid-template-rows: auto 1fr auto auto auto;
-  gap: clamp(18px, 4vw, 28px);
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  gap: clamp(14px, 3.4vw, 24px);
   margin: 0 auto;
-  padding: clamp(20px, 5vw, 44px);
-  border: 1px solid rgba(213, 155, 91, 0.2);
-  border-radius: clamp(26px, 5vw, 40px);
+  padding: clamp(22px, 5.4vw, 56px);
+  overflow: hidden;
+  border: 1px solid rgba(213, 155, 91, 0.08);
+  border-radius: clamp(20px, 4vw, 34px);
   background:
-    radial-gradient(circle at 50% 12%, rgba(213, 155, 91, 0.14), transparent 34%),
-    linear-gradient(180deg, rgba(11, 15, 26, 0.98), rgba(2, 4, 10, 0.98));
-  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.38);
+    radial-gradient(circle at 50% 7%, rgba(213, 155, 91, 0.1), transparent 24%),
+    radial-gradient(circle at 50% 72%, rgba(50, 63, 92, 0.18), transparent 38%),
+    linear-gradient(180deg, #03050b 0%, #070911 48%, #010207 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 244, 230, 0.04), 0 36px 120px rgba(0, 0, 0, 0.58);
 }
 
 .lm2-training-context {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
+  color: rgba(248, 241, 231, 0.72);
 }
 
 .lm2-training-context .lm2-kicker {
   margin: 0;
+  color: rgba(213, 155, 91, 0.64);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
 }
 
 .lm2-training-context div,
@@ -582,128 +593,165 @@ textarea.lm2-input {
 }
 
 .lm2-training-context strong {
-  color: var(--lm2-text);
-  font-size: clamp(1.05rem, 2vw, 1.25rem);
+  color: rgba(248, 241, 231, 0.86);
+  font-size: clamp(1rem, 1.8vw, 1.18rem);
   line-height: 1.2;
 }
 
 .lm2-training-context span,
 .lm2-next-exercise span,
 .lm2-training-primary-action p {
-  color: rgba(200, 183, 166, 0.76);
-  font-size: 0.92rem;
+  color: rgba(200, 183, 166, 0.52);
+  font-size: 0.82rem;
   line-height: 1.45;
 }
 
 .lm2-current-exercise {
+  position: relative;
+  z-index: 1;
   align-self: center;
-  max-width: 760px;
+  max-width: 900px;
   margin: 0 auto;
   text-align: center;
 }
 
 .lm2-training-question {
-  margin: 0 0 22px;
-  color: rgba(200, 183, 166, 0.84);
-  font-size: clamp(1rem, 2.4vw, 1.18rem);
-  font-weight: 800;
+  margin: 0 0 clamp(16px, 3vw, 28px);
+  color: rgba(213, 155, 91, 0.78);
+  font-size: clamp(0.9rem, 2vw, 1.08rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
   line-height: 1.35;
+  text-transform: uppercase;
 }
 
 .lm2-current-exercise h1 {
-  margin: 0;
-  color: var(--lm2-text);
-  font-size: clamp(3rem, 12vw, 7.6rem);
+  margin: 0 auto;
+  max-width: 980px;
+  color: #fff8ee;
+  font-size: clamp(4.2rem, 17vw, 11.4rem);
   font-weight: 950;
-  line-height: 0.92;
-  letter-spacing: -0.075em;
+  line-height: 0.82;
+  letter-spacing: -0.095em;
+  text-wrap: balance;
+  text-shadow: 0 26px 80px rgba(0, 0, 0, 0.52);
 }
 
 .lm2-exercise-prescription {
+  width: min(100%, 680px);
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin: clamp(28px, 6vw, 46px) 0 0;
+  grid-template-columns: repeat(4, auto);
+  justify-content: center;
+  gap: 0;
+  margin: clamp(30px, 5vw, 50px) auto 0;
 }
 
 .lm2-exercise-prescription div {
-  min-height: 102px;
-  padding: 18px;
-  border: 1px solid rgba(213, 155, 91, 0.22);
-  border-radius: var(--lm2-radius-block);
-  background: rgba(16, 21, 34, 0.7);
-  text-align: left;
+  min-height: 0;
+  padding: 0 clamp(14px, 2.8vw, 24px);
+  border: 0;
+  border-right: 1px solid rgba(213, 155, 91, 0.16);
+  border-radius: 0;
+  background: transparent;
+  text-align: center;
+}
+
+.lm2-exercise-prescription div:last-child {
+  border-right: 0;
 }
 
 .lm2-exercise-prescription dt {
-  margin: 0 0 8px;
-  color: rgba(200, 183, 166, 0.72);
-  font-size: 0.75rem;
+  margin: 0 0 7px;
+  color: rgba(200, 183, 166, 0.5);
+  font-size: 0.68rem;
   font-weight: 900;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.14em;
   line-height: 1.2;
   text-transform: uppercase;
 }
 
 .lm2-exercise-prescription dd {
   margin: 0;
-  color: var(--lm2-text);
-  font-size: clamp(1.05rem, 2.2vw, 1.35rem);
+  color: rgba(248, 241, 231, 0.94);
+  font-size: clamp(1.04rem, 2.1vw, 1.35rem);
   font-weight: 900;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .lm2-training-primary-action {
+  position: relative;
+  z-index: 1;
   text-align: center;
 }
 
 .lm2-training-primary-action .lm2-primary-button {
-  min-width: min(100%, 320px);
+  min-width: min(100%, 300px);
   margin: 0;
+  gap: 10px;
+  border-color: rgba(255, 235, 210, 0.18);
+  background: #f0b36f;
+  box-shadow: 0 18px 50px rgba(159, 93, 36, 0.28);
+}
+
+.lm2-training-primary-action .lm2-primary-button span {
+  font-size: 1.06em;
+  line-height: 1;
 }
 
 .lm2-training-primary-action p {
-  margin: 12px 0 0;
+  margin: 10px 0 0;
 }
 
 .lm2-next-exercise {
+  position: relative;
+  z-index: 1;
   justify-self: end;
-  min-width: min(100%, 280px);
-  padding: 16px 18px;
-  border: 1px solid rgba(213, 155, 91, 0.16);
-  border-radius: var(--lm2-radius-block);
-  background: rgba(16, 21, 34, 0.52);
+  min-width: 0;
+  max-width: min(100%, 320px);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  opacity: 0.62;
 }
 
 .lm2-next-exercise strong {
-  margin-top: 4px;
-  color: var(--lm2-text);
-  font-size: 1.08rem;
+  margin-top: 3px;
+  color: rgba(248, 241, 231, 0.76);
+  font-size: 0.98rem;
   line-height: 1.25;
 }
 
 .lm2-training-exit {
+  position: relative;
+  z-index: 1;
   justify-self: start;
   border: 0;
-  padding: 0;
+  padding: 4px 0;
   background: transparent;
-  color: rgba(200, 183, 166, 0.72);
+  color: rgba(200, 183, 166, 0.38);
   cursor: pointer;
+  font-size: 0.82rem;
   font-weight: 800;
   line-height: 1.4;
-  text-decoration: underline;
-  text-underline-offset: 4px;
+  text-decoration: none;
 }
 
 .lm2-training-exit:hover,
 .lm2-training-exit:focus-visible {
-  color: var(--lm2-primary);
+  color: rgba(213, 155, 91, 0.84);
   outline: none;
 }
 
 @media (max-width: 720px) {
+  .lm2-shell[data-lm2-route="training"] {
+    padding: 8px;
+  }
+
   .lm2-training-mode {
-    min-height: calc(100vh - 28px);
+    min-height: calc(100vh - 16px);
+    border-radius: 22px;
   }
 
   .lm2-training-context,
@@ -717,11 +765,25 @@ textarea.lm2-input {
   }
 
   .lm2-training-context div {
-    margin-top: 16px;
+    margin-top: 14px;
+  }
+
+  .lm2-current-exercise {
+    max-width: 100%;
+  }
+
+  .lm2-current-exercise h1 {
+    font-size: clamp(4rem, 20vw, 7.2rem);
   }
 
   .lm2-exercise-prescription {
+    width: 100%;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 18px;
+  }
+
+  .lm2-exercise-prescription div:nth-child(2n) {
+    border-right: 0;
   }
 
   .lm2-next-exercise,
@@ -731,7 +793,22 @@ textarea.lm2-input {
 }
 
 @media (max-width: 480px) {
+  .lm2-training-mode {
+    padding: 20px;
+  }
+
+  .lm2-current-exercise h1 {
+    font-size: clamp(3.6rem, 21vw, 5.8rem);
+  }
+
   .lm2-exercise-prescription {
     grid-template-columns: 1fr;
+    row-gap: 14px;
+  }
+
+  .lm2-exercise-prescription div,
+  .lm2-exercise-prescription div:nth-child(2n) {
+    padding: 0;
+    border-right: 0;
   }
 }

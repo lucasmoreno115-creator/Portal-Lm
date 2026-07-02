@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 const lm2App = await readFile('public/assets/js/project-lm-2-app.js', 'utf8');
 const lm2State = await readFile('public/assets/js/project-lm-2-state.js', 'utf8');
 const lm2Router = await readFile('public/assets/js/project-lm-2-router.js', 'utf8');
+const lm2Css = await readFile('public/assets/css/project-lm-2.css', 'utf8');
 const lm2Html = await readFile('public/project-lm-2.html', 'utf8');
 const v5Html = await readFile('public/project-lm-v5.html', 'utf8');
 const premiumHtml = await readFile('anamnese-premium.html', 'utf8');
@@ -102,14 +103,17 @@ test('Projeto LM training screen renders an immersive guided workout mode', () =
     '8–10 repetições',
     'Descanso',
     'Carga anterior: —',
-    'Registro de séries será conectado na PR-003B.',
+    'Registro de séries entra na próxima etapa.',
     'Próximo',
-    'Sair do modo treino'
+    'Sair'
   ]) {
     assert.match(lm2App, new RegExp(escapeRegExp(text)));
   }
   const trainingRenderer = lm2App.slice(lm2App.indexOf('function renderTrainingScreen'), lm2App.indexOf('function renderNutritionScreen'));
   assert.equal((trainingRenderer.match(/<ul class="lm2-list">/g) || []).length, 0);
+  assert.match(lm2Css, /\.lm2-current-exercise h1 \{[\s\S]*font-size: clamp\(4\.2rem, 17vw, 11\.4rem\)/);
+  assert.match(lm2Css, /\.lm2-exercise-prescription div \{[\s\S]*background: transparent/);
+  assert.match(lm2Css, /\.lm2-next-exercise \{[\s\S]*opacity: 0\.62/);
   assert.doesNotMatch(trainingRenderer, /VOLTAR PARA MINHA DIREÇÃO|<article class="lm2-block"><h2>\$\{escapeHtml\(plan\.title\)\}/);
 });
 
