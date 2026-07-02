@@ -180,10 +180,28 @@
   }
 
   const trainingPlans = Object.freeze({
-    gym_male: { title: 'Treino Academia · Masculino', items: ['Destino oficial do seu treino dentro do Projeto LM.', 'Priorize técnica, controle e regularidade.', 'Registre sua execução para acompanhar evolução.'] },
-    gym_female: { title: 'Treino Academia · Feminino', items: ['Destino oficial do seu treino dentro do Projeto LM.', 'Priorize execução segura, amplitude e controle.', 'Registre sua execução para acompanhar evolução.'] },
-    home: { title: 'Treino em Casa', items: ['Destino oficial do seu treino dentro do Projeto LM.', 'Use o plano em casa quando a academia não couber na rotina.', 'Faça o mínimo possível bem feito e continue.'] }
+    gym_male: { title: 'Treino Academia · Masculino', session: 'Upper A', exercises: ['Supino reto', 'Remada baixa', 'Desenvolvimento sentado', 'Puxada alta', 'Elevação lateral', 'Rosca direta', 'Tríceps corda'] },
+    gym_female: { title: 'Treino Academia · Feminino', session: 'Lower A', exercises: ['Agachamento livre', 'Leg press', 'Cadeira extensora', 'Mesa flexora', 'Elevação pélvica', 'Panturrilha em pé', 'Abdominal prancha'] },
+    home: { title: 'Treino em Casa', session: 'Casa A', exercises: ['Agachamento livre', 'Flexão inclinada', 'Remada com mochila', 'Afundo alternado', 'Elevação pélvica', 'Prancha', 'Polichinelo controlado'] }
   });
+
+  function getTrainingSession(plan = {}) {
+    const exercises = Array.isArray(plan.exercises) && plan.exercises.length > 0 ? plan.exercises : ['Supino reto', 'Remada baixa'];
+    return {
+      title: plan.title || 'Treino Projeto LM',
+      sessionName: plan.session || 'Upper A',
+      currentIndex: 0,
+      totalExercises: exercises.length,
+      currentExercise: {
+        name: exercises[0],
+        series: '4 séries',
+        repetitions: '8–10 repetições',
+        rest: '90s',
+        previousLoad: 'Carga anterior: —'
+      },
+      nextExercise: exercises[1] || 'Fim da sessão'
+    };
+  }
 
   const nutritionPlans = Object.freeze({
     H1: 'Plano H1',
@@ -196,17 +214,50 @@
 
   function renderTrainingScreen(state) {
     const plan = trainingPlans[state.training_plan_id];
-    const content = plan
-      ? `<article class="lm2-block"><h2>${escapeHtml(plan.title)}</h2><ul class="lm2-list">${plan.items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul></article>`
-      : '<article class="lm2-block"><h2>Treino indisponível</h2><p>Seu treino ainda não está disponível. Volte para a Home e tente novamente mais tarde.</p></article>';
+    if (!plan) {
+      return `
+        <section class="lm2-card" aria-labelledby="lm2-training-title">
+          <p class="lm2-kicker">Projeto LM · Modo Treino</p>
+          <h1 id="lm2-training-title">Treino indisponível</h1>
+          <p>Seu treino ainda não está disponível. Volte para a Home e tente novamente mais tarde.</p>
+          <button class="lm2-primary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
+        </section>`;
+    }
+
+    const session = getTrainingSession(plan);
+    const exercisePosition = session.currentIndex + 1;
     return `
-      <section class="lm2-card" aria-labelledby="lm2-training-title">
-        <p class="lm2-kicker">Projeto LM · Treino oficial</p>
-        <h1 id="lm2-training-title">Meu Treino</h1>
-        <p>Esta é a tela oficial do seu treino dentro do Projeto LM.</p>
-        ${content}
-        <button class="lm2-primary-button" type="button" data-route="direction">VOLTAR PARA MINHA DIREÇÃO</button>
-        <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
+      <section class="lm2-training-mode" aria-labelledby="lm2-training-title">
+        <header class="lm2-training-context" aria-label="Contexto da sessão">
+          <p class="lm2-kicker">Projeto LM · Modo Treino</p>
+          <div>
+            <strong>${escapeHtml(session.sessionName)}</strong>
+            <span>Exercício ${exercisePosition} de ${session.totalExercises}</span>
+          </div>
+        </header>
+
+        <article class="lm2-current-exercise" aria-label="Exercício atual">
+          <p class="lm2-training-question">O que eu preciso fazer agora?</p>
+          <h1 id="lm2-training-title">${escapeHtml(session.currentExercise.name)}</h1>
+          <dl class="lm2-exercise-prescription">
+            <div><dt>Séries</dt><dd>${escapeHtml(session.currentExercise.series)}</dd></div>
+            <div><dt>Repetições</dt><dd>${escapeHtml(session.currentExercise.repetitions)}</dd></div>
+            <div><dt>Descanso</dt><dd>${escapeHtml(session.currentExercise.rest)}</dd></div>
+            <div><dt>Anterior</dt><dd>${escapeHtml(session.currentExercise.previousLoad)}</dd></div>
+          </dl>
+        </article>
+
+        <div class="lm2-training-primary-action">
+          <button class="lm2-primary-button" type="button" aria-label="Continuar treino">Continuar</button>
+          <p>Registro de séries será conectado na PR-003B.</p>
+        </div>
+
+        <aside class="lm2-next-exercise" aria-label="Próximo exercício">
+          <span>Próximo</span>
+          <strong>${escapeHtml(session.nextExercise)}</strong>
+        </aside>
+
+        <button class="lm2-training-exit" type="button" data-route="home">Sair do modo treino</button>
       </section>`;
   }
 
