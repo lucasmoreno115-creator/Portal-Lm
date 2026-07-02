@@ -89,6 +89,30 @@ test('Projeto LM internal training and nutrition screens handle recognized ids a
   assert.match(lm2App, /data-route="home">VOLTAR PARA HOME/);
 });
 
+
+test('Projeto LM training screen renders an immersive guided workout mode', () => {
+  for (const text of [
+    'function getTrainingSession(plan = {})',
+    'lm2-training-mode',
+    'Projeto LM · Modo Treino',
+    'O que eu preciso fazer agora?',
+    'Exercício ${exercisePosition} de ${session.totalExercises}',
+    'Supino reto',
+    '4 séries',
+    '8–10 repetições',
+    'Descanso',
+    'Carga anterior: —',
+    'Registro de séries será conectado na PR-003B.',
+    'Próximo',
+    'Sair do modo treino'
+  ]) {
+    assert.match(lm2App, new RegExp(escapeRegExp(text)));
+  }
+  const trainingRenderer = lm2App.slice(lm2App.indexOf('function renderTrainingScreen'), lm2App.indexOf('function renderNutritionScreen'));
+  assert.equal((trainingRenderer.match(/<ul class="lm2-list">/g) || []).length, 0);
+  assert.doesNotMatch(trainingRenderer, /VOLTAR PARA MINHA DIREÇÃO|<article class="lm2-block"><h2>\$\{escapeHtml\(plan\.title\)\}/);
+});
+
 test('Projeto LM training and nutrition integration does not use physical pages or forbidden destinations', async () => {
   await assert.rejects(() => readFile('public/projeto-lm/treino/index.html', 'utf8'), /ENOENT/);
   await assert.rejects(() => readFile('public/projeto-lm/plano-alimentar/index.html', 'utf8'), /ENOENT/);
