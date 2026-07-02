@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 const lm2App = await readFile('public/assets/js/project-lm-2-app.js', 'utf8');
 const lm2State = await readFile('public/assets/js/project-lm-2-state.js', 'utf8');
 const lm2Router = await readFile('public/assets/js/project-lm-2-router.js', 'utf8');
+const lm2Css = await readFile('public/assets/css/project-lm-2.css', 'utf8');
 const lm2Html = await readFile('public/project-lm-2.html', 'utf8');
 const v5Html = await readFile('public/project-lm-v5.html', 'utf8');
 const premiumHtml = await readFile('anamnese-premium.html', 'utf8');
@@ -87,6 +88,33 @@ test('Projeto LM internal training and nutrition screens handle recognized ids a
   assert.match(lm2App, /Seu plano alimentar ainda não está disponível\. Volte para a Home e tente novamente mais tarde\./);
   assert.match(lm2App, /data-route="direction">VOLTAR PARA MINHA DIREÇÃO/);
   assert.match(lm2App, /data-route="home">VOLTAR PARA HOME/);
+});
+
+
+test('Projeto LM training screen renders an immersive guided workout mode', () => {
+  for (const text of [
+    'function getTrainingSession(plan = {})',
+    'lm2-training-mode',
+    'Projeto LM · Modo Treino',
+    'O que eu preciso fazer agora?',
+    'Exercício ${exercisePosition} de ${session.totalExercises}',
+    'Supino reto',
+    '4 séries',
+    '8–10 repetições',
+    'Descanso',
+    'Carga anterior: —',
+    'Registro de séries entra na próxima etapa.',
+    'Próximo',
+    'Sair'
+  ]) {
+    assert.match(lm2App, new RegExp(escapeRegExp(text)));
+  }
+  const trainingRenderer = lm2App.slice(lm2App.indexOf('function renderTrainingScreen'), lm2App.indexOf('function renderNutritionScreen'));
+  assert.equal((trainingRenderer.match(/<ul class="lm2-list">/g) || []).length, 0);
+  assert.match(lm2Css, /\.lm2-current-exercise h1 \{[\s\S]*font-size: clamp\(4\.2rem, 17vw, 11\.4rem\)/);
+  assert.match(lm2Css, /\.lm2-exercise-prescription div \{[\s\S]*background: transparent/);
+  assert.match(lm2Css, /\.lm2-next-exercise \{[\s\S]*opacity: 0\.62/);
+  assert.doesNotMatch(trainingRenderer, /VOLTAR PARA MINHA DIREÇÃO|<article class="lm2-block"><h2>\$\{escapeHtml\(plan\.title\)\}/);
 });
 
 test('Projeto LM training and nutrition integration does not use physical pages or forbidden destinations', async () => {
