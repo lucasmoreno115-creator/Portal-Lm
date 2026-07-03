@@ -50,7 +50,9 @@
     week_4_completed: false,
     program_completed: false,
     program_completed_at: null,
-    premium_bridge_eligible: false
+    premium_bridge_eligible: false,
+    training_current_index: 0,
+    training_results: {}
   });
 
   const booleanFields = [
@@ -90,11 +92,13 @@
     safe.nutrition_plan_id = String(safe.nutrition_plan_id || '');
     safe.training_plan_id = String(safe.training_plan_id || '');
     safe.current_week = normalizeNumber(safe.current_week, initialState.current_week, 1, 4);
+    safe.training_current_index = normalizeNumber(safe.training_current_index, 0, 0, 99);
     safe.continuity_days_count = normalizeNumber(safe.continuity_days_count, 0, 0, 31);
     safe.required_days_count = normalizeNumber(safe.required_days_count, initialState.required_days_count, 1, 31);
     safe.next_action = String(safe.next_action || initialState.next_action);
     safe.next_action_label = String(safe.next_action_label || '');
     safe.plan_b = typeof safe.plan_b === 'object' && safe.plan_b !== null ? { ...initialState.plan_b, ...safe.plan_b } : initialState.plan_b;
+    safe.training_results = typeof safe.training_results === 'object' && safe.training_results !== null ? { ...safe.training_results } : {};
     for (const field of booleanFields) safe[field] = Boolean(safe[field]);
     return safe;
   }

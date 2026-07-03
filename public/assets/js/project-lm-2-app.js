@@ -185,21 +185,37 @@
     home: { title: 'Treino em Casa', session: 'Casa A', exercises: ['Agachamento livre', 'Flexão inclinada', 'Remada com mochila', 'Afundo alternado', 'Elevação pélvica', 'Prancha', 'Polichinelo controlado'] }
   });
 
-  function getTrainingSession(plan = {}) {
+  const defaultExercisePrescription = Object.freeze({ series: '4 séries', repetitions: '8–10 repetições', rest: '90s', videoUrl: '#' });
+
+  function exerciseKey(name) {
+    return String(name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'exercicio';
+  }
+
+  function formatLastResult(result) {
+    if (!result || (!result.weight && !result.reps)) return '—';
+    const weight = result.weight ? `${result.weight} kg` : '— kg';
+    const reps = result.reps ? `${result.reps} reps` : '— reps';
+    return `${weight} · ${reps}`;
+  }
+
+  function getTrainingSession(plan = {}, state = global.ProjectLm2State.getState()) {
     const exercises = Array.isArray(plan.exercises) && plan.exercises.length > 0 ? plan.exercises : ['Supino reto', 'Remada baixa'];
+    const currentIndex = Math.min(Math.max(Number(state.training_current_index) || 0, 0), Math.max(exercises.length - 1, 0));
+    const name = exercises[currentIndex];
+    const key = exerciseKey(name);
+    const previousResult = state.training_results?.[key] || {};
     return {
       title: plan.title || 'Treino Projeto LM',
       sessionName: plan.session || 'Upper A',
-      currentIndex: 0,
+      currentIndex,
       totalExercises: exercises.length,
+      isLastExercise: currentIndex >= exercises.length - 1,
       currentExercise: {
-        name: exercises[0],
-        series: '4 séries',
-        repetitions: '8–10 repetições',
-        rest: '90s',
-        previousLoad: 'Carga anterior: —'
-      },
-      nextExercise: exercises[1] || 'Fim da sessão'
+        key,
+        name,
+        ...defaultExercisePrescription,
+        previousResult
+      }
     };
   }
 
@@ -224,41 +240,70 @@
         </section>`;
     }
 
-    const session = getTrainingSession(plan);
-    const exercisePosition = session.currentIndex + 1;
+    if (state.training_current_index >= plan.exercises.length) {
+      return `
+        <section class="lm2-card lm2-training-complete" aria-labelledby="lm2-training-complete-title">
+          <p class="lm2-kicker">Projeto LM · Modo Treino</p>
+          <h1 id="lm2-training-complete-title">Treino concluído.</h1>
+          <p>Hoje você fez o que precisava.</p>
+          <button class="lm2-primary-button" type="button" data-finish-training>Voltar para Home</button>
+        </section>`;
+    }
+
+    const session = getTrainingSession(plan, state);
+    const exercise = session.currentExercise;
     return `
       <section class="lm2-training-mode" aria-labelledby="lm2-training-title">
-        <header class="lm2-training-context" aria-label="Contexto da sessão">
-          <p class="lm2-kicker">Projeto LM · Modo Treino</p>
-          <div>
-            <strong>${escapeHtml(session.sessionName)}</strong>
-            <span>Exercício ${exercisePosition} de ${session.totalExercises}</span>
-          </div>
-        </header>
-
         <article class="lm2-current-exercise" aria-label="Exercício atual">
-          <p class="lm2-training-question">O que eu preciso fazer agora?</p>
-          <h1 id="lm2-training-title">${escapeHtml(session.currentExercise.name)}</h1>
+          <h1 id="lm2-training-title">${escapeHtml(exercise.name)}</h1>
+          <a class="lm2-video-button" href="${escapeHtml(exercise.videoUrl)}" target="_blank" rel="noopener">Vídeo de execução</a>
           <dl class="lm2-exercise-prescription">
-            <div><dt>Séries</dt><dd>${escapeHtml(session.currentExercise.series)}</dd></div>
-            <div><dt>Repetições</dt><dd>${escapeHtml(session.currentExercise.repetitions)}</dd></div>
-            <div><dt>Descanso</dt><dd>${escapeHtml(session.currentExercise.rest)}</dd></div>
-            <div><dt>Anterior</dt><dd>${escapeHtml(session.currentExercise.previousLoad)}</dd></div>
+            <div><dt>Séries</dt><dd>${escapeHtml(exercise.series)}</dd></div>
+            <div><dt>Repetições</dt><dd>${escapeHtml(exercise.repetitions)}</dd></div>
+            <div><dt>Descanso</dt><dd>${escapeHtml(exercise.rest)}</dd></div>
+            <div><dt>Último resultado</dt><dd>${escapeHtml(formatLastResult(exercise.previousResult))}</dd></div>
           </dl>
         </article>
 
         <div class="lm2-training-primary-action">
-          <button class="lm2-primary-button" type="button" aria-label="Continuar treino">Continuar <span aria-hidden="true">→</span></button>
-          <p>Registro de séries entra na próxima etapa.</p>
+          <button class="lm2-primary-button" type="button" data-open-exercise-result>Concluir exercício</button>
         </div>
-
-        <aside class="lm2-next-exercise" aria-label="Próximo exercício">
-          <span>Próximo</span>
-          <strong>${escapeHtml(session.nextExercise)}</strong>
-        </aside>
-
-        <button class="lm2-training-exit" type="button" data-route="home">Sair</button>
       </section>`;
+  }
+
+  function showExerciseResultModal(root) {
+    const state = global.ProjectLm2State.getState();
+    const plan = trainingPlans[state.training_plan_id];
+    if (!plan) return;
+    const exercise = getTrainingSession(plan, state).currentExercise;
+    const previous = exercise.previousResult || {};
+    root.querySelector('[data-exercise-result-modal]')?.remove();
+    root.insertAdjacentHTML('beforeend', `<div class="lm2-modal-backdrop" data-exercise-result-modal role="dialog" aria-modal="true" aria-labelledby="lm2-result-title"><form class="lm2-modal" data-exercise-result-form><h2 id="lm2-result-title">Atualize seu resultado</h2><label>Peso da última série<input class="lm2-input" name="weight" inputmode="decimal" type="number" min="0" step="0.5" value="${escapeHtml(previous.weight || '')}"></label><label>Repetições da última série<input class="lm2-input" name="reps" inputmode="numeric" type="number" min="0" step="1" value="${escapeHtml(previous.reps || '')}"></label><p class="lm2-error" data-lm2-modal-error role="alert"></p><button class="lm2-primary-button" type="button" data-save-exercise-result>Salvar e continuar</button></form></div>`);
+  }
+
+  function saveExerciseResult(root) {
+    const state = global.ProjectLm2State.getState();
+    const plan = trainingPlans[state.training_plan_id];
+    if (!plan) return;
+    const form = root.querySelector('[data-exercise-result-form]');
+    const weight = form?.elements.weight.value.trim();
+    const reps = form?.elements.reps.value.trim();
+    if (!weight || !reps) {
+      const error = root.querySelector('[data-lm2-modal-error]');
+      if (error) error.textContent = 'Informe peso e repetições.';
+      return;
+    }
+    const exercise = getTrainingSession(plan, state).currentExercise;
+    const training_results = { ...(state.training_results || {}), [exercise.key]: { weight, reps } };
+    const nextIndex = state.training_current_index + 1;
+    global.ProjectLm2State.updateState({ training_results, training_current_index: nextIndex });
+    root.querySelector('[data-exercise-result-modal]')?.remove();
+    render(root, nextIndex >= plan.exercises.length ? 'training' : 'training');
+  }
+
+  function finishTraining(root) {
+    global.ProjectLm2State.updateState({ training_current_index: 0 });
+    routeTo(root, 'home');
   }
 
   function renderNutritionScreen(state) {
@@ -1074,6 +1119,9 @@
         if (!global.ProjectLm2State.getState().sex) return setError(root, 'Selecione uma opção.');
         return routeTo(root, 'onboarding-weight');
       }
+      if (target.hasAttribute('data-open-exercise-result')) showExerciseResultModal(root);
+      if (target.hasAttribute('data-save-exercise-result')) saveExerciseResult(root);
+      if (target.hasAttribute('data-finish-training')) finishTraining(root);
       if (target.hasAttribute('data-create-direction')) submitOnboarding(root);
       if (target.hasAttribute('data-complete-week-1-video')) completeWeek1Video(root);
       if (target.hasAttribute('data-save-plan-b')) savePlanB(root);
