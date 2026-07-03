@@ -91,30 +91,45 @@ test('Projeto LM internal training and nutrition screens handle recognized ids a
 });
 
 
-test('Projeto LM training screen renders an immersive guided workout mode', () => {
+test('Projeto LM training screen renders the definitive exercise completion flow', () => {
   for (const text of [
-    'function getTrainingSession(plan = {})',
+    'function getTrainingSession(plan = {}, state = global.ProjectLm2State.getState())',
     'lm2-training-mode',
     'Projeto LM · Modo Treino',
-    'O que eu preciso fazer agora?',
-    'Exercício ${exercisePosition} de ${session.totalExercises}',
-    'Supino reto',
+    'Vídeo de execução',
     '4 séries',
     '8–10 repetições',
     'Descanso',
-    'Carga anterior: —',
-    'Registro de séries entra na próxima etapa.',
-    'Próximo',
-    'Sair'
+    'Último resultado',
+    'Concluir exercício',
+    'Atualize seu resultado',
+    'Peso da última série',
+    'Repetições da última série',
+    'Salvar e continuar',
+    'Treino concluído.',
+    'Hoje você fez o que precisava.',
+    'Voltar para Home'
   ]) {
     assert.match(lm2App, new RegExp(escapeRegExp(text)));
   }
   const trainingRenderer = lm2App.slice(lm2App.indexOf('function renderTrainingScreen'), lm2App.indexOf('function renderNutritionScreen'));
   assert.equal((trainingRenderer.match(/<ul class="lm2-list">/g) || []).length, 0);
+  assert.doesNotMatch(trainingRenderer, /O que eu preciso fazer agora\?|Registro de séries entra na próxima etapa\.|Próximo|Exercício \${exercisePosition}|data-route="home">Sair/);
   assert.match(lm2Css, /\.lm2-current-exercise h1 \{[\s\S]*font-size: clamp\(4\.2rem, 17vw, 11\.4rem\)/);
   assert.match(lm2Css, /\.lm2-exercise-prescription div \{[\s\S]*background: transparent/);
-  assert.match(lm2Css, /\.lm2-next-exercise \{[\s\S]*opacity: 0\.62/);
   assert.doesNotMatch(trainingRenderer, /VOLTAR PARA MINHA DIREÇÃO|<article class="lm2-block"><h2>\$\{escapeHtml\(plan\.title\)\}/);
+});
+
+test('LM 2.0 state persists only current exercise and one result per exercise', () => {
+  for (const text of [
+    'training_current_index: 0',
+    'training_results: {}',
+    'safe.training_current_index = normalizeNumber',
+    "safe.training_results = typeof safe.training_results === 'object'"
+  ]) {
+    assert.match(lm2State, new RegExp(escapeRegExp(text)));
+  }
+  assert.doesNotMatch(lm2State, /sets|rpe|tonnage|volume|timer|rest_timer|notes/);
 });
 
 test('Projeto LM training and nutrition integration does not use physical pages or forbidden destinations', async () => {

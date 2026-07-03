@@ -812,3 +812,27 @@ textarea.lm2-input {
     border-right: 0;
   }
 }
+
+.lm2-video-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: clamp(18px, 3vw, 28px);
+  border: 1px solid rgba(213, 155, 91, 0.24);
+  border-radius: 999px;
+  padding: 10px 18px;
+  background: rgba(16, 21, 34, 0.6);
+  color: rgba(248, 241, 231, 0.9);
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+}
+
+.lm2-video-button:hover,
+.lm2-video-button:focus-visible {
+  border-color: var(--lm2-primary);
+  outline: none;
+  box-shadow: var(--lm2-shadow-focus);
+}
