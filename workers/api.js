@@ -234,6 +234,12 @@ export default {
           return json(result.payload, result.status);
         }
 
+        if (url.pathname === '/api/project-lm-2/training' && method === 'GET') {
+          if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
+          const result = await projectLm2GetTraining(env.DB, auth.student);
+          return json(result.payload, result.status);
+        }
+
         if (url.pathname === '/api/project-lm-2/checkin' && method === 'POST') {
           if (!isProjectLmPlan(auth.student)) return json(projectLm2Error('Recurso disponível apenas para Projeto LM.', 403, 'PROJECT_LM_ONLY').payload, 403);
           const body = await safeJson(request);
@@ -2393,6 +2399,59 @@ async function ensureSchema(db) {
   await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_lm2_checkins_student_date
     ON lm2_checkins(student_id, checkin_date)`).run();
 
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS training_plans (
+    id TEXT PRIMARY KEY,
+    code TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    audience TEXT,
+    location TEXT,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS training_sessions (
+    id TEXT PRIMARY KEY,
+    plan_id TEXT,
+    plan_code TEXT NOT NULL,
+    code TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    week_day INTEGER,
+    order_index INTEGER NOT NULL DEFAULT 0,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS training_exercises (
+    id TEXT PRIMARY KEY,
+    session_id TEXT,
+    session_code TEXT NOT NULL,
+    order_index INTEGER NOT NULL DEFAULT 0,
+    exercise_key TEXT,
+    name TEXT NOT NULL,
+    sets INTEGER NOT NULL,
+    reps TEXT NOT NULL,
+    rest_seconds INTEGER NOT NULL,
+    instruction_url TEXT,
+    video_url TEXT NOT NULL DEFAULT '',
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+
+  await ensureColumn(db, 'training_sessions', 'plan_id', 'TEXT');
+  await ensureColumn(db, 'training_exercises', 'session_id', 'TEXT');
+  await ensureColumn(db, 'training_exercises', 'exercise_key', 'TEXT');
+  await ensureColumn(db, 'training_exercises', 'instruction_url', 'TEXT');
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_training_sessions_plan ON training_sessions(plan_code, active, order_index)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_training_sessions_plan_id ON training_sessions(plan_id, active, order_index)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_training_exercises_session ON training_exercises(session_code, active, order_index)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_training_exercises_session_id ON training_exercises(session_id, active, order_index)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_training_exercises_key ON training_exercises(exercise_key)`).run();
+  await seedProjectLmTrainingPlans(db);
+
   await db.prepare(`CREATE TABLE IF NOT EXISTS project_lm_daily_actions (
     id TEXT PRIMARY KEY,
     student_email TEXT NOT NULL,
@@ -3622,6 +3681,68 @@ async function projectLm2EnsureWeekFoundation(db, student, weekNumber) {
   const now = new Date().toISOString();
   await db.prepare(`INSERT INTO ${table} (student_id, video_completed, created_at, updated_at) VALUES (?, 0, ?, ?)`).bind(projectLm2StudentId(student), now, now).run();
   return projectLm2GetWeekFoundation(db, student, weekNumber);
+}
+
+
+async function seedProjectLmTrainingPlans(db) {
+  await db.prepare(`INSERT OR IGNORE INTO training_plans (id, code, name, audience, location) VALUES
+    ('plan_gym_male', 'gym_male', 'Treino Academia Masculino', 'male', 'gym'),
+    ('plan_gym_female', 'gym_female', 'Treino Academia Feminino', 'female', 'gym'),
+    ('plan_home', 'home', 'Treino em Casa', 'all', 'home')`).run();
+  await db.prepare(`INSERT OR IGNORE INTO training_sessions (id, plan_id, plan_code, code, name, week_day, order_index) VALUES
+    ('session_gym_male_upper_a', 'plan_gym_male', 'gym_male', 'gym_male_upper_a', 'Upper A', 1, 1),
+    ('session_gym_male_lower_a', 'plan_gym_male', 'gym_male', 'gym_male_lower_a', 'Lower A', 2, 2),
+    ('session_gym_male_upper_b', 'plan_gym_male', 'gym_male', 'gym_male_upper_b', 'Upper B', 4, 3),
+    ('session_gym_male_lower_b', 'plan_gym_male', 'gym_male', 'gym_male_lower_b', 'Lower B', 5, 4),
+    ('session_gym_female_lower_a', 'plan_gym_female', 'gym_female', 'gym_female_lower_a', 'Lower A', 1, 1),
+    ('session_gym_female_upper_a', 'plan_gym_female', 'gym_female', 'gym_female_upper_a', 'Upper A', 2, 2),
+    ('session_gym_female_lower_b', 'plan_gym_female', 'gym_female', 'gym_female_lower_b', 'Lower B', 4, 3),
+    ('session_gym_female_upper_b', 'plan_gym_female', 'gym_female', 'gym_female_upper_b', 'Upper B', 5, 4),
+    ('session_home_casa_a', 'plan_home', 'home', 'home_casa_a', 'Casa A', 1, 1),
+    ('session_home_casa_b', 'plan_home', 'home', 'home_casa_b', 'Casa B', 3, 2),
+    ('session_home_casa_c', 'plan_home', 'home', 'home_casa_c', 'Casa C', 5, 3)`).run();
+  await db.prepare(`INSERT OR IGNORE INTO training_exercises (id, session_id, session_code, order_index, exercise_key, name, sets, reps, rest_seconds, instruction_url, video_url) VALUES
+    ('exercise_gym_male_upper_a_1', 'session_gym_male_upper_a', 'gym_male_upper_a', 1, 'bench_press_barbell', 'Supino reto', 4, '10–12', 90, '', ''),
+    ('exercise_gym_male_upper_a_2', 'session_gym_male_upper_a', 'gym_male_upper_a', 2, 'low_row_machine', 'Remada baixa', 4, '10–12', 90, '', ''),
+    ('exercise_gym_male_upper_a_3', 'session_gym_male_upper_a', 'gym_male_upper_a', 3, 'seated_shoulder_press', 'Desenvolvimento sentado', 3, '10–12', 75, '', ''),
+    ('exercise_gym_female_lower_a_1', 'session_gym_female_lower_a', 'gym_female_lower_a', 1, 'barbell_squat', 'Agachamento livre', 4, '10–12', 90, '', ''),
+    ('exercise_gym_female_lower_a_2', 'session_gym_female_lower_a', 'gym_female_lower_a', 2, 'leg_press', 'Leg press', 4, '10–12', 90, '', ''),
+    ('exercise_gym_female_lower_a_3', 'session_gym_female_lower_a', 'gym_female_lower_a', 3, 'hip_thrust', 'Elevação pélvica', 4, '10–12', 90, '', ''),
+    ('exercise_home_casa_a_1', 'session_home_casa_a', 'home_casa_a', 1, 'bodyweight_squat', 'Agachamento livre', 4, '10–12', 60, '', ''),
+    ('exercise_home_casa_a_2', 'session_home_casa_a', 'home_casa_a', 2, 'incline_push_up', 'Flexão inclinada', 4, '8–12', 60, '', ''),
+    ('exercise_home_casa_a_3', 'session_home_casa_a', 'home_casa_a', 3, 'front_plank', 'Prancha', 3, '30–45s', 45, '', '')`).run();
+  await backfillProjectLmTrainingModel(db);
+}
+
+
+async function backfillProjectLmTrainingModel(db) {
+  await db.prepare(`UPDATE training_sessions
+    SET plan_id = (SELECT training_plans.id FROM training_plans WHERE training_plans.code = training_sessions.plan_code LIMIT 1)
+    WHERE plan_id IS NULL`).run();
+  await db.prepare(`UPDATE training_exercises
+    SET session_id = (SELECT training_sessions.id FROM training_sessions WHERE training_sessions.code = training_exercises.session_code LIMIT 1)
+    WHERE session_id IS NULL`).run();
+  await db.prepare(`UPDATE training_exercises SET instruction_url = COALESCE(instruction_url, video_url, '') WHERE instruction_url IS NULL`).run();
+  await db.prepare(`UPDATE training_exercises SET exercise_key = 'bench_press_barbell' WHERE exercise_key IS NULL AND name = 'Supino reto'`).run();
+  await db.prepare(`UPDATE training_exercises SET exercise_key = 'low_row_machine' WHERE exercise_key IS NULL AND name = 'Remada baixa'`).run();
+  await db.prepare(`UPDATE training_exercises SET exercise_key = 'seated_shoulder_press' WHERE exercise_key IS NULL AND name = 'Desenvolvimento sentado'`).run();
+  await db.prepare(`UPDATE training_exercises SET exercise_key = 'bodyweight_squat' WHERE exercise_key IS NULL AND id = 'exercise_home_casa_a_1'`).run();
+  await db.prepare(`UPDATE training_exercises SET exercise_key = 'barbell_squat' WHERE exercise_key IS NULL AND name = 'Agachamento livre'`).run();
+  await db.prepare(`UPDATE training_exercises SET exercise_key = 'leg_press' WHERE exercise_key IS NULL AND name = 'Leg press'`).run();
+  await db.prepare(`UPDATE training_exercises SET exercise_key = 'hip_thrust' WHERE exercise_key IS NULL AND name = 'Elevação pélvica'`).run();
+  await db.prepare(`UPDATE training_exercises SET exercise_key = 'incline_push_up' WHERE exercise_key IS NULL AND name = 'Flexão inclinada'`).run();
+  await db.prepare(`UPDATE training_exercises SET exercise_key = 'front_plank' WHERE exercise_key IS NULL AND name = 'Prancha'`).run();
+}
+
+async function projectLm2GetTraining(db, student) {
+  const profile = await projectLm2GetProfile(db, student);
+  if (!profile) return projectLm2Error('Onboarding obrigatório antes do treino.', 409, 'ONBOARDING_REQUIRED');
+  const plan = await db.prepare(`SELECT id, code, name FROM training_plans WHERE code=? AND active=1 LIMIT 1`).bind(profile.training_plan_id).first();
+  if (!plan) return projectLm2Error('Treino indisponível.', 404, 'TRAINING_NOT_FOUND');
+  const session = await db.prepare(`SELECT id, code, name FROM training_sessions WHERE plan_id=? AND active=1 ORDER BY order_index ASC LIMIT 1`).bind(plan.id).first();
+  if (!session) return projectLm2Error('Sessão de treino indisponível.', 404, 'TRAINING_SESSION_NOT_FOUND');
+  const { results = [] } = await db.prepare(`SELECT exercise_key, name, sets, reps, rest_seconds, instruction_url FROM training_exercises WHERE session_id=? AND active=1 ORDER BY order_index ASC`).bind(session.id).all();
+  return projectLm2Success({ plan: { code: plan.code, name: plan.name }, session: { code: session.code, name: session.name }, exercises: results });
 }
 
 async function projectLm2SaveOnboarding(db, student, body) {

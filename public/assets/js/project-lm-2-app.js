@@ -21,7 +21,8 @@
     week4VideoComplete: '/api/project-lm-2/week-4/video-complete',
     week4Reflection: '/api/project-lm-2/week-4/reflection',
     week4Complete: '/api/project-lm-2/week-4/complete',
-    programCompletion: '/api/project-lm-2/program-completion'
+    programCompletion: '/api/project-lm-2/program-completion',
+    training: '/api/project-lm-2/training'
   };
 
   // Semana 1 será liberada em breve.
@@ -185,6 +186,7 @@
     home: { title: 'Treino em Casa', session: 'Casa A', exercises: ['Agachamento livre', 'Flexão inclinada', 'Remada com mochila', 'Afundo alternado', 'Elevação pélvica', 'Prancha', 'Polichinelo controlado'] }
   });
 
+  const remoteTrainingPlans = {};
   const defaultExercisePrescription = Object.freeze({ series: '4 séries', repetitions: '8–10 repetições', rest: '90s', videoUrl: '#' });
 
   function exerciseKey(name) {
@@ -198,11 +200,50 @@
     return `${weight} · ${reps}`;
   }
 
+  function resolveTrainingPlan(state = global.ProjectLm2State.getState()) {
+    return remoteTrainingPlans[state.training_plan_id] || trainingPlans[state.training_plan_id];
+  }
+
+  function normalizeTrainingPlan(payload = {}) {
+    const exercises = Array.isArray(payload.exercises) ? payload.exercises.map(exercise => ({
+      key: exercise.exercise_key,
+      name: exercise.name,
+      series: `${exercise.sets} séries`,
+      repetitions: exercise.reps,
+      rest: `${exercise.rest_seconds}s`,
+      videoUrl: exercise.instruction_url || exercise.video_url || '#'
+    })).filter(exercise => exercise.name) : [];
+    return {
+      title: payload.plan?.name || 'Treino Projeto LM',
+      session: payload.session?.name || 'Upper A',
+      exercises
+    };
+  }
+
+  async function loadTrainingPlan(root) {
+    const state = global.ProjectLm2State.getState();
+    if (!state.training_plan_id || remoteTrainingPlans[state.training_plan_id]) return;
+    try {
+      const response = await requestLm2(api.training);
+      if (!response.ok) throw new Error('training_failed');
+      const payload = await response.json();
+      const plan = normalizeTrainingPlan(payload.data || payload);
+      if (plan.exercises.length > 0) {
+        remoteTrainingPlans[state.training_plan_id] = plan;
+        render(root, 'training');
+      }
+    } catch (error) {
+      // Mantém o fallback local simples quando o endpoint de treino falhar.
+    }
+  }
+
   function getTrainingSession(plan = {}, state = global.ProjectLm2State.getState()) {
     const exercises = Array.isArray(plan.exercises) && plan.exercises.length > 0 ? plan.exercises : ['Supino reto', 'Remada baixa'];
     const currentIndex = Math.min(Math.max(Number(state.training_current_index) || 0, 0), Math.max(exercises.length - 1, 0));
-    const name = exercises[currentIndex];
-    const key = exerciseKey(name);
+    const rawExercise = exercises[currentIndex];
+    const exerciseData = typeof rawExercise === 'object' && rawExercise !== null ? rawExercise : { name: rawExercise };
+    const name = exerciseData.name;
+    const key = exerciseData.key || exerciseKey(name);
     const previousResult = state.training_results?.[key] || {};
     return {
       title: plan.title || 'Treino Projeto LM',
@@ -214,6 +255,7 @@
         key,
         name,
         ...defaultExercisePrescription,
+        ...exerciseData,
         previousResult
       }
     };
@@ -229,7 +271,7 @@
   });
 
   function renderTrainingScreen(state) {
-    const plan = trainingPlans[state.training_plan_id];
+    const plan = resolveTrainingPlan(state);
     if (!plan) {
       return `
         <section class="lm2-card" aria-labelledby="lm2-training-title">
@@ -273,7 +315,7 @@
 
   function showExerciseResultModal(root) {
     const state = global.ProjectLm2State.getState();
-    const plan = trainingPlans[state.training_plan_id];
+    const plan = resolveTrainingPlan(state);
     if (!plan) return;
     const exercise = getTrainingSession(plan, state).currentExercise;
     const previous = exercise.previousResult || {};
@@ -283,7 +325,7 @@
 
   function saveExerciseResult(root) {
     const state = global.ProjectLm2State.getState();
-    const plan = trainingPlans[state.training_plan_id];
+    const plan = resolveTrainingPlan(state);
     if (!plan) return;
     const form = root.querySelector('[data-exercise-result-form]');
     const weight = form?.elements.weight.value.trim();
@@ -578,6 +620,7 @@
         <button class="lm2-primary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
       </section>`;
     if (route === 'training') root.innerHTML = renderTrainingScreen(state);
+    if (route === 'training') loadTrainingPlan(root);
     if (route === 'nutrition') root.innerHTML = renderNutritionScreen(state);
     if (route === 'library') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-library-title">

@@ -6,7 +6,9 @@ import worker from '../workers/api.js';
 const apiSource = await readFile('workers/api.js', 'utf8');
 const migration = `${await readFile('migrations/0019_lm2_data_layer.sql', 'utf8')}
 ${await readFile('migrations/0020_lm2_daily_checkins.sql', 'utf8')}
-${await readFile('migrations/0022_lm2_weeks_3_4_program_completion.sql', 'utf8')}`;
+${await readFile('migrations/0022_lm2_weeks_3_4_program_completion.sql', 'utf8')}
+${await readFile('migrations/0023_project_lm_training_plans.sql', 'utf8')}
+${await readFile('migrations/0024_project_lm_training_model_refinement.sql', 'utf8')}`;
 
 test('LM 2.0 schema is isolated and created by migration and ensureSchema', () => {
   for (const source of [apiSource, migration]) {
@@ -31,6 +33,13 @@ test('LM 2.0 schema is isolated and created by migration and ensureSchema', () =
     assert.match(source, /week_number INTEGER NOT NULL/);
     assert.match(source, /continuity_point INTEGER NOT NULL/);
     assert.match(source, /CREATE UNIQUE INDEX IF NOT EXISTS idx_lm2_checkins_student_date/);
+    assert.match(source, /CREATE TABLE IF NOT EXISTS training_plans/);
+    assert.match(source, /CREATE TABLE IF NOT EXISTS training_sessions/);
+    assert.match(source, /CREATE TABLE IF NOT EXISTS training_exercises/);
+    assert.match(source, /plan_id TEXT/);
+    assert.match(source, /session_id TEXT/);
+    assert.match(source, /exercise_key TEXT/);
+    assert.match(source, /instruction_url TEXT/);
   }
 });
 
@@ -117,6 +126,17 @@ test('LM 2.0 home returns onboarding_required before profile and week 1 after on
   assert.doesNotMatch(JSON.stringify(after.body), /\b[MH][123]\b/);
 });
 
+
+
+test('LM 2.0 training endpoint returns selected plan session and structured exercises', async () => {
+  const db = new FakeD1('projeto_lm');
+  await api(db, 'POST', '/api/project-lm-2/onboarding', { name: 'Lucas', goal: 'emagrecer', sex: 'male', weight_kg: 87 });
+  const res = await api(db, 'GET', '/api/project-lm-2/training');
+  assert.equal(res.status, 200);
+  assert.equal(res.body.data.plan.code, 'gym_male');
+  assert.equal(res.body.data.session.name, 'Upper A');
+  assert.deepEqual(res.body.data.exercises[0], { exercise_key: 'bench_press_barbell', name: 'Supino reto', sets: 4, reps: '10–12', rest_seconds: 90, instruction_url: '' });
+});
 
 test('LM 2.0 Week 1 video and Plano B update next action', async () => {
   const db = new FakeD1('projeto_lm');
@@ -507,9 +527,15 @@ class FakeD1Statement {
     if (s.startsWith('SELECT * FROM lm2_week_2_foundation')) return this.db.tables.lm2_week_2_foundation.find(x => x.student_id === p[0]) || null;
     if (s.startsWith('SELECT * FROM lm2_week_3_foundation')) return this.db.tables.lm2_week_3_foundation.find(x => x.student_id === p[0]) || null;
     if (s.startsWith('SELECT * FROM lm2_week_4_foundation')) return this.db.tables.lm2_week_4_foundation.find(x => x.student_id === p[0]) || null;
+    if (s.startsWith('SELECT id, code, name FROM training_plans')) return { id: `plan_${p[0]}`, code: p[0], name: p[0] === 'gym_male' ? 'Treino Academia Masculino' : p[0] };
+    if (s.startsWith('SELECT id, code, name FROM training_sessions')) return { id: 'session_gym_male_upper_a', code: 'gym_male_upper_a', name: 'Upper A' };
     if (s.startsWith('SELECT COALESCE(SUM(continuity_point)')) return { total: this.db.tables.lm2_checkins.filter(x => x.student_id === p[0] && x.week_number === p[1]).reduce((sum, x) => sum + x.continuity_point, 0) };
     if (s.startsWith('SELECT answer FROM lm2_checkins')) return this.db.tables.lm2_checkins.find(x => x.student_id === p[0] && x.checkin_date === p[1]) || null;
     return null;
   }
-  async all() { return { results: [] }; }
+  async all() {
+    const s = this.sql, p = this.params;
+    if (s.startsWith('SELECT exercise_key, name, sets, reps, rest_seconds, instruction_url FROM training_exercises')) return { results: [{ exercise_key: 'bench_press_barbell', name: 'Supino reto', sets: 4, reps: '10–12', rest_seconds: 90, instruction_url: '' }] };
+    return { results: [] };
+  }
 }
