@@ -40,6 +40,25 @@ test('Student 360 não expõe tokens nem answers_json bruto', async () => {
   assert.ok(html.includes('Oculto por segurança'), 'Token do aluno deve permanecer oculto na UI.');
 });
 
+test('Student 360 envia sessão e token legado nos fetches administrativos', async () => {
+  const html = await readStudent360();
+
+  assert.match(html, /window\.LMAdminAuth\.getAdminAuthHeaders\(/);
+
+  for (const endpoint of [
+    '/api/admin/students',
+    '/api/admin/student-360?email=',
+    '/api/admin/student-access/token',
+    '/api/admin/student-access/activate',
+    '/api/admin/student-access/status',
+    '/api/admin/weekly-plan'
+  ]) {
+    assert.ok(html.includes(endpoint), `Student 360 deve preservar chamada para ${endpoint}.`);
+  }
+
+  assert.ok(!html.includes("'Authorization'"), 'Student 360 não deve trocar para Authorization.');
+});
+
 test('Student 360 possui fallbacks discretos por bloco operacional', async () => {
   const html = await readStudent360();
   for (const fallback of [

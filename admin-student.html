@@ -345,7 +345,7 @@
       if (!token || !studentSelect) return;
       studentSelect.disabled = true;
       try {
-        const res = await fetch('/api/admin/students', { headers: { 'x-admin-session': token } });
+        const res = await fetch('/api/admin/students', { headers: window.LMAdminAuth.getAdminAuthHeaders() });
         const payload = await res.json();
         if (!res.ok) throw new Error(payload?.error || 'Falha ao listar alunos.');
         const students = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : []);
@@ -982,7 +982,7 @@
       document.querySelectorAll('#studentSummary,#studentAccessDetails,#latestAnamnesis,#latestCheckin,#weeklyPlan,#nutritionPlan,#timeline,#executiveSummary,#smartPendingList').forEach((el) => el.classList.add('skeleton'));
       statusBox.textContent = 'Carregando dados do aluno...';
       try {
-        const res = await fetch(`/api/admin/student-360?email=${encodeURIComponent(email)}`, { headers: { 'x-admin-session': token } });
+        const res = await fetch(`/api/admin/student-360?email=${encodeURIComponent(email)}`, { headers: window.LMAdminAuth.getAdminAuthHeaders() });
         const payload = await res.json();
         if (!res.ok || !payload?.ok) {
           const fallback404 = 'Nenhum dado encontrado para este email. Verifique se há acesso, anamnese, check-in ou plano alimentar cadastrado.';
@@ -1133,7 +1133,7 @@
       if (!token || !latestCheckinId || !reply) return;
       replyBtn.disabled = true;
       try {
-        const res = await fetch(`/api/admin/checkins/${encodeURIComponent(latestCheckinId)}/reply`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-admin-session': token }, body: JSON.stringify({ coach_reply: reply, coach_status: 'replied' }) });
+        const res = await fetch(`/api/admin/checkins/${encodeURIComponent(latestCheckinId)}/reply`, { method: 'PATCH', headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ coach_reply: reply, coach_status: 'replied' }) });
         const payload = await res.json();
         if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao responder check-in');
         byId('coachReplyInput').value = '';
@@ -1156,7 +1156,7 @@
       try {
         const res = await fetch('/api/admin/student-access/token', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-admin-session': token },
+          headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ email })
         });
         const payload = await res.json();
@@ -1178,7 +1178,7 @@
       try {
         const res = await fetch('/api/admin/student-access/activate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-admin-session': token },
+          headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ email })
         });
         const payload = await res.json();
@@ -1203,7 +1203,7 @@
       try {
         const res = await fetch('/api/admin/student-access/status', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-admin-session': token },
+          headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ email, status: targetStatus, reason: reason.trim() || null })
         });
         const payload = await res.json();
@@ -1222,7 +1222,7 @@
       if (!token || !email || !byId('planWeekRef').value.trim()) return;
       savePlanBtn.disabled = true;
       try {
-        const res = await fetch('/api/admin/weekly-plan', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-session': token }, body: JSON.stringify({ student_email: email, week_ref: byId('planWeekRef').value.trim(), training_focus: byId('planTrainingFocus').value.trim(), cardio_target: byId('planCardioTarget').value.trim(), nutrition_focus: byId('planNutritionFocus').value.trim(), main_risk: byId('planMainRisk').value.trim(), coach_message: byId('planCoachMessage').value.trim() }) });
+        const res = await fetch('/api/admin/weekly-plan', { method: 'POST', headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ student_email: email, week_ref: byId('planWeekRef').value.trim(), training_focus: byId('planTrainingFocus').value.trim(), cardio_target: byId('planCardioTarget').value.trim(), nutrition_focus: byId('planNutritionFocus').value.trim(), main_risk: byId('planMainRisk').value.trim(), coach_message: byId('planCoachMessage').value.trim() }) });
         const payload = await res.json();
         if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao salvar objetivo do planejamento');
         await loadStudent360();
