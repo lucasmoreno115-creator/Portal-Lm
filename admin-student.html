@@ -326,6 +326,15 @@
       return `${name} • ${email} • ${status}`;
     }
 
+
+    function getAdminAuthHeaders(extraHeaders) {
+      const token = tokenInput.value.trim();
+      return {
+        ...(extraHeaders || {}),
+        ...(token ? { 'x-admin-session': token, 'x-admin-token': token } : {})
+      };
+    }
+
     function populateStudentSelect(students) {
       const currentEmail = emailInput.value.trim().toLowerCase();
       studentSelect.innerHTML = `<option value=''>Selecionar aluno cadastrado...</option>`;

@@ -177,6 +177,15 @@
     const loadBtn = document.getElementById('loadBtn');
     const statusEl = document.getElementById('status');
 
+
+    function getAdminAuthHeaders(extraHeaders) {
+      const token = tokenInput.value.trim();
+      return {
+        ...(extraHeaders || {}),
+        ...(token ? { 'x-admin-session': token, 'x-admin-token': token } : {})
+      };
+    }
+
     function setText(id, value) {
       document.getElementById(id).textContent = String(value ?? 0);
     }
