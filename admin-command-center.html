@@ -177,6 +177,15 @@
     const loadBtn = document.getElementById('loadBtn');
     const statusEl = document.getElementById('status');
 
+
+    function getAdminAuthHeaders(extraHeaders) {
+      const token = tokenInput.value.trim();
+      return {
+        ...(extraHeaders || {}),
+        ...(token ? { 'x-admin-session': token, 'x-admin-token': token } : {})
+      };
+    }
+
     function setText(id, value) {
       document.getElementById(id).textContent = String(value ?? 0);
     }
@@ -251,8 +260,8 @@
 
       try {
         const [healthRes, logsRes] = await Promise.all([
-          fetch('/api/admin/health-check', { headers: { 'x-admin-session': token } }),
-          fetch('/api/admin/operational-logs?level=error&limit=5', { headers: { 'x-admin-session': token } })
+          fetch('/api/admin/health-check', { headers: getAdminAuthHeaders() }),
+          fetch('/api/admin/operational-logs?level=error&limit=5', { headers: getAdminAuthHeaders() })
         ]);
         const [healthPayload, logsPayload] = await Promise.all([healthRes.json(), logsRes.json()]);
 
@@ -376,7 +385,7 @@
 
     async function loadFollowupBlock(token) {
       try {
-        const response = await fetch('/api/admin/followup-alerts', { method: 'GET', headers: { 'x-admin-session': token } });
+        const response = await fetch('/api/admin/followup-alerts', { method: 'GET', headers: getAdminAuthHeaders() });
         const payload = await response.json().catch(() => null);
         if (!response.ok || !payload?.ok) throw new Error('Falha ao carregar follow-ups.');
         return renderConsolidatedFollowups(payload.data || {});
@@ -388,7 +397,7 @@
 
     async function loadPortalAlertsBlock(token) {
       try {
-        const response = await fetch('/api/admin/portal-alerts', { method: 'GET', headers: { 'x-admin-session': token } });
+        const response = await fetch('/api/admin/portal-alerts', { method: 'GET', headers: getAdminAuthHeaders() });
         const payload = await response.json().catch(() => null);
         if (!response.ok || !payload?.ok) throw new Error('Falha ao carregar alertas.');
         return renderConsolidatedAlerts(payload.data || {});
@@ -417,7 +426,7 @@
 
       try {
         const res = await fetch('/api/admin/command-center', {
-          headers: { 'x-admin-session': token }
+          headers: getAdminAuthHeaders()
         });
         const payload = await res.json();
 
@@ -485,7 +494,7 @@
         await navigator.clipboard.writeText(message);
         await fetch('/api/admin/reactivation-contact', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-admin-session': token },
+          headers: getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ email: student.email, reason: student.reason || null })
         });
         statusEl.textContent = `Mensagem copiada e contato de reativação registrado para ${student.name}.`;
@@ -494,7 +503,7 @@
       if (action === 'reactivate-student') {
         const res = await fetch('/api/admin/student-access/status', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-admin-session': token },
+          headers: getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ email: student.email, status: 'ACTIVE', reason: 'Reativado via Command Center - Reativação Hub V1' })
         });
         const payload = await res.json();
