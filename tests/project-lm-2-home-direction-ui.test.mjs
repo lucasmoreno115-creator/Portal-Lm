@@ -91,6 +91,12 @@ test('Projeto LM internal training and nutrition screens handle recognized ids a
 });
 
 
+
+test('Projeto LM training normalizer accepts instruction_url and keeps video_url fallback', () => {
+  assert.match(lm2App, /videoUrl: exercise\.instruction_url \|\| exercise\.video_url \|\| '#'/);
+  assert.match(lm2App, /key: exercise\.exercise_key/);
+});
+
 test('Projeto LM training screen renders the definitive exercise completion flow', () => {
   for (const text of [
     'function getTrainingSession(plan = {}, state = global.ProjectLm2State.getState())',
