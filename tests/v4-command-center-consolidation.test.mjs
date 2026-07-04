@@ -33,6 +33,28 @@ test('Command Center reutiliza endpoints administrativos existentes', async () =
   }
 });
 
+test('Command Center envia sessão e token legado nos fetches administrativos', async () => {
+  const source = await readCommandCenter();
+
+  assert.match(source, /function getAdminAuthHeaders\(extraHeaders\)/);
+  assert.match(source, /'x-admin-session': token/);
+  assert.match(source, /'x-admin-token': token/);
+
+  for (const endpoint of [
+    '/api/admin/command-center',
+    '/api/admin/followup-alerts',
+    '/api/admin/portal-alerts',
+    '/api/admin/health-check',
+    '/api/admin/operational-logs?level=error&limit=5',
+    '/api/admin/reactivation-contact',
+    '/api/admin/student-access/status'
+  ]) {
+    assert.ok(source.includes(endpoint), `Command Center deve preservar chamada para ${endpoint}.`);
+  }
+
+  assert.ok(!source.includes("'Authorization'"), 'Command Center não deve trocar para Authorization.');
+});
+
 test('Command Center preserva telas antigas e gera links para Student 360 por email', async () => {
   const source = await readCommandCenter();
   assert.ok(source.includes('/admin-followup.html'), 'Deve preservar link para admin-followup.html.');
