@@ -127,10 +127,7 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
       try {
         const response = await fetch('/api/admin/student-access', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-admin-session': adminToken
-          },
+          headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             name,
             email,

@@ -260,8 +260,8 @@
 
       try {
         const [healthRes, logsRes] = await Promise.all([
-          fetch('/api/admin/health-check', { headers: getAdminAuthHeaders() }),
-          fetch('/api/admin/operational-logs?level=error&limit=5', { headers: getAdminAuthHeaders() })
+          fetch('/api/admin/health-check', { headers: window.LMAdminAuth.getAdminAuthHeaders() }),
+          fetch('/api/admin/operational-logs?level=error&limit=5', { headers: window.LMAdminAuth.getAdminAuthHeaders() })
         ]);
         const [healthPayload, logsPayload] = await Promise.all([healthRes.json(), logsRes.json()]);
 
@@ -385,7 +385,7 @@
 
     async function loadFollowupBlock(token) {
       try {
-        const response = await fetch('/api/admin/followup-alerts', { method: 'GET', headers: getAdminAuthHeaders() });
+        const response = await fetch('/api/admin/followup-alerts', { method: 'GET', headers: window.LMAdminAuth.getAdminAuthHeaders() });
         const payload = await response.json().catch(() => null);
         if (!response.ok || !payload?.ok) throw new Error('Falha ao carregar follow-ups.');
         return renderConsolidatedFollowups(payload.data || {});
@@ -397,7 +397,7 @@
 
     async function loadPortalAlertsBlock(token) {
       try {
-        const response = await fetch('/api/admin/portal-alerts', { method: 'GET', headers: getAdminAuthHeaders() });
+        const response = await fetch('/api/admin/portal-alerts', { method: 'GET', headers: window.LMAdminAuth.getAdminAuthHeaders() });
         const payload = await response.json().catch(() => null);
         if (!response.ok || !payload?.ok) throw new Error('Falha ao carregar alertas.');
         return renderConsolidatedAlerts(payload.data || {});
@@ -426,7 +426,7 @@
 
       try {
         const res = await fetch('/api/admin/command-center', {
-          headers: getAdminAuthHeaders()
+          headers: window.LMAdminAuth.getAdminAuthHeaders()
         });
         const payload = await res.json();
 
@@ -494,7 +494,7 @@
         await navigator.clipboard.writeText(message);
         await fetch('/api/admin/reactivation-contact', {
           method: 'POST',
-          headers: getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
+          headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ email: student.email, reason: student.reason || null })
         });
         statusEl.textContent = `Mensagem copiada e contato de reativação registrado para ${student.name}.`;
@@ -503,7 +503,7 @@
       if (action === 'reactivate-student') {
         const res = await fetch('/api/admin/student-access/status', {
           method: 'POST',
-          headers: getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
+          headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ email: student.email, status: 'ACTIVE', reason: 'Reativado via Command Center - Reativação Hub V1' })
         });
         const payload = await res.json();

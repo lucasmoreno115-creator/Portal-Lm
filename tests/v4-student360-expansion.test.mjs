@@ -43,9 +43,7 @@ test('Student 360 não expõe tokens nem answers_json bruto', async () => {
 test('Student 360 envia sessão e token legado nos fetches administrativos', async () => {
   const html = await readStudent360();
 
-  assert.match(html, /function getAdminAuthHeaders\(extraHeaders\)/);
-  assert.match(html, /'x-admin-session': token/);
-  assert.match(html, /'x-admin-token': token/);
+  assert.match(html, /window\.LMAdminAuth\.getAdminAuthHeaders\(/);
 
   for (const endpoint of [
     '/api/admin/students',

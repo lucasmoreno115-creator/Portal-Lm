@@ -354,11 +354,7 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
 
       const response = await fetch(path, {
         ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-session': adminToken,
-          ...(options.headers || {})
-        }
+        headers: window.LMAdminAuth.getAdminAuthHeaders(options.headers || {})
       });
 
       const payload = await response.json().catch(() => null);

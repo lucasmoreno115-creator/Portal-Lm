@@ -36,9 +36,7 @@ test('Command Center reutiliza endpoints administrativos existentes', async () =
 test('Command Center envia sessão e token legado nos fetches administrativos', async () => {
   const source = await readCommandCenter();
 
-  assert.match(source, /function getAdminAuthHeaders\(extraHeaders\)/);
-  assert.match(source, /'x-admin-session': token/);
-  assert.match(source, /'x-admin-token': token/);
+  assert.match(source, /window\.LMAdminAuth\.getAdminAuthHeaders\(/);
 
   for (const endpoint of [
     '/api/admin/command-center',

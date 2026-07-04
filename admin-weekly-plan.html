@@ -116,10 +116,7 @@ window.LMAdminAuth.attachLogout('adminLogoutBtn');
       try {
         const response = await fetch('/api/admin/weekly-plan', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-admin-session': adminToken
-          },
+          headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             student_email: studentEmail,
             week_ref: weekRef,

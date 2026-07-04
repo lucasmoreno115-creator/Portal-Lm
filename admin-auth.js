@@ -55,16 +55,32 @@
     if (sessionId) {
       await fetch('/api/admin/session/logout', {
         method: 'POST',
-        headers: { 'x-admin-session': sessionId }
+        headers: getAdminAuthHeaders({}, sessionId)
       }).catch(() => null);
     }
     clearAdminSession();
   }
 
-  function getAdminHeaders(extraHeaders){
+  function getVisibleAdminCredential(){
     const sessionId = getAdminSession();
-    return { ...(extraHeaders || {}), ...(sessionId ? { 'x-admin-session': sessionId } : {}) };
+    if (sessionId) return sessionId;
+    const input = document.getElementById('adminToken') || document.getElementById('token');
+    return String(input?.value || '').trim();
   }
+
+  function getAdminAuthHeaders(extraHeaders, credentialOverride){
+    const credential = String(credentialOverride || getVisibleAdminCredential() || '').trim();
+    const headers = extraHeaders || {};
+    if (!credential) return { ...headers };
+    return {
+      'Content-Type': 'application/json',
+      'x-admin-session': credential,
+      'x-admin-token': credential,
+      ...headers
+    };
+  }
+
+  const getAdminHeaders = getAdminAuthHeaders;
 
   function getAdminToken(){
     return getAdminSession();
@@ -114,6 +130,7 @@
     loginAdmin,
     logoutAdmin,
     getAdminHeaders,
+    getAdminAuthHeaders,
     getAdminToken,
     setAdminToken,
     clearAdminToken,
