@@ -34,12 +34,16 @@ test('Student 360 reutiliza endpoints e telas auxiliares existentes', async () =
   }
 });
 
-test('Student 360 não expõe tokens nem answers_json bruto', async () => {
+test('Student 360 mascara a senha temporária e não expõe dados brutos', async () => {
   const html = await readStudent360();
   assert.ok(!html.includes('access_token'), 'Student 360 não deve referenciar access_token.');
   assert.ok(!/answers_json[^\n]+innerHTML|innerHTML[^\n]+answers_json/.test(html), 'Student 360 não deve renderizar answers_json bruto.');
-  assert.ok(html.includes('Oculto por segurança'), 'Token do aluno deve permanecer oculto na UI.');
+  assert.ok(html.includes('Senha temporária'), 'Student 360 deve nomear a credencial como senha temporária.');
+  assert.ok(html.includes('maskCredential'), 'Student 360 deve mascarar a senha temporária por padrão.');
+  assert.ok(html.includes('showCredentialBtn'), 'Student 360 deve ter ação para mostrar a credencial somente na sessão admin.');
+  assert.ok(html.includes('Senha já alterada pelo aluno.'), 'Student 360 deve informar quando não houver senha temporária válida.');
 });
+
 
 test('Student 360 envia sessão e token legado nos fetches administrativos', async () => {
   const html = await readStudent360();
