@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 
 const rootDir = process.cwd();
 const studentPath = path.join(rootDir, 'admin-student.html');
+const apiPath = path.join(rootDir, 'workers/api.js');
 
 async function readStudent360() {
   await assert.doesNotReject(access(studentPath));
@@ -57,6 +58,30 @@ test('Student 360 envia sessão e token legado nos fetches administrativos', asy
   }
 
   assert.ok(!html.includes("'Authorization'"), 'Student 360 não deve trocar para Authorization.');
+});
+
+
+test('botão Liberar acesso usa o helper compartilhado com sessão e token admin', async () => {
+  const html = await readStudent360();
+  const activateHandlerMatch = html.match(new RegExp("activateAccessBtn\\.addEventListener\\('click', async \\(\\) => \\{[\\s\\S]*?fetch\\('/api/admin/student-access/activate',[\\s\\S]*?\\n\\s*\\}\\);"));
+
+  assert.ok(activateHandlerMatch, 'Student 360 deve ter handler específico para o botão Liberar acesso.');
+
+  const handler = activateHandlerMatch[0];
+  assert.match(handler, /headers:\s*window\.LMAdminAuth\.getAdminAuthHeaders\(\{ 'Content-Type': 'application\/json' \}\)/, 'Liberar acesso deve usar LMAdminAuth.getAdminAuthHeaders.');
+  assert.doesNotMatch(handler, /headers:\s*\{[\s\S]*?x-admin-(session|token)/, 'Liberar acesso não deve montar headers admin manualmente.');
+  assert.ok(html.includes("activateAccessCardBtn.addEventListener('click', () => activateAccessBtn.click())"), 'Card Liberar acesso deve delegar para o mesmo handler autenticado.');
+});
+
+
+test('rota activate do Student 360 permanece dentro do gate admin compartilhado', async () => {
+  const source = await readFile(apiPath, 'utf8');
+  const gateIndex = source.indexOf("if (url.pathname.startsWith('/api/admin/'))");
+  const activateIndex = source.indexOf("if (url.pathname === '/api/admin/student-access/activate' && method === 'POST')");
+
+  assert.ok(gateIndex >= 0, 'API deve manter gate compartilhado para /api/admin/.');
+  assert.ok(activateIndex > gateIndex, 'Rota student-access/activate deve ser avaliada dentro do gate admin compartilhado.');
+  assert.match(source.slice(gateIndex, activateIndex), /isAdminAuthorized\(request, env\)/, 'Gate admin compartilhado deve validar isAdminAuthorized antes da rota activate.');
 });
 
 test('Student 360 possui fallbacks discretos por bloco operacional', async () => {
