@@ -68,8 +68,9 @@
         <h2>🔐 Acesso do aluno</h2>
         <div id='studentAccessDetails'></div>
         <div class='student-action-grid'>
-          <button id='copyAccessBtn' type='button'>📋 Copiar acesso</button>
-          <button id='rotateTokenBtn' type='button'>🔐 Trocar senha</button>
+          <button id='showCredentialBtn' type='button'>👁️ Mostrar</button>
+          <button id='copyAccessBtn' type='button'>📋 Copiar</button>
+          <button id='rotateTokenBtn' type='button'>🔐 Gerar nova senha</button>
           <button id='activateAccessCardBtn' type='button'>🚀 Liberar acesso</button>
           <button id='toggleStudentStatusCardBtn' type='button'>🚫 Inativar/Reativar</button>
         </div>
@@ -207,6 +208,7 @@
     const quickReplyCheckinBtn = document.getElementById('quickReplyCheckinBtn');
     const editWeeklyPlanBtn = document.getElementById('editWeeklyPlanBtn');
     const copyAccessMessageBtn = document.getElementById('copyAccessMessageBtn');
+    const showCredentialBtn = document.getElementById('showCredentialBtn');
     const copyAccessBtn = document.getElementById('copyAccessBtn');
     const rotateTokenBtn = document.getElementById('rotateTokenBtn');
     const activateAccessCardBtn = document.getElementById('activateAccessCardBtn');
@@ -222,6 +224,7 @@
     const statusBox = document.getElementById('statusBox');
     let latestCheckinId = null;
     let currentStudent = {};
+    let studentCredentialVisible = false;
 
     function byId(id) { return document.getElementById(id); }
     function setText(id, value) { byId(id).textContent = value || '-'; }
@@ -381,12 +384,11 @@
       const name = currentStudent?.name || 'Aluno(a)';
       const email = currentStudent?.email || emailInput.value.trim().toLowerCase();
       const portalLink = `${window.location.origin}/portal-login.html`;
-      return `Olá, ${name}!\n\nSeu acesso à Consultoria LM foi liberado.\n\n• Email: ${email}\n• Portal: ${portalLink}\n\nPor segurança, a senha/token não é exibida no Student 360.\n\nQualquer dúvida, me chama por aqui 👊`;
+      return `Olá, ${name}!\n\nSeu acesso à Consultoria LM foi liberado.\n\n• Email: ${email}\n• Portal: ${portalLink}\n\nPor segurança, a senha temporária só é exibida para administradores autenticados no Student 360.\n\nQualquer dúvida, me chama por aqui 👊`;
     }
     function syncAccessMessageActions() {
       copyAccessMessageBtn.disabled = false;
       openAccessWhatsappBtn.disabled = false;
-      copyAccessBtn.disabled = false;
       copyAccessMessageBtn.title = '';
       openAccessWhatsappBtn.title = '';
     }
@@ -436,14 +438,32 @@
       ]);
       byId('studentSummary').innerHTML = html;
     }
+    function getStudentTemporaryCredential(student = currentStudent) {
+      const credential = String(student?.token || '').trim();
+      if (!credential) return '';
+      const hashPatterns = [/^\$2[aby]\$/i, /^\$argon2/i, /^[a-f0-9]{64,}$/i];
+      return hashPatterns.some((pattern) => pattern.test(credential)) ? '' : credential;
+    }
+    function maskCredential(credential) {
+      return credential ? '•'.repeat(Math.min(Math.max(credential.length, 8), 16)) : '';
+    }
     function renderStudentAccess(student) {
+      const credential = getStudentTemporaryCredential(student);
+      const credentialLabel = credential
+        ? (studentCredentialVisible ? credential : maskCredential(credential))
+        : 'Senha já alterada pelo aluno.';
       byId('studentAccessDetails').innerHTML = renderFields([
         field('Email', student?.email),
-        field('Token', 'Oculto por segurança', true),
+        field('Senha temporária', credentialLabel, Boolean(credential)),
         field('Status', student?.status, true),
         field('Produto', formatStudentProduct(student)),
         field('WhatsApp', student?.whatsapp)
       ]);
+      showCredentialBtn.disabled = !credential;
+      showCredentialBtn.textContent = studentCredentialVisible ? '🙈 Ocultar' : '👁️ Mostrar';
+      copyAccessBtn.disabled = !credential;
+      copyAccessBtn.title = credential ? '' : 'Senha já alterada pelo aluno.';
+      rotateTokenBtn.textContent = credential ? '🔐 Trocar senha' : '🔐 Gerar nova senha';
     }
 
     function formatWeight(value) {
@@ -912,6 +932,7 @@
       toggleStudentStatusBtn.textContent = canReactivate ? '🔁 Reativar aluno' : '🚫 Inativar aluno';
       toggleStudentStatusCardBtn.textContent = canReactivate ? '🔁 Reativar aluno' : '🚫 Inativar aluno';
       rotateTokenBtn.disabled = !student?.email;
+      renderStudentAccess(student);
     }
     function getCurrentWeekRef() {
       const date = new Date();
@@ -991,6 +1012,7 @@
 
         const data = payload.data || {};
         const student = data.student || {};
+        studentCredentialVisible = false;
         const checkin = data.latest_checkin || null;
         currentStudent = {
           ...student,
@@ -1141,11 +1163,16 @@
         showToast('✅ Check-in respondido');
       } finally { replyBtn.disabled = false; }
     });
+    showCredentialBtn.addEventListener('click', () => {
+      if (!getStudentTemporaryCredential()) return;
+      studentCredentialVisible = !studentCredentialVisible;
+      renderStudentAccess(currentStudent);
+    });
     copyAccessBtn.addEventListener('click', async () => {
-      const text = getAccessMessage();
-      await navigator.clipboard.writeText(text);
-      byId('accessMessageOutput').value = text;
-      showToast('✅ Acesso copiado');
+      const credential = getStudentTemporaryCredential();
+      if (!credential) return;
+      await navigator.clipboard.writeText(credential);
+      showToast('✅ Senha temporária copiada');
     });
     rotateTokenBtn.addEventListener('click', async () => {
       const token = tokenInput.value.trim();
