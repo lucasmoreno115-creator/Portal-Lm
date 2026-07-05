@@ -383,8 +383,9 @@
     function getAccessMessage() {
       const name = currentStudent?.name || 'Aluno(a)';
       const email = currentStudent?.email || emailInput.value.trim().toLowerCase();
-      const portalLink = `${window.location.origin}/portal-login.html`;
-      return `Olá, ${name}!\n\nSeu acesso à Consultoria LM foi liberado.\n\n• Email: ${email}\n• Portal: ${portalLink}\n\nPor segurança, a senha temporária só é exibida para administradores autenticados no Student 360.\n\nQualquer dúvida, me chama por aqui 👊`;
+      const temporaryPassword = getStudentTemporaryCredential();
+      const portalLink = 'https://portal.lucasmorenopersonal.com.br/portal-login.html';
+      return `Olá, ${name}! 👋\n\nSeu acesso à Consultoria LM foi liberado.\n\n• Email: ${email}\n• Senha temporária: ${temporaryPassword}\n• Portal: ${portalLink}\n\nNo primeiro acesso, recomendamos que você altere sua senha para uma de sua preferência.\n\nQualquer dúvida, me chama por aqui. 👊`;
     }
     function syncAccessMessageActions() {
       copyAccessMessageBtn.disabled = false;
