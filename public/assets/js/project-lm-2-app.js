@@ -261,14 +261,24 @@
     };
   }
 
-  const nutritionPlans = Object.freeze({
-    H1: 'Plano H1',
-    H2: 'Plano H2',
-    H3: 'Plano H3',
-    M1: 'Plano M1',
-    M2: 'Plano M2',
-    M3: 'Plano M3'
-  });
+  function resolveNutritionPlan(state = global.ProjectLm2State.getState()) {
+    return global.ProjectLm2NutritionNormalizer?.resolveNutritionPlan?.(state) || null;
+  }
+
+  function renderMealCard(meal) {
+    const visibleFoods = meal.foods.slice(0, 3);
+    const hiddenCount = Math.max(meal.foods.length - visibleFoods.length, 0);
+    return `<button class="lm2-meal-card" type="button" data-meal-focus="${escapeHtml(meal.key)}" aria-label="Abrir ${escapeHtml(meal.name)}"><strong>${meal.icon} ${escapeHtml(meal.name)}</strong><span>${visibleFoods.map(food => escapeHtml(food.text)).join('</span><span>')}</span>${hiddenCount ? `<small>+${hiddenCount} itens</small>` : ''}</button>`;
+  }
+
+  function renderNutritionFocusPanel(meal, plan) {
+    if (!meal) return '';
+    const foods = meal.foods.map(food => `<li><span>${escapeHtml(food.name)}</span><strong>${escapeHtml(food.quantity)}</strong></li>`).join('');
+    const substitutions = meal.foods.filter(food => food.substitutions.length > 0).map(food => `<div class="lm2-substitution-group"><strong>${escapeHtml(food.text)}</strong>${food.substitutions.map(item => `<span>↔ ${escapeHtml(item)}</span>`).join('')}</div>`).join('');
+    const substitutionsSection = substitutions ? `<details class="lm2-substitutions"><summary>Substituições</summary>${substitutions}</details>` : '';
+    const notes = plan.notes.length ? `<section class="lm2-nutrition-notes" aria-label="Observações"><h3>Observações</h3>${plan.notes.map(note => `<p>✔ ${escapeHtml(note)}</p>`).join('')}</section>` : '';
+    return `<div class="lm2-focus-panel-backdrop" data-nutrition-focus-panel role="dialog" aria-modal="true" aria-labelledby="lm2-focus-panel-title"><article class="lm2-focus-panel"><button class="lm2-focus-panel-close" type="button" data-close-nutrition-focus aria-label="Fechar painel">×</button><p class="lm2-kicker">Plano Alimentar</p><h2 id="lm2-focus-panel-title">${meal.icon} ${escapeHtml(meal.name)}</h2><ul class="lm2-food-list">${foods}</ul>${substitutionsSection}${notes}</article></div>`;
+  }
 
   function renderTrainingScreen(state) {
     const plan = resolveTrainingPlan(state);
@@ -349,19 +359,38 @@
   }
 
   function renderNutritionScreen(state) {
-    const plan = nutritionPlans[state.nutrition_plan_id];
-    const content = plan
-      ? `<article class="lm2-block"><h2>${escapeHtml(plan)}</h2><p>Este é o destino oficial do seu plano alimentar dentro do Projeto LM.</p><ul class="lm2-list"><li>Siga o plano definido para você no onboarding.</li><li>Use consistência antes de buscar perfeição.</li><li>Se algo sair do previsto, retome na próxima refeição.</li></ul></article>`
-      : '<article class="lm2-block"><h2>Plano alimentar indisponível</h2><p>Seu plano alimentar ainda não está disponível. Volte para a Home e tente novamente mais tarde.</p></article>';
-    return `
+    const plan = resolveNutritionPlan(state);
+    if (!plan) {
+      return `
       <section class="lm2-card" aria-labelledby="lm2-nutrition-title">
-        <p class="lm2-kicker">Projeto LM · Plano alimentar oficial</p>
-        <h1 id="lm2-nutrition-title">Meu Plano Alimentar</h1>
-        <p>Esta é a tela oficial do seu plano alimentar dentro do Projeto LM.</p>
-        ${content}
+        <p class="lm2-kicker">Projeto LM · Plano alimentar</p>
+        <h1 id="lm2-nutrition-title">Plano Alimentar</h1>
+        <article class="lm2-block"><h2>Plano alimentar indisponível</h2><p>Seu plano alimentar ainda não está disponível. Volte para a Home e tente novamente mais tarde.</p></article>
         <button class="lm2-primary-button" type="button" data-route="direction">VOLTAR PARA MINHA DIREÇÃO</button>
         <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
       </section>`;
+    }
+
+    return `
+      <section class="lm2-nutrition-overview" aria-labelledby="lm2-nutrition-title">
+        <header class="lm2-nutrition-header">
+          <p class="lm2-kicker">Projeto LM · ${escapeHtml(plan.title)}</p>
+          <h1 id="lm2-nutrition-title">Plano Alimentar</h1>
+          <p>Como será sua alimentação hoje.</p>
+        </header>
+        <div class="lm2-meals-grid" aria-label="Refeições do dia">
+          ${plan.meals.map(renderMealCard).join('')}
+        </div>
+        <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
+      </section>`;
+  }
+
+  function showNutritionFocusPanel(root, mealKey) {
+    const plan = resolveNutritionPlan();
+    const meal = plan?.meals.find(item => item.key === mealKey);
+    if (!meal) return;
+    root.querySelector('[data-nutrition-focus-panel]')?.remove();
+    root.insertAdjacentHTML('beforeend', renderNutritionFocusPanel(meal, plan));
   }
 
   function nextActionLabel(nextAction) {
@@ -518,7 +547,7 @@
         <section class="lm2-tools" aria-label="Acessos secundários do Projeto LM">
           <div class="lm2-tools-grid">
             ${renderToolButton('training', '↗', 'Treino', 'Seu plano')}
-            ${renderToolButton('nutrition', '◐', 'Plano Alimentar', 'Sua base')}
+            ${renderToolButton('nutrition', '🍽', 'Plano Alimentar', 'Abrir Plano Alimentar')}
             ${renderToolButton('week-1', '◇', 'Plano B', 'Para imprevistos')}
             ${renderToolButton('library', '□', 'Biblioteca', 'Aulas')}
             ${renderToolButton('profile-edit', '○', 'Perfil', 'Seus dados')}
@@ -1165,6 +1194,8 @@
       if (target.hasAttribute('data-open-exercise-result')) showExerciseResultModal(root);
       if (target.hasAttribute('data-save-exercise-result')) saveExerciseResult(root);
       if (target.hasAttribute('data-finish-training')) finishTraining(root);
+      if (target.hasAttribute('data-meal-focus')) showNutritionFocusPanel(root, target.dataset.mealFocus);
+      if (target.hasAttribute('data-close-nutrition-focus')) target.closest('[data-nutrition-focus-panel]')?.remove();
       if (target.hasAttribute('data-create-direction')) submitOnboarding(root);
       if (target.hasAttribute('data-complete-week-1-video')) completeWeek1Video(root);
       if (target.hasAttribute('data-save-plan-b')) savePlanB(root);

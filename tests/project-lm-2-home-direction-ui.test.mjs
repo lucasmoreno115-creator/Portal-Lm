@@ -5,6 +5,8 @@ import assert from 'node:assert/strict';
 const lm2App = await readFile('public/assets/js/project-lm-2-app.js', 'utf8');
 const lm2State = await readFile('public/assets/js/project-lm-2-state.js', 'utf8');
 const lm2Router = await readFile('public/assets/js/project-lm-2-router.js', 'utf8');
+const lm2NutritionData = await readFile('public/assets/js/project-lm-2-nutrition-data.js', 'utf8');
+const lm2NutritionNormalizer = await readFile('public/assets/js/project-lm-2-nutrition-normalizer.js', 'utf8');
 const lm2Css = await readFile('public/assets/css/project-lm-2.css', 'utf8');
 const lm2Html = await readFile('public/project-lm-2.html', 'utf8');
 const v5Html = await readFile('public/project-lm-v5.html', 'utf8');
@@ -83,7 +85,8 @@ test('Projeto LM direction buttons navigate internally to training and nutrition
 
 test('Projeto LM internal training and nutrition screens handle recognized ids and friendly fallbacks', () => {
   for (const plan of ['gym_male', 'gym_female', 'home']) assert.match(lm2App, new RegExp(`${plan}:`));
-  for (const plan of ['H1', 'H2', 'H3', 'M1', 'M2', 'M3']) assert.match(lm2App, new RegExp(`${plan}:`));
+  for (const plan of ['H1', 'H2', 'H3', 'M1', 'M2', 'M3']) assert.match(lm2NutritionData, new RegExp(`${plan}:`));
+  assert.match(lm2NutritionNormalizer, /function resolveNutritionPlan/);
   assert.match(lm2App, /Seu treino ainda não está disponível\. Volte para a Home e tente novamente mais tarde\./);
   assert.match(lm2App, /Seu plano alimentar ainda não está disponível\. Volte para a Home e tente novamente mais tarde\./);
   assert.match(lm2App, /data-route="direction">VOLTAR PARA MINHA DIREÇÃO/);

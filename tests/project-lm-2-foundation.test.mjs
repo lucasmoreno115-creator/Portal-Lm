@@ -6,6 +6,8 @@ const lm2Html = await readFile('public/project-lm-2.html', 'utf8');
 const lm2App = await readFile('public/assets/js/project-lm-2-app.js', 'utf8');
 const lm2State = await readFile('public/assets/js/project-lm-2-state.js', 'utf8');
 const lm2Router = await readFile('public/assets/js/project-lm-2-router.js', 'utf8');
+const lm2NutritionData = await readFile('public/assets/js/project-lm-2-nutrition-data.js', 'utf8');
+const lm2NutritionNormalizer = await readFile('public/assets/js/project-lm-2-nutrition-normalizer.js', 'utf8');
 const lm2Css = await readFile('public/assets/css/project-lm-2.css', 'utf8');
 const portalHtml = await readFile('portal.html', 'utf8');
 const v5Html = await readFile('public/project-lm-v5.html', 'utf8');
@@ -14,10 +16,12 @@ const lm2AssetPaths = [
   'assets/js/project-lm-2-app.js',
   'assets/js/project-lm-2-state.js',
   'assets/js/project-lm-2-router.js',
+  'assets/js/project-lm-2-nutrition-data.js',
+  'assets/js/project-lm-2-nutrition-normalizer.js',
   'assets/css/project-lm-2.css'
 ];
 
-const lm2Sources = [lm2App, lm2State, lm2Router, lm2Css];
+const lm2Sources = [lm2App, lm2State, lm2Router, lm2NutritionData, lm2NutritionNormalizer, lm2Css];
 
 test('project-lm-2.html exists and loads only the LM 2.0 foundation assets', () => {
   assert.match(lm2Html, /Projeto LM/);
@@ -45,6 +49,22 @@ test('LM 2.0 assets do not import or reference V5 assets', () => {
     assert.doesNotMatch(source, /project-lm-v5/);
     assert.doesNotMatch(source, /plmv5/);
   }
+});
+
+
+test('LM 2.0 nutrition architecture keeps data and normalization outside the main app', () => {
+  assert.doesNotMatch(lm2App, /const nutritionPlans\s*=|const nutritionEquivalenceGroups\s*=|const nutritionMealIcons\s*=|const nutritionPlanNotes\s*=/);
+  assert.match(lm2NutritionData, /const nutritionPlans\s*=\s*Object\.freeze/);
+  assert.match(lm2NutritionData, /const nutritionEquivalenceGroups\s*=\s*Object\.freeze/);
+  assert.match(lm2NutritionData, /const nutritionMealIcons\s*=\s*Object\.freeze/);
+  assert.match(lm2NutritionData, /const nutritionPlanNotes\s*=\s*Object\.freeze/);
+  for (const plan of ['H1', 'H2', 'H3', 'M1', 'M2', 'M3']) assert.match(lm2NutritionData, new RegExp(`${plan}:`));
+  for (const fn of ['slugifyNutritionKey', 'parseNutritionItem', 'inferNutritionSubstitutions', 'normalizeNutritionMeal', 'resolveNutritionPlan']) {
+    assert.match(lm2NutritionNormalizer, new RegExp(`function ${fn}\\(`));
+  }
+  assert.match(lm2App, /ProjectLm2NutritionNormalizer\?\.resolveNutritionPlan/);
+  assert.doesNotMatch(lm2App, /Nutrition Focus Panel|🔄 Ver substituições/);
+  assert.match(lm2App, /<summary>Substituições<\/summary>/);
 });
 
 test('LM 2.0 state layer exposes the minimum initial state contract', () => {
