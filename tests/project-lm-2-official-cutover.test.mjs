@@ -32,6 +32,8 @@ const lm2RelativeAssets = [
   'assets/css/project-lm-2.css',
   'assets/js/project-lm-2-state.js',
   'assets/js/project-lm-2-router.js',
+  'assets/js/project-lm-2-nutrition-data.js',
+  'assets/js/project-lm-2-nutrition-normalizer.js',
   'assets/js/project-lm-2-app.js'
 ];
 
@@ -76,6 +78,8 @@ test('GitHub Pages physical canonical alias serves LM 2.0 without V5 or legacy a
     '../public/assets/css/project-lm-2.css',
     '../public/assets/js/project-lm-2-state.js',
     '../public/assets/js/project-lm-2-router.js',
+    '../public/assets/js/project-lm-2-nutrition-data.js',
+    '../public/assets/js/project-lm-2-nutrition-normalizer.js',
     '../public/assets/js/project-lm-2-app.js'
   ];
 
@@ -89,8 +93,8 @@ test('GitHub Pages physical canonical alias serves LM 2.0 without V5 or legacy a
 });
 
 test('Premium and Admin entrypoints remain isolated from LM 2.0 production alias assets', () => {
-  assert.doesNotMatch(premiumHtml, /project-lm-2-(?:state|router|app)\.js|project-lm-2\.css|project-lm-2-root/);
-  assert.doesNotMatch(adminHtml, /project-lm-2-(?:state|router|app)\.js|project-lm-2\.css|project-lm-2-root/);
+  assert.doesNotMatch(premiumHtml, /project-lm-2-(?:state|router|nutrition-data|nutrition-normalizer|app)\.js|project-lm-2\.css|project-lm-2-root/);
+  assert.doesNotMatch(adminHtml, /project-lm-2-(?:state|router|nutrition-data|nutrition-normalizer|app)\.js|project-lm-2\.css|project-lm-2-root/);
 });
 
 test('LM 2.0 uses relative assets so public/project-lm-2.html can load without 404s', () => {

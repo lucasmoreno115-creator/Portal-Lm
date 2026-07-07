@@ -836,3 +836,228 @@ textarea.lm2-input {
   outline: none;
   box-shadow: var(--lm2-shadow-focus);
 }
+
+.lm2-shell[data-lm2-route="nutrition"] {
+  width: min(100%, 920px);
+  padding: clamp(12px, 4vw, 24px);
+}
+
+.lm2-nutrition-overview {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.lm2-nutrition-header {
+  margin-bottom: 22px;
+  padding: clamp(28px, 7vw, 54px);
+  border: 1px solid rgba(213, 155, 91, 0.22);
+  border-radius: var(--lm2-radius-card);
+  background: radial-gradient(circle at top right, rgba(213, 155, 91, 0.12), transparent 34%), var(--lm2-card);
+  box-shadow: var(--lm2-shadow-card);
+}
+
+.lm2-nutrition-header h1 {
+  margin: 0 0 12px;
+  color: var(--lm2-text);
+  font-size: clamp(2.35rem, 8vw, 4.8rem);
+  font-weight: 950;
+  line-height: 0.95;
+  letter-spacing: -0.07em;
+}
+
+.lm2-nutrition-header p:not(.lm2-kicker) {
+  margin: 0;
+  color: var(--lm2-muted);
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.lm2-meals-grid {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.lm2-meal-card {
+  width: 100%;
+  min-height: 132px;
+  border: 1px solid rgba(213, 155, 91, 0.2);
+  border-radius: var(--lm2-radius-card);
+  padding: 22px;
+  background: rgba(16, 21, 34, 0.82);
+  color: var(--lm2-text);
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.lm2-meal-card strong,
+.lm2-meal-card span,
+.lm2-meal-card small {
+  display: block;
+}
+
+.lm2-meal-card strong {
+  margin-bottom: 12px;
+  font-size: 1.2rem;
+  line-height: 1.25;
+}
+
+.lm2-meal-card span {
+  color: var(--lm2-muted);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.lm2-meal-card small {
+  margin-top: 8px;
+  color: var(--lm2-primary);
+  font-weight: 900;
+}
+
+.lm2-meal-card:hover,
+.lm2-meal-card:focus-visible {
+  border-color: var(--lm2-primary);
+  outline: none;
+  box-shadow: var(--lm2-shadow-focus), 0 22px 70px rgba(0, 0, 0, 0.36);
+}
+
+.lm2-meal-card:active {
+  transform: translateY(1px);
+}
+
+.lm2-focus-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  align-items: end;
+  padding: 14px;
+  background: rgba(2, 4, 10, 0.68);
+  backdrop-filter: blur(10px);
+}
+
+.lm2-focus-panel {
+  position: relative;
+  width: min(100%, 720px);
+  max-height: min(84vh, 760px);
+  margin: 0 auto;
+  overflow: auto;
+  border: 1px solid rgba(213, 155, 91, 0.28);
+  border-radius: 30px 30px 24px 24px;
+  padding: 28px;
+  background: linear-gradient(180deg, #111827 0%, #090d16 100%);
+  box-shadow: 0 -28px 90px rgba(0, 0, 0, 0.5);
+}
+
+.lm2-focus-panel h2 {
+  margin: 0 44px 20px 0;
+  color: var(--lm2-text);
+  font-size: clamp(1.7rem, 6vw, 2.8rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.lm2-focus-panel-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 44px;
+  min-height: 44px;
+  border: 1px solid rgba(213, 155, 91, 0.22);
+  border-radius: 999px;
+  background: rgba(16, 21, 34, 0.9);
+  color: var(--lm2-text);
+  cursor: pointer;
+  font-size: 1.4rem;
+}
+
+.lm2-food-list {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.lm2-food-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid rgba(213, 155, 91, 0.14);
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--lm2-muted);
+}
+
+.lm2-food-list strong {
+  color: var(--lm2-text);
+  text-align: right;
+}
+
+.lm2-substitutions {
+  border: 1px solid rgba(213, 155, 91, 0.18);
+  border-radius: 20px;
+  padding: 16px;
+  background: rgba(16, 21, 34, 0.68);
+}
+
+.lm2-substitutions summary {
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--lm2-primary);
+  font-weight: 900;
+}
+
+.lm2-substitution-group {
+  display: grid;
+  gap: 6px;
+  padding: 12px 0;
+  color: var(--lm2-muted);
+}
+
+.lm2-substitution-group + .lm2-substitution-group {
+  border-top: 1px solid rgba(213, 155, 91, 0.12);
+}
+
+.lm2-substitution-group strong {
+  color: var(--lm2-text);
+}
+
+.lm2-nutrition-notes {
+  margin-top: 18px;
+}
+
+.lm2-nutrition-notes h3 {
+  margin: 0 0 10px;
+}
+
+.lm2-nutrition-notes p {
+  margin: 0 0 8px;
+  color: var(--lm2-muted);
+}
+
+@media (min-width: 860px) {
+  .lm2-meals-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .lm2-focus-panel {
+    padding: 24px 20px;
+  }
+
+  .lm2-food-list li {
+    display: block;
+  }
+
+  .lm2-food-list strong {
+    display: block;
+    margin-top: 4px;
+    text-align: left;
+  }
+}
