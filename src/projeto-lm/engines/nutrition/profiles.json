@@ -1,0 +1,8 @@
+{
+  "M1": { "description": "Mulheres até 69,9 kg" },
+  "M2": { "description": "Mulheres de 70 a 89,9 kg" },
+  "M3": { "description": "Mulheres acima de 90 kg" },
+  "H1": { "description": "Homens até 79,9 kg" },
+  "H2": { "description": "Homens de 80 a 99,9 kg" },
+  "H3": { "description": "Homens acima de 100 kg" }
+}

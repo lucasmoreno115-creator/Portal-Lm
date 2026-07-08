@@ -1,0 +1,7 @@
+[
+  { "id": "protein", "name": "Proteínas" },
+  { "id": "carbohydrate", "name": "Carboidratos" },
+  { "id": "fruit", "name": "Frutas" },
+  { "id": "vegetable", "name": "Vegetais" },
+  { "id": "fat", "name": "Gorduras boas" }
+]

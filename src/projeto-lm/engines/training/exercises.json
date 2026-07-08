@@ -1,0 +1,15 @@
+[
+  { "id": "leg_press", "name": "Leg press", "group": "quads", "video": "" },
+  { "id": "squat_machine", "name": "Agachamento no smith", "group": "quads", "video": "" },
+  { "id": "romanian_deadlift", "name": "Levantamento terra romeno", "group": "posterior", "video": "" },
+  { "id": "leg_curl", "name": "Mesa flexora", "group": "posterior", "video": "" },
+  { "id": "hip_thrust", "name": "Elevação pélvica", "group": "glutes", "video": "" },
+  { "id": "lat_pulldown", "name": "Puxada na frente", "group": "back", "video": "" },
+  { "id": "seated_row", "name": "Remada sentada", "group": "back", "video": "" },
+  { "id": "chest_press", "name": "Supino máquina", "group": "chest", "video": "" },
+  { "id": "shoulder_press", "name": "Desenvolvimento máquina", "group": "shoulders", "video": "" },
+  { "id": "lateral_raise", "name": "Elevação lateral", "group": "shoulders", "video": "" },
+  { "id": "triceps_pushdown", "name": "Tríceps na polia", "group": "arms", "video": "" },
+  { "id": "biceps_curl", "name": "Rosca direta", "group": "arms", "video": "" },
+  { "id": "bike", "name": "Bicicleta ergométrica", "group": "cardio", "video": "" }
+]
