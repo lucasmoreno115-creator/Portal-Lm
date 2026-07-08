@@ -201,6 +201,7 @@
   }
 
   function resolveTrainingPlan(state = global.ProjectLm2State.getState()) {
+    if (global.ProjectLmEngineServices?.getDefaultWorkoutPlan) return global.ProjectLmEngineServices.getDefaultWorkoutPlan();
     return remoteTrainingPlans[state.training_plan_id] || trainingPlans[state.training_plan_id];
   }
 
@@ -262,6 +263,7 @@
   }
 
   function resolveNutritionPlan(state = global.ProjectLm2State.getState()) {
+    if (global.ProjectLmEngineServices?.getDefaultNutritionPlan) return global.ProjectLmEngineServices.getDefaultNutritionPlan();
     return global.ProjectLm2NutritionNormalizer?.resolveNutritionPlan?.(state) || null;
   }
 
@@ -282,6 +284,9 @@
 
   function renderTrainingScreen(state) {
     const plan = resolveTrainingPlan(state);
+    if (global.ProjectLmEngineServices?.renderWorkoutPlan) {
+      return `${global.ProjectLmEngineServices.renderWorkoutPlan(plan)}<button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>`;
+    }
     if (!plan) {
       return `
         <section class="lm2-card" aria-labelledby="lm2-training-title">
@@ -369,6 +374,10 @@
         <button class="lm2-primary-button" type="button" data-route="direction">VOLTAR PARA MINHA DIREÇÃO</button>
         <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
       </section>`;
+    }
+
+    if (global.ProjectLmEngineServices?.renderNutritionPlan) {
+      return `${global.ProjectLmEngineServices.renderNutritionPlan(plan)}<button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>`;
     }
 
     return `
@@ -1231,6 +1240,7 @@
     if (!root.dataset.lm2BoundHashchange) {
       root.dataset.lm2BoundHashchange = 'true';
       global.addEventListener('hashchange', () => render(root, global.ProjectLm2Router.getCurrentRoute()));
+      global.addEventListener('project-lm-engine-services-ready', () => render(root, global.ProjectLm2Router.getCurrentRoute()));
     }
   }
 
