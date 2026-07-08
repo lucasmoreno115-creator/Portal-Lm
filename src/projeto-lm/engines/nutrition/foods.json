@@ -1,0 +1,14 @@
+[
+  { "id": "egg", "name": "Ovos", "group": "protein" },
+  { "id": "chicken", "name": "Frango grelhado", "group": "protein" },
+  { "id": "fish", "name": "Peixe grelhado", "group": "protein" },
+  { "id": "rice", "name": "Arroz", "group": "carbohydrate" },
+  { "id": "potato", "name": "Batata", "group": "carbohydrate" },
+  { "id": "oats", "name": "Aveia", "group": "carbohydrate" },
+  { "id": "banana", "name": "Banana", "group": "fruit" },
+  { "id": "apple", "name": "Maçã", "group": "fruit" },
+  { "id": "salad", "name": "Salada verde", "group": "vegetable" },
+  { "id": "broccoli", "name": "Brócolis", "group": "vegetable" },
+  { "id": "olive_oil", "name": "Azeite", "group": "fat" },
+  { "id": "yogurt", "name": "Iogurte natural", "group": "protein" }
+]

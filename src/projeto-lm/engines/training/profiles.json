@@ -1,0 +1,12 @@
+{
+  "GYM_FEMALE": {
+    "displayName": "Treino de academia",
+    "weeklyStructure": { "Segunda": "Lower A", "Terça": "Upper A", "Quarta": "Cardio Day", "Quinta": "Lower B", "Sexta": "Upper B" },
+    "volumeBias": "inferiores"
+  },
+  "GYM_MALE": {
+    "displayName": "Treino de academia",
+    "weeklyStructure": { "Segunda": "Upper A", "Terça": "Lower A", "Quarta": "Cardio Day", "Quinta": "Upper B", "Sexta": "Lower B" },
+    "volumeBias": "superiores"
+  }
+}

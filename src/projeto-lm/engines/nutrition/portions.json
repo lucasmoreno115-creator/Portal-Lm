@@ -1,0 +1,14 @@
+{
+  "egg": { "M1": "2 unidades", "M2": "3 unidades", "M3": "3 unidades", "H1": "3 unidades", "H2": "4 unidades", "H3": "4 unidades" },
+  "chicken": { "M1": "120 g", "M2": "150 g", "M3": "170 g", "H1": "160 g", "H2": "190 g", "H3": "220 g" },
+  "fish": { "M1": "130 g", "M2": "160 g", "M3": "180 g", "H1": "170 g", "H2": "200 g", "H3": "230 g" },
+  "rice": { "M1": "3 colheres de sopa", "M2": "4 colheres de sopa", "M3": "5 colheres de sopa", "H1": "5 colheres de sopa", "H2": "6 colheres de sopa", "H3": "7 colheres de sopa" },
+  "potato": { "M1": "120 g", "M2": "160 g", "M3": "200 g", "H1": "200 g", "H2": "250 g", "H3": "300 g" },
+  "oats": { "M1": "2 colheres de sopa", "M2": "3 colheres de sopa", "M3": "4 colheres de sopa", "H1": "4 colheres de sopa", "H2": "5 colheres de sopa", "H3": "6 colheres de sopa" },
+  "banana": { "M1": "1 unidade", "M2": "1 unidade", "M3": "1 unidade grande", "H1": "1 unidade grande", "H2": "2 unidades", "H3": "2 unidades" },
+  "apple": { "M1": "1 unidade", "M2": "1 unidade", "M3": "1 unidade", "H1": "1 unidade", "H2": "1 unidade grande", "H3": "2 unidades" },
+  "salad": { "M1": "à vontade", "M2": "à vontade", "M3": "à vontade", "H1": "à vontade", "H2": "à vontade", "H3": "à vontade" },
+  "broccoli": { "M1": "1 porção", "M2": "1 porção", "M3": "2 porções", "H1": "1 porção", "H2": "2 porções", "H3": "2 porções" },
+  "olive_oil": { "M1": "1 colher de chá", "M2": "1 colher de sobremesa", "M3": "1 colher de sobremesa", "H1": "1 colher de sobremesa", "H2": "1 colher de sopa", "H3": "1 colher de sopa" },
+  "yogurt": { "M1": "1 pote", "M2": "1 pote", "M3": "1 pote grande", "H1": "1 pote grande", "H2": "2 potes", "H3": "2 potes" }
+}

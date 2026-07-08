@@ -1,0 +1,14 @@
+{
+  "egg": ["Iogurte natural", "Frango desfiado"],
+  "chicken": ["Peixe grelhado", "Ovos"],
+  "fish": ["Frango grelhado", "Ovos"],
+  "rice": ["Batata", "Aveia"],
+  "potato": ["Arroz", "Banana"],
+  "oats": ["Banana", "Arroz"],
+  "banana": ["Maçã", "Aveia"],
+  "apple": ["Banana"],
+  "salad": ["Brócolis"],
+  "broccoli": ["Salada verde"],
+  "olive_oil": ["Abacate", "Castanhas"],
+  "yogurt": ["Ovos", "Frango desfiado"]
+}

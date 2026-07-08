@@ -1,0 +1,5 @@
+{
+  "lower": ["lower_a", "lower_b"],
+  "upper": ["upper_a", "upper_b"],
+  "cardio": ["cardio_day"]
+}

@@ -1,0 +1,5 @@
+{
+  "forbiddenTerms": ["RIR", "RPE", "%", "percentual", "drop-set", "rest-pause", "bi-set"],
+  "avoidRequiredExercises": ["barra fixa"],
+  "progressionBasis": "last_set"
+}
