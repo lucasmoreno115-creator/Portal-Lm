@@ -1150,7 +1150,6 @@
     }
   }
 
-  // Mensagens antigas mantidas apenas como referência de migração do check-in: Excelente. Mais um dia construído. Você não precisou ser perfeito. Precisou continuar. Tudo bem. Amanhã você retoma a direção.
   const continuityCheckinInputs = Object.freeze({
     on_track: { workoutDone: true, nutritionDone: true, usedPlanB: false, hardDay: false },
     adapted: { workoutDone: false, nutritionDone: false, usedPlanB: true, hardDay: true },
