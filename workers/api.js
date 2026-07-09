@@ -11,6 +11,8 @@ import { jsonWithUsage } from './services/endpoint-usage-service.js';
 import { createAdminSession, invalidateAdminSession, isAdminAuthorized, validateAdminLoginToken, validateStudent, normalizeStudentPlan } from './services/auth-service.js';
 export { normalizeEmail, normalizeStudentPlan } from './services/auth-service.js';
 
+const ensuredSchemaByDb = new WeakMap();
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -2260,6 +2262,22 @@ Me responde aqui para ajustarmos o próximo passo e evitar que sua semana fique 
 };
 
 async function ensureSchema(db) {
+  if (db && (typeof db === 'object' || typeof db === 'function')) {
+    const cachedEnsure = ensuredSchemaByDb.get(db);
+    if (cachedEnsure) return cachedEnsure;
+
+    const ensurePromise = ensureSchemaUncached(db).catch((error) => {
+      ensuredSchemaByDb.delete(db);
+      throw error;
+    });
+    ensuredSchemaByDb.set(db, ensurePromise);
+    return ensurePromise;
+  }
+
+  return ensureSchemaUncached(db);
+}
+
+async function ensureSchemaUncached(db) {
   await db.prepare(`CREATE TABLE IF NOT EXISTS leads (
     id TEXT PRIMARY KEY,
     created_at TEXT
