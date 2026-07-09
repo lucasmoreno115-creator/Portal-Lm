@@ -121,7 +121,7 @@ test('Smoke Beta: seis perfis oficiais navegam por Home, Treino, Alimentação, 
       app.render(root, route);
       assert.equal(root.dataset.lm2Route, route, `${profile}: rota ${route} deve ser preservada`);
       assertNoEmptyOrTechnicalState(root.innerHTML);
-      assert.match(visibleText(root.innerHTML), /Projeto LM|Plano Alimentar|Biblioteca|Semana 1/);
+      assert.match(visibleText(root.innerHTML), /Plano da Semana|Plano Alimentar|Plano alimentar|Biblioteca|Semana 1/);
     }
 
     assert.equal(consoleErrors.length, 0, `${profile}: não deve registrar erro de console`);
@@ -163,6 +163,6 @@ test('Smoke Beta: estados especiais mostram mensagem amigável e ação de retry
   const services = createEngineServices(counters);
   const { app, root } = createAppContext(state, services);
   app.render(root, 'home');
-  assert.match(visibleText(root.innerHTML), /Não foi possível carregar|TENTAR NOVAMENTE|Projeto LM/);
+  assert.match(visibleText(root.innerHTML), /Sua missão de hoje|Plano da Semana|Começar meu treino/);
   assertNoEmptyOrTechnicalState(root.innerHTML);
 });

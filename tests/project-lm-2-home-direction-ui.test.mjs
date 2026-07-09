@@ -23,9 +23,11 @@ test('Home renders as a contextual assistant with one dominant primary action', 
     'Vamos continuar exatamente de onde você parou.',
     'Hoje, assista à aula da semana.',
     'lm2-focus-card',
-    'lm2-progress-card',
-    'lm2-tools',
-    'lm2-insight'
+    'Sua missão de hoje',
+    'Começar meu treino',
+    'lm2-continuity-card',
+    'lm2-weekly-summary',
+    'lm2-tools'
   ]) {
     assert.match(lm2App, new RegExp(escapeRegExp(text)));
   }
@@ -62,12 +64,24 @@ test('Home, Direction, and Week 1 navigation is wired', () => {
 
 test('Home secondary tools have equal structure and do not compete with the Focus Card', () => {
   const homeRenderer = lm2App.slice(lm2App.indexOf('function renderHomeScreen'), lm2App.indexOf('async function loadHome'));
-  for (const tool of ['Treino', 'Plano Alimentar', 'Plano B', 'Biblioteca', 'Perfil']) {
+  for (const tool of ['Meu Treino', 'Minha Alimentação', 'Plano B', 'Biblioteca']) {
     assert.match(homeRenderer, new RegExp(escapeRegExp(tool)));
   }
-  assert.equal((homeRenderer.match(/renderToolButton\(/g) || []).length, 5);
+  assert.equal((homeRenderer.match(/renderToolButton\(/g) || []).length, 4);
   assert.match(lm2App, /function renderToolButton\(route, icon, label, description\)/);
   assert.match(lm2Router, /library: \{ path: '#library', label: 'Biblioteca' \}/);
+});
+
+
+test('Home command center has one CTA, four equal shortcuts, and compact weekly plan', () => {
+  const homeRenderer = lm2App.slice(lm2App.indexOf('function renderHomeScreen'), lm2App.indexOf('async function loadHome'));
+  assert.match(homeRenderer, /Sua missão de hoje/);
+  assert.match(homeRenderer, /Hoje/);
+  assert.match(homeRenderer, /data-route="training">Começar meu treino/);
+  assert.equal((homeRenderer.match(/lm2-primary-button/g) || []).length, 1);
+  assert.equal((homeRenderer.match(/renderToolButton\(/g) || []).length, 4);
+  for (const text of ['Plano da Semana', 'Treino', 'Alimentação', 'Cardio', 'Objetivo']) assert.match(lm2App, new RegExp(escapeRegExp(text)));
+  assert.doesNotMatch(homeRenderer, /profile-edit|Próxima vitória|Weekly Plan|Workout/);
 });
 
 test('Projeto LM router exposes internal training and nutrition routes', () => {

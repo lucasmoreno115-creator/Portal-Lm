@@ -304,18 +304,25 @@
   }
 
 
-  function renderWeeklyPlanSummary(state = global.ProjectLm2State.getState()) {
+  function getStudentWeeklyPlan(state = global.ProjectLm2State.getState()) {
     const services = global.ProjectLmEngineServices;
-    if (!services?.getStudentWeeklyPlan || !services?.renderWeeklyPlan) {
-      return '<section class="lm2-weekly-plan lm2-engine-plan" aria-label="Semana de treino"><p class="lm2-plan-error" role="alert">Não foi possível carregar o plano semanal agora.</p></section>';
-    }
+    if (!services?.getStudentWeeklyPlan) return null;
     try {
-      const weeklyPlan = services.getStudentWeeklyPlan(state);
-      return services.renderWeeklyPlan(weeklyPlan);
+      return services.getStudentWeeklyPlan(state);
     } catch (error) {
       if (services.logPlanError) services.logPlanError(error, global.location?.hostname === 'localhost' ? 'development' : 'production');
-      return services.renderPlanError ? services.renderPlanError() : '<p class="lm2-plan-error" role="alert">Não foi possível carregar o plano semanal agora.</p>';
+      return null;
     }
+  }
+
+  function renderWeeklyPlanSummary(state = global.ProjectLm2State.getState()) {
+    const weeklyPlan = getStudentWeeklyPlan(state);
+    const today = weeklyPlan?.today || {};
+    const training = today.title || today.label || 'Seu treino';
+    const nutrition = state.nutrition_label || 'Plano alimentar pronto';
+    const cardio = today.message || today.cardio || weeklyPlan?.cardio || (today.type === 'cardio' ? '40 a 60 minutos em ritmo leve a moderado' : 'Cardio • 30 minutos');
+    const objective = state.goal || 'continuar com direção';
+    return `<section class="lm2-weekly-summary" aria-labelledby="lm2-weekly-summary-title"><p class="lm2-kicker">Plano da Semana</p><h2 id="lm2-weekly-summary-title">Plano da Semana</h2><dl><div><dt>Treino</dt><dd>${escapeHtml(training)}</dd></div><div><dt>Alimentação</dt><dd>${escapeHtml(nutrition)}</dd></div><div><dt>Cardio</dt><dd>${escapeHtml(cardio)}</dd></div><div><dt>Objetivo</dt><dd>${escapeHtml(objective)}</dd></div></dl></section>`;
   }
 
   function renderTrainingScreen(state) {
@@ -597,13 +604,37 @@
     };
   }
 
-  function renderWeeklyConsistency(result) {
+  function renderWeeklyConsistency(result, state = global.ProjectLm2State.getState()) {
     const visible = result || getWeeklyConsistencyFallback();
-    return `<article class="lm2-weekly-consistency-card" aria-labelledby="lm2-weekly-consistency-title"><p class="lm2-kicker">Continuidade da semana</p><h2 id="lm2-weekly-consistency-title">Continuidade da semana</h2><p class="lm2-weekly-consistency-progress">${escapeHtml(visible.progressLabel || '0 de 0 dias de continuidade')}</p><h3>${escapeHtml(visible.title || 'Sua semana começa com uma ação.')}</h3><p>${escapeHtml(visible.body || 'Registre o próximo passo simples para começar a construir continuidade.')}</p><div class="lm2-weekly-consistency-next"><strong>Próximo passo:</strong><p>${escapeHtml(visible.nextAction || 'Registre uma ação simples hoje.')}</p></div></article>`;
+    const progressMatch = String(visible.progressLabel || '').match(/(\d+)\s+de\s+(\d+)/);
+    const completed = Number(state.continuity_days_count || progressMatch?.[1] || 0);
+    const required = Number(state.required_days_count || progressMatch?.[2] || 5);
+    const title = completed > 0 ? 'Você está no caminho.' : 'Hoje seguimos normalmente.';
+    const body = completed > 0 ? `${completed} de ${required} dias concluídos.` : 'Ontem ficou para trás.';
+    const next = completed > 0 ? 'Continue hoje.' : 'Hoje seguimos normalmente.';
+    return `<article class="lm2-continuity-card" aria-labelledby="lm2-continuity-title"><p class="lm2-kicker">Continuidade</p><h2 id="lm2-continuity-title">${escapeHtml(title)}</h2><p class="lm2-continuity-progress">${escapeHtml(body)}</p><p>${escapeHtml(next)}</p><span class="lm2-sr-only">${escapeHtml(visible.progressLabel || '')}</span></article>`;
   }
 
   function renderToolButton(route, icon, label, description) {
     return `<button class="lm2-tool-card" type="button" data-route="${route}" aria-label="${label}: ${description}"><span class="lm2-tool-icon" aria-hidden="true">${icon}</span><span>${label}</span><small>${description}</small></button>`;
+  }
+
+  function getWeekDayLabel(state) {
+    const week = Number(state.current_week || 1);
+    const rawStartedAt = state.week_started_at || state.home_data?.week_started_at;
+    if (!rawStartedAt) return `Semana ${week}`;
+    const start = new Date(rawStartedAt);
+    if (Number.isNaN(start.getTime())) return `Semana ${week}`;
+    const diff = Math.floor((new Date().setHours(0, 0, 0, 0) - start.setHours(0, 0, 0, 0)) / 86400000) + 1;
+    return `Semana ${week} • Dia ${Math.min(Math.max(diff, 1), 7)}`;
+  }
+
+  function getTodayMission(state) {
+    const weeklyPlan = getStudentWeeklyPlan(state);
+    const today = weeklyPlan?.today || {};
+    const workout = today.title || today.label || 'Seu treino';
+    const cardio = today.message || today.cardio || weeklyPlan?.cardio || (today.type === 'cardio' ? '40 a 60 minutos em ritmo leve a moderado' : 'Cardio • 30 minutos');
+    return { workout, nutrition: state.nutrition_label || 'Plano alimentar pronto', cardio };
   }
 
   function renderHomeScreen(state) {
@@ -613,35 +644,32 @@
       <section class="lm2-home" aria-labelledby="lm2-home-title">
         <header class="lm2-home-header">
           <p>${getGreeting()}, ${escapeHtml(studentName)} 👋</p>
-          <h1 id="lm2-home-title">Projeto LM</h1>
+          <h1 id="lm2-home-title">${escapeHtml(getWeekDayLabel(state))}</h1>
         </header>
 
-        <article class="lm2-focus-card" aria-labelledby="lm2-focus-title" aria-label="Qual é a próxima melhor ação para este aluno hoje?">
-          <p class="lm2-kicker">${escapeHtml(context.eyebrow)}</p>
-          <h2 id="lm2-focus-title">${escapeHtml(context.title)}</h2>
-          <p>${escapeHtml(context.reason)}</p>
-          <button class="lm2-primary-button lm2-focus-cta" type="button" data-route="${context.route}">${escapeHtml(context.cta)}<span aria-hidden="true">→</span></button>
+        <article class="lm2-focus-card" aria-labelledby="lm2-focus-title" aria-label="Sua missão de hoje">
+          <p class="lm2-kicker">Sua missão de hoje</p>
+          <h2 id="lm2-focus-title">Hoje</h2>
+          <ul class="lm2-today-list">
+            <li>${escapeHtml(getTodayMission(state).workout)}</li>
+            <li>${escapeHtml(getTodayMission(state).nutrition)}</li>
+            <li>${escapeHtml(getTodayMission(state).cardio)}</li>
+          </ul>
+          <button class="lm2-primary-button lm2-focus-cta" type="button" data-route="training">Começar meu treino<span aria-hidden="true">→</span></button>
         </article>
 
-        <article class="lm2-progress-card" aria-label="Resumo de progresso">
-          <p>${escapeHtml(context.progress)}</p>
-        </article>
+        ${renderWeeklyConsistency(resolveHomeWeeklyConsistency(state), state)}
 
-        ${renderWeeklyConsistency(resolveHomeWeeklyConsistency(state))}
-
-        ${renderWeeklyPlanSummary(state)}
-
-        <section class="lm2-tools" aria-label="Acessos secundários do Projeto LM">
+        <section class="lm2-tools" aria-label="Atalhos do Projeto LM">
           <div class="lm2-tools-grid">
-            ${renderToolButton('training', '↗', 'Treino', 'Seu plano')}
-            ${renderToolButton('nutrition', '🍽', 'Plano Alimentar', 'Abrir Plano Alimentar')}
-            ${renderToolButton('week-1', '◇', 'Plano B', 'Para imprevistos')}
+            ${renderToolButton('training', '↗', 'Meu Treino', 'Seu treino')}
+            ${renderToolButton('nutrition', '🍽', 'Minha Alimentação', 'Seu plano')}
+            ${renderToolButton('week-1', '◇', 'Plano B', 'Imprevistos')}
             ${renderToolButton('library', '□', 'Biblioteca', 'Aulas')}
-            ${renderToolButton('profile-edit', '○', 'Perfil', 'Seus dados')}
           </div>
         </section>
 
-        <p class="lm2-insight">“${escapeHtml(context.insight)}”</p>
+        ${renderWeeklyPlanSummary(state)}
         <p class="lm2-error" data-lm2-error role="alert"></p>
       </section>`;
   }

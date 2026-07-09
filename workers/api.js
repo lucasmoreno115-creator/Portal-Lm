@@ -2338,11 +2338,13 @@ async function ensureSchemaUncached(db) {
     height_cm REAL,
     nutrition_plan_id TEXT NOT NULL,
     training_plan_id TEXT NOT NULL,
+    onboarding_completed INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`).run();
 
   await ensureColumn(db, 'lm2_profiles', 'height_cm', 'REAL');
+  await ensureColumn(db, 'lm2_profiles', 'onboarding_completed', 'INTEGER NOT NULL DEFAULT 1');
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS lm2_journeys (
     student_id TEXT PRIMARY KEY,
@@ -3527,7 +3529,7 @@ function projectLm2HomeData(profile, journey, week1 = null, progress = projectLm
   };
   return {
     name: profile?.name,
-    onboarding_completed: true,
+    onboarding_completed: Boolean(profile?.onboarding_completed ?? 1),
     current_week: Number(journey?.current_week || 1),
     week_started_at: journey?.week_started_at || null,
     week_completed_at: journey?.week_completed_at || null,
@@ -3774,9 +3776,9 @@ async function projectLm2SaveOnboarding(db, student, body) {
   const now = new Date().toISOString();
   const existingProfile = await projectLm2GetProfile(db, student);
   if (existingProfile) {
-    await db.prepare(`UPDATE lm2_profiles SET name=?, goal=?, sex=?, weight_kg=?, height_cm=?, nutrition_plan_id=?, training_plan_id=?, updated_at=? WHERE student_id=?`).bind(name, goal, sex, weightKg, heightCm, nutritionPlanId, trainingPlanId, now, studentId).run();
+    await db.prepare(`UPDATE lm2_profiles SET name=?, goal=?, sex=?, weight_kg=?, height_cm=?, nutrition_plan_id=?, training_plan_id=?, onboarding_completed=1, updated_at=? WHERE student_id=?`).bind(name, goal, sex, weightKg, heightCm, nutritionPlanId, trainingPlanId, now, studentId).run();
   } else {
-    await db.prepare(`INSERT INTO lm2_profiles (student_id, name, goal, sex, weight_kg, height_cm, nutrition_plan_id, training_plan_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(studentId, name, goal, sex, weightKg, heightCm, nutritionPlanId, trainingPlanId, now, now).run();
+    await db.prepare(`INSERT INTO lm2_profiles (student_id, name, goal, sex, weight_kg, height_cm, nutrition_plan_id, training_plan_id, onboarding_completed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`).bind(studentId, name, goal, sex, weightKg, heightCm, nutritionPlanId, trainingPlanId, now, now).run();
   }
   let journey = await projectLm2GetJourney(db, student);
   if (!journey) {

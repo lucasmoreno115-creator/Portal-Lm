@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS lm2_profiles (
   weight_kg REAL NOT NULL,
   nutrition_plan_id TEXT NOT NULL,
   training_plan_id TEXT NOT NULL,
+  onboarding_completed INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

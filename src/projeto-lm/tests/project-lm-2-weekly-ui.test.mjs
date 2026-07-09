@@ -50,16 +50,17 @@ function engineServices() {
   };
 }
 
-test('Home oficial renderiza bloco Hoje e próximos treinos sem códigos internos', () => {
+test('Home oficial renderiza Command Center com Hoje e Plano da Semana sem códigos internos', () => {
   const { app, root } = createAppContext({ services: engineServices() });
   app.render(root, 'home');
   const text = visibleText(root.innerHTML);
 
   assert.match(text, /Hoje/);
   assert.match(text, /Inferiores A/);
-  assert.match(text, /Esse é o foco do seu treino de hoje/);
-  assert.match(text, /Próximos treinos/);
-  assert.match(text, /Terça — Superiores A/);
+  assert.match(text, /Sua missão de hoje/);
+  assert.match(text, /Começar meu treino/);
+  assert.match(text, /Plano da Semana/);
+  assert.doesNotMatch(text, /Próximos treinos/);
 
   const lower = root.innerHTML.toLowerCase();
   for (const code of forbiddenCodes) assert.equal(lower.includes(code.toLowerCase()), false, `não deve renderizar ${code}`);
@@ -90,13 +91,13 @@ test('Domingo renderiza Descanso no resumo semanal oficial', () => {
   assert.match(text, /Hoje é dia de descanso/);
 });
 
-test('Tela de treino mantém resumo semanal separado do treino completo do dia', () => {
+test('Tela de treino mantém Plano da Semana compacto separado do treino completo do dia', () => {
   const { app, root } = createAppContext({ services: engineServices() });
   app.render(root, 'training');
   const text = visibleText(root.innerHTML);
 
   assert.match(text, /Hoje/);
-  assert.match(text, /Próximos treinos/);
+  assert.match(text, /Plano da Semana/);
   assert.match(text, /Leg press/);
   assert.match(text, /4 × 10 a 12/);
   assert.match(text, /Progresso futuro/);
@@ -107,6 +108,6 @@ test('Fallback do resumo semanal não quebra a tela quando engine service não e
   app.render(root, 'home');
   const text = visibleText(root.innerHTML);
 
-  assert.match(text, /Não foi possível carregar o plano semanal agora/);
-  assert.match(text, /Projeto LM/);
+  assert.match(text, /Plano da Semana/);
+  assert.match(text, /Seu treino/);
 });

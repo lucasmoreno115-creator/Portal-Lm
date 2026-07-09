@@ -377,7 +377,8 @@ textarea.lm2-input {
 }
 
 .lm2-focus-card,
-.lm2-progress-card,
+.lm2-continuity-card,
+.lm2-weekly-summary,
 .lm2-tools {
   border: 1px solid var(--lm2-border);
   border-radius: var(--lm2-radius-card);
@@ -426,18 +427,85 @@ textarea.lm2-input {
   line-height: 1;
 }
 
-.lm2-progress-card {
+.lm2-today-list {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 32px;
+  padding: 0;
+  list-style: none;
+}
+
+.lm2-today-list li {
+  color: var(--lm2-text);
+  font-size: clamp(1.02rem, 2.4vw, 1.16rem);
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.lm2-continuity-card,
+.lm2-weekly-summary {
   margin-top: 22px;
   padding: 20px 22px;
   background: rgba(16, 21, 34, 0.7);
   box-shadow: none;
 }
 
-.lm2-progress-card p {
+.lm2-continuity-card h2,
+.lm2-weekly-summary h2 {
+  margin: 0 0 8px;
+  color: var(--lm2-text);
+  font-size: 1.14rem;
+  line-height: 1.25;
+}
+
+.lm2-continuity-card p {
   margin: 0;
   color: var(--lm2-muted);
   font-size: 1rem;
   line-height: 1.5;
+}
+
+.lm2-continuity-card .lm2-continuity-progress {
+  margin-bottom: 4px;
+  color: var(--lm2-text);
+  font-weight: 800;
+}
+
+.lm2-weekly-summary dl {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.lm2-weekly-summary div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid rgba(213, 155, 91, 0.12);
+  padding-top: 10px;
+}
+
+.lm2-weekly-summary dt {
+  color: rgba(200, 183, 166, 0.72);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lm2-weekly-summary dd {
+  margin: 0;
+  color: var(--lm2-text);
+  font-weight: 800;
+  text-align: right;
+}
+
+.lm2-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
 }
 
 .lm2-tools {
@@ -450,7 +518,7 @@ textarea.lm2-input {
 
 .lm2-tools-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -524,7 +592,8 @@ textarea.lm2-input {
 
 @media (max-width: 480px) {
   .lm2-focus-card,
-  .lm2-progress-card,
+  .lm2-continuity-card,
+  .lm2-weekly-summary,
   .lm2-tools {
     border-radius: 24px;
   }
