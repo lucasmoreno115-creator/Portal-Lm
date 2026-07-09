@@ -27,11 +27,24 @@ function estimateWorkoutDuration(workout) {
   return '20–30 min';
 }
 
-function list(items) {
-  const safeItems = Array.isArray(items) ? items.filter(Boolean) : [];
-  if (!safeItems.length) return '';
-  return `<ul>${safeItems.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+
+function mealIcon(mealName) {
+  const normalized = String(mealName || '').toLowerCase();
+  if (normalized.includes('café')) return '☀️';
+  if (normalized.includes('almoço')) return '🍽️';
+  if (normalized.includes('lanche')) return '🍎';
+  if (normalized.includes('jantar')) return '🌙';
+  return '🥗';
 }
+
+function formatFoodLine(food) {
+  return [food?.quantity, food?.name].filter(Boolean).map(escapeHtml).join(' ');
+}
+
+function uniquePlanBOptions(meals) {
+  return [...new Set(meals.flatMap((meal) => Array.isArray(meal?.plan_b) ? meal.plan_b : []).filter(Boolean))];
+}
+
 
 export function renderPlanError() {
   return `<p class="lm2-plan-error" role="alert">${LOAD_ERROR_MESSAGE}</p>`;
@@ -43,9 +56,18 @@ export function logPlanError(error, env = globalThis?.process?.env?.NODE_ENV) {
 
 export function renderNutritionPlan(plan) {
   if (!plan || !Array.isArray(plan.meals)) return renderPlanError();
-  return `<section class="lm2-nutrition-overview lm2-engine-plan" aria-labelledby="lm2-nutrition-title"><header class="lm2-nutrition-header"><p class="lm2-kicker">Projeto LM · Plano alimentar</p><h1 id="lm2-nutrition-title">${escapeHtml(plan.title || 'Plano Alimentar')}</h1>${plan.guidance ? `<p>${escapeHtml(plan.guidance)}</p>` : ''}</header><div class="lm2-engine-meals">${plan.meals.map((meal) => `<article class="lm2-engine-card"><h2>${escapeHtml(meal.name || meal.slot_name || 'Refeição')}</h2><h3>Alimentos:</h3><ul>${(meal.foods || []).map((food) => `<li>${escapeHtml(food.name)} — ${escapeHtml(food.quantity)}</li>`).join('')}</ul>${(meal.foods || []).some((food) => Array.isArray(food.substitutions) && food.substitutions.length) ? `<h3>Substituições:</h3><ul>${meal.foods.filter((food) => food.substitutions?.length).map((food) => `<li>${escapeHtml(food.name)} pode ser trocado por ${escapeHtml(food.substitutions.join(', '))}.</li>`).join('')}</ul>` : ''}${meal.plan_b?.length ? `<h3>Plano B:</h3>${list(meal.plan_b)}` : ''}${meal.notes ? `<h3>Observação:</h3><p>${escapeHtml(meal.notes)}</p>` : ''}</article>`).join('')}</div></section>`;
-}
 
+  const meals = plan.meals;
+  const planBOptions = uniquePlanBOptions(meals);
+  const mealCount = meals.length;
+
+  return `<section class="lm2-nutrition-overview lm2-nutrition-premium lm2-engine-plan" aria-labelledby="lm2-nutrition-title"><header class="lm2-nutrition-header lm2-nutrition-hero"><div><p class="lm2-kicker">Projeto LM · Minha alimentação</p><h1 id="lm2-nutrition-title">Plano alimentar</h1><p class="lm2-nutrition-count">${mealCount} ${mealCount === 1 ? 'refeição hoje' : 'refeições hoje'}</p><p class="lm2-nutrition-promise">Sem contar calorias. Apenas siga as porções.</p></div>${planBOptions.length ? `<a class="lm2-nutrition-planb-link" href="#lm2-plan-b">Ver Plano B</a>` : ''}</header>${plan.guidance ? `<aside class="lm2-nutrition-direction" aria-label="Direção geral"><strong>💡 Direção</strong><p>${escapeHtml(plan.guidance)}</p></aside>` : ''}<div class="lm2-nutrition-meal-list" aria-label="Refeições de hoje">${meals.map((meal) => {
+    const mealName = meal.name || meal.slot_name || 'Refeição';
+    const foods = Array.isArray(meal.foods) ? meal.foods : [];
+    const substitutions = foods.filter((food) => Array.isArray(food.substitutions) && food.substitutions.length);
+    return `<article class="lm2-nutrition-meal-card"><div class="lm2-nutrition-meal-top"><span class="lm2-nutrition-meal-icon" aria-hidden="true">${mealIcon(mealName)}</span><h2>${escapeHtml(mealName)}</h2></div><ul class="lm2-nutrition-food-lines">${foods.map((food) => `<li>${formatFoodLine(food)}</li>`).join('')}</ul>${meal.notes ? `<aside class="lm2-nutrition-meal-note"><strong>💡 Direção</strong><p>${escapeHtml(meal.notes)}</p></aside>` : ''}${substitutions.length ? `<details class="lm2-nutrition-swaps"><summary>Trocas disponíveis</summary><div>${substitutions.map((food) => `<p><strong>${escapeHtml(food.name)}:</strong> ${escapeHtml(food.substitutions.join(', '))}</p>`).join('')}</div></details>` : ''}</article>`;
+  }).join('')}</div>${planBOptions.length ? `<section class="lm2-nutrition-plan-b" id="lm2-plan-b" aria-labelledby="lm2-plan-b-title"><p class="lm2-kicker">Continuidade</p><h2 id="lm2-plan-b-title">Plano B</h2><p>Se o dia sair do plano, não compense. Resolva a próxima refeição.</p><div class="lm2-nutrition-plan-b-grid">${planBOptions.map((item) => `<article>${escapeHtml(item)}</article>`).join('')}</div></section>` : ''}</section>`;
+}
 
 export function renderWeeklyPlan(weeklyPlan) {
   if (!weeklyPlan?.today || !Array.isArray(weeklyPlan.nextWorkouts)) return renderPlanError();
