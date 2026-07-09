@@ -3,12 +3,14 @@ const workoutModule = await import('../../../' + 'src/projeto-lm/services/genera
 const rendererModule = await import('../../../' + 'src/projeto-lm/ui/studentPlanRenderers.js');
 const adapterModule = await import('../../../' + 'src/projeto-lm/adapters/studentProfileAdapter.js');
 const continuityModule = await import('../../../' + 'src/projeto-lm/adapters/continuityCheckinAdapter.js');
+const consistencyModule = await import('../../../' + 'src/projeto-lm/adapters/consistencyAdapter.js');
 
 const { generateStudentNutritionPlan } = nutritionModule;
 const { generateStudentWorkoutPlan } = workoutModule;
 const { renderNutritionPlan, renderWorkoutPlan, renderWeeklyPlan, renderContinuityCheckin, renderPlanError, logPlanError } = rendererModule;
 const { adaptStudentProfile } = adapterModule;
 const { adaptContinuityCheckin } = continuityModule;
+const { adaptWeeklyConsistency } = consistencyModule;
 
 function resolveStudentProfile(student = {}, options = {}) {
   return adaptStudentProfile(student || {}, options);
@@ -50,6 +52,7 @@ window.ProjectLmEngineServices = Object.freeze({
   renderPlanError,
   resolveStudentProfile,
   resolveContinuityCheckin: (input) => adaptContinuityCheckin(input).student_visible,
+  resolveWeeklyConsistency: (checkins) => adaptWeeklyConsistency(checkins).student_visible,
   getStudentNutritionPlan: (student, options) => {
     const { nutritionInput } = resolveStudentProfile(student, options);
     return safeGenerate(generateStudentNutritionPlan, nutritionInput);
