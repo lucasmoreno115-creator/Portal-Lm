@@ -13,6 +13,19 @@ function text(value) {
   return JSON.stringify(value).toLowerCase();
 }
 
+
+test('adapter usa profile oficial persistido como fonte de verdade para treino e alimentação', () => {
+  const h2 = adaptStudentProfile({ profile: 'H2' }, { date: monday });
+  assert.equal(h2.nutritionInput.profile, 'H2');
+  assert.equal(h2.workoutInput.profile, 'GYM_MALE');
+  assert.equal(h2.workoutInput.day, 'upper_a');
+
+  const m1 = adaptStudentProfile({ nutrition_plan_id: 'M1' }, { date: monday });
+  assert.equal(m1.nutritionInput.profile, 'M1');
+  assert.equal(m1.workoutInput.profile, 'GYM_FEMALE');
+  assert.equal(m1.workoutInput.day, 'lower_a');
+});
+
 test('adapter resolve perfis nutricionais por sexo e peso', () => {
   assert.equal(adaptStudentProfile({ sex: 'female', weight: 69.9 }, { date: monday }).nutritionInput.profile, 'M1');
   assert.equal(adaptStudentProfile({ sex: 'female', weight: 70 }, { date: monday }).nutritionInput.profile, 'M2');
