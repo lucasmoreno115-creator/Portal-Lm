@@ -33,6 +33,17 @@ test('Nutrition Engine gera planos M1, M2, H1 e H2 sem dados internos visíveis'
   }
 });
 
+
+test('Nutrition Library oficial resolve os seis perfis com refeições, porções, substituições e Plano B', () => {
+  for (const profile of ['M1', 'M2', 'M3', 'H1', 'H2', 'H3']) {
+    const output = generateNutritionPlan(nutritionInput(profile));
+    assert.equal(output.student_visible.meals.length, 4);
+    assert.deepEqual(output.student_visible.meals.map((meal) => meal.slot_name), ['Café da manhã', 'Almoço', 'Lanche', 'Jantar']);
+    assert.equal(output.student_visible.meals.every((meal) => meal.foods.every((food) => food.name && food.quantity && food.substitutions.length > 0)), true);
+    assert.equal(output.student_visible.meals.every((meal) => meal.plan_b.length > 0 && meal.notes), true);
+  }
+});
+
 test('Nutrition service retorna apenas student_visible', () => {
   const plan = generateStudentNutritionPlan(nutritionInput('M2'));
   assert.equal(Boolean(plan.meals), true);

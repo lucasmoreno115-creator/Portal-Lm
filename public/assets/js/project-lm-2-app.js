@@ -282,9 +282,10 @@
     };
   }
 
+  // Legacy normalizer is intentionally not used for nutrition content: ProjectLm2NutritionNormalizer?.resolveNutritionPlan
   function resolveNutritionPlan(state = global.ProjectLm2State.getState()) {
     if (global.ProjectLmEngineServices?.getStudentNutritionPlan) return global.ProjectLmEngineServices.getStudentNutritionPlan(state);
-    return global.ProjectLm2NutritionNormalizer?.resolveNutritionPlan?.(state) || null;
+    return null;
   }
 
   function renderMealCard(meal) {
