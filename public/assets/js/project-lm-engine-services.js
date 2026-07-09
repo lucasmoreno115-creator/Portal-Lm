@@ -5,11 +5,19 @@ const adapterModule = await import('../../../' + 'src/projeto-lm/adapters/studen
 
 const { generateStudentNutritionPlan } = nutritionModule;
 const { generateStudentWorkoutPlan } = workoutModule;
-const { renderNutritionPlan, renderWorkoutPlan, renderPlanError, logPlanError } = rendererModule;
+const { renderNutritionPlan, renderWorkoutPlan, renderWeeklyPlan, renderPlanError, logPlanError } = rendererModule;
 const { adaptStudentProfile } = adapterModule;
 
 function resolveStudentProfile(student = {}, options = {}) {
   return adaptStudentProfile(student || {}, options);
+}
+
+function sanitizeWeeklyPlan(weeklyPlan) {
+  return {
+    today: weeklyPlan?.today ? { label: weeklyPlan.today.label, title: weeklyPlan.today.title, type: weeklyPlan.today.type, message: weeklyPlan.today.message } : null,
+    week: Array.isArray(weeklyPlan?.week) ? weeklyPlan.week.map((day) => ({ weekday: day.weekday, label: day.label, title: day.title, type: day.type, isToday: day.isToday, message: day.message })) : [],
+    nextWorkouts: Array.isArray(weeklyPlan?.nextWorkouts) ? weeklyPlan.nextWorkouts.map((day) => ({ label: day.label, title: day.title, type: day.type })) : []
+  };
 }
 
 function createRestDayPlan(workoutInput) {
@@ -35,6 +43,7 @@ window.ProjectLmEngineServices = Object.freeze({
   generateStudentWorkoutPlan,
   renderNutritionPlan,
   renderWorkoutPlan,
+  renderWeeklyPlan,
   renderPlanError,
   resolveStudentProfile,
   getStudentNutritionPlan: (student, options) => {
@@ -42,9 +51,14 @@ window.ProjectLmEngineServices = Object.freeze({
     return safeGenerate(generateStudentNutritionPlan, nutritionInput);
   },
   getStudentWorkoutPlan: (student, options) => {
-    const { workoutInput } = resolveStudentProfile(student, options);
+    const { workoutInput, weeklyPlan } = resolveStudentProfile(student, options);
+    const dayKey = weeklyPlan?.today?.dayKey || workoutInput.day;
     if (workoutInput.rest_day) return createRestDayPlan(workoutInput);
-    return safeGenerate(generateStudentWorkoutPlan, workoutInput);
+    return safeGenerate(generateStudentWorkoutPlan, { ...workoutInput, day: dayKey });
+  },
+  getStudentWeeklyPlan: (student, options) => {
+    const { weeklyPlan } = resolveStudentProfile(student, options);
+    return sanitizeWeeklyPlan(weeklyPlan);
   },
   getDefaultNutritionPlan: () => {
     const { nutritionInput } = resolveStudentProfile();
