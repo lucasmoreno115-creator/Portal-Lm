@@ -1061,3 +1061,42 @@ textarea.lm2-input {
     text-align: left;
   }
 }
+
+.lm2-loading-card {
+  min-height: 360px;
+}
+
+.lm2-skeleton {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.lm2-skeleton span {
+  display: block;
+  height: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(213,155,91,0.16), rgba(255,255,255,0.06));
+  background-size: 220% 100%;
+  animation: lm2-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.lm2-skeleton span:nth-child(2) {
+  width: 82%;
+}
+
+.lm2-skeleton span:nth-child(3) {
+  width: 64%;
+}
+
+@keyframes lm2-skeleton-pulse {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lm2-skeleton span {
+    animation: none;
+  }
+}

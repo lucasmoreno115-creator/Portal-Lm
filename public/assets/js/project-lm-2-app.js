@@ -1,5 +1,6 @@
 (function initializeProjectLm2App(global, document) {
   const premiumConsultingCtaUrl = 'https://wa.me/5514991174500?text=Ol%C3%A1%20Lucas,%20quero%20conhecer%20a%20Consultoria%20Premium.';
+  const friendlyErrorMessage = 'Não foi possível carregar agora. Verifique sua conexão e tente novamente.';
 
   const api = {
     onboarding: '/api/project-lm-2/onboarding',
@@ -92,6 +93,26 @@
   function setError(root, message) {
     const error = root.querySelector('[data-lm2-error]');
     if (error) error.textContent = message || '';
+  }
+
+  function renderLoadingCard(title = 'Carregando sua jornada') {
+    return `
+      <section class="lm2-card lm2-loading-card" aria-labelledby="lm2-loading-title" aria-busy="true">
+        <p class="lm2-kicker">Projeto LM</p>
+        <h1 id="lm2-loading-title">${escapeHtml(title)}</h1>
+        <div class="lm2-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>
+        <p>Aguarde um instante. Estamos preparando seu próximo passo.</p>
+      </section>`;
+  }
+
+  function renderErrorCard(title = 'Não foi possível carregar', message = friendlyErrorMessage, retryRoute = 'home') {
+    return `
+      <section class="lm2-card" aria-labelledby="lm2-error-title">
+        <p class="lm2-kicker">Projeto LM</p>
+        <h1 id="lm2-error-title">${escapeHtml(title)}</h1>
+        <p>${escapeHtml(message)}</p>
+        <button class="lm2-primary-button" type="button" data-route="${escapeHtml(retryRoute)}">TENTAR NOVAMENTE</button>
+      </section>`;
   }
 
   function applyHomeData(homeData = {}) {
@@ -639,12 +660,13 @@
       applyHomeData(homeData);
       render(root, homeData.onboarding_completed === false ? 'welcome' : 'home');
     } catch (error) {
-      setError(root, 'Não foi possível carregar sua jornada. Tente novamente.');
+      root.innerHTML = renderErrorCard('Sua jornada não carregou', friendlyErrorMessage, 'home');
     }
   }
 
   function render(root, route) {
     route = global.ProjectLm2Router.normalizeRoute(route);
+    if (route === 'journey') route = 'week-1';
     const state = global.ProjectLm2State.getState();
     root.dataset.lm2Route = route;
     root.dataset.lm2NextAction = state.next_action;
@@ -672,8 +694,8 @@
       <section class="lm2-card" aria-labelledby="lm2-sex-title">
         <h1 id="lm2-sex-title">Sexo</h1>
         <div class="lm2-options">
-          ${optionButton('sex', 'male', 'male', state.sex)}
-          ${optionButton('sex', 'female', 'female', state.sex)}
+          ${optionButton('sex', 'male', 'Masculino', state.sex)}
+          ${optionButton('sex', 'female', 'Feminino', state.sex)}
         </div>
         <p class="lm2-error" data-lm2-error role="alert"></p>
         <button class="lm2-primary-button" type="button" data-continue-sex>CONTINUAR</button>
@@ -701,7 +723,7 @@
         <form data-profile-form>
           <label>Nome<input class="lm2-input" name="name" value="${escapeHtml(state.name)}"></label>
           <label>Objetivo<input class="lm2-input" name="goal" value="${escapeHtml(state.goal)}"></label>
-          <label>Sexo<div class="lm2-options">${optionButton('sex', 'male', 'male', state.sex)}${optionButton('sex', 'female', 'female', state.sex)}</div></label>
+          <label>Sexo<div class="lm2-options">${optionButton('sex', 'male', 'Masculino', state.sex)}${optionButton('sex', 'female', 'Feminino', state.sex)}</div></label>
           <label>Peso (kg)<input class="lm2-input" name="weight_kg" type="number" step="0.1" value="${state.weight_kg || ''}"></label>
           <label>Altura (cm)<input class="lm2-input" name="height_cm" type="number" step="1" value="${state.height_cm || ''}"></label>
         </form>
@@ -715,7 +737,7 @@
         <p>As ferramentas que vão ajudar você a continuar.</p>
         <article class="lm2-block"><h2>Meu Treino</h2><p>Seu treino já foi definido para esta jornada.</p><button class="lm2-secondary-button" type="button" data-route="training">Abrir meu treino</button></article>
         <article class="lm2-block"><h2>Minha Alimentação</h2><p>Seu plano alimentar já foi definido para esta jornada.</p><button class="lm2-secondary-button" type="button" data-route="nutrition">Abrir meu plano alimentar</button></article>
-        <article class="lm2-block"><h2>Meu Plano B</h2><p>Sua estratégia para continuar quando a vida não sair como planejado.</p><button class="lm2-secondary-button" type="button">EM BREVE</button></article>
+        <article class="lm2-block"><h2>Meu Plano B</h2><p>Sua estratégia para continuar quando a vida não sair como planejado.</p><button class="lm2-secondary-button" type="button" data-route="week-1">EM BREVE</button></article>
         <button class="lm2-primary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
       </section>`;
     if (route === 'training') root.innerHTML = renderTrainingScreen(state);
