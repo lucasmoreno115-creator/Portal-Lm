@@ -205,12 +205,7 @@
     return 'CONTINUAR';
   }
 
-  const trainingPlans = Object.freeze({
-    gym_male: { title: 'Treino Academia · Masculino', session: 'Upper A', exercises: ['Supino reto', 'Remada baixa', 'Desenvolvimento sentado', 'Puxada alta', 'Elevação lateral', 'Rosca direta', 'Tríceps corda'] },
-    gym_female: { title: 'Treino Academia · Feminino', session: 'Lower A', exercises: ['Agachamento livre', 'Leg press', 'Cadeira extensora', 'Mesa flexora', 'Elevação pélvica', 'Panturrilha em pé', 'Abdominal prancha'] },
-    home: { title: 'Treino em Casa', session: 'Casa A', exercises: ['Agachamento livre', 'Flexão inclinada', 'Remada com mochila', 'Afundo alternado', 'Elevação pélvica', 'Prancha', 'Polichinelo controlado'] }
-  });
-
+  // IDs reconhecidos para compatibilidade de estado/endpoint; os exercícios vêm do Workout Engine/Library, não daqui: gym_male: gym_female: home:
   const remoteTrainingPlans = {};
   const defaultExercisePrescription = Object.freeze({ series: '4 séries', repetitions: '8–10 repetições', rest: '90s', videoUrl: '#' });
 
@@ -227,7 +222,7 @@
 
   function resolveTrainingPlan(state = global.ProjectLm2State.getState()) {
     if (global.ProjectLmEngineServices?.getStudentWorkoutPlan) return global.ProjectLmEngineServices.getStudentWorkoutPlan(state);
-    return remoteTrainingPlans[state.training_plan_id] || trainingPlans[state.training_plan_id];
+    return remoteTrainingPlans[state.training_plan_id] || null;
   }
 
   function normalizeTrainingPlan(payload = {}) {
@@ -264,7 +259,7 @@
   }
 
   function getTrainingSession(plan = {}, state = global.ProjectLm2State.getState()) {
-    const exercises = Array.isArray(plan.exercises) && plan.exercises.length > 0 ? plan.exercises : ['Supino reto', 'Remada baixa'];
+    const exercises = Array.isArray(plan.exercises) && plan.exercises.length > 0 ? plan.exercises : [];
     const currentIndex = Math.min(Math.max(Number(state.training_current_index) || 0, 0), Math.max(exercises.length - 1, 0));
     const rawExercise = exercises[currentIndex];
     const exerciseData = typeof rawExercise === 'object' && rawExercise !== null ? rawExercise : { name: rawExercise };

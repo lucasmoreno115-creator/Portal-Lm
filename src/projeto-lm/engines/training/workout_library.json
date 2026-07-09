@@ -1,5 +1,394 @@
 {
-  "lower": ["lower_a", "lower_b"],
-  "upper": ["upper_a", "upper_b"],
-  "cardio": ["cardio_day"]
+  "profilePrograms": {
+    "M1": "female_program",
+    "M2": "female_program",
+    "M3": "female_program",
+    "H1": "male_program",
+    "H2": "male_program",
+    "H3": "male_program",
+    "GYM_FEMALE": "female_program",
+    "GYM_MALE": "male_program"
+  },
+  "legacyProfiles": {
+    "female_program": "GYM_FEMALE",
+    "male_program": "GYM_MALE"
+  },
+  "programs": {
+    "female_program": {
+      "displayName": "Treino de academia",
+      "week_1": {
+        "monday": "lower_a",
+        "tuesday": "upper_a",
+        "wednesday": "cardio_day",
+        "thursday": "lower_b",
+        "friday": "upper_b",
+        "saturday": "cardio_day",
+        "sunday": "rest_day"
+      }
+    },
+    "male_program": {
+      "displayName": "Treino de academia",
+      "week_1": {
+        "monday": "upper_a",
+        "tuesday": "lower_a",
+        "wednesday": "cardio_day",
+        "thursday": "upper_b",
+        "friday": "lower_b",
+        "saturday": "cardio_day",
+        "sunday": "rest_day"
+      }
+    }
+  },
+  "workouts": {
+    "female_program": {
+      "lower_a": {
+        "displayName": "Lower A",
+        "title": "Treino Projeto LM",
+        "type": "workout_plan",
+        "observations": "Anote a carga usada e observe a última série para evoluir na próxima sessão.",
+        "exercises": [
+          {
+            "id": "leg_press",
+            "sets": 4,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "romanian_deadlift",
+            "sets": 4,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "hip_thrust",
+            "sets": 3,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "leg_curl",
+            "sets": 3,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          }
+        ]
+      },
+      "lower_b": {
+        "displayName": "Lower B",
+        "title": "Treino Projeto LM",
+        "type": "workout_plan",
+        "observations": "Anote a carga usada e observe a última série para evoluir na próxima sessão.",
+        "exercises": [
+          {
+            "id": "squat_machine",
+            "sets": 4,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "leg_curl",
+            "sets": 4,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "hip_thrust",
+            "sets": 3,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "leg_press",
+            "sets": 3,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          }
+        ]
+      },
+      "upper_a": {
+        "displayName": "Upper A",
+        "title": "Treino Projeto LM",
+        "type": "workout_plan",
+        "observations": "Anote a carga usada e observe a última série para evoluir na próxima sessão.",
+        "exercises": [
+          {
+            "id": "lat_pulldown",
+            "sets": 3,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "chest_press",
+            "sets": 3,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "seated_row",
+            "sets": 3,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "shoulder_press",
+            "sets": 3,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "triceps_pushdown",
+            "sets": 3,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          }
+        ]
+      },
+      "upper_b": {
+        "displayName": "Upper B",
+        "title": "Treino Projeto LM",
+        "type": "workout_plan",
+        "observations": "Anote a carga usada e observe a última série para evoluir na próxima sessão.",
+        "exercises": [
+          {
+            "id": "seated_row",
+            "sets": 3,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "chest_press",
+            "sets": 3,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "lat_pulldown",
+            "sets": 3,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "lateral_raise",
+            "sets": 3,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "biceps_curl",
+            "sets": 3,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          }
+        ]
+      },
+      "cardio_day": {
+        "displayName": "Cardio Day",
+        "title": "Cardio Day",
+        "type": "cardio_day",
+        "observations": "O objetivo é manter o corpo em movimento e recuperar bem para o próximo treino.",
+        "exercises": [
+          {
+            "id": "bike",
+            "sets": 3,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          }
+        ]
+      }
+    },
+    "male_program": {
+      "lower_a": {
+        "displayName": "Lower A",
+        "title": "Treino Projeto LM",
+        "type": "workout_plan",
+        "observations": "Anote a carga usada e observe a última série para evoluir na próxima sessão.",
+        "exercises": [
+          {
+            "id": "leg_press",
+            "sets": 3,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "romanian_deadlift",
+            "sets": 3,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "hip_thrust",
+            "sets": 3,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "leg_curl",
+            "sets": 3,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          }
+        ]
+      },
+      "lower_b": {
+        "displayName": "Lower B",
+        "title": "Treino Projeto LM",
+        "type": "workout_plan",
+        "observations": "Anote a carga usada e observe a última série para evoluir na próxima sessão.",
+        "exercises": [
+          {
+            "id": "squat_machine",
+            "sets": 3,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "leg_curl",
+            "sets": 3,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "hip_thrust",
+            "sets": 3,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "leg_press",
+            "sets": 3,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          }
+        ]
+      },
+      "upper_a": {
+        "displayName": "Upper A",
+        "title": "Treino Projeto LM",
+        "type": "workout_plan",
+        "observations": "Anote a carga usada e observe a última série para evoluir na próxima sessão.",
+        "exercises": [
+          {
+            "id": "lat_pulldown",
+            "sets": 4,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "chest_press",
+            "sets": 4,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "seated_row",
+            "sets": 3,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "shoulder_press",
+            "sets": 3,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "triceps_pushdown",
+            "sets": 3,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          }
+        ]
+      },
+      "upper_b": {
+        "displayName": "Upper B",
+        "title": "Treino Projeto LM",
+        "type": "workout_plan",
+        "observations": "Anote a carga usada e observe a última série para evoluir na próxima sessão.",
+        "exercises": [
+          {
+            "id": "seated_row",
+            "sets": 4,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "chest_press",
+            "sets": 4,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "lat_pulldown",
+            "sets": 3,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "lateral_raise",
+            "sets": 3,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          },
+          {
+            "id": "biceps_curl",
+            "sets": 3,
+            "reps": "8 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          }
+        ]
+      },
+      "cardio_day": {
+        "displayName": "Cardio Day",
+        "title": "Cardio Day",
+        "type": "cardio_day",
+        "observations": "O objetivo é manter o corpo em movimento e recuperar bem para o próximo treino.",
+        "exercises": [
+          {
+            "id": "bike",
+            "sets": 3,
+            "reps": "10 a 12",
+            "rest": "60 a 90 segundos",
+            "observations": "Priorize execução controlada e amplitude confortável."
+          }
+        ]
+      }
+    }
+  }
 }

@@ -3,6 +3,7 @@ import { adaptWorkoutDay, resolveWorkoutProfile as resolveWeeklyWorkoutProfile }
 
 const FEMALE_ALIASES = new Set(['female', 'feminino', 'mulher', 'f']);
 const MALE_ALIASES = new Set(['male', 'masculino', 'homem', 'm']);
+const OFFICIAL_NUTRITION_PROFILES = new Set(['M1', 'M2', 'M3', 'H1', 'H2', 'H3']);
 
 function warnDevelopment(message) {
   const env = globalThis?.process?.env?.NODE_ENV;
@@ -22,6 +23,16 @@ export function normalizeStudentSex(value) {
   if (FEMALE_ALIASES.has(normalized)) return 'female';
   if (MALE_ALIASES.has(normalized)) return 'male';
   return null;
+}
+
+export function normalizeNutritionProfile(value) {
+  const normalized = String(value ?? '').trim().toUpperCase();
+  return OFFICIAL_NUTRITION_PROFILES.has(normalized) ? normalized : null;
+}
+
+function profileSex(profile) {
+  if (!profile) return null;
+  return profile.startsWith('H') ? 'male' : 'female';
 }
 
 function normalizeWeight(value) {
@@ -57,20 +68,24 @@ export function resolveWorkoutDay(sex, dateValue) {
 }
 
 export function adaptStudentProfile(student = {}, options = {}) {
+  const rawProfile = firstValue(student, ['profile', 'perfil', 'nutrition_profile', 'nutritionProfile', 'nutrition_plan_id', 'nutritionPlanId', 'nutrition_plan_code', 'nutritionPlanCode']);
+  const officialProfile = normalizeNutritionProfile(rawProfile);
+  if (!officialProfile && rawProfile !== undefined) warnDevelopment('Perfil oficial inválido no cadastro do aluno; usando fallback seguro.');
+
   const rawSex = firstValue(student, ['sex', 'sexo', 'gender', 'genero', 'gênero']);
-  const sex = normalizeStudentSex(rawSex);
+  const sex = normalizeStudentSex(rawSex) || profileSex(officialProfile);
   if (!sex && rawSex !== undefined) warnDevelopment('Sexo inválido no perfil do aluno; usando fallback seguro.');
   if (!sex && rawSex === undefined) warnDevelopment('Sexo ausente no perfil do aluno; usando fallback seguro.');
 
   const fallbackSex = sex || 'female';
   const weight = normalizeWeight(firstValue(student, ['weight', 'peso', 'weight_kg', 'peso_kg']));
   const workoutDate = firstValue(options, ['date', 'currentDate', 'today']) || firstValue(student, ['date', 'currentDate', 'today', 'createdAt', 'created_at']);
-  const weeklyPlan = adaptWorkoutDay({ sex: fallbackSex, date: workoutDate });
+  const weeklyPlan = adaptWorkoutDay({ profile: officialProfile, sex: fallbackSex, date: workoutDate });
   const selectedMeals = adaptMealSelection(extractMealSelections({ student, ...options }));
 
   return {
     nutritionInput: {
-      profile: resolveNutritionProfile(fallbackSex, weight),
+      profile: officialProfile || resolveNutritionProfile(fallbackSex, weight),
       ...selectedMeals
     },
     workoutInput: {
@@ -93,5 +108,6 @@ export const studentProfileAdapter = Object.freeze({
   normalizeStudentSex,
   resolveNutritionProfile,
   resolveWorkoutProfile,
-  resolveWorkoutDay
+  resolveWorkoutDay,
+  normalizeNutritionProfile
 });
