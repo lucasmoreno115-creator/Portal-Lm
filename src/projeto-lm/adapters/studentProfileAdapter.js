@@ -1,25 +1,8 @@
 import { adaptMealSelection, extractMealSelections } from './mealSelectionAdapter.js';
+import { adaptWorkoutDay, resolveWorkoutProfile as resolveWeeklyWorkoutProfile } from './workoutDayAdapter.js';
 
 const FEMALE_ALIASES = new Set(['female', 'feminino', 'mulher', 'f']);
 const MALE_ALIASES = new Set(['male', 'masculino', 'homem', 'm']);
-
-const FEMALE_WEEK = Object.freeze({
-  1: 'lower_a',
-  2: 'upper_a',
-  3: 'cardio_day',
-  4: 'lower_b',
-  5: 'upper_b',
-  6: 'cardio_day'
-});
-
-const MALE_WEEK = Object.freeze({
-  1: 'upper_a',
-  2: 'lower_a',
-  3: 'cardio_day',
-  4: 'upper_b',
-  5: 'lower_b',
-  6: 'cardio_day'
-});
 
 function warnDevelopment(message) {
   const env = globalThis?.process?.env?.NODE_ENV;
@@ -61,32 +44,15 @@ export function resolveNutritionProfile(sex, weight) {
 }
 
 export function resolveWorkoutProfile(sex) {
-  return sex === 'male' ? 'GYM_MALE' : 'GYM_FEMALE';
-}
-
-function resolveDate(value) {
-  const date = value ? new Date(value) : new Date();
-  if (!Number.isNaN(date.getTime())) return date;
-  warnDevelopment('Data inválida no perfil do aluno; usando data atual.');
-  return new Date();
+  return resolveWeeklyWorkoutProfile(sex);
 }
 
 export function resolveWorkoutDay(sex, dateValue) {
-  const date = resolveDate(dateValue);
-  const dayOfWeek = date.getDay();
-
-  if (dayOfWeek === 0) {
-    return {
-      day: sex === 'male' ? 'upper_a' : 'lower_a',
-      rest_day: true,
-      rest_guidance: 'Hoje é dia de descanso. Se quiser se movimentar, faça uma caminhada leve e mantenha a consistência.'
-    };
-  }
-
-  const week = sex === 'male' ? MALE_WEEK : FEMALE_WEEK;
+  const weeklyPlan = adaptWorkoutDay({ sex, date: dateValue });
   return {
-    day: week[dayOfWeek] || (sex === 'male' ? 'upper_a' : 'lower_a'),
-    rest_day: false
+    day: weeklyPlan.today.dayKey,
+    rest_day: weeklyPlan.today.rest_day,
+    rest_guidance: weeklyPlan.today.message
   };
 }
 
@@ -98,7 +64,8 @@ export function adaptStudentProfile(student = {}, options = {}) {
 
   const fallbackSex = sex || 'female';
   const weight = normalizeWeight(firstValue(student, ['weight', 'peso', 'weight_kg', 'peso_kg']));
-  const workoutDay = resolveWorkoutDay(fallbackSex, firstValue(options, ['date', 'today']) || firstValue(student, ['date', 'today', 'createdAt', 'created_at']));
+  const workoutDate = firstValue(options, ['date', 'currentDate', 'today']) || firstValue(student, ['date', 'currentDate', 'today', 'createdAt', 'created_at']);
+  const weeklyPlan = adaptWorkoutDay({ sex: fallbackSex, date: workoutDate });
   const selectedMeals = adaptMealSelection(extractMealSelections({ student, ...options }));
 
   return {
@@ -107,11 +74,12 @@ export function adaptStudentProfile(student = {}, options = {}) {
       ...selectedMeals
     },
     workoutInput: {
-      profile: resolveWorkoutProfile(fallbackSex),
-      day: workoutDay.day,
-      rest_day: workoutDay.rest_day,
-      rest_guidance: workoutDay.rest_guidance
+      profile: weeklyPlan.workoutProfile,
+      day: weeklyPlan.today.dayKey,
+      rest_day: weeklyPlan.today.rest_day,
+      rest_guidance: weeklyPlan.today.message
     },
+    weeklyPlan,
     studentMeta: {
       name: firstValue(student, ['name', 'nome']) || '',
       sex: fallbackSex,

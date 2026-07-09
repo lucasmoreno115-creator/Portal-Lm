@@ -59,3 +59,25 @@ test('UI renderiza fallback simples quando o plano não está disponível', () =
   assert.match(renderNutritionPlan(null), /Não foi possível carregar este plano agora/);
   assert.match(renderWorkoutPlan(null), /Não foi possível carregar este plano agora/);
 });
+
+test('Weekly UI renderiza plano semanal sem códigos internos visíveis', () => {
+  const weeklyPlan = {
+    today: { label: 'Cardio e mobilidade', title: 'Cardio e mobilidade', type: 'cardio', rest_day: false },
+    nextWorkouts: [
+      { label: 'Quinta', title: 'Inferiores B', type: 'strength' },
+      { label: 'Sexta', title: 'Superiores B', type: 'strength' },
+      { label: 'Sábado', title: 'Cardio opcional', type: 'cardio' }
+    ]
+  };
+  return import('../ui/studentPlanRenderers.js').then(({ renderWeeklyPlan }) => {
+    const text = visibleText(renderWeeklyPlan(weeklyPlan));
+    assert.match(text, /Hoje/);
+    assert.match(text, /Cardio e mobilidade/);
+    assert.match(text, /40 a 60 minutos/);
+    assert.match(text, /Quinta — Inferiores B/);
+    const lower = text.toLowerCase();
+    for (const code of ['gym_female', 'gym_male', 'lower_a', 'upper_a', 'cardio_day', 'rest_day']) {
+      assert.equal(lower.includes(code), false, `não deve renderizar ${code}`);
+    }
+  });
+});

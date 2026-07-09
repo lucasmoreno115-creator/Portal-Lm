@@ -23,6 +23,13 @@ export function renderNutritionPlan(plan) {
   return `<section class="lm2-nutrition-overview lm2-engine-plan" aria-labelledby="lm2-nutrition-title"><header class="lm2-nutrition-header"><p class="lm2-kicker">Projeto LM · Plano alimentar</p><h1 id="lm2-nutrition-title">${escapeHtml(plan.title || 'Plano Alimentar')}</h1>${plan.guidance ? `<p>${escapeHtml(plan.guidance)}</p>` : ''}</header><div class="lm2-engine-meals">${plan.meals.map((meal) => `<article class="lm2-engine-card"><h2>${escapeHtml(meal.name || meal.slot_name || 'Refeição')}</h2><h3>Alimentos:</h3><ul>${(meal.foods || []).map((food) => `<li>${escapeHtml(food.name)} — ${escapeHtml(food.quantity)}</li>`).join('')}</ul>${(meal.foods || []).some((food) => Array.isArray(food.substitutions) && food.substitutions.length) ? `<h3>Substituições:</h3><ul>${meal.foods.filter((food) => food.substitutions?.length).map((food) => `<li>${escapeHtml(food.name)} pode ser trocado por ${escapeHtml(food.substitutions.join(', '))}.</li>`).join('')}</ul>` : ''}${meal.plan_b?.length ? `<h3>Plano B:</h3>${list(meal.plan_b)}` : ''}${meal.notes ? `<h3>Observação:</h3><p>${escapeHtml(meal.notes)}</p>` : ''}</article>`).join('')}</div></section>`;
 }
 
+
+export function renderWeeklyPlan(weeklyPlan) {
+  if (!weeklyPlan?.today || !Array.isArray(weeklyPlan.nextWorkouts)) return renderPlanError();
+  const todayText = weeklyPlan.today.message || (weeklyPlan.today.type === 'cardio' ? '40 a 60 minutos em ritmo leve a moderado.' : 'Siga o treino indicado para hoje.');
+  return `<section class="lm2-weekly-plan lm2-engine-plan" aria-labelledby="lm2-weekly-title"><header class="lm2-nutrition-header"><p class="lm2-kicker">Projeto LM · Semana de treino</p><h1 id="lm2-weekly-title">Hoje</h1><h2>${escapeHtml(weeklyPlan.today.label || weeklyPlan.today.title || 'Treino de hoje')}</h2><p>${escapeHtml(todayText)}</p></header>${weeklyPlan.nextWorkouts.length ? `<div class="lm2-engine-card"><h2>Próximos treinos</h2><ul>${weeklyPlan.nextWorkouts.map((day) => `<li>${escapeHtml(day.label)} — ${escapeHtml(day.title)}</li>`).join('')}</ul></div>` : ''}</section>`;
+}
+
 export function renderWorkoutPlan(workout) {
   if (workout?.rest_day) return `<section class="lm2-training-mode lm2-engine-plan" aria-labelledby="lm2-training-title"><header class="lm2-nutrition-header"><p class="lm2-kicker">Projeto LM · Treino</p><h1 id="lm2-training-title">${escapeHtml(workout.display_name || 'Descanso ativo')}</h1><p>${escapeHtml(workout.guidance || 'Hoje é dia de descanso. Uma caminhada leve já é suficiente.')}</p></header></section>`;
   if (!workout || !Array.isArray(workout.exercises)) return renderPlanError();

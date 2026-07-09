@@ -40,15 +40,21 @@ test('adapter resolve perfil e dia de treino pela estrutura semanal', () => {
   assert.equal(adaptStudentProfile({ sex: 'male', weight: 85 }, { date: monday }).workoutInput.profile, 'GYM_MALE');
   assert.equal(adaptStudentProfile({ sex: 'female' }, { date: monday }).workoutInput.day, 'lower_a');
   assert.equal(adaptStudentProfile({ sex: 'male' }, { date: monday }).workoutInput.day, 'upper_a');
-  assert.equal(adaptStudentProfile({ sex: 'female' }, { date: wednesday }).workoutInput.day, 'cardio_day');
+  const adapted = adaptStudentProfile({ sex: 'female' }, { date: wednesday });
+  assert.equal(adapted.workoutInput.day, 'cardio_day');
+  assert.equal(adapted.weeklyPlan.today.dayKey, 'cardio_day');
 });
 
 test('adapter trata domingo, data ausente e sexo ausente com fallback seguro', () => {
-  assert.equal(adaptStudentProfile({ sex: 'female' }, { date: sunday }).workoutInput.rest_day, true);
+  const sundayProfile = adaptStudentProfile({ sex: 'female' }, { date: sunday });
+  assert.equal(sundayProfile.workoutInput.rest_day, true);
+  assert.equal(sundayProfile.workoutInput.day, 'rest_day');
+  assert.match(sundayProfile.workoutInput.rest_guidance, /Hoje é dia de descanso/);
   assert.equal(Boolean(adaptStudentProfile({ sex: 'female' }).workoutInput.day), true);
   const fallback = adaptStudentProfile({}, { date: monday });
   assert.equal(fallback.workoutInput.profile, 'GYM_FEMALE');
   assert.equal(fallback.workoutInput.day, 'lower_a');
+  assert.equal(Array.isArray(fallback.weeklyPlan.week), true);
 });
 
 test('adapter concentra refeições padrão e metadados sem misturar códigos na UI', () => {
@@ -91,12 +97,19 @@ test('bridge retorna student_visible e não expõe códigos internos na saída f
   const workout = global.window.ProjectLmEngineServices.getStudentWorkoutPlan({ sex: 'male', weight: 85 }, { date: monday });
   const finalText = text({ nutrition, workout });
 
+  const weekly = global.window.ProjectLmEngineServices.getStudentWeeklyPlan({ sex: 'female', weight: 72 }, { date: wednesday });
+  const weeklyText = text(weekly);
+
   assert.equal(events.includes('project-lm-engine-services-ready'), true);
   assert.equal(Object.hasOwn(nutrition, 'profile_internal'), false);
   assert.equal(Object.hasOwn(workout, 'profile_internal'), false);
   for (const code of ['m2', 'h2', 'gym_female', 'gym_male', 'lower_a', 'upper_a', 'breakfast_01']) {
     assert.equal(finalText.includes(code), false);
   }
+  for (const code of ['gym_female', 'gym_male', 'lower_a', 'upper_a', 'cardio_day', 'rest_day']) {
+    assert.equal(weeklyText.includes(code), false);
+  }
+  assert.equal(weekly.today.label, 'Cardio e mobilidade');
 });
 
 test('student adapter usa refeições selecionadas quando válidas', () => {
@@ -155,9 +168,15 @@ test('bridge aceita fontes defensivas de seleção e mantém saída final segura
   );
   const finalText = text(nutrition);
 
+  const weekly = global.window.ProjectLmEngineServices.getStudentWeeklyPlan({ sex: 'female', weight: 72 }, { date: wednesday });
+  const weeklyText = text(weekly);
+
   assert.equal(events.includes('project-lm-engine-services-ready'), true);
   assert.equal(Object.hasOwn(nutrition, 'profile_internal'), false);
   for (const code of ['breakfast_02', 'lunch_03', 'snack_03', 'dinner_02']) {
     assert.equal(finalText.includes(code), false);
+  }
+  for (const code of ['gym_female', 'gym_male', 'lower_a', 'upper_a', 'cardio_day', 'rest_day']) {
+    assert.equal(weeklyText.includes(code), false);
   }
 });
