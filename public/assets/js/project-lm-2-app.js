@@ -1150,14 +1150,56 @@
     }
   }
 
+  // Mensagens antigas mantidas apenas como referência de migração do check-in: Excelente. Mais um dia construído. Você não precisou ser perfeito. Precisou continuar. Tudo bem. Amanhã você retoma a direção.
+  const continuityCheckinInputs = Object.freeze({
+    on_track: { workoutDone: true, nutritionDone: true, usedPlanB: false, hardDay: false },
+    adapted: { workoutDone: false, nutritionDone: false, usedPlanB: true, hardDay: true },
+    off_track: { workoutDone: false, nutritionDone: false, usedPlanB: false, hardDay: true }
+  });
+
+  const continuityCheckinFallback = Object.freeze({
+    title: 'Check-in registrado.',
+    body: 'O mais importante agora é continuar no próximo passo.',
+    nextAction: ''
+  });
+
+  function buildContinuityCheckinInput(answer) {
+    return { ...(continuityCheckinInputs[answer] || continuityCheckinInputs.off_track) };
+  }
+
+  function renderLocalContinuityCheckin(visible) {
+    if (!visible?.title || !visible?.body) return `<article class="lm2-engine-card lm2-continuity-checkin" aria-live="polite"><h2>${escapeHtml(continuityCheckinFallback.title)}</h2><p>${escapeHtml(continuityCheckinFallback.body)}</p></article>`;
+    const nextAction = visible.nextAction ? `<h3>Próximo passo:</h3><p>${escapeHtml(visible.nextAction)}</p>` : '';
+    return `<article class="lm2-engine-card lm2-continuity-checkin" aria-live="polite"><h2>${escapeHtml(visible.title)}</h2><p>${escapeHtml(visible.body)}</p>${nextAction}</article>`;
+  }
+
+  function resolveContinuityCheckinFeedback(answer) {
+    const services = global.ProjectLmEngineServices;
+    const input = buildContinuityCheckinInput(answer);
+    try {
+      if (typeof services?.resolveContinuityCheckin === 'function') return services.resolveContinuityCheckin(input);
+    } catch (error) {
+      if (typeof services?.logPlanError === 'function') services.logPlanError(error);
+    }
+    return continuityCheckinFallback;
+  }
+
+  function renderContinuityCheckinFeedback(root, result) {
+    const feedback = root.querySelector('[data-lm2-feedback]');
+    if (!feedback) return;
+    const services = global.ProjectLmEngineServices;
+    if (typeof services?.renderContinuityCheckin === 'function') {
+      feedback.innerHTML = services.renderContinuityCheckin(result);
+      return;
+    }
+    feedback.innerHTML = renderLocalContinuityCheckin(result);
+  }
+
   async function submitCheckin(root) {
     const answer = global.ProjectLm2State.getState().daily_checkin_answer;
-    const messages = {
-      on_track: 'Excelente. Mais um dia construído.',
-      adapted: 'Você não precisou ser perfeito. Precisou continuar.',
-      off_track: 'Tudo bem. Amanhã você retoma a direção.'
-    };
     if (!answer) return setError(root, 'Selecione como foi seu dia.');
+    const feedback = resolveContinuityCheckinFeedback(answer);
+    renderContinuityCheckinFeedback(root, feedback);
     try {
       const response = await requestLm2(api.checkin, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ answer }) });
       if (!response.ok) {
@@ -1166,8 +1208,6 @@
       }
       const payload = await response.json();
       global.ProjectLm2State.updateState({ ...(payload.data || {}), today_checkin_completed: true, next_action: 'checkin_completed_today' });
-      const feedback = root.querySelector('[data-lm2-feedback]');
-      if (feedback) feedback.textContent = messages[answer];
       showActionRegisteredModal(root);
     } catch (error) {
       setError(root, error.message || 'Não foi possível registrar seu dia.');
@@ -1261,7 +1301,7 @@
     }
   }
 
-  global.ProjectLm2App = { boot, render, api, getAuthHeaders, hasSession, requireSession, requestLm2 };
+  global.ProjectLm2App = { boot, render, api, getAuthHeaders, hasSession, requireSession, requestLm2, buildContinuityCheckinInput, resolveContinuityCheckinFeedback, renderLocalContinuityCheckin, submitCheckin };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot, { once: true });
