@@ -38,12 +38,12 @@ function renderHome({ checkins, withoutEngine = false } = {}) {
 
 test('Home renderiza continuidade semanal on_track 5/7 sem quebrar Hoje e atalhos', () => {
   const html = renderHome({ checkins: makeCheckins(['strong_day', 'continued', 'plan_b_win', 'strong_day', 'continued', 'missed_day', 'recovery_day']) });
-  assert.match(html, /Continuidade da semana/);
+  assert.match(html, /Continuidade/);
   assert.match(html, /5 de 7 dias de continuidade/);
-  assert.match(html, /Você venceu a semana\./);
-  assert.match(html, /Hoje, registre como você continuou\./);
-  assert.match(html, /Treino/);
-  assert.match(html, /Plano Alimentar/);
+  assert.match(html, /Você está no caminho\./);
+  assert.match(html, /Sua missão de hoje/);
+  assert.match(html, /Meu Treino/);
+  assert.match(html, /Minha Alimentação/);
   assert.match(html, /Biblioteca/);
   for (const word of forbidden) assert.doesNotMatch(html, new RegExp(word));
 });
@@ -51,18 +51,18 @@ test('Home renderiza continuidade semanal on_track 5/7 sem quebrar Hoje e atalho
 test('Home renderiza continuidade semanal building 3/7', () => {
   const html = renderHome({ checkins: makeCheckins(['strong_day', 'continued', 'plan_b_win', 'missed_day', 'recovery_day', 'missed_day', 'recovery_day']) });
   assert.match(html, /3 de 7 dias de continuidade/);
-  assert.match(html, /Você ainda está no jogo\./);
+  assert.match(html, /Você está no caminho\./);
 });
 
 test('Home renderiza no_data quando não há histórico', () => {
   const html = renderHome({ checkins: [] });
   assert.match(html, /0 de 0 dias de continuidade/);
-  assert.match(html, /Sua semana começa com uma ação\./);
+  assert.match(html, /Hoje seguimos normalmente\./);
 });
 
 test('Home usa fallback amigável sem engine', () => {
   const html = renderHome({ checkins: makeCheckins(['strong_day']), withoutEngine: true });
-  assert.match(html, /Continuidade da semana/);
-  assert.match(html, /Sua semana começa com uma ação\./);
-  assert.match(html, /Registre o próximo passo simples para começar a construir continuidade\./);
+  assert.match(html, /Continuidade/);
+  assert.match(html, /Hoje seguimos normalmente\./);
+  assert.match(html, /Ontem ficou para trás\./);
 });

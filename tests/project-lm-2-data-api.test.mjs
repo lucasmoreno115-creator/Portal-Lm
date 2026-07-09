@@ -81,6 +81,8 @@ test('LM 2.0 onboarding creates profile and journey with selected plans', async 
   assert.equal(res.body.data.training_ready, true);
   assert.equal(db.tables.lm2_profiles[0].nutrition_plan_id, 'H2');
   assert.equal(db.tables.lm2_profiles[0].training_plan_id, 'gym_male');
+  assert.equal(db.tables.lm2_profiles[0].onboarding_completed, 1);
+  assert.equal(res.body.data.onboarding_completed, true);
   assert.equal(db.tables.lm2_journeys.length, 1);
   assert.doesNotMatch(JSON.stringify(res.body), /\b[MH][123]\b/);
 });
@@ -123,6 +125,7 @@ test('LM 2.0 home returns onboarding_required before profile and week 1 after on
   const after = await api(db, 'GET', '/api/project-lm-2/home');
   assert.equal(after.body.data.current_week, 1);
   assert.equal(after.body.data.next_action, 'week_1_video');
+  assert.equal(after.body.data.onboarding_completed, true);
   assert.doesNotMatch(JSON.stringify(after.body), /\b[MH][123]\b/);
 });
 
@@ -488,8 +491,8 @@ class FakeD1Statement {
   async run() {
     const s = this.sql, p = this.params;
     if (/^(CREATE|ALTER|DROP) /i.test(s) || /^CREATE (UNIQUE )?INDEX/i.test(s) || /^INSERT OR IGNORE/i.test(s)) return { meta: { changes: 0 } };
-    if (s.startsWith('INSERT INTO lm2_profiles')) { this.db.tables.lm2_profiles.push({ student_id: p[0], name: p[1], goal: p[2], sex: p[3], weight_kg: p[4], height_cm: p[5] ?? null, nutrition_plan_id: p[6], training_plan_id: p[7], created_at: p[8], updated_at: p[9] }); return { meta: { changes: 1 } }; }
-    if (s.startsWith('UPDATE lm2_profiles')) { const r = this.db.tables.lm2_profiles.find(x => x.student_id === p[8]); Object.assign(r, { name: p[0], goal: p[1], sex: p[2], weight_kg: p[3], height_cm: p[4] ?? null, nutrition_plan_id: p[5], training_plan_id: p[6], updated_at: p[7] }); return { meta: { changes: 1 } }; }
+    if (s.startsWith('INSERT INTO lm2_profiles')) { this.db.tables.lm2_profiles.push({ student_id: p[0], name: p[1], goal: p[2], sex: p[3], weight_kg: p[4], height_cm: p[5] ?? null, nutrition_plan_id: p[6], training_plan_id: p[7], onboarding_completed: 1, created_at: p[8], updated_at: p[9] }); return { meta: { changes: 1 } }; }
+    if (s.startsWith('UPDATE lm2_profiles')) { const r = this.db.tables.lm2_profiles.find(x => x.student_id === p[8]); Object.assign(r, { name: p[0], goal: p[1], sex: p[2], weight_kg: p[3], height_cm: p[4] ?? null, nutrition_plan_id: p[5], training_plan_id: p[6], onboarding_completed: 1, updated_at: p[7] }); return { meta: { changes: 1 } }; }
     if (s.startsWith('INSERT INTO lm2_journeys')) { this.db.tables.lm2_journeys.push({ student_id: p[0], current_week: 1, status: 'active', started_at: p[1], completed_at: null, week_started_at: null, week_completed_at: null, program_completed_at: null, premium_bridge_eligible: 0, created_at: p[2], updated_at: p[3] }); return { meta: { changes: 1 } }; }
     if (s.startsWith('UPDATE lm2_journeys SET status=')) { const r = this.db.tables.lm2_journeys.find(x => x.student_id === p[3]); Object.assign(r, { status: 'completed', completed_at: r.completed_at || p[0], program_completed_at: r.program_completed_at || p[1], premium_bridge_eligible: 1, updated_at: p[2] }); return { meta: { changes: 1 } }; }
     if (s.startsWith('UPDATE lm2_journeys SET current_week=3')) { const r = this.db.tables.lm2_journeys.find(x => x.student_id === p[3] && x.current_week === 2); if (r) Object.assign(r, { current_week: 3, week_completed_at: r.week_completed_at || p[0], week_started_at: r.week_started_at || p[1], updated_at: p[2] }); return { meta: { changes: r ? 1 : 0 } }; }

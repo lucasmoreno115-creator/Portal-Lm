@@ -12,8 +12,8 @@ const adminHtml = await readFile('admin.html', 'utf8');
 test('LM 2.0 home consumes progress endpoint and shows 5-day continuity target', () => {
   assert.match(lm2App, /\/api\/project-lm-2\/progress/);
   assert.match(lm2App, /Promise\.all\(\[requestLm2\(api\.home\), requestLm2\(api\.progress\)\]\)/);
-  assert.match(lm2App, /lm2-progress-card/);
-  assert.match(lm2App, /Você escolheu continuar em \$\{state\.continuity_days_count\} dos últimos \$\{state\.required_days_count\} dias/);
+  assert.match(lm2App, /lm2-continuity-card/);
+  assert.match(lm2App, /\$\{completed\} de \$\{required\} dias concluídos\./);
   assert.match(lm2State, /continuity_days_count: 0/);
   assert.match(lm2State, /required_days_count: 5/);
   assert.match(lm2State, /goal_reached: false/);
