@@ -39,14 +39,13 @@ test('Workout UI renderiza treino, substituições, cardio e progressão sem dad
   const text = visibleText(html);
 
   assert.match(text, /Leg press/);
-  assert.match(text, /4 séries/);
-  assert.match(text, /10 a 12 repetições/);
-  assert.match(text, /Descanso: 60 a 90 segundos/);
-  assert.match(text, /Substituições/);
+  assert.match(text, /4 × 10 a 12/);
+  assert.match(text, /Descanso • 60–90 s/);
+  assert.match(text, /Substituição:/);
   assert.match(text, /Agachamento no smith/);
   assert.match(text, /Cardio/);
-  assert.match(text, /30 minutos/);
-  assert.match(text, /Progressão/);
+  assert.match(text, /30 min/);
+  assert.match(text, /Progresso futuro/);
   assert.match(text, /aumente um pouco a carga/);
 
   const lower = text.toLowerCase();

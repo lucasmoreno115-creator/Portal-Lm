@@ -98,8 +98,8 @@ test('Tela de treino mantém resumo semanal separado do treino completo do dia',
   assert.match(text, /Hoje/);
   assert.match(text, /Próximos treinos/);
   assert.match(text, /Leg press/);
-  assert.match(text, /4 séries/);
-  assert.match(text, /Progressão/);
+  assert.match(text, /4 × 10 a 12/);
+  assert.match(text, /Progresso futuro/);
 });
 
 test('Fallback do resumo semanal não quebra a tela quando engine service não existe', () => {
