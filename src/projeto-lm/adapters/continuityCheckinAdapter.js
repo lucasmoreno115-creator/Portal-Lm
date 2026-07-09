@@ -5,7 +5,7 @@ const MESSAGES = Object.freeze({
   strong_day: Object.freeze({
     title: 'Hoje foi um dia forte.',
     body: 'Você cumpriu o principal. Agora é repetir o básico amanhã.',
-    nextAction: 'Repita o básico amanhã, sem aumentar a cobrança.'
+    nextAction: 'Mantenha o básico no próximo bloco do dia.'
   }),
   continued: Object.freeze({
     title: 'Você continuou.',
@@ -15,12 +15,12 @@ const MESSAGES = Object.freeze({
   plan_b_win: Object.freeze({
     title: 'Plano B também é vitória.',
     body: 'Em dia difícil, manter o mínimo é melhor do que recomeçar do zero.',
-    nextAction: 'Use esse registro como prova de continuidade e retome o plano normal no próximo bloco do dia.'
+    nextAction: 'Volte para o plano normal na próxima refeição ou no próximo treino.'
   }),
   recovery_day: Object.freeze({
     title: 'Dia difícil identificado.',
     body: 'Hoje não precisa virar abandono. O próximo passo é simples: volte na próxima refeição.',
-    nextAction: 'Escolha uma próxima refeição simples ou um treino planejado para retomar sem exagero.'
+    nextAction: 'Escolha uma ação pequena agora: água, próxima refeição ou caminhada leve.'
   }),
   missed_day: Object.freeze({
     title: 'Um dia não define o processo.',

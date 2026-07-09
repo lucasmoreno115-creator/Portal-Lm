@@ -7,7 +7,9 @@ function visibleText(value) {
   return JSON.stringify(value).toLowerCase();
 }
 
-const forbidden = ['falhou', 'fracassou', 'compensar', 'cardio extra', 'restrição', 'restricao'];
+const forbidden = ['falhou', 'fracassou', 'errou', 'perdeu tudo', 'compensar', 'queimar calorias', 'cardio extra', 'restrição', 'restricao'];
+const studentVisibleKeys = ['body', 'nextAction', 'title'];
+const internalStudentVisibleKeys = ['score', 'status', 'completed', 'workoutDone', 'nutritionDone', 'usedPlanB', 'hardDay'];
 
 test('normaliza valores booleanos aceitos pelo check-in de continuidade', () => {
   assert.equal(normalizeCheckinBoolean(true), true);
@@ -40,6 +42,98 @@ test('aceita entrada em inglês, português e ausência de campos sem quebrar', 
     planB: false,
     hardDay: false
   });
+});
+
+
+test('cenário oficial on_track resolve strong_day com student_visible contratual', () => {
+  const result = adaptContinuityCheckin({
+    workoutDone: true,
+    nutritionDone: true,
+    usedPlanB: false,
+    hardDay: false
+  });
+
+  assert.equal(result.status, 'strong_day');
+  assert.deepEqual(result.student_visible, {
+    title: 'Hoje foi um dia forte.',
+    body: 'Você cumpriu o principal. Agora é repetir o básico amanhã.',
+    nextAction: 'Mantenha o básico no próximo bloco do dia.'
+  });
+});
+
+test('cenário oficial adapted resolve plan_b_win com student_visible contratual', () => {
+  const result = adaptContinuityCheckin({
+    workoutDone: false,
+    nutritionDone: false,
+    usedPlanB: true,
+    hardDay: true
+  });
+
+  assert.equal(result.status, 'plan_b_win');
+  assert.deepEqual(result.student_visible, {
+    title: 'Plano B também é vitória.',
+    body: 'Em dia difícil, manter o mínimo é melhor do que recomeçar do zero.',
+    nextAction: 'Volte para o plano normal na próxima refeição ou no próximo treino.'
+  });
+});
+
+test('cenário oficial off_track resolve recovery_day com student_visible contratual', () => {
+  const result = adaptContinuityCheckin({
+    workoutDone: false,
+    nutritionDone: false,
+    usedPlanB: false,
+    hardDay: true
+  });
+
+  assert.equal(result.status, 'recovery_day');
+  assert.deepEqual(result.student_visible, {
+    title: 'Dia difícil identificado.',
+    body: 'Hoje não precisa virar abandono. O próximo passo é simples: volte na próxima refeição.',
+    nextAction: 'Escolha uma ação pequena agora: água, próxima refeição ou caminhada leve.'
+  });
+});
+
+test('student_visible expõe somente title, body e nextAction sem campos internos', () => {
+  const scenarios = [
+    { workoutDone: true, nutritionDone: true, usedPlanB: false, hardDay: false },
+    { workoutDone: false, nutritionDone: false, usedPlanB: true, hardDay: true },
+    { workoutDone: false, nutritionDone: false, usedPlanB: false, hardDay: true },
+    { workoutDone: true, nutritionDone: false, usedPlanB: false, hardDay: false },
+    {}
+  ];
+
+  for (const scenario of scenarios) {
+    const output = adaptContinuityCheckin(scenario).student_visible;
+    assert.deepEqual(Object.keys(output).sort(), studentVisibleKeys);
+    for (const key of internalStudentVisibleKeys) {
+      assert.equal(Object.hasOwn(output, key), false, `student_visible não deve conter ${key}`);
+    }
+  }
+});
+
+test('entrada defensiva em português resolve plan_b_win e mantém student_visible seguro', () => {
+  const result = adaptContinuityCheckin({
+    treinoFeito: 'sim',
+    alimentacaoFeita: 'não',
+    planoB: 'sim',
+    diaDificil: 'sim'
+  });
+
+  assert.equal(result.status, 'plan_b_win');
+  assert.deepEqual(Object.keys(result.student_visible).sort(), studentVisibleKeys);
+  for (const key of internalStudentVisibleKeys) assert.equal(Object.hasOwn(result.student_visible, key), false);
+});
+
+test('entrada defensiva numérica resolve continued', () => {
+  const result = adaptContinuityCheckin({
+    workoutDone: 1,
+    nutritionDone: 0,
+    usedPlanB: 0,
+    hardDay: 0
+  });
+
+  assert.equal(result.status, 'continued');
+  assert.deepEqual(Object.keys(result.student_visible).sort(), studentVisibleKeys);
 });
 
 test('treino e alimentação resolvem strong_day', () => {
