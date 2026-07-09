@@ -7,7 +7,7 @@ const consistencyModule = await import('../../../' + 'src/projeto-lm/adapters/co
 
 const { generateStudentNutritionPlan } = nutritionModule;
 const { generateStudentWorkoutPlan } = workoutModule;
-const { renderNutritionPlan, renderWorkoutPlan, renderWeeklyPlan, renderContinuityCheckin, renderPlanError, logPlanError } = rendererModule;
+const { renderNutritionPlan, renderWorkoutPlan, renderWeeklyPlan, renderContinuityCheckin, renderWeeklyConsistency, renderPlanError, logPlanError } = rendererModule;
 const { adaptStudentProfile } = adapterModule;
 const { adaptContinuityCheckin } = continuityModule;
 const { adaptWeeklyConsistency } = consistencyModule;
@@ -49,6 +49,7 @@ window.ProjectLmEngineServices = Object.freeze({
   renderWorkoutPlan,
   renderWeeklyPlan,
   renderContinuityCheckin,
+  renderWeeklyConsistency,
   renderPlanError,
   resolveStudentProfile,
   resolveContinuityCheckin: (input) => adaptContinuityCheckin(input).student_visible,
