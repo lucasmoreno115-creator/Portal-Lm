@@ -1,6 +1,7 @@
 {
   "breakfast_01": { "name": "Café da manhã", "foods": ["egg", "oats", "banana"] },
   "lunch_01": { "name": "Almoço", "foods": ["chicken", "rice", "salad", "olive_oil"] },
+  "snack_01": { "name": "Lanche", "foods": ["yogurt", "apple", "oats"] },
   "snack_03": { "name": "Lanche", "foods": ["yogurt", "apple", "oats"] },
   "dinner_01": { "name": "Jantar", "foods": ["fish", "potato", "broccoli", "olive_oil"] }
 }

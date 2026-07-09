@@ -201,7 +201,7 @@
   }
 
   function resolveTrainingPlan(state = global.ProjectLm2State.getState()) {
-    if (global.ProjectLmEngineServices?.getDefaultWorkoutPlan) return global.ProjectLmEngineServices.getDefaultWorkoutPlan();
+    if (global.ProjectLmEngineServices?.getStudentWorkoutPlan) return global.ProjectLmEngineServices.getStudentWorkoutPlan(state);
     return remoteTrainingPlans[state.training_plan_id] || trainingPlans[state.training_plan_id];
   }
 
@@ -263,7 +263,7 @@
   }
 
   function resolveNutritionPlan(state = global.ProjectLm2State.getState()) {
-    if (global.ProjectLmEngineServices?.getDefaultNutritionPlan) return global.ProjectLmEngineServices.getDefaultNutritionPlan();
+    if (global.ProjectLmEngineServices?.getStudentNutritionPlan) return global.ProjectLmEngineServices.getStudentNutritionPlan(state);
     return global.ProjectLm2NutritionNormalizer?.resolveNutritionPlan?.(state) || null;
   }
 
