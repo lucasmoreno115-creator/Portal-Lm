@@ -282,10 +282,25 @@
     return `<div class="lm2-focus-panel-backdrop" data-nutrition-focus-panel role="dialog" aria-modal="true" aria-labelledby="lm2-focus-panel-title"><article class="lm2-focus-panel"><button class="lm2-focus-panel-close" type="button" data-close-nutrition-focus aria-label="Fechar painel">×</button><p class="lm2-kicker">Plano Alimentar</p><h2 id="lm2-focus-panel-title">${meal.icon} ${escapeHtml(meal.name)}</h2><ul class="lm2-food-list">${foods}</ul>${substitutionsSection}${notes}</article></div>`;
   }
 
+
+  function renderWeeklyPlanSummary(state = global.ProjectLm2State.getState()) {
+    const services = global.ProjectLmEngineServices;
+    if (!services?.getStudentWeeklyPlan || !services?.renderWeeklyPlan) {
+      return '<section class="lm2-weekly-plan lm2-engine-plan" aria-label="Semana de treino"><p class="lm2-plan-error" role="alert">Não foi possível carregar o plano semanal agora.</p></section>';
+    }
+    try {
+      const weeklyPlan = services.getStudentWeeklyPlan(state);
+      return services.renderWeeklyPlan(weeklyPlan);
+    } catch (error) {
+      if (services.logPlanError) services.logPlanError(error, global.location?.hostname === 'localhost' ? 'development' : 'production');
+      return services.renderPlanError ? services.renderPlanError() : '<p class="lm2-plan-error" role="alert">Não foi possível carregar o plano semanal agora.</p>';
+    }
+  }
+
   function renderTrainingScreen(state) {
     const plan = resolveTrainingPlan(state);
     if (global.ProjectLmEngineServices?.renderWorkoutPlan) {
-      return `${global.ProjectLmEngineServices.renderWorkoutPlan(plan)}<button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>`;
+      return `${renderWeeklyPlanSummary(state)}${global.ProjectLmEngineServices.renderWorkoutPlan(plan)}<button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>`;
     }
     if (!plan) {
       return `
@@ -552,6 +567,8 @@
         <article class="lm2-progress-card" aria-label="Resumo de progresso">
           <p>${escapeHtml(context.progress)}</p>
         </article>
+
+        ${renderWeeklyPlanSummary(state)}
 
         <section class="lm2-tools" aria-label="Acessos secundários do Projeto LM">
           <div class="lm2-tools-grid">

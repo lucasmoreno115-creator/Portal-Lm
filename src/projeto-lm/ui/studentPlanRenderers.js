@@ -26,7 +26,7 @@ export function renderNutritionPlan(plan) {
 
 export function renderWeeklyPlan(weeklyPlan) {
   if (!weeklyPlan?.today || !Array.isArray(weeklyPlan.nextWorkouts)) return renderPlanError();
-  const todayText = weeklyPlan.today.message || (weeklyPlan.today.type === 'cardio' ? '40 a 60 minutos em ritmo leve a moderado.' : 'Siga o treino indicado para hoje.');
+  const todayText = weeklyPlan.today.message || (weeklyPlan.today.type === 'cardio' ? '40 a 60 minutos em ritmo leve a moderado.' : 'Esse é o foco do seu treino de hoje.');
   return `<section class="lm2-weekly-plan lm2-engine-plan" aria-labelledby="lm2-weekly-title"><header class="lm2-nutrition-header"><p class="lm2-kicker">Projeto LM · Semana de treino</p><h1 id="lm2-weekly-title">Hoje</h1><h2>${escapeHtml(weeklyPlan.today.label || weeklyPlan.today.title || 'Treino de hoje')}</h2><p>${escapeHtml(todayText)}</p></header>${weeklyPlan.nextWorkouts.length ? `<div class="lm2-engine-card"><h2>Próximos treinos</h2><ul>${weeklyPlan.nextWorkouts.map((day) => `<li>${escapeHtml(day.label)} — ${escapeHtml(day.title)}</li>`).join('')}</ul></div>` : ''}</section>`;
 }
 
