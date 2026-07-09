@@ -1,5 +1,8 @@
+import { getWorkoutDayKey, resolveLegacyWorkoutProfile, resolveWorkoutProgram, WEEKDAY_KEYS } from '../engines/training/workoutLibrary.js';
+
 const FEMALE_ALIASES = new Set(['female', 'feminino', 'mulher', 'f', 'fem']);
 const MALE_ALIASES = new Set(['male', 'masculino', 'homem', 'm', 'masc']);
+const OFFICIAL_NUTRITION_PROFILES = new Set(['M1', 'M2', 'M3', 'H1', 'H2', 'H3']);
 
 const REST_GUIDANCE = 'Hoje é dia de descanso. Se quiser se movimentar, faça uma caminhada leve e mantenha a alimentação planejada.';
 
@@ -22,9 +25,6 @@ const DAY_META = Object.freeze({
   rest_day: { title: 'Descanso', type: 'rest', rest_day: true }
 });
 
-const FEMALE_WEEK_KEYS = Object.freeze({ 1: 'lower_a', 2: 'upper_a', 3: 'cardio_day', 4: 'lower_b', 5: 'upper_b', 6: 'cardio_day', 0: 'rest_day' });
-const MALE_WEEK_KEYS = Object.freeze({ 1: 'upper_a', 2: 'lower_a', 3: 'cardio_day', 4: 'upper_b', 5: 'lower_b', 6: 'cardio_day', 0: 'rest_day' });
-
 function firstValue(source, keys) {
   for (const key of keys) {
     if (source?.[key] !== undefined && source[key] !== null && source[key] !== '') return source[key];
@@ -39,8 +39,23 @@ export function normalizeWorkoutSex(value) {
   return null;
 }
 
-export function resolveWorkoutProfile(sex) {
-  return sex === 'male' ? 'GYM_MALE' : 'GYM_FEMALE';
+function normalizeOfficialProfile(value) {
+  const normalized = String(value ?? '').trim().toUpperCase();
+  return OFFICIAL_NUTRITION_PROFILES.has(normalized) ? normalized : null;
+}
+
+function fallbackProfileForSex(sex) {
+  return sex === 'male' ? 'H2' : 'M2';
+}
+
+function resolveProfile(input = {}) {
+  return normalizeOfficialProfile(firstValue(input, ['profile', 'perfil', 'nutrition_profile', 'nutritionProfile', 'nutrition_plan_id', 'nutritionPlanId', 'nutrition_plan_code', 'nutritionPlanCode']))
+    || fallbackProfileForSex(normalizeWorkoutSex(firstValue(input, ['sex', 'sexo', 'gender', 'genero', 'gênero'])) || 'female');
+}
+
+export function resolveWorkoutProfile(sexOrProfile) {
+  const profile = normalizeOfficialProfile(sexOrProfile) || fallbackProfileForSex(normalizeWorkoutSex(sexOrProfile) || 'female');
+  return resolveLegacyWorkoutProfile(resolveWorkoutProgram(profile));
 }
 
 function resolveDate(value) {
@@ -53,8 +68,9 @@ function titleFor(dayKey, dayIndex) {
   return DAY_META[dayKey]?.title || 'Treino Projeto LM';
 }
 
-function buildWeekDay(dayIndex, dayKey, todayIndex) {
+function buildWeekDay(profile, dayIndex, todayIndex) {
   const labels = WEEKDAY_LABELS[dayIndex];
+  const dayKey = getWorkoutDayKey(profile, WEEKDAY_KEYS[dayIndex]) || 'rest_day';
   const meta = DAY_META[dayKey] || DAY_META.rest_day;
   const title = titleFor(dayKey, dayIndex);
   return {
@@ -70,24 +86,23 @@ function buildWeekDay(dayIndex, dayKey, todayIndex) {
 }
 
 export function adaptWorkoutDay(input = {}) {
-  const sex = normalizeWorkoutSex(firstValue(input, ['sex', 'sexo', 'gender', 'genero', 'gênero'])) || 'female';
+  const profile = resolveProfile(input);
   const date = resolveDate(firstValue(input, ['date', 'currentDate', 'today']));
   const todayIndex = date.getDay();
-  const weekKeys = sex === 'male' ? MALE_WEEK_KEYS : FEMALE_WEEK_KEYS;
-  const week = [1, 2, 3, 4, 5, 6, 0].map((dayIndex) => buildWeekDay(dayIndex, weekKeys[dayIndex], todayIndex));
-  const today = buildWeekDay(todayIndex, weekKeys[todayIndex], todayIndex);
+  const week = [1, 2, 3, 4, 5, 6, 0].map((dayIndex) => buildWeekDay(profile, dayIndex, todayIndex));
+  const today = buildWeekDay(profile, todayIndex, todayIndex);
   const nextWorkouts = [];
 
   for (let offset = 1; nextWorkouts.length < 3 && offset <= 10; offset += 1) {
     const dayIndex = (todayIndex + offset) % 7;
-    const dayKey = weekKeys[dayIndex];
-    if (dayKey === 'rest_day') continue;
-    const day = buildWeekDay(dayIndex, dayKey, todayIndex);
+    const day = buildWeekDay(profile, dayIndex, todayIndex);
+    if (day.dayKey === 'rest_day') continue;
     nextWorkouts.push({ label: day.label, dayKey: day.dayKey, title: day.title, type: day.type });
   }
 
   return {
-    workoutProfile: resolveWorkoutProfile(sex),
+    workoutProfile: resolveWorkoutProfile(profile),
+    sourceProfile: profile,
     today: {
       dayKey: today.dayKey,
       label: today.title,

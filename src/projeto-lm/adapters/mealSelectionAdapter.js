@@ -1,11 +1,6 @@
-import mealLibrary from '../engines/nutrition/meal_library.json' with { type: 'json' };
+import { getAllowedMeals, getDefaultMealSelections } from '../engines/nutrition/nutritionLibrary.js';
 
-export const DEFAULT_MEAL_SELECTIONS = Object.freeze({
-  breakfast: 'breakfast_01',
-  lunch: 'lunch_01',
-  snack: 'snack_01',
-  dinner: 'dinner_01'
-});
+export const DEFAULT_MEAL_SELECTIONS = Object.freeze(getDefaultMealSelections());
 
 const MEAL_KEY_ALIASES = Object.freeze({
   breakfast: ['breakfast', 'cafe_da_manha', 'café_da_manhã', 'cafeDaManha', 'caféDaManhã', 'cafe', 'manhã', 'manha'],
@@ -69,7 +64,7 @@ export function adaptMealSelection(input = {}) {
   return Object.fromEntries(
     Object.entries(DEFAULT_MEAL_SELECTIONS).map(([slot, fallbackId]) => {
       const candidate = normalizedSelections[slot];
-      const allowedIds = mealLibrary[slot] || [];
+      const allowedIds = getAllowedMeals(slot);
       return [slot, allowedIds.includes(candidate) ? candidate : fallbackId];
     })
   );

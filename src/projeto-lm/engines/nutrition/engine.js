@@ -1,42 +1,41 @@
-import foods from './foods.json' with { type: 'json' };
-import portions from './portions.json' with { type: 'json' };
-import substitutions from './substitutions.json' with { type: 'json' };
-import templates from './meal_templates.json' with { type: 'json' };
-import planB from './plan_b.json' with { type: 'json' };
+import {
+  getFood,
+  getMealNote,
+  getMealSlot,
+  getMealTemplate,
+  getNutritionGuidance,
+  getNutritionSlots,
+  getNutritionTitle,
+  getPlanB,
+  getPortion,
+  getSubstitutions
+} from './nutritionLibrary.js';
 import { assertStudentNutritionOutputSafe, validateNutritionData, validateNutritionInput } from './validators.js';
 
-const foodById = Object.fromEntries(foods.map((food) => [food.id, food]));
-const mealSlots = [
-  ['breakfast', 'Café da manhã'],
-  ['lunch', 'Almoço'],
-  ['snack', 'Lanche'],
-  ['dinner', 'Jantar']
-];
-
-function buildMeal(profile, slot, mealId) {
-  const template = templates[mealId];
+function buildMeal(profile, slotKey, mealId) {
+  const template = getMealTemplate(mealId);
   return {
     name: template.name,
     foods: template.foods.map((foodId) => ({
-      name: foodById[foodId].name,
-      quantity: portions[foodId][profile],
-      substitutions: substitutions[foodId]
+      name: getFood(foodId).name,
+      quantity: getPortion(foodId, profile),
+      substitutions: getSubstitutions(foodId)
     })),
-    plan_b: planB[slot] ?? [],
-    notes: 'Faça o melhor possível na refeição atual e volte ao plano na próxima refeição.'
+    plan_b: getPlanB(slotKey),
+    notes: getMealNote()
   };
 }
 
 export function generateNutritionPlan(input) {
   validateNutritionInput(input);
-  validateNutritionData(input.profile, mealSlots.map(([slot]) => input[slot]));
+  validateNutritionData(input.profile, getNutritionSlots().map((slot) => input[slot.key]));
 
   const student_visible = {
-    title: 'Plano alimentar Projeto LM',
-    guidance: 'Use este plano como base do seu dia. Se algo sair do previsto, use o Plano B e mantenha a continuidade.',
-    meals: mealSlots.map(([slot, fallbackName]) => ({
-      slot_name: fallbackName,
-      ...buildMeal(input.profile, slot, input[slot])
+    title: getNutritionTitle(),
+    guidance: getNutritionGuidance(),
+    meals: getNutritionSlots().map((slot) => ({
+      slot_name: getMealSlot(slot.key).slot_name,
+      ...buildMeal(input.profile, slot.key, input[slot.key])
     }))
   };
 

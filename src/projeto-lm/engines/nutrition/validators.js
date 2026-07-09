@@ -1,27 +1,23 @@
-import foods from './foods.json' with { type: 'json' };
-import portions from './portions.json' with { type: 'json' };
-import substitutions from './substitutions.json' with { type: 'json' };
-import templates from './meal_templates.json' with { type: 'json' };
 import profiles from './profiles.json' with { type: 'json' };
+import { getFood, getMealTemplate, getNutritionSlots, getPortion, getSubstitutions } from './nutritionLibrary.js';
 
 const INTERNAL_KEYS = ['calories', 'macros', 'profile_internal', 'id', 'code'];
 
 export function validateNutritionInput(input) {
   if (!input || !profiles[input.profile]) throw new Error('Perfil nutricional inválido para o Projeto LM.');
-  for (const key of ['breakfast', 'lunch', 'snack', 'dinner']) {
-    if (!templates[input[key]]) throw new Error(`Refeição inválida: ${key}.`);
+  for (const slot of getNutritionSlots()) {
+    if (!getMealTemplate(input[slot.key])) throw new Error(`Refeição inválida: ${slot.key}.`);
   }
   return true;
 }
 
 export function validateNutritionData(profile, mealIds) {
-  const foodIds = new Set(foods.map((food) => food.id));
   for (const mealId of mealIds) {
-    const template = templates[mealId];
+    const template = getMealTemplate(mealId);
     for (const foodId of template.foods) {
-      if (!foodIds.has(foodId)) throw new Error(`Alimento inválido: ${foodId}.`);
-      if (!portions[foodId]?.[profile]) throw new Error(`Porção ausente para ${foodId} no perfil ${profile}.`);
-      if (!Array.isArray(substitutions[foodId])) throw new Error(`Substituição inválida para ${foodId}.`);
+      if (!getFood(foodId)) throw new Error(`Alimento inválido: ${foodId}.`);
+      if (!getPortion(foodId, profile)) throw new Error(`Porção ausente para ${foodId} no perfil ${profile}.`);
+      if (!Array.isArray(getSubstitutions(foodId))) throw new Error(`Substituição inválida para ${foodId}.`);
     }
   }
   return true;

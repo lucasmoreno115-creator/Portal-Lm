@@ -1,18 +1,11 @@
 {
-  "breakfast": [
-    "breakfast_01",
-    "breakfast_02"
-  ],
-  "lunch": [
-    "lunch_01",
-    "lunch_03"
-  ],
-  "snack": [
-    "snack_01",
-    "snack_03"
-  ],
-  "dinner": [
-    "dinner_01",
-    "dinner_02"
+  "title": "Plano alimentar Projeto LM",
+  "guidance": "Use este plano como base do seu dia. Se algo sair do previsto, use o Plano B e mantenha a continuidade.",
+  "meal_note": "Faça o melhor possível na refeição atual e volte ao plano na próxima refeição.",
+  "slots": [
+    { "key": "breakfast", "slot_name": "Café da manhã", "default": "breakfast_01", "meals": ["breakfast_01", "breakfast_02"] },
+    { "key": "lunch", "slot_name": "Almoço", "default": "lunch_01", "meals": ["lunch_01", "lunch_03"] },
+    { "key": "snack", "slot_name": "Lanche", "default": "snack_01", "meals": ["snack_01", "snack_03"] },
+    { "key": "dinner", "slot_name": "Jantar", "default": "dinner_01", "meals": ["dinner_01", "dinner_02"] }
   ]
 }
