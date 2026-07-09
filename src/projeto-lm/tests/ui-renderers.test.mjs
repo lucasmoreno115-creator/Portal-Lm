@@ -4,7 +4,7 @@ import { generateStudentNutritionPlan } from '../services/generateStudentNutriti
 import { generateStudentWorkoutPlan } from '../services/generateStudentWorkoutPlan.js';
 import { renderNutritionPlan, renderWorkoutPlan } from '../ui/studentPlanRenderers.js';
 
-const forbiddenNutrition = ['calories', 'calorias', 'macros', 'profile_internal', 'M2', 'breakfast_01', 'lunch_01', 'snack_03', 'dinner_01'];
+const forbiddenNutrition = ['calories', 'macros', 'profile_internal', 'M2', 'breakfast_01', 'lunch_01', 'snack_03', 'dinner_01'];
 const forbiddenWorkout = ['rir', 'rpe', '%', 'percentual', 'profile_internal', 'GYM_FEMALE', 'lower_a'];
 
 function nutritionPlan() {
@@ -21,12 +21,20 @@ test('Nutrition UI renderiza refeições, alimentos, quantidades, substituiçõe
 
   assert.match(text, /Café da manhã/);
   assert.match(text, /Almoço/);
-  assert.match(text, /Ovos/);
-  assert.match(text, /3 unidades/);
-  assert.match(text, /Substituições/);
+  assert.match(text, /Lanche/);
+  assert.match(text, /Jantar/);
+  assert.match(text, /3 unidades Ovos/);
+  assert.match(text, /Trocas disponíveis/);
   assert.match(text, /Iogurte natural/);
+  assert.match(text, /Direção/);
   assert.match(text, /Plano B/);
-  assert.match(text, /Observação/);
+  assert.match(text, /Se o dia sair do plano, não compense/);
+  assert.match(html, /lm2-nutrition-meal-card/);
+  assert.match(html, /id="lm2-plan-b"/);
+  assert.doesNotMatch(text, /Alimentos:/);
+  assert.doesNotMatch(text, /Observação/);
+  assert.doesNotMatch(text, /Substituições/);
+  assert.doesNotMatch(text, /undefined|null|student_notes/);
 
   const lower = text.toLowerCase();
   for (const forbidden of forbiddenNutrition) {
