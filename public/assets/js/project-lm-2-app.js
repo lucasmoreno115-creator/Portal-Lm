@@ -615,8 +615,16 @@
     return `<article class="lm2-continuity-card" aria-labelledby="lm2-continuity-title"><p class="lm2-kicker">Continuidade</p><h2 id="lm2-continuity-title">${escapeHtml(title)}</h2><p class="lm2-continuity-progress">${escapeHtml(body)}</p><p>${escapeHtml(next)}</p><span class="lm2-sr-only">${escapeHtml(visible.progressLabel || '')}</span></article>`;
   }
 
+  const toolIcons = {
+    Dumbbell: '<svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M14.4 14.4 9.6 9.6"/><path d="M18.657 21.485a2 2 0 1 1-2.829-2.828l2.829-2.829a2 2 0 1 1 2.828 2.829z"/><path d="m21.5 21.5-1.4-1.4"/><path d="M3.9 3.9 2.5 2.5"/><path d="M6.404 12.768 12.768 6.404"/><path d="M8.172 8.172 5.343 5.343a2 2 0 1 0-2.828 2.829l2.828 2.828a2 2 0 1 0 2.829-2.828"/><path d="m14.5 17.5 3-3"/></svg>',
+    UtensilsCrossed: '<svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8"/><path d="M15 15 3.3 3.3"/><path d="m2 22 6.8-6.8"/><path d="m20 22-6.8-6.8"/><path d="m8 2 8 8"/></svg>',
+    ShieldCheck: '<svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>',
+    BookOpen: '<svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>'
+  };
+
   function renderToolButton(route, icon, label, description) {
-    return `<button class="lm2-tool-card" type="button" data-route="${route}" aria-label="${label}: ${description}"><span class="lm2-tool-icon" aria-hidden="true">${icon}</span><span>${label}</span><small>${description}</small></button>`;
+    const iconSvg = toolIcons[icon] || '';
+    return `<button class="lm2-tool-card" type="button" data-route="${route}" aria-label="${label}: ${description}"><span class="lm2-tool-icon" aria-hidden="true">${iconSvg}</span><span>${label}</span><small>${description}</small></button>`;
   }
 
   function getWeekDayLabel(state) {
@@ -662,10 +670,10 @@
 
         <section class="lm2-tools" aria-label="Atalhos do Projeto LM">
           <div class="lm2-tools-grid">
-            ${renderToolButton('training', '↗', 'Meu Treino', 'Seu treino')}
-            ${renderToolButton('nutrition', '🍽', 'Minha Alimentação', 'Seu plano')}
-            ${renderToolButton('week-1', '◇', 'Plano B', 'Imprevistos')}
-            ${renderToolButton('library', '□', 'Biblioteca', 'Aulas')}
+            ${renderToolButton('training', 'Dumbbell', 'Meu Treino', 'Seu treino')}
+            ${renderToolButton('nutrition', 'UtensilsCrossed', 'Minha Alimentação', 'Seu plano')}
+            ${renderToolButton('week-1', 'ShieldCheck', 'Plano B', 'Imprevistos')}
+            ${renderToolButton('library', 'BookOpen', 'Biblioteca', 'Aulas')}
           </div>
         </section>
 

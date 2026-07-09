@@ -531,7 +531,7 @@ textarea.lm2-input {
   color: var(--lm2-text);
   cursor: pointer;
   text-align: left;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
 }
 
 .lm2-tool-card span,
@@ -540,16 +540,28 @@ textarea.lm2-input {
 }
 
 .lm2-tool-icon {
-  width: 28px;
-  height: 28px;
+  width: 42px;
+  height: 42px;
   margin-bottom: 14px;
-  border: 1px solid rgba(213, 155, 91, 0.22);
+  border: 1px solid rgba(213, 155, 91, 0.20);
   border-radius: 999px;
+  background: rgba(213, 155, 91, 0.07);
   color: var(--lm2-primary);
   display: inline-grid;
   place-items: center;
-  font-size: 0.82rem;
   line-height: 1;
+  transition: background 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+}
+
+.lm2-tool-icon svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .lm2-tool-card span:not(.lm2-tool-icon) {
@@ -569,6 +581,13 @@ textarea.lm2-input {
   border-color: var(--lm2-primary);
   outline: none;
   box-shadow: var(--lm2-shadow-focus);
+}
+
+.lm2-tool-card:hover .lm2-tool-icon,
+.lm2-tool-card:focus-visible .lm2-tool-icon {
+  background: rgba(213, 155, 91, 0.10);
+  box-shadow: 0 0 18px rgba(213, 155, 91, 0.14);
+  transform: scale(1.05);
 }
 
 .lm2-tool-card:active {
