@@ -31,6 +31,13 @@ export function renderWeeklyPlan(weeklyPlan) {
 }
 
 
+export function renderWeeklyConsistency(result) {
+  const visible = result?.student_visible || result;
+  if (!visible?.title || !visible?.body || !visible?.progressLabel || !visible?.nextAction) return renderPlanError();
+  return `<section class="lm2-weekly-consistency lm2-engine-plan" aria-labelledby="lm2-weekly-consistency-title"><header class="lm2-nutrition-header"><p class="lm2-kicker">Continuidade da semana</p><h1 id="lm2-weekly-consistency-title">Continuidade da semana</h1><p>${escapeHtml(visible.progressLabel)}</p></header><article class="lm2-engine-card"><h2>${escapeHtml(visible.title)}</h2><p>${escapeHtml(visible.body)}</p><h3>Próximo passo:</h3><p>${escapeHtml(visible.nextAction)}</p></article></section>`;
+}
+
+
 export function renderContinuityCheckin(checkin) {
   const visible = checkin?.student_visible || checkin;
   if (!visible?.title || !visible?.body || !visible?.nextAction) return renderPlanError();

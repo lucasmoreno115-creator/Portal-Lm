@@ -145,7 +145,11 @@
       week_4_completed: Boolean(homeData.week_4_completed),
       program_completed: Boolean(homeData.program_completed),
       program_completed_at: homeData.program_completed_at || currentState.program_completed_at,
-      premium_bridge_eligible: Boolean(homeData.premium_bridge_eligible)
+      premium_bridge_eligible: Boolean(homeData.premium_bridge_eligible),
+      checkins: Array.isArray(homeData.checkins) ? homeData.checkins : currentState.checkins,
+      dailyCheckins: Array.isArray(homeData.dailyCheckins) ? homeData.dailyCheckins : currentState.dailyCheckins,
+      projectLmCheckins: Array.isArray(homeData.projectLmCheckins) ? homeData.projectLmCheckins : currentState.projectLmCheckins,
+      profile: homeData.profile || currentState.profile
     });
   }
 
@@ -543,6 +547,44 @@
     };
   }
 
+
+  function getWeeklyConsistencyCheckins(state = {}) {
+    if (Array.isArray(state.checkins)) return state.checkins;
+    if (Array.isArray(state.dailyCheckins)) return state.dailyCheckins;
+    if (Array.isArray(state.projectLmCheckins)) return state.projectLmCheckins;
+    if (Array.isArray(state.profile?.checkins)) return state.profile.checkins;
+    if (Array.isArray(state.profile?.dailyCheckins)) return state.profile.dailyCheckins;
+    return [];
+  }
+
+  function getWeeklyConsistencyFallback() {
+    return {
+      title: 'Sua semana começa com uma ação.',
+      body: 'Registre o próximo passo simples para começar a construir continuidade.',
+      progressLabel: '0 de 0 dias de continuidade',
+      nextAction: 'Registre uma ação simples hoje.'
+    };
+  }
+
+  function resolveHomeWeeklyConsistency(state = {}) {
+    const checkins = getWeeklyConsistencyCheckins(state);
+    const resolver = global.ProjectLmEngineServices?.resolveWeeklyConsistency;
+    if (typeof resolver !== 'function') return getWeeklyConsistencyFallback();
+    const result = resolver(checkins);
+    if (!result?.title || !result?.body || !result?.progressLabel || !result?.nextAction) return getWeeklyConsistencyFallback();
+    return {
+      title: result.title,
+      body: result.body,
+      progressLabel: result.progressLabel,
+      nextAction: result.nextAction
+    };
+  }
+
+  function renderWeeklyConsistency(result) {
+    const visible = result || getWeeklyConsistencyFallback();
+    return `<article class="lm2-weekly-consistency-card" aria-labelledby="lm2-weekly-consistency-title"><p class="lm2-kicker">Continuidade da semana</p><h2 id="lm2-weekly-consistency-title">Continuidade da semana</h2><p class="lm2-weekly-consistency-progress">${escapeHtml(visible.progressLabel || '0 de 0 dias de continuidade')}</p><h3>${escapeHtml(visible.title || 'Sua semana começa com uma ação.')}</h3><p>${escapeHtml(visible.body || 'Registre o próximo passo simples para começar a construir continuidade.')}</p><div class="lm2-weekly-consistency-next"><strong>Próximo passo:</strong><p>${escapeHtml(visible.nextAction || 'Registre uma ação simples hoje.')}</p></div></article>`;
+  }
+
   function renderToolButton(route, icon, label, description) {
     return `<button class="lm2-tool-card" type="button" data-route="${route}" aria-label="${label}: ${description}"><span class="lm2-tool-icon" aria-hidden="true">${icon}</span><span>${label}</span><small>${description}</small></button>`;
   }
@@ -551,7 +593,7 @@
     const context = getHomeContext(state);
     const studentName = state.name || 'aluno';
     return `
-      <section class="lm2-home" aria-labelledby="lm2-home-title" data-home-status="${context.status}">
+      <section class="lm2-home" aria-labelledby="lm2-home-title">
         <header class="lm2-home-header">
           <p>${getGreeting()}, ${escapeHtml(studentName)} 👋</p>
           <h1 id="lm2-home-title">Projeto LM</h1>
@@ -567,6 +609,8 @@
         <article class="lm2-progress-card" aria-label="Resumo de progresso">
           <p>${escapeHtml(context.progress)}</p>
         </article>
+
+        ${renderWeeklyConsistency(resolveHomeWeeklyConsistency(state))}
 
         ${renderWeeklyPlanSummary(state)}
 
