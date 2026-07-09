@@ -6,7 +6,7 @@ import { adaptContinuityCheckin } from '../adapters/continuityCheckinAdapter.js'
 import { renderContinuityCheckin } from '../ui/studentPlanRenderers.js';
 
 const appSource = readFileSync(new URL('../../../public/assets/js/project-lm-2-app.js', import.meta.url), 'utf8');
-const forbidden = ['score', 'status', 'completed', 'falhou', 'fracassou', 'compensar', 'cardio extra', 'restrição', 'restricao'];
+const forbidden = ['score', 'status', 'completed', 'workoutDone', 'nutritionDone', 'usedPlanB', 'hardDay', 'falhou', 'fracassou', 'compensar', 'cardio extra', 'restrição', 'restricao', 'Consultoria Premium'];
 
 function visibleText(html) {
   return String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -54,28 +54,53 @@ function createAppContext({ services, answer = 'on_track', fetch } = {}) {
   return { app: fakeWindow.ProjectLm2App, window: fakeWindow };
 }
 
-function services() {
+function services(calls = []) {
   return {
-    resolveContinuityCheckin: (input) => adaptContinuityCheckin(input).student_visible,
+    resolveContinuityCheckin: (input) => {
+      calls.push(input);
+      return adaptContinuityCheckin(input).student_visible;
+    },
     renderContinuityCheckin,
     logPlanError: () => {}
   };
 }
 
-for (const [answer, expected] of [
-  ['on_track', /Hoje foi um dia forte/],
-  ['adapted', /Plano B também é vitória/],
-  ['off_track', /Dia difícil identificado/]
-]) {
-  test(`${answer} renderiza feedback de continuidade sem punição nem campos internos`, () => {
-    const { app } = createAppContext({ services: services(), answer });
-    const feedback = app.resolveContinuityCheckinFeedback(answer);
+const checkinScenarios = [
+  {
+    answer: 'on_track',
+    input: { workoutDone: true, nutritionDone: true, usedPlanB: false, hardDay: false },
+    title: 'Hoje foi um dia forte.',
+    body: 'Você cumpriu o principal. Agora é repetir o básico amanhã.'
+  },
+  {
+    answer: 'adapted',
+    input: { workoutDone: false, nutritionDone: false, usedPlanB: true, hardDay: true },
+    title: 'Plano B também é vitória.',
+    body: 'Em dia difícil, manter o mínimo é melhor do que recomeçar do zero.'
+  },
+  {
+    answer: 'off_track',
+    input: { workoutDone: false, nutritionDone: false, usedPlanB: false, hardDay: true },
+    title: 'Dia difícil identificado.',
+    body: 'Hoje não precisa virar abandono. O próximo passo é simples: volte na próxima refeição.'
+  }
+];
+
+for (const scenario of checkinScenarios) {
+  test(`${scenario.answer} envia input semântico e renderiza student_visible oficial`, () => {
+    const calls = [];
+    const { app } = createAppContext({ services: services(calls), answer: scenario.answer });
+    const feedback = app.resolveContinuityCheckinFeedback(scenario.answer);
     const html = renderContinuityCheckin(feedback);
     const text = visibleText(html);
 
-    assert.match(text, expected);
+    assert.equal(JSON.stringify(calls), JSON.stringify([scenario.input]));
+    assert.deepEqual(Object.keys(feedback).sort(), ['body', 'nextAction', 'title']);
+    assert.equal(Object.hasOwn(feedback, 'student_visible'), false);
+    assert.match(text, new RegExp(scenario.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.match(text, new RegExp(scenario.body.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     assert.match(text, /Próximo passo/);
-    for (const word of forbidden) assert.equal(html.toLowerCase().includes(word), false, `não deve conter ${word}`);
+    for (const word of forbidden) assert.equal(html.toLowerCase().includes(word.toLowerCase()), false, `não deve conter ${word}`);
   });
 }
 
@@ -95,7 +120,7 @@ test('feedback amigável aparece imediatamente após check-in e mantém persist�
 
   assert.equal(calls.length, 1);
   assert.match(visibleText(root.querySelector('[data-lm2-feedback]').innerHTML), /Plano B também é vitória/);
-  for (const word of forbidden) assert.equal(root.querySelector('[data-lm2-feedback]').innerHTML.toLowerCase().includes(word), false, `não deve conter ${word}`);
+  for (const word of forbidden) assert.equal(root.querySelector('[data-lm2-feedback]').innerHTML.toLowerCase().includes(word.toLowerCase()), false, `não deve conter ${word}`);
 });
 
 test('fallback funciona sem engine e não quebra a tela', async () => {

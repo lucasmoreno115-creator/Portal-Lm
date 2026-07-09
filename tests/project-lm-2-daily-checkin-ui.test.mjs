@@ -28,9 +28,9 @@ test('LM 2.0 daily check-in UI renders options and sends official payload', () =
   assert.match(lm2App, /Saí da direção/);
   assert.match(lm2App, /REGISTRAR DIA/);
   assert.match(lm2App, /JSON\.stringify\(\{ answer \}\)/);
-  assert.match(lm2App, /Excelente\. Mais um dia construído\./);
-  assert.match(lm2App, /Você não precisou ser perfeito\. Precisou continuar\./);
-  assert.match(lm2App, /Tudo bem\. Amanhã você retoma a direção\./);
+  assert.match(lm2App, /ProjectLmEngineServices/);
+  assert.match(lm2App, /resolveContinuityCheckin\(input\)/);
+  assert.match(lm2App, /student_visible|renderContinuityCheckin/);
   assert.match(lm2App, /FAZER CHECK-IN/);
 });
 
@@ -38,4 +38,15 @@ test('LM 2.0 daily check-in does not touch V5, Premium or Admin surfaces', () =>
   assert.doesNotMatch(v5Html, /daily-checkin|FAZER CHECK-IN|project-lm-2-app\.js/);
   assert.doesNotMatch(premiumHtml, /daily-checkin|FAZER CHECK-IN|project-lm-2-app\.js/);
   assert.doesNotMatch(adminHtml, /daily-checkin|FAZER CHECK-IN|project-lm-2-app\.js/);
+});
+
+
+test('LM 2.0 daily check-in tests no longer depend on legacy feedback copy', () => {
+  assert.doesNotMatch(lm2App, /Dia registrado/);
+  assert.doesNotMatch(lm2App, /Você seguiu sua direção/);
+  assert.doesNotMatch(lm2App, /Você adaptou/);
+  assert.doesNotMatch(lm2App, /Excelente\. Mais um dia construído/);
+  assert.doesNotMatch(lm2App, /Você não precisou ser perfeito\. Precisou continuar/);
+  assert.doesNotMatch(lm2App, /Tudo bem\. Amanhã você retoma a direção/);
+  assert.doesNotMatch(lm2App, /migração temporária|referência de migração/);
 });
