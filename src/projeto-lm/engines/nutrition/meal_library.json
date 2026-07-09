@@ -1,6 +1,6 @@
 {
   "breakfast": ["breakfast_01"],
   "lunch": ["lunch_01"],
-  "snack": ["snack_03"],
+  "snack": ["snack_01", "snack_03"],
   "dinner": ["dinner_01"]
 }
