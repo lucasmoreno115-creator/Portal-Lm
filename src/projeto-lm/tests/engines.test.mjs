@@ -39,6 +39,25 @@ test('Nutrition service retorna apenas student_visible', () => {
   assert.equal(Object.hasOwn(plan, 'profile_internal'), false);
 });
 
+
+test('Workout Library oficial resolve os seis perfis com programa, treino e prescrições completas', () => {
+  const cases = [
+    ['M1', 'lower_a', 'Lower A', 4],
+    ['M2', 'lower_a', 'Lower A', 4],
+    ['M3', 'lower_a', 'Lower A', 4],
+    ['H1', 'upper_a', 'Upper A', 4],
+    ['H2', 'upper_a', 'Upper A', 4],
+    ['H3', 'upper_a', 'Upper A', 4]
+  ];
+
+  for (const [profile, day, displayName, firstExerciseSets] of cases) {
+    const output = generateWorkoutPlan({ profile, day });
+    assert.equal(output.student_visible.display_name, displayName);
+    assert.equal(output.student_visible.exercises[0].sets, firstExerciseSets);
+    assert.equal(output.student_visible.exercises.every((exercise) => exercise.name && exercise.sets && exercise.reps && exercise.rest && exercise.observations), true);
+  }
+});
+
 test('Workout Engine gera lower_a feminino com cardio pós-treino de 30 minutos', () => {
   const output = generateWorkoutPlan({ profile: 'GYM_FEMALE', day: 'lower_a' });
   assert.equal(output.product, 'Projeto LM');

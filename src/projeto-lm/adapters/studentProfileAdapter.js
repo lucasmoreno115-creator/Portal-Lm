@@ -80,7 +80,7 @@ export function adaptStudentProfile(student = {}, options = {}) {
   const fallbackSex = sex || 'female';
   const weight = normalizeWeight(firstValue(student, ['weight', 'peso', 'weight_kg', 'peso_kg']));
   const workoutDate = firstValue(options, ['date', 'currentDate', 'today']) || firstValue(student, ['date', 'currentDate', 'today', 'createdAt', 'created_at']);
-  const weeklyPlan = adaptWorkoutDay({ sex: fallbackSex, date: workoutDate });
+  const weeklyPlan = adaptWorkoutDay({ profile: officialProfile, sex: fallbackSex, date: workoutDate });
   const selectedMeals = adaptMealSelection(extractMealSelections({ student, ...options }));
 
   return {
