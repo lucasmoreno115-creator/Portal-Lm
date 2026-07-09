@@ -1,9 +1,4 @@
-const DEFAULT_MEALS = Object.freeze({
-  breakfast: 'breakfast_01',
-  lunch: 'lunch_01',
-  snack: 'snack_01',
-  dinner: 'dinner_01'
-});
+import { adaptMealSelection, extractMealSelections } from './mealSelectionAdapter.js';
 
 const FEMALE_ALIASES = new Set(['female', 'feminino', 'mulher', 'f']);
 const MALE_ALIASES = new Set(['male', 'masculino', 'homem', 'm']);
@@ -104,11 +99,12 @@ export function adaptStudentProfile(student = {}, options = {}) {
   const fallbackSex = sex || 'female';
   const weight = normalizeWeight(firstValue(student, ['weight', 'peso', 'weight_kg', 'peso_kg']));
   const workoutDay = resolveWorkoutDay(fallbackSex, firstValue(options, ['date', 'today']) || firstValue(student, ['date', 'today', 'createdAt', 'created_at']));
+  const selectedMeals = adaptMealSelection(extractMealSelections({ student, ...options }));
 
   return {
     nutritionInput: {
       profile: resolveNutritionProfile(fallbackSex, weight),
-      ...DEFAULT_MEALS
+      ...selectedMeals
     },
     workoutInput: {
       profile: resolveWorkoutProfile(fallbackSex),

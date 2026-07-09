@@ -98,3 +98,66 @@ test('bridge retorna student_visible e não expõe códigos internos na saída f
     assert.equal(finalText.includes(code), false);
   }
 });
+
+test('student adapter usa refeições selecionadas quando válidas', () => {
+  const result = adaptStudentProfile(
+    { sex: 'female', weight: 72 },
+    { date: monday, selectedMeals: { breakfast: 'breakfast_02', lunch: 'lunch_03', snack: 'snack_03', dinner: 'dinner_02' } }
+  );
+  assert.deepEqual(result.nutritionInput, {
+    profile: 'M2',
+    breakfast: 'breakfast_02',
+    lunch: 'lunch_03',
+    snack: 'snack_03',
+    dinner: 'dinner_02'
+  });
+});
+
+test('student adapter usa fallback quando refeições são inválidas e mantém perfil/workout', () => {
+  const result = adaptStudentProfile(
+    { sex: 'male', weight: 85 },
+    { date: monday, mealSelections: { cafe_da_manha: 'lunch_03', almoco: 'lunch_03', lanche: 'invalid', jantar: 'dinner_02' } }
+  );
+  assert.deepEqual(result.nutritionInput, {
+    profile: 'H2',
+    breakfast: 'breakfast_01',
+    lunch: 'lunch_03',
+    snack: 'snack_01',
+    dinner: 'dinner_02'
+  });
+  assert.deepEqual(result.workoutInput, {
+    profile: 'GYM_MALE',
+    day: 'upper_a',
+    rest_day: false,
+    rest_guidance: undefined
+  });
+});
+
+test('bridge aceita fontes defensivas de seleção e mantém saída final segura', async () => {
+  const events = [];
+  global.window = {
+    location: { hostname: 'example.com' },
+    dispatchEvent: (event) => events.push(event.type)
+  };
+  global.CustomEvent = class CustomEvent {
+    constructor(type) { this.type = type; }
+  };
+
+  await import(`${pathToFileURL(process.cwd() + '/public/assets/js/project-lm-engine-services.js').href}?meal-selection-bridge-test=${Date.now()}`);
+
+  assert.equal(global.window.ProjectLmEngineServices.resolveStudentProfile({ sex: 'female', weight: 72, selectedMeals: { breakfast: 'breakfast_02' } }, { date: monday }).nutritionInput.breakfast, 'breakfast_02');
+  assert.equal(global.window.ProjectLmEngineServices.resolveStudentProfile({ sex: 'female', weight: 72, mealSelections: { almoco: 'lunch_03' } }, { date: monday }).nutritionInput.lunch, 'lunch_03');
+  assert.equal(global.window.ProjectLmEngineServices.resolveStudentProfile({ sex: 'female', weight: 72, profile: { selectedMeals: { dinner: 'dinner_02' } } }, { date: monday }).nutritionInput.dinner, 'dinner_02');
+
+  const nutrition = global.window.ProjectLmEngineServices.getStudentNutritionPlan(
+    { sex: 'female', weight: 72, selectedMeals: { breakfast: 'breakfast_02', lunch: 'lunch_03', snack: 'snack_03', dinner: 'dinner_02' } },
+    { date: monday }
+  );
+  const finalText = text(nutrition);
+
+  assert.equal(events.includes('project-lm-engine-services-ready'), true);
+  assert.equal(Object.hasOwn(nutrition, 'profile_internal'), false);
+  for (const code of ['breakfast_02', 'lunch_03', 'snack_03', 'dinner_02']) {
+    assert.equal(finalText.includes(code), false);
+  }
+});
