@@ -67,6 +67,13 @@ test('LM 2.0 onboarding integrates POST onboarding and GET home on success', () 
   assert.match(lm2App, /await requestLm2\(api\.home\)/);
 });
 
+test('LM 2.0 home waits for backend profile before deciding onboarding versus home', () => {
+  assert.match(lm2App, /root\.dataset\.lm2NeedsHomeLoad = 'true';\s*render\(root, 'home'\);/);
+  assert.match(lm2App, /if \(route === 'home'\) \{\s*if \(!state\.home_loaded && root\.dataset\.lm2NeedsHomeLoad === 'true'\) \{\s*delete root\.dataset\.lm2NeedsHomeLoad;\s*root\.innerHTML = renderLoadingCard\(\);\s*loadHome\(root\);\s*return;\s*\}\s*root\.innerHTML = renderHomeScreen\(state\);/s);
+  assert.match(lm2App, /render\(root, homeData\.onboarding_completed === false \? 'welcome' : 'home'\)/);
+  assert.doesNotMatch(lm2App, /if \(route === 'home'\) root\.innerHTML = renderHomeScreen\(state\);/);
+});
+
 test('LM 2.0 state tracks onboarding fields and completion only in LM 2.0 layer', () => {
   for (const field of ['name', 'goal', 'sex', 'weight_kg', 'onboarding_completed', 'home_loaded', 'home_data', 'direction_loaded']) {
     assert.match(lm2State, new RegExp(`${field}:`));

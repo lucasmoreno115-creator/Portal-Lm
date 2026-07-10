@@ -747,7 +747,15 @@
         <button class="lm2-primary-button" type="button" data-route="home">IR PARA MINHA JORNADA</button>
       </section>`;
     if (route === 'home-placeholder') route = 'home';
-    if (route === 'home') root.innerHTML = renderHomeScreen(state);
+    if (route === 'home') {
+      if (!state.home_loaded && root.dataset.lm2NeedsHomeLoad === 'true') {
+        delete root.dataset.lm2NeedsHomeLoad;
+        root.innerHTML = renderLoadingCard();
+        loadHome(root);
+        return;
+      }
+      root.innerHTML = renderHomeScreen(state);
+    }
 
     if (route === 'profile-edit') root.innerHTML = `
       <section class="lm2-card" aria-labelledby="lm2-profile-title">
@@ -1029,7 +1037,6 @@
         <button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>
       </section>`;
 
-    if (route === 'home' && !state.home_loaded) loadHome(root);
     if (route === 'direction' && !state.direction_loaded) global.ProjectLm2State.updateState({ direction_loaded: true });
   }
 
@@ -1390,6 +1397,7 @@
       root.dataset.lm2BoundClick = 'true';
       bind(root);
     }
+    root.dataset.lm2NeedsHomeLoad = 'true';
     render(root, 'home');
     if (!root.dataset.lm2BoundHashchange) {
       root.dataset.lm2BoundHashchange = 'true';
