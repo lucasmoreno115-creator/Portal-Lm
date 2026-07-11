@@ -75,6 +75,8 @@ test('Workout Engine gera lower_a feminino com cardio pós-treino de 30 minutos'
   assert.equal(output.type, 'workout_plan');
   assert.equal(output.student_visible.display_name, 'Lower A');
   assert.equal(output.student_visible.cardio.minutes, 30);
+  assert.equal(output.student_visible.exercises[0].gif, '/assets/exercise-library/leg-press-45.gif');
+  assert.equal(output.student_visible.exercises[0].video, '');
   assert.equal(output.progression_internal.basis, 'last_set');
 });
 

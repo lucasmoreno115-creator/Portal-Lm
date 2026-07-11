@@ -15,6 +15,7 @@ function buildExercises(workout) {
       sets: prescription.sets,
       reps: prescription.reps,
       rest: prescription.rest,
+      gif: exercise.gif,
       video: exercise.video,
       observations: prescription.observations,
       substitutions: substitutions[prescription.id]
