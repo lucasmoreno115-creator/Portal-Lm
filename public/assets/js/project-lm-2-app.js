@@ -220,8 +220,8 @@
     return `${weight} · ${reps}`;
   }
 
-  function resolveTrainingPlan(state = global.ProjectLm2State.getState()) {
-    if (global.ProjectLmEngineServices?.getStudentWorkoutPlan) return global.ProjectLmEngineServices.getStudentWorkoutPlan(state);
+  function resolveTrainingPlan(state = global.ProjectLm2State.getState(), options = {}) {
+    if (global.ProjectLmEngineServices?.getStudentWorkoutPlan) return global.ProjectLmEngineServices.getStudentWorkoutPlan(state, options);
     return remoteTrainingPlans[state.training_plan_id] || null;
   }
 
@@ -282,6 +282,39 @@
     };
   }
 
+
+  function getWorkoutProgramDays(state = global.ProjectLm2State.getState()) {
+    if (global.ProjectLmEngineServices?.getStudentWorkoutProgram) return global.ProjectLmEngineServices.getStudentWorkoutProgram(state);
+    return [];
+  }
+
+  function formatProgramPreview(day = {}) {
+    const pieces = [];
+    pieces.push(day.isToday ? 'Hoje' : (day.label || 'Treino da semana'));
+    if (Number(day.exerciseCount) > 0) pieces.push(`${day.exerciseCount} ${Number(day.exerciseCount) === 1 ? 'exercício' : 'exercícios'}`);
+    if (day.duration) pieces.push(day.duration);
+    return pieces.map(escapeHtml).join(' • ');
+  }
+
+  function renderWorkoutProgramSheet(state = global.ProjectLm2State.getState()) {
+    if (!state.training_program_sheet_open) return '';
+    const days = getWorkoutProgramDays(state);
+    const body = days.length ? `<div class="lm2-workout-sheet-list">${days.map((day) => `<button class="lm2-workout-sheet-item${day.isToday ? ' is-today' : ''}" type="button" data-open-program-workout="${escapeHtml(day.dayKey)}" aria-label="Abrir ${escapeHtml(day.title)}${day.isToday ? ' de hoje' : ''}"><span>${day.isToday ? '✓ ' : ''}${escapeHtml(day.title)}</span><small>${formatProgramPreview(day)}</small></button>`).join('')}</div>` : `<div class="lm2-workout-sheet-empty"><p>Não foi possível carregar seu programa agora.</p><button class="lm2-secondary-button" type="button" data-show-workout-program>Tentar novamente</button></div>`;
+    return `<div class="lm2-workout-sheet-backdrop" data-workout-program-backdrop><section class="lm2-workout-sheet" data-workout-program-sheet role="dialog" aria-modal="true" aria-labelledby="lm2-workout-program-sheet-title" tabindex="-1"><div class="lm2-workout-sheet-handle" aria-hidden="true"></div><header><div><p class="lm2-kicker">Meu Programa de Treinos</p><h2 id="lm2-workout-program-sheet-title">Meu Programa de Treinos</h2><p>Consulte qualquer treino da sua semana.</p></div><button class="lm2-workout-sheet-close" type="button" data-close-workout-program aria-label="Fechar meu programa de treinos">×</button></header>${body}</section></div>`;
+  }
+
+  function renderWorkoutProgramCta(state = global.ProjectLm2State.getState()) {
+    return `<section class="lm2-workout-program-cta" aria-labelledby="lm2-workout-program-cta-title"><div><p class="lm2-kicker">Meu Programa de Treinos</p><h2 id="lm2-workout-program-cta-title">Meu Programa de Treinos</h2><p>Veja todos os treinos da sua semana.</p></div><button class="lm2-secondary-button" type="button" data-show-workout-program>Ver programa</button></section>${renderWorkoutProgramSheet(state)}`;
+  }
+
+  function renderSelectedProgramWorkout(state = global.ProjectLm2State.getState()) {
+    const dayKey = state.training_selected_day;
+    const day = getWorkoutProgramDays(state).find((item) => item.dayKey === dayKey);
+    const plan = resolveTrainingPlan(state, { day: dayKey });
+    const rendered = global.ProjectLmEngineServices?.renderWorkoutPlan ? global.ProjectLmEngineServices.renderWorkoutPlan(plan) : renderTrainingScreen({ ...state, training_view: 'today' });
+    return `<section class="lm2-workout-library-view" aria-labelledby="lm2-workout-library-title"><header class="lm2-workout-library-header"><button class="lm2-workout-library-back" type="button" data-show-workout-program>← Meu Programa</button><h1 id="lm2-workout-library-title">${escapeHtml(day?.title || plan?.display_name || 'Treino')}</h1><p>${escapeHtml(day?.isToday ? 'Treino de hoje' : `Treino de ${String(day?.label || 'consulta').toLowerCase()}`)}</p></header>${rendered}${renderWorkoutProgramSheet(state)}<button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button></section>`;
+  }
+
   // Legacy normalizer is intentionally not used for nutrition content: ProjectLm2NutritionNormalizer?.resolveNutritionPlan
   function resolveNutritionPlan(state = global.ProjectLm2State.getState()) {
     if (global.ProjectLmEngineServices?.getStudentNutritionPlan) return global.ProjectLmEngineServices.getStudentNutritionPlan(state);
@@ -326,9 +359,10 @@
   }
 
   function renderTrainingScreen(state) {
+    if (state.training_view === 'program-workout' && state.training_selected_day) return renderSelectedProgramWorkout(state);
     const plan = resolveTrainingPlan(state);
     if (global.ProjectLmEngineServices?.renderWorkoutPlan) {
-      return `${renderWeeklyPlanSummary(state)}${global.ProjectLmEngineServices.renderWorkoutPlan(plan)}<button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button>`;
+      return `<section class="lm2-training-overview" aria-labelledby="lm2-training-page-title"><p class="lm2-kicker">Projeto LM</p><h1 id="lm2-training-page-title">Treino</h1>${renderWeeklyPlanSummary(state)}${global.ProjectLmEngineServices.renderWorkoutPlan(plan)}${renderWorkoutProgramCta(state)}<button class="lm2-secondary-button" type="button" data-route="home">VOLTAR PARA HOME</button></section>`;
     }
     if (!plan) {
       return `
@@ -1336,13 +1370,55 @@
     }
   }
 
+
+  let workoutProgramReturnFocus = null;
+
+  function focusWorkoutProgramSheet(root) {
+    const sheet = root.querySelector('[data-workout-program-sheet]');
+    if (sheet && typeof sheet.focus === 'function') sheet.focus();
+  }
+
+  function openWorkoutProgramSheet(root, returnFocusTarget = null) {
+    workoutProgramReturnFocus = returnFocusTarget || root.querySelector('[data-show-workout-program]') || workoutProgramReturnFocus;
+    global.ProjectLm2State.updateState({ training_program_sheet_open: true });
+    render(root, 'training');
+    focusWorkoutProgramSheet(root);
+  }
+
+  function closeWorkoutProgramSheet(root, options = {}) {
+    global.ProjectLm2State.updateState({ training_program_sheet_open: false });
+    render(root, 'training');
+    if (options.restoreFocus !== false && workoutProgramReturnFocus && typeof workoutProgramReturnFocus.focus === 'function') workoutProgramReturnFocus.focus();
+  }
+
+  function trapWorkoutProgramFocus(root, event) {
+    if (event.key !== 'Tab') return;
+    const sheet = root.querySelector('[data-workout-program-sheet]');
+    if (!sheet) return;
+    const focusable = Array.from(sheet.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter((element) => !element.disabled && element.getAttribute('aria-hidden') !== 'true');
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   function bind(root) {
     root.addEventListener('click', event => {
+      if (event.target?.hasAttribute?.('data-workout-program-backdrop')) return closeWorkoutProgramSheet(root);
       const target = event.target.closest('button');
       if (!target) return;
       if (target.hasAttribute('data-close-action-modal')) return target.closest('[data-action-registered-modal]')?.remove();
       if (target.hasAttribute('data-action-modal-home')) { target.closest('[data-action-registered-modal]')?.remove(); return routeTo(root, 'home'); }
-      if (target.dataset.route) return routeTo(root, target.dataset.route);
+      if (target.dataset.route) {
+        if (target.dataset.route === 'training') global.ProjectLm2State.updateState({ training_view: 'today', training_selected_day: '', training_program_sheet_open: false });
+        return routeTo(root, target.dataset.route);
+      }
       if (target.dataset.optionName) {
         global.ProjectLm2State.updateState({ [target.dataset.optionName]: target.dataset.optionValue });
         return render(root, global.ProjectLm2Router.getCurrentRoute());
@@ -1360,6 +1436,12 @@
       if (target.hasAttribute('data-continue-sex')) {
         if (!global.ProjectLm2State.getState().sex) return setError(root, 'Selecione uma opção.');
         return routeTo(root, 'onboarding-weight');
+      }
+      if (target.hasAttribute('data-show-workout-program')) return openWorkoutProgramSheet(root, target);
+      if (target.hasAttribute('data-close-workout-program')) return closeWorkoutProgramSheet(root);
+      if (target.dataset.openProgramWorkout) {
+        global.ProjectLm2State.updateState({ training_view: 'program-workout', training_selected_day: target.dataset.openProgramWorkout, training_program_sheet_open: false });
+        return render(root, 'training');
       }
       if (target.hasAttribute('data-open-exercise-result')) showExerciseResultModal(root);
       if (target.hasAttribute('data-save-exercise-result')) saveExerciseResult(root);
@@ -1386,6 +1468,17 @@
       if (target.hasAttribute('data-premium-consulting-cta')) openPremiumConsulting();
       if (target.hasAttribute('data-submit-checkin')) submitCheckin(root);
       if (target.hasAttribute('data-save-profile')) saveProfile(root);
+    });
+
+    root.addEventListener('keydown', event => {
+      const state = global.ProjectLm2State.getState();
+      if (!state.training_program_sheet_open) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeWorkoutProgramSheet(root);
+        return;
+      }
+      trapWorkoutProgramFocus(root, event);
     });
   }
 
