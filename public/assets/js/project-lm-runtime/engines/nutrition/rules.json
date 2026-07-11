@@ -1,0 +1,6 @@
+{
+  "studentHiddenFields": ["calories", "macros", "profile_internal", "id", "code"],
+  "tone": "simples, direto e focado em continuidade",
+  "showPlanB": true,
+  "showSubstitutions": true
+}

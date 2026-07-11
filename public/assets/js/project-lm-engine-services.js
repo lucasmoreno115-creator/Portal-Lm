@@ -1,9 +1,9 @@
-const nutritionModule = await import('../../../' + 'src/projeto-lm/services/generateStudentNutritionPlan.js');
-const workoutModule = await import('../../../' + 'src/projeto-lm/services/generateStudentWorkoutPlan.js');
-const rendererModule = await import('../../../' + 'src/projeto-lm/ui/studentPlanRenderers.js');
-const adapterModule = await import('../../../' + 'src/projeto-lm/adapters/studentProfileAdapter.js');
-const continuityModule = await import('../../../' + 'src/projeto-lm/adapters/continuityCheckinAdapter.js');
-const consistencyModule = await import('../../../' + 'src/projeto-lm/adapters/consistencyAdapter.js');
+const nutritionModule = await import('./project-lm-runtime/services/generateStudentNutritionPlan.js');
+const workoutModule = await import('./project-lm-runtime/services/generateStudentWorkoutPlan.js');
+const rendererModule = await import('./project-lm-runtime/ui/studentPlanRenderers.js');
+const adapterModule = await import('./project-lm-runtime/adapters/studentProfileAdapter.js');
+const continuityModule = await import('./project-lm-runtime/adapters/continuityCheckinAdapter.js');
+const consistencyModule = await import('./project-lm-runtime/adapters/consistencyAdapter.js');
 
 const { generateStudentNutritionPlan } = nutritionModule;
 const { generateStudentWorkoutPlan } = workoutModule;

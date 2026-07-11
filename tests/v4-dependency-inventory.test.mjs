@@ -29,9 +29,13 @@ const protectedEntrypoints = [
 async function listFilesInDir(relativeDir, pattern) {
   try {
     const entries = await readdir(path.join(rootDir, relativeDir), { withFileTypes: true });
-    return entries
-      .filter((entry) => entry.isFile() && pattern.test(entry.name))
-      .map((entry) => path.posix.join(relativeDir, entry.name));
+    const nested = await Promise.all(entries.map(async (entry) => {
+      const entryPath = path.posix.join(relativeDir, entry.name);
+      if (entry.isDirectory()) return listFilesInDir(entryPath, pattern);
+      if (entry.isFile() && pattern.test(entry.name)) return [entryPath];
+      return [];
+    }));
+    return nested.flat();
   } catch (error) {
     if (error.code === 'ENOENT') return [];
     throw error;
@@ -64,7 +68,7 @@ async function inventoryFiles() {
   ].sort();
   const jsFiles = [
     ...rootFiles.filter((file) => file.endsWith('.js')),
-    ...(await listFilesInDir('public/assets/js', /\.js$/))
+    ...(await listFilesInDir('public/assets/js', /\.(js|json)$/))
   ].sort();
   const cssFiles = [
     ...rootFiles.filter((file) => file.endsWith('.css')),

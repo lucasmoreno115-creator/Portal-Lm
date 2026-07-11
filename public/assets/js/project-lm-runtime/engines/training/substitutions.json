@@ -1,0 +1,15 @@
+{
+  "leg_press": ["Agachamento no smith"],
+  "squat_machine": ["Leg press"],
+  "romanian_deadlift": ["Mesa flexora"],
+  "leg_curl": ["Levantamento terra romeno"],
+  "hip_thrust": ["Leg press"],
+  "lat_pulldown": ["Remada sentada"],
+  "seated_row": ["Puxada na frente"],
+  "chest_press": ["Desenvolvimento máquina"],
+  "shoulder_press": ["Elevação lateral"],
+  "lateral_raise": ["Desenvolvimento máquina"],
+  "triceps_pushdown": ["Rosca direta"],
+  "biceps_curl": ["Tríceps na polia"],
+  "bike": ["Caminhada inclinada", "Elíptico"]
+}
