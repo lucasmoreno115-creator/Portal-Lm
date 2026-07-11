@@ -7,7 +7,7 @@ const consistencyModule = await import('../../../' + 'src/projeto-lm/adapters/co
 
 const { generateStudentNutritionPlan } = nutritionModule;
 const { generateStudentWorkoutPlan } = workoutModule;
-const { renderNutritionPlan, renderWorkoutPlan, renderWeeklyPlan, renderContinuityCheckin, renderWeeklyConsistency, renderPlanError, logPlanError } = rendererModule;
+const { renderNutritionPlan, renderWorkoutPlan, renderWeeklyPlan, renderContinuityCheckin, renderWeeklyConsistency, renderPlanError, logPlanError, estimateWorkoutDuration } = rendererModule;
 const { adaptStudentProfile } = adapterModule;
 const { adaptContinuityCheckin } = continuityModule;
 const { adaptWeeklyConsistency } = consistencyModule;
@@ -51,6 +51,7 @@ window.ProjectLmEngineServices = Object.freeze({
   renderContinuityCheckin,
   renderWeeklyConsistency,
   renderPlanError,
+  estimateWorkoutDuration,
   resolveStudentProfile,
   resolveContinuityCheckin: (input) => adaptContinuityCheckin(input).student_visible,
   resolveWeeklyConsistency: (checkins) => adaptWeeklyConsistency(checkins).student_visible,
@@ -60,13 +61,30 @@ window.ProjectLmEngineServices = Object.freeze({
   },
   getStudentWorkoutPlan: (student, options) => {
     const { workoutInput, weeklyPlan } = resolveStudentProfile(student, options);
-    const dayKey = weeklyPlan?.today?.dayKey || workoutInput.day;
+    const dayKey = options?.day || options?.dayKey || weeklyPlan?.today?.dayKey || workoutInput.day;
+    if ((options?.day || options?.dayKey) && dayKey !== 'rest_day') return safeGenerate(generateStudentWorkoutPlan, { ...workoutInput, rest_day: false, day: dayKey });
     if (workoutInput.rest_day) return createRestDayPlan(workoutInput);
     return safeGenerate(generateStudentWorkoutPlan, { ...workoutInput, day: dayKey });
   },
   getStudentWeeklyPlan: (student, options) => {
     const { weeklyPlan } = resolveStudentProfile(student, options);
     return sanitizeWeeklyPlan(weeklyPlan);
+  },
+  getStudentWorkoutProgram: (student, options) => {
+    const { workoutInput, weeklyPlan } = resolveStudentProfile(student, options);
+    const seen = new Set();
+    return (weeklyPlan?.week || [])
+      .filter((day) => day?.dayKey && day.dayKey !== 'rest_day')
+      .filter((day) => {
+        if (seen.has(day.dayKey)) return false;
+        seen.add(day.dayKey);
+        return true;
+      })
+      .map((day) => {
+        const workout = day.dayKey === 'rest_day' ? createRestDayPlan(workoutInput) : safeGenerate(generateStudentWorkoutPlan, { ...workoutInput, rest_day: false, day: day.dayKey });
+        const exerciseCount = Array.isArray(workout?.exercises) ? workout.exercises.length : 0;
+        return { weekday: day.weekday, label: day.label, dayKey: day.dayKey, title: day.title, type: day.type, isToday: day.isToday, exerciseCount, duration: estimateWorkoutDuration(workout) };
+      });
   },
   getDefaultNutritionPlan: () => {
     const { nutritionInput } = resolveStudentProfile();

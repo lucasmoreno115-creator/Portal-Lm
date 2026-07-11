@@ -25,7 +25,7 @@ function renderExerciseMedia(exercise) {
   return `<figure class="lm2-workout-media"><img src="${src}" alt="${alt}" loading="lazy" width="640" height="360" onerror="this.closest('.lm2-workout-media')?.remove()"></figure>`;
 }
 
-function estimateWorkoutDuration(workout) {
+export function estimateWorkoutDuration(workout) {
   if (workout?.cardio?.minutes) return `${escapeHtml(workout.cardio.minutes)} min + treino`;
   const count = Array.isArray(workout?.exercises) ? workout.exercises.length : 0;
   if (count >= 5) return '50–60 min';
