@@ -1,0 +1,45 @@
+name: Project LM Quality Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: project-lm-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Runtime sync and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check Project LM runtime sync
+        run: npm run check:project-lm-runtime
+
+      - name: Validate public runtime imports
+        run: node --test tests/project-lm-runtime-sync.test.mjs tests/v4-dependency-inventory.test.mjs
+
+      - name: Run test suite
+        run: npm test
+
+      - name: Ensure clean working tree
+        run: git diff --exit-code
