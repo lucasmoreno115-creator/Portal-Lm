@@ -1,3 +1,4 @@
+// AUTO-GENERATED FROM src/projeto-lm — DO NOT EDIT DIRECTLY
 import { getAllowedMeals, getDefaultMealSelections } from '../engines/nutrition/nutritionLibrary.js';
 
 export const DEFAULT_MEAL_SELECTIONS = Object.freeze(getDefaultMealSelections());

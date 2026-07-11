@@ -1,3 +1,4 @@
+// AUTO-GENERATED FROM src/projeto-lm — DO NOT EDIT DIRECTLY
 import { getWorkoutDayKey, resolveLegacyWorkoutProfile, resolveWorkoutProgram, WEEKDAY_KEYS } from '../engines/training/workoutLibrary.js';
 
 const FEMALE_ALIASES = new Set(['female', 'feminino', 'mulher', 'f', 'fem']);

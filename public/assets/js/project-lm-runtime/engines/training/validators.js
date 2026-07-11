@@ -1,3 +1,4 @@
+// AUTO-GENERATED FROM src/projeto-lm — DO NOT EDIT DIRECTLY
 import exercises from './exercises.json' with { type: 'json' };
 import substitutions from './substitutions.json' with { type: 'json' };
 import cardioRules from './cardio_rules.json' with { type: 'json' };

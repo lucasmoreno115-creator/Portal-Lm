@@ -1,0 +1,150 @@
+{
+  "generated_at": "2026-07-11T18:58:04.518Z",
+  "source_root": "src/projeto-lm",
+  "public_root": "public/assets/js/project-lm-runtime",
+  "entrypoints": [
+    "services/generateStudentNutritionPlan.js",
+    "services/generateStudentWorkoutPlan.js",
+    "ui/studentPlanRenderers.js",
+    "adapters/studentProfileAdapter.js",
+    "adapters/continuityCheckinAdapter.js",
+    "adapters/consistencyAdapter.js"
+  ],
+  "files": [
+    {
+      "source": "src/projeto-lm/services/generateStudentNutritionPlan.js",
+      "public": "public/assets/js/project-lm-runtime/services/generateStudentNutritionPlan.js",
+      "sha256": "82cd7714060a35e790ad8f4791b06b1e92c50c90f4f201585c582962a8be87d6"
+    },
+    {
+      "source": "src/projeto-lm/services/generateStudentWorkoutPlan.js",
+      "public": "public/assets/js/project-lm-runtime/services/generateStudentWorkoutPlan.js",
+      "sha256": "5373147d7ce11738e453d4e0d8af86d50fc5ad7fe53aecdfe4a344bdb9910a1a"
+    },
+    {
+      "source": "src/projeto-lm/ui/studentPlanRenderers.js",
+      "public": "public/assets/js/project-lm-runtime/ui/studentPlanRenderers.js",
+      "sha256": "ca0a1d831afecc0f3bcc6c88312541fd46a508276eb8d66b82f959357a5fc076"
+    },
+    {
+      "source": "src/projeto-lm/adapters/studentProfileAdapter.js",
+      "public": "public/assets/js/project-lm-runtime/adapters/studentProfileAdapter.js",
+      "sha256": "47baae99f5a8a5ca2ab6cde2babade997114f8af661c9dfe7ef10512b053bca2"
+    },
+    {
+      "source": "src/projeto-lm/adapters/continuityCheckinAdapter.js",
+      "public": "public/assets/js/project-lm-runtime/adapters/continuityCheckinAdapter.js",
+      "sha256": "49690fb4c36f53f6c2f12b03b72bb74d842e93c896d8ec5fa9d1daca84d7443d"
+    },
+    {
+      "source": "src/projeto-lm/adapters/consistencyAdapter.js",
+      "public": "public/assets/js/project-lm-runtime/adapters/consistencyAdapter.js",
+      "sha256": "fee12786eae01fac93a27a2a4f6caec79919fd00134c355cf6f2a0638cb67ece"
+    },
+    {
+      "source": "src/projeto-lm/engines/nutrition/engine.js",
+      "public": "public/assets/js/project-lm-runtime/engines/nutrition/engine.js",
+      "sha256": "1ad91c75ef19e9034678a61dda4056c9636d8a4aa914f47356581cd31d3bb070"
+    },
+    {
+      "source": "src/projeto-lm/engines/training/engine.js",
+      "public": "public/assets/js/project-lm-runtime/engines/training/engine.js",
+      "sha256": "69fcd38c99925cbb8980a7416ef67f614268d762ee5f14290a2a99bbe7fab4c5"
+    },
+    {
+      "source": "src/projeto-lm/adapters/mealSelectionAdapter.js",
+      "public": "public/assets/js/project-lm-runtime/adapters/mealSelectionAdapter.js",
+      "sha256": "d548dda794792c7a6bb0ff19594d4011e9c740d9a7763ab8013ee9c88af40b17"
+    },
+    {
+      "source": "src/projeto-lm/adapters/workoutDayAdapter.js",
+      "public": "public/assets/js/project-lm-runtime/adapters/workoutDayAdapter.js",
+      "sha256": "a2ad143afca9cc7962c220bf1f4212a237ce9fea838707a193e73669aae645fa"
+    },
+    {
+      "source": "src/projeto-lm/engines/nutrition/nutritionLibrary.js",
+      "public": "public/assets/js/project-lm-runtime/engines/nutrition/nutritionLibrary.js",
+      "sha256": "65b90287d7a5da09ff4d9ed40c0dee23e8657f0752cf77f2baa9ce73d38c8795"
+    },
+    {
+      "source": "src/projeto-lm/engines/nutrition/validators.js",
+      "public": "public/assets/js/project-lm-runtime/engines/nutrition/validators.js",
+      "sha256": "452a94f813fa4a15c7e42b2daa51e3d03832b8450932ffd3e05bf54ad60c45af"
+    },
+    {
+      "source": "src/projeto-lm/engines/training/exercises.json",
+      "public": "public/assets/js/project-lm-runtime/engines/training/exercises.json",
+      "sha256": "1c43275be495a2f8b4942a966fe856e2f74158386552a52698ce60203fde4d40"
+    },
+    {
+      "source": "src/projeto-lm/engines/training/substitutions.json",
+      "public": "public/assets/js/project-lm-runtime/engines/training/substitutions.json",
+      "sha256": "7f11e6b08d03fceefa065b9211a6d8755bd54e5611ad28536be21337b005ab56"
+    },
+    {
+      "source": "src/projeto-lm/engines/training/cardio_rules.json",
+      "public": "public/assets/js/project-lm-runtime/engines/training/cardio_rules.json",
+      "sha256": "a4062c46ab63e02bd6bd047edba0c4ac703af0a8f771efde27be8c64c935706f"
+    },
+    {
+      "source": "src/projeto-lm/engines/training/progression_rules.json",
+      "public": "public/assets/js/project-lm-runtime/engines/training/progression_rules.json",
+      "sha256": "c23bd5c21d8897494a706ae840f7d5c8743df98a4be6b21c2298d975ff86e15a"
+    },
+    {
+      "source": "src/projeto-lm/engines/training/workoutLibrary.js",
+      "public": "public/assets/js/project-lm-runtime/engines/training/workoutLibrary.js",
+      "sha256": "2a1a15aedadaf7a366b0b9ca642d02813c22039d87994d8099d01b79c6b11ec6"
+    },
+    {
+      "source": "src/projeto-lm/engines/training/validators.js",
+      "public": "public/assets/js/project-lm-runtime/engines/training/validators.js",
+      "sha256": "a0e80b16f7e7710a91c3f1127c0ddc37438dec1abd99f7d2f6eda0193de88cb3"
+    },
+    {
+      "source": "src/projeto-lm/engines/nutrition/foods.json",
+      "public": "public/assets/js/project-lm-runtime/engines/nutrition/foods.json",
+      "sha256": "a8d3efdfa6027318ae1f414464bd692d9afdaf7a03c3b816f8f2ca9ffcf0a965"
+    },
+    {
+      "source": "src/projeto-lm/engines/nutrition/meal_library.json",
+      "public": "public/assets/js/project-lm-runtime/engines/nutrition/meal_library.json",
+      "sha256": "b393bb67089b24255e5f1619e3511d2a32482f0eb231064e57187319ce785328"
+    },
+    {
+      "source": "src/projeto-lm/engines/nutrition/meal_templates.json",
+      "public": "public/assets/js/project-lm-runtime/engines/nutrition/meal_templates.json",
+      "sha256": "db580ecc7214d148591fec35691790685e573960daec8c301267db7d7f0b5297"
+    },
+    {
+      "source": "src/projeto-lm/engines/nutrition/portions.json",
+      "public": "public/assets/js/project-lm-runtime/engines/nutrition/portions.json",
+      "sha256": "7f7ddd92030aef85da11270053695b975fa35e7de9d56a00f905fca6a9a00bb5"
+    },
+    {
+      "source": "src/projeto-lm/engines/nutrition/substitutions.json",
+      "public": "public/assets/js/project-lm-runtime/engines/nutrition/substitutions.json",
+      "sha256": "dee8ec4792b3c2569bf5f87bbf8b91c2957867800aafea35d91b6f5274778bbc"
+    },
+    {
+      "source": "src/projeto-lm/engines/nutrition/plan_b.json",
+      "public": "public/assets/js/project-lm-runtime/engines/nutrition/plan_b.json",
+      "sha256": "24e29c7c1a4929b22b48a609ae4730cef0a8f5ea4f3eb1c5998cbbd7a032e233"
+    },
+    {
+      "source": "src/projeto-lm/engines/nutrition/profiles.json",
+      "public": "public/assets/js/project-lm-runtime/engines/nutrition/profiles.json",
+      "sha256": "3949b499b1c6e7cf6cd8027a915fefd1a92849184671167a1db7860467ea4638"
+    },
+    {
+      "source": "src/projeto-lm/engines/training/workout_library.json",
+      "public": "public/assets/js/project-lm-runtime/engines/training/workout_library.json",
+      "sha256": "d61b0a730926818a005ab779640f1c45cada1957e945075f214414043a0ad8f9"
+    },
+    {
+      "source": "src/projeto-lm/engines/training/rules.json",
+      "public": "public/assets/js/project-lm-runtime/engines/training/rules.json",
+      "sha256": "feef27f3d71f4f1ab944f697225013fa1edb82b6e1d88f85e661eb75dcf2c291"
+    }
+  ]
+}

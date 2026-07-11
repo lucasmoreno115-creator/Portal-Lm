@@ -1,3 +1,4 @@
+// AUTO-GENERATED FROM src/projeto-lm — DO NOT EDIT DIRECTLY
 import workoutLibrary from './workout_library.json' with { type: 'json' };
 
 export const WEEKDAY_KEYS = Object.freeze(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']);

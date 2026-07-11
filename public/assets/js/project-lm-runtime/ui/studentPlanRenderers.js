@@ -1,3 +1,4 @@
+// AUTO-GENERATED FROM src/projeto-lm — DO NOT EDIT DIRECTLY
 const LOAD_ERROR_MESSAGE = 'Não foi possível carregar este plano agora. Tente novamente em instantes.';
 
 function escapeHtml(value) {
