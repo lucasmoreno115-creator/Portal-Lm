@@ -55,11 +55,41 @@ test('Workout UI renderiza treino, substituições, cardio e progressão sem dad
   assert.match(text, /30 min/);
   assert.match(text, /Progresso futuro/);
   assert.match(text, /aumente um pouco a carga/);
+  assert.match(html, /class="lm2-workout-media"/);
+  assert.match(html, /src="\/assets\/exercise-library\/leg-press-45\.gif"/);
+  assert.match(html, /loading="lazy"/);
+  assert.match(html, /onerror="this\.closest\('\.lm2-workout-media'\)\?\.remove\(\)"/);
+  assert.doesNotMatch(html, /src="undefined"|src=""|undefined/);
 
   const lower = text.toLowerCase();
   for (const forbidden of forbiddenWorkout) {
     assert.equal(lower.includes(forbidden.toLowerCase()), false, `não deve renderizar ${forbidden}`);
   }
+});
+
+test('Workout UI mantém exercício sem GIF sem imagem quebrada e sem alterar prescrição', () => {
+  const html = renderWorkoutPlan({
+    display_name: 'Treino sem mídia',
+    exercises: [
+      {
+        name: 'Exercício manual',
+        sets: 3,
+        reps: '12',
+        rest: '60 segundos',
+        observations: 'Controle o movimento.',
+        substitutions: ['Opção segura']
+      }
+    ]
+  });
+  const text = visibleText(html);
+
+  assert.doesNotMatch(html, /lm2-workout-media|<img/);
+  assert.doesNotMatch(html, /undefined|src=""/);
+  assert.match(text, /Exercício manual/);
+  assert.match(text, /3 × 12/);
+  assert.match(text, /Descanso • 60 s/);
+  assert.match(text, /Controle o movimento/);
+  assert.match(text, /Substituição: Opção segura/);
 });
 
 test('UI renderiza fallback simples quando o plano não está disponível', () => {

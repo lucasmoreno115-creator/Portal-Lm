@@ -1,15 +1,93 @@
 [
-  { "id": "leg_press", "name": "Leg press", "group": "quads", "video": "" },
-  { "id": "squat_machine", "name": "Agachamento no smith", "group": "quads", "video": "" },
-  { "id": "romanian_deadlift", "name": "Levantamento terra romeno", "group": "posterior", "video": "" },
-  { "id": "leg_curl", "name": "Mesa flexora", "group": "posterior", "video": "" },
-  { "id": "hip_thrust", "name": "Elevação pélvica", "group": "glutes", "video": "" },
-  { "id": "lat_pulldown", "name": "Puxada na frente", "group": "back", "video": "" },
-  { "id": "seated_row", "name": "Remada sentada", "group": "back", "video": "" },
-  { "id": "chest_press", "name": "Supino máquina", "group": "chest", "video": "" },
-  { "id": "shoulder_press", "name": "Desenvolvimento máquina", "group": "shoulders", "video": "" },
-  { "id": "lateral_raise", "name": "Elevação lateral", "group": "shoulders", "video": "" },
-  { "id": "triceps_pushdown", "name": "Tríceps na polia", "group": "arms", "video": "" },
-  { "id": "biceps_curl", "name": "Rosca direta", "group": "arms", "video": "" },
-  { "id": "bike", "name": "Bicicleta ergométrica", "group": "cardio", "video": "" }
+  {
+    "id": "leg_press",
+    "name": "Leg press",
+    "group": "quads",
+    "video": "",
+    "gif": "/assets/exercise-library/leg-press-45.gif"
+  },
+  {
+    "id": "squat_machine",
+    "name": "Agachamento no smith",
+    "group": "quads",
+    "video": "",
+    "gif": "/assets/exercise-library/agachamento-smith.gif"
+  },
+  {
+    "id": "romanian_deadlift",
+    "name": "Levantamento terra romeno",
+    "group": "posterior",
+    "video": "",
+    "gif": "/assets/exercise-library/levantamento-terra-romeno.gif"
+  },
+  {
+    "id": "leg_curl",
+    "name": "Mesa flexora",
+    "group": "posterior",
+    "video": "",
+    "gif": "/assets/exercise-library/mesa-flexora.gif"
+  },
+  {
+    "id": "hip_thrust",
+    "name": "Elevação pélvica",
+    "group": "glutes",
+    "video": "",
+    "gif": "/assets/exercise-library/elevacao-pelvica.gif"
+  },
+  {
+    "id": "lat_pulldown",
+    "name": "Puxada na frente",
+    "group": "back",
+    "video": "",
+    "gif": "/assets/exercise-library/puxada-alta-pronada.gif"
+  },
+  {
+    "id": "seated_row",
+    "name": "Remada sentada",
+    "group": "back",
+    "video": "",
+    "gif": "/assets/exercise-library/remada-baixa-com-o-triangulo.gif"
+  },
+  {
+    "id": "chest_press",
+    "name": "Supino máquina",
+    "group": "chest",
+    "video": "",
+    "gif": "/assets/exercise-library/supino-reto-maquina.gif"
+  },
+  {
+    "id": "shoulder_press",
+    "name": "Desenvolvimento máquina",
+    "group": "shoulders",
+    "video": "",
+    "gif": "/assets/exercise-library/desenvolvimento-maquina.gif"
+  },
+  {
+    "id": "lateral_raise",
+    "name": "Elevação lateral",
+    "group": "shoulders",
+    "video": "",
+    "gif": "/assets/exercise-library/elevacao-lateral-halteres.gif"
+  },
+  {
+    "id": "triceps_pushdown",
+    "name": "Tríceps na polia",
+    "group": "arms",
+    "video": "",
+    "gif": "/assets/exercise-library/triceps-polia-corda.gif"
+  },
+  {
+    "id": "biceps_curl",
+    "name": "Rosca direta",
+    "group": "arms",
+    "video": "",
+    "gif": "/assets/exercise-library/rosca-direta-barra.gif"
+  },
+  {
+    "id": "bike",
+    "name": "Bicicleta ergométrica",
+    "group": "cardio",
+    "video": "",
+    "gif": "/assets/exercise-library/bicicleta-ergometrica.gif"
+  }
 ]
