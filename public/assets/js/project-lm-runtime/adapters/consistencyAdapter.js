@@ -1,3 +1,4 @@
+// AUTO-GENERATED FROM src/projeto-lm — DO NOT EDIT DIRECTLY
 import { adaptContinuityCheckin } from './continuityCheckinAdapter.js';
 
 const CONTINUITY_STATUSES = new Set(['strong_day', 'continued', 'plan_b_win']);

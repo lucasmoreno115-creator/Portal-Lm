@@ -1,3 +1,4 @@
+// AUTO-GENERATED FROM src/projeto-lm — DO NOT EDIT DIRECTLY
 const TRUE_VALUES = new Set(['true', '1', 'sim', 's', 'yes', 'y']);
 const FALSE_VALUES = new Set(['false', '0', 'nao', 'não', 'n', 'no']);
 

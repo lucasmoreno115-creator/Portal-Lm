@@ -1,3 +1,4 @@
+// AUTO-GENERATED FROM src/projeto-lm — DO NOT EDIT DIRECTLY
 import { adaptMealSelection, extractMealSelections } from './mealSelectionAdapter.js';
 import { adaptWorkoutDay, resolveWorkoutProfile as resolveWeeklyWorkoutProfile } from './workoutDayAdapter.js';
 

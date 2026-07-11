@@ -141,7 +141,10 @@ async function collectReferences() {
   const files = await inventoryFiles();
   const references = [];
   for (const htmlFile of files.htmlFiles) references.push(...extractHtmlReferences(await readFile(path.join(rootDir, htmlFile), 'utf8'), htmlFile));
-  for (const jsFile of files.jsFiles) references.push(...extractJsReferences(await readFile(path.join(rootDir, jsFile), 'utf8'), jsFile));
+  for (const jsFile of files.jsFiles) {
+    if (jsFile.endsWith('.json')) continue;
+    references.push(...extractJsReferences(await readFile(path.join(rootDir, jsFile), 'utf8'), jsFile));
+  }
   for (const cssFile of files.cssFiles) references.push(...extractCssReferences(await readFile(path.join(rootDir, cssFile), 'utf8'), cssFile));
   return { files, references };
 }

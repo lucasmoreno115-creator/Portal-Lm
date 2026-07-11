@@ -1,3 +1,4 @@
+// AUTO-GENERATED FROM src/projeto-lm — DO NOT EDIT DIRECTLY
 import foods from './foods.json' with { type: 'json' };
 import mealLibrary from './meal_library.json' with { type: 'json' };
 import mealTemplates from './meal_templates.json' with { type: 'json' };

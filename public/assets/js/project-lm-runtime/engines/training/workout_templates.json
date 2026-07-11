@@ -1,7 +1,0 @@
-{
-  "lower_a": { "displayName": "Lower A", "exercises": ["leg_press", "romanian_deadlift", "hip_thrust", "leg_curl"] },
-  "lower_b": { "displayName": "Lower B", "exercises": ["squat_machine", "leg_curl", "hip_thrust", "leg_press"] },
-  "upper_a": { "displayName": "Upper A", "exercises": ["lat_pulldown", "chest_press", "seated_row", "shoulder_press", "triceps_pushdown"] },
-  "upper_b": { "displayName": "Upper B", "exercises": ["seated_row", "chest_press", "lat_pulldown", "lateral_raise", "biceps_curl"] },
-  "cardio_day": { "displayName": "Cardio Day", "exercises": ["bike"] }
-}

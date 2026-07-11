@@ -1,6 +1,8 @@
 {
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "build:project-lm-runtime": "node scripts/build-project-lm-runtime.mjs",
+    "check:project-lm-runtime": "node scripts/check-project-lm-runtime.mjs"
   }
 }

@@ -1,3 +1,4 @@
+// AUTO-GENERATED FROM src/projeto-lm — DO NOT EDIT DIRECTLY
 import profiles from './profiles.json' with { type: 'json' };
 import { getFood, getMealTemplate, getNutritionSlots, getPortion, getSubstitutions } from './nutritionLibrary.js';
 
