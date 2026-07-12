@@ -1,14 +1,60 @@
 import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 const repoRoot = process.cwd();
 const publicDir = path.join(repoRoot, 'public');
 const artifactDir = path.join(repoRoot, 'github-pages-artifact');
 
-const rootPublicFileExtensions = new Set(['.html', '.css', '.js', '.ico']);
 const rootPublicFiles = ['CNAME', '_redirects'];
-const rootPublicDirectories = ['assets'];
+const legacyRootFiles = [
+  'index.html',
+  'admin-alerts.html',
+  'admin-anamneses.html',
+  'admin-auth.js',
+  'admin-checkins.html',
+  'admin-command-center.html',
+  'admin-followup.html',
+  'admin-login.html',
+  'admin-nutrition-plan.html',
+  'admin-student.html',
+  'admin-students.html',
+  'admin-weekly-plan.html',
+  'admin.html',
+  'anamnese-premium.html',
+  'portal-biblioteca.html',
+  'portal-checkin.html',
+  'portal-login.html',
+  'portal-plano-alimentar-print.html',
+  'portal-plano-alimentar.html',
+  'portal-progressao.html',
+  'portal-shared.js',
+  'portal.css',
+  'portal.html',
+  'project-lm-planning.js',
+  'project-lm-profile.html',
+  'project-lm-profile.js',
+  'project-lm.css',
+  'projeto-lm-biblioteca.html',
+  'projeto-lm-conquistas.html',
+  'projeto-lm-consistencia.html',
+  'projeto-lm-conteudo.html',
+  'projeto-lm-dia-dificil.html',
+  'projeto-lm-estatisticas.html',
+  'projeto-lm-jornada.html',
+  'projeto-lm-onboarding.html',
+  'projeto-lm-planejamento.html',
+  'projeto-lm-plano-inicial.html',
+];
+const legacyRootDirectories = ['assets'];
+const criticalPublicFiles = [
+  'project-lm-2.html',
+  'assets/js/project-lm-2-app.js',
+  'assets/js/project-lm-engine-services.js',
+  'assets/js/project-lm-runtime/runtime-manifest.json',
+  'assets/css/project-lm-2.css',
+];
 const forbiddenArtifactEntries = ['public', 'src', 'tests', 'workers', '.github'];
 const requiredArtifactFiles = [
   'index.html',
@@ -35,40 +81,138 @@ async function assertFile(relativePath) {
 
 async function copyIfExists(source, destination) {
   if (existsSync(source)) {
-    await cp(source, destination, { recursive: true, dereference: true, force: true });
+    await cp(source, destination, { recursive: true, dereference: true, force: false });
+  }
+}
+
+async function sha256(filePath) {
+  const content = await readFile(filePath);
+  return createHash('sha256').update(content).digest('hex');
+}
+
+async function fileSize(filePath) {
+  return (await stat(filePath)).size;
+}
+
+async function captureCriticalChecksums() {
+  const checksums = new Map();
+  for (const relativePath of criticalPublicFiles) {
+    const source = path.join(publicDir, relativePath);
+    const destination = path.join(artifactDir, relativePath);
+    if (!existsSync(source) || !existsSync(destination)) {
+      throw new Error(`Critical public file missing before legacy copy: ${relativePath}`);
+    }
+    checksums.set(relativePath, await sha256(destination));
+  }
+  return checksums;
+}
+
+async function assertCriticalChecksumsUnchanged(before) {
+  const preserved = [];
+  for (const [relativePath, expected] of before.entries()) {
+    const destination = path.join(artifactDir, relativePath);
+    const actual = await sha256(destination);
+    if (actual !== expected) {
+      throw new Error(`Critical public file was modified while copying legacy files: ${relativePath}`);
+    }
+    preserved.push(`${relativePath}:${actual}`);
+  }
+  console.log(`Preserved critical public checksums: ${preserved.join(', ')}`);
+}
+
+async function collectFiles(directory, prefix = '') {
+  if (!existsSync(directory)) return [];
+  const discovered = [];
+  const entries = await readdir(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+    const absolutePath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      discovered.push(...await collectFiles(absolutePath, relativePath));
+    } else if (entry.isFile()) {
+      discovered.push(relativePath);
+    }
+  }
+  return discovered;
+}
+
+async function reportRootPublicCollisions() {
+  const candidates = [...rootPublicFiles, ...legacyRootFiles];
+  for (const directory of legacyRootDirectories) {
+    const files = await collectFiles(path.join(repoRoot, directory), directory);
+    candidates.push(...files);
+  }
+
+  const collisions = [];
+  for (const relativePath of [...new Set(candidates)].sort()) {
+    const publicPath = path.join(publicDir, relativePath);
+    const rootPath = path.join(repoRoot, relativePath);
+    if (!existsSync(publicPath) || !existsSync(rootPath)) continue;
+    collisions.push({
+      relativePath,
+      publicSha: await sha256(publicPath),
+      rootSha: await sha256(rootPath),
+      publicSize: await fileSize(publicPath),
+      rootSize: await fileSize(rootPath),
+    });
+  }
+
+  if (collisions.length === 0) {
+    console.log('Root/public collisions found: none. Public files win by default.');
+    return;
+  }
+
+  console.log('Root/public collisions found (public wins; legacy root copy is skipped):');
+  for (const collision of collisions) {
+    console.log(`- ${collision.relativePath}`);
+    console.log(`  public: public/${collision.relativePath} size=${collision.publicSize} sha256=${collision.publicSha}`);
+    console.log(`  root: ${collision.relativePath} size=${collision.rootSize} sha256=${collision.rootSha}`);
+    console.log('  previous winner: root copy could overwrite public when force:true was used');
+    console.log('  runtime impact: preserving public avoids replacing official Project LM/runtime assets with legacy or incomplete files');
   }
 }
 
 async function copyRootPublicFiles() {
-  const entries = await readdir(repoRoot, { withFileTypes: true });
   const copied = [];
+  const skipped = [];
 
-  for (const entry of entries) {
-    if (!entry.isFile()) {
-      continue;
-    }
-
-    const shouldCopy = rootPublicFileExtensions.has(path.extname(entry.name)) || rootPublicFiles.includes(entry.name);
-    if (!shouldCopy) {
-      continue;
-    }
-
-    await cp(path.join(repoRoot, entry.name), path.join(artifactDir, entry.name), { force: true });
-    copied.push(entry.name);
-  }
-
-  for (const directory of rootPublicDirectories) {
-    const source = path.join(repoRoot, directory);
+  for (const file of [...rootPublicFiles, ...legacyRootFiles]) {
+    const source = path.join(repoRoot, file);
+    const destination = path.join(artifactDir, file);
     if (!existsSync(source)) {
       continue;
     }
 
-    await cp(source, path.join(artifactDir, directory), { recursive: true, dereference: true, force: true });
-    copied.push(`${directory}/`);
+    if (existsSync(destination)) {
+      skipped.push(file);
+      continue;
+    }
+
+    await cp(source, destination, { force: false });
+    copied.push(file);
+  }
+
+  for (const directory of legacyRootDirectories) {
+    const files = await collectFiles(path.join(repoRoot, directory), directory);
+    for (const file of files) {
+      const source = path.join(repoRoot, file);
+      const destination = path.join(artifactDir, file);
+      if (existsSync(destination)) {
+        skipped.push(file);
+        continue;
+      }
+
+      await mkdir(path.dirname(destination), { recursive: true });
+      await cp(source, destination, { force: false });
+      copied.push(file);
+    }
   }
 
   copied.sort();
-  console.log(`Copied root public entries: ${copied.join(', ')}`);
+  skipped.sort();
+  console.log(`Legacy root whitelist: ${legacyRootFiles.join(', ')}`);
+  console.log(`Copied root public entries: ${copied.join(', ') || 'none'}`);
+  console.log(`Skipped root public entries already provided by public/: ${skipped.join(', ') || 'none'}`);
 }
 
 
@@ -177,11 +321,14 @@ async function main() {
   // itself must not be preserved, otherwise Pages serves /public/assets/... and
   // absolute runtime paths such as /assets/exercise-library/*.gif return 404.
   await cp(publicDir, artifactDir, { recursive: true, dereference: true, force: true });
+  await reportRootPublicCollisions();
+  const criticalChecksums = await captureCriticalChecksums();
 
   // Restore legacy Portal/Admin public entrypoints that still live at the repo
   // root without publishing source, tests, migrations, workers or configuration.
   await copyRootPublicFiles();
   await rewriteArtifactOnlyLegacyPublicRoutes();
+  await assertCriticalChecksumsUnchanged(criticalChecksums);
 
   // Expose css/ and js/ at the artifact root for the Pages artifact contract,
   // while retaining assets/css and assets/js for existing application paths.
