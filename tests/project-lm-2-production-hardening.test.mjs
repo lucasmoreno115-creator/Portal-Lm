@@ -10,12 +10,13 @@ const lm2Html = await readFile('public/project-lm-2.html', 'utf8');
 
 
 test('LM 2.0 public HTML references published relative asset paths', () => {
-  assert.match(lm2Html, /<link rel="stylesheet" href="assets\/css\/project-lm-2\.css\?v=20260709-1">/);
-  assert.match(lm2Html, /<script src="assets\/js\/project-lm-2-state\.js\?v=20260709-1"><\/script>/);
-  assert.match(lm2Html, /<script src="assets\/js\/project-lm-2-router\.js\?v=20260709-1"><\/script>/);
-  assert.match(lm2Html, /<script type="module" src="assets\/js\/project-lm-engine-services\.js\?v=20260709-1"><\/script>/);
-  assert.match(lm2Html, /<script src="assets\/js\/project-lm-2-app\.js\?v=20260709-1"><\/script>/);
+  assert.match(lm2Html, /<link rel="stylesheet" href="assets\/css\/project-lm-2\.css\?v=20260712-1">/);
+  assert.match(lm2Html, /<script src="assets\/js\/project-lm-2-state\.js\?v=20260712-1"><\/script>/);
+  assert.match(lm2Html, /<script src="assets\/js\/project-lm-2-router\.js\?v=20260712-1"><\/script>/);
+  assert.match(lm2Html, /<script type="module" src="assets\/js\/project-lm-2-app\.js\?v=20260712-1"><\/script>/);
+  assert.doesNotMatch(lm2Html, /project-lm-engine-services\.js\?v=/);
   assert.doesNotMatch(lm2Html, /(?:href|src)="\/(?:assets\/css\/project-lm-2\.css|assets\/js\/project-lm-2-(?:state|router|app)\.js)"/);
+  assert.match(lm2App, /^import '\.\/project-lm-engine-services\.js';/);
 });
 
 test('LM 2.0 state safely serializes, deserializes and normalizes persisted values', () => {

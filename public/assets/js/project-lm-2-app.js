@@ -1,3 +1,4 @@
+import './project-lm-engine-services.js';
 (function initializeProjectLm2App(global, document) {
   const premiumConsultingCtaUrl = 'https://wa.me/5514991174500?text=Ol%C3%A1%20Lucas,%20quero%20conhecer%20a%20Consultoria%20Premium.';
   const friendlyErrorMessage = 'Não foi possível carregar agora. Verifique sua conexão e tente novamente.';
