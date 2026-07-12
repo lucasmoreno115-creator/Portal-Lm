@@ -179,7 +179,7 @@ test('V5, Premium, Admin, and LM 2.0 asset isolation remain intact', () => {
   assert.doesNotMatch(v5Html, /project-lm-2-app\.js|Minha Direção|week-1/);
   assert.doesNotMatch(premiumHtml, /project-lm-2-app\.js|Minha Direção|week-1/);
   assert.doesNotMatch(portalHtml, /project-lm-2-app\.js|Minha Direção|week-1/);
-  assert.match(lm2Html, /project-lm-2-app\.js/);
+  assert.match(lm2Html, /project-lm-2-entry\.js/);
 });
 
 function escapeRegExp(value) {

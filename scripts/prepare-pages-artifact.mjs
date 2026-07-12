@@ -50,6 +50,7 @@ const legacyRootFiles = [
 const legacyRootDirectories = ['assets'];
 const criticalPublicFiles = [
   'project-lm-2.html',
+  'assets/js/project-lm-2-entry.js',
   'assets/js/project-lm-2-app.js',
   'assets/js/project-lm-engine-services.js',
   'assets/js/project-lm-runtime/runtime-manifest.json',
