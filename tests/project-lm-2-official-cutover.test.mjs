@@ -8,6 +8,7 @@ const access = await readFile('public/assets/js/lm-access.js', 'utf8');
 const lm2Html = await readFile('public/project-lm-2.html', 'utf8');
 const lm2CanonicalAlias = await readFile('projeto-lm/index.html', 'utf8');
 const lm2App = await readFile('public/assets/js/project-lm-2-app.js', 'utf8');
+const lm2Entry = await readFile('public/assets/js/project-lm-2-entry.js', 'utf8');
 const apiSource = await readFile('workers/api.js', 'utf8');
 const premiumHtml = await readFile('anamnese-premium.html', 'utf8');
 const adminHtml = await readFile('admin.html', 'utf8');
@@ -34,7 +35,7 @@ const lm2RelativeAssets = [
   'assets/js/project-lm-2-router.js?v=20260712-1',
   'assets/js/project-lm-2-nutrition-data.js?v=20260712-1',
   'assets/js/project-lm-2-nutrition-normalizer.js?v=20260712-1',
-  'assets/js/project-lm-2-app.js?v=20260712-1'
+  'assets/js/project-lm-2-entry.js?v=20260712-1'
 ];
 
 test('Projeto LM login officially cuts over to LM 2.0 while Premium remains on portal.html', () => {
@@ -80,7 +81,7 @@ test('GitHub Pages physical canonical alias serves LM 2.0 without V5 or legacy a
     '../public/assets/js/project-lm-2-router.js?v=20260712-1',
     '../public/assets/js/project-lm-2-nutrition-data.js?v=20260712-1',
     '../public/assets/js/project-lm-2-nutrition-normalizer.js?v=20260712-1',
-    '../public/assets/js/project-lm-2-app.js?v=20260712-1'
+    '../public/assets/js/project-lm-2-entry.js?v=20260712-1'
   ];
 
   assert.match(lm2CanonicalAlias, /<title>Projeto LM 2\.0<\/title>/);
@@ -102,6 +103,15 @@ test('LM 2.0 uses relative assets so public/project-lm-2.html can load without 4
     assert.match(lm2Html, new RegExp(`(?:href|src)="${escapeRegExp(asset)}"`));
     assert.doesNotMatch(lm2Html, new RegExp(`(?:href|src)="/${escapeRegExp(asset)}"`));
   }
+});
+
+
+
+test('LM 2.0 module entrypoint serializes engine before app without competing script tags', () => {
+  assert.match(lm2Entry, /^await import\('\.\/project-lm-engine-services\.js'\);\nawait import\('\.\/project-lm-2-app\.js'\);\n$/);
+  assert.doesNotMatch(lm2App, /^import\s/m);
+  assert.doesNotMatch(lm2Html, /project-lm-engine-services\.js\?v=/);
+  assert.doesNotMatch(lm2Html, /project-lm-2-app\.js\?v=/);
 });
 
 test('LM 2.0 onboarding and home APIs remain authenticated', () => {

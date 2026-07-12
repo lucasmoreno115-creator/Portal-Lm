@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const lm2App = await readFile('public/assets/js/project-lm-2-app.js', 'utf8');
+const lm2Entry = await readFile('public/assets/js/project-lm-2-entry.js', 'utf8');
 const lm2State = await readFile('public/assets/js/project-lm-2-state.js', 'utf8');
 const lm2Router = await readFile('public/assets/js/project-lm-2-router.js', 'utf8');
 
@@ -13,10 +14,12 @@ test('LM 2.0 public HTML references published relative asset paths', () => {
   assert.match(lm2Html, /<link rel="stylesheet" href="assets\/css\/project-lm-2\.css\?v=20260712-1">/);
   assert.match(lm2Html, /<script src="assets\/js\/project-lm-2-state\.js\?v=20260712-1"><\/script>/);
   assert.match(lm2Html, /<script src="assets\/js\/project-lm-2-router\.js\?v=20260712-1"><\/script>/);
-  assert.match(lm2Html, /<script type="module" src="assets\/js\/project-lm-2-app\.js\?v=20260712-1"><\/script>/);
+  assert.match(lm2Html, /<script type="module" src="assets\/js\/project-lm-2-entry\.js\?v=20260712-1"><\/script>/);
   assert.doesNotMatch(lm2Html, /project-lm-engine-services\.js\?v=/);
+  assert.doesNotMatch(lm2Html, /project-lm-2-app\.js\?v=/);
   assert.doesNotMatch(lm2Html, /(?:href|src)="\/(?:assets\/css\/project-lm-2\.css|assets\/js\/project-lm-2-(?:state|router|app)\.js)"/);
-  assert.match(lm2App, /^import '\.\/project-lm-engine-services\.js';/);
+  assert.match(lm2Entry, /^await import\('\.\/project-lm-engine-services\.js'\);\nawait import\('\.\/project-lm-2-app\.js'\);\n$/);
+  assert.doesNotMatch(lm2App, /^import\s/m);
 });
 
 test('LM 2.0 state safely serializes, deserializes and normalizes persisted values', () => {

@@ -21,7 +21,7 @@ const officialRoutes = [
   '#premium-bridge'
 ];
 const lm2Assets = [
-  'assets/js/project-lm-2-app.js',
+  'assets/js/project-lm-2-entry.js',
   'assets/js/project-lm-2-state.js',
   'assets/js/project-lm-2-router.js',
   'assets/css/project-lm-2.css'
