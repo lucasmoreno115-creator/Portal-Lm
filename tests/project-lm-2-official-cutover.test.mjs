@@ -30,12 +30,12 @@ const legacyStudentEntrypoints = [
   'public/project-lm-v5.html'
 ];
 const lm2RelativeAssets = [
-  'assets/css/project-lm-2.css?v=20260712-1',
-  'assets/js/project-lm-2-state.js?v=20260712-1',
-  'assets/js/project-lm-2-router.js?v=20260712-1',
-  'assets/js/project-lm-2-nutrition-data.js?v=20260712-1',
-  'assets/js/project-lm-2-nutrition-normalizer.js?v=20260712-1',
-  'assets/js/project-lm-2-entry.js?v=20260712-1'
+  './assets/css/project-lm-2.css?v=20260712-1',
+  './assets/js/project-lm-2-state.js?v=20260712-1',
+  './assets/js/project-lm-2-router.js?v=20260712-1',
+  './assets/js/project-lm-2-nutrition-data.js?v=20260712-1',
+  './assets/js/project-lm-2-nutrition-normalizer.js?v=20260712-1',
+  './assets/js/project-lm-2-entry.js?v=20260712-1'
 ];
 
 test('Projeto LM login officially cuts over to LM 2.0 while Premium remains on portal.html', () => {
