@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Publish public directory
+    name: Publish validated Pages artifact
     runs-on: ubuntu-latest
 
     environment:
@@ -31,10 +31,13 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload public directory
+      - name: Prepare GitHub Pages artifact root
+        run: npm run prepare:pages-artifact
+
+      - name: Upload validated Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: public
+          path: github-pages-artifact
 
       - name: Deploy to GitHub Pages
         id: deployment
