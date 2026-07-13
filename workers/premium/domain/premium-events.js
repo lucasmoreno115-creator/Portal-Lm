@@ -1,0 +1,34 @@
+import { InvalidPremiumEventError } from './domain-errors.js';
+
+export const PremiumEvent = Object.freeze({
+  ANAMNESIS_SENT: 'ANAMNESIS_SENT',
+  ANAMNESIS_RESPONDED: 'ANAMNESIS_RESPONDED',
+  ANAMNESIS_ANALYZED: 'ANAMNESIS_ANALYZED',
+  PLAN_UPDATED: 'PLAN_UPDATED',
+  FEEDBACK_AVAILABLE: 'FEEDBACK_AVAILABLE',
+  FEEDBACK_RECEIVED: 'FEEDBACK_RECEIVED',
+  FEEDBACK_ANALYZED: 'FEEDBACK_ANALYZED',
+  CONSULTATION_STARTED: 'CONSULTATION_STARTED',
+  CONSULTATION_PAUSED: 'CONSULTATION_PAUSED',
+  CONSULTATION_RESUMED: 'CONSULTATION_RESUMED',
+  CONSULTATION_ENDED: 'CONSULTATION_ENDED',
+  STUDENT_CREATED: 'STUDENT_CREATED',
+  STUDENT_RECORD_VIEWED: 'STUDENT_RECORD_VIEWED',
+});
+
+const validEvents = new Set(Object.values(PremiumEvent));
+
+export function assertPremiumEvent(event) {
+  if (!validEvents.has(event)) {
+    throw new InvalidPremiumEventError(event);
+  }
+  return event;
+}
+
+export function isPremiumEvent(event) {
+  return validEvents.has(event);
+}
+
+export function listPremiumEvents() {
+  return Object.values(PremiumEvent);
+}
