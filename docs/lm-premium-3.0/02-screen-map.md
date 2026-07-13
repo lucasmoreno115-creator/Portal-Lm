@@ -1,120 +1,138 @@
 # LM Premium 3.0 — 02 Screen Map
 
 ## Objetivo
-Este documento transforma a auditoria do Build 0 em mapa operacional de telas. Ele separa Plataforma LM, Consultoria Premium, Projeto LM e Admin, indicando objetivo, público, ação principal, dependências e estado futuro recomendado sem implementar alterações.
+Este documento mapeia as telas atuais e separa claramente o estado atual do Portal do escopo futuro aprovado do LM Premium 3.0. Ele não altera rotas, telas, arquivos de produção ou decisões já aprovadas.
+
+## Escopo futuro aprovado do Premium 3.0
+O novo núcleo da Consultoria Premium é composto por:
+- anamnese;
+- plano alimentar;
+- feedback semanal;
+- gestão de pendências;
+- Prontuário LM;
+- Evolução do Acompanhamento;
+- Workspace do profissional;
+- Workspace do aluno.
+
+Ficam fora do núcleo:
+- plano semanal atual;
+- progressão de carga/progressão operacional, classificada como conveniência candidata à descontinuação;
+- follow-up como módulo independente, que deve ser reclassificado como pendências, condutas e Evolução do Acompanhamento;
+- treinos dentro do Portal, pois MFit continua responsável por treinos.
 
 ## Legenda de estado futuro
-- **Preservar**: tela importante para o processo atual e reaproveitável.
-- **Preservar como compatibilidade**: manter enquanto houver dependência histórica.
-- **Reavaliar**: tela útil/legada que precisa decisão antes de Build funcional.
-- **Não expandir para Premium**: pertence a outro domínio e não deve crescer dentro do Premium.
+- **Core Premium 3.0**: parte do escopo futuro aprovado.
+- **Estado atual / compatibilidade**: existe hoje, mas não define o core futuro.
+- **Reclassificar**: deve ser reinterpretado dentro dos conceitos aprovados.
+- **Fora do core / candidato à descontinuação**: não deve orientar o novo núcleo.
+- **Outro produto**: pertence ao Projeto LM, Plataforma LM ou MFit.
 
 ## PLATAFORMA LM
-| Tela | Objetivo | Quem acessa | Principal ação | Dependências | Estado futuro |
+A Plataforma LM é responsável somente por login, autenticação, controle de acesso e direcionamento ao produto correto.
+
+| Tela | Estado atual | Objetivo atual | Quem acessa | Dependências | Estado futuro |
 |---|---|---|---|---|---|
-| `index.html` | Entrada institucional/landing | Público | Iniciar navegação ou diagnóstico | Assets raiz, rotas públicas/legado | Reavaliar como superfície institucional |
-| `portal-login.html` | Entrada única de aluno | Aluno Premium ou Projeto LM | Login com email/token | `portal-shared.js`, `/api/portal/login`, `student_access` | Preservar com contratos claros |
-| `anamnese-premium.html` | Coletar anamnese Premium | Aluno Premium | Enviar respostas | `/api/anamnese-premium`, `premium_anamnesis` | Preservar |
+| `portal-login.html` | Entrada compartilhada de aluno | Login com email/token e redirecionamento por produto | Aluno Premium ou Projeto LM | `portal-shared.js`, `/api/portal/login`, `student_access` | Plataforma LM: login, autenticação, controle de acesso e direcionamento |
+| `index.html` | Entrada pública/landing | Entrada institucional/diagnóstico/links | Público | Assets raiz e rotas públicas/legado | Fora do núcleo Premium; classificar como Plataforma/marketing se mantida |
 
-## CONSULTORIA PREMIUM — aluno
-Fluxo operacional esperado:
+## CONSULTORIA PREMIUM — Workspace do aluno
+Fluxo futuro aprovado:
 ```text
-Portal
-  ↓
-Hoje / visão geral
-  ↓
-Meu plano alimentar
-  ↓
-Minha semana
-  ↓
-Check-in
-  ↓
-Progressão
-  ↓
-MFit para treinos
-```
-
-| Tela | Objetivo | Quem acessa | Principal ação | Dependências | Estado futuro |
-|---|---|---|---|---|---|
-| `portal.html` | Dashboard do aluno Premium | Aluno Premium | Ver plano semanal, histórico e atalhos | `portal.css`, `portal-shared.js`, `/api/portal/me`, `/api/portal/weekly-plan`, `/api/portal/checkins`, `/api/portal/progression`, link MFit | Preservar como home Premium |
-| `portal-plano-alimentar.html` | Exibir plano alimentar ativo | Aluno Premium | Consultar plano | `portal.css`, `portal-shared.js`, `/api/portal/nutrition-plan`, `nutrition_plans` | Preservar |
-| `portal-plano-alimentar-print.html` | Versão de impressão do plano | Aluno Premium | Imprimir/consultar plano | `portal.css`, `/api/portal/nutrition-plan` | Preservar se impressão continuar necessária |
-| `portal-checkin.html` | Enviar feedback/check-in | Aluno Premium | Registrar check-in | `portal.css`, `portal-shared.js`, `/api/portal/checkin`, `student_checkins` | Preservar |
-| `portal-progressao.html` | Registrar evolução | Aluno Premium | Enviar peso/medidas/progresso | `portal.css`, `portal-shared.js`, `/api/portal/progression`, `progression_logs` | Preservar |
-| `portal-biblioteca.html` | Biblioteca/apoio do portal | Aluno Premium | Consultar conteúdo de apoio | Dependências estáticas/portal | Reavaliar papel no Premium 3.0 |
-
-## CONSULTORIA PREMIUM — admin operacional
-Fluxo operacional esperado:
-```text
-Workspace admin
-  ↓
-Alunos
-  ↓
-Prontuário LM / Student 360
+Workspace do aluno
   ↓
 Anamnese
   ↓
 Plano alimentar
   ↓
-Plano semanal
+Feedback semanal
   ↓
-Feedback / Check-ins
+Pendências visíveis ao aluno quando aplicável
   ↓
-Follow-up / Alertas
+Evolução do Acompanhamento apresentada ao aluno quando aplicável
   ↓
-Command Center
+MFit para treinos
 ```
 
-| Tela | Objetivo | Quem acessa | Principal ação | Dependências | Estado futuro |
+| Tela atual | Estado atual | Objetivo atual | Quem acessa | Dependências | Estado futuro |
 |---|---|---|---|---|---|
-| `admin-login.html` | Entrada admin | Admin/Lucas | Autenticar sessão admin | `admin-auth.js`, `/api/admin/session/login` | Preservar |
-| `admin.html` | Hub admin | Admin/Lucas | Navegar para áreas admin | `admin-auth.js` | Preservar ou consolidar em workspace |
-| `admin-students.html` | Lista/acesso de alunos | Admin/Lucas | Criar/editar acesso | `/api/admin/students`, `/api/admin/student-access` | Preservar |
-| `admin-student.html` | Prontuário/Student 360 | Admin/Lucas | Ver aluno e operar ações centrais | `/api/admin/student-360`, `/api/admin/students`, planos, check-ins, acesso, follow-up | Preservar como tela crítica, mas modularizar futuramente |
-| `admin-anamneses.html` | Lista/detalhe de anamneses | Admin/Lucas | Analisar e marcar status | `/api/admin/anamneses`, `premium_anamnesis` | Preservar |
-| `admin-nutrition-plan.html` | Plano alimentar admin | Admin/Lucas | Criar/editar/publicar plano | `/api/admin/nutrition-plan`, `nutrition_plans` | Preservar |
-| `admin-weekly-plan.html` | Plano semanal admin | Admin/Lucas | Salvar foco semanal | `/api/admin/weekly-plan`, `weekly_plans` | Preservar |
-| `admin-checkins.html` | Fila de check-ins | Admin/Lucas | Ler e responder check-ins | `/api/admin/checkins`, `/api/admin/checkins/:id/reply` | Preservar |
-| `admin-followup.html` | Acompanhamento e retenção | Admin/Lucas | Registrar follow-up/ações | `/api/admin/followup-*`, `/api/admin/retention-*` | Preservar |
-| `admin-alerts.html` | Alertas do portal | Admin/Lucas | Ver alertas | `/api/admin/portal-alerts` | Preservar se mantiver alertas separados |
-| `admin-command-center.html` | Visão operacional consolidada | Admin/Lucas | Monitorar saúde, alertas e prioridade | `/api/admin/command-center`, `/api/admin/health-check`, `/api/admin/operational-logs`, alertas | Preservar |
+| `anamnese-premium.html` | Existe | Coletar respostas da anamnese | Aluno Premium | `/api/anamnese-premium`, `premium_anamnesis` | Core Premium 3.0: Anamnese |
+| `portal.html` | Existe | Dashboard com atalhos, plano semanal, histórico, progressão e link MFit | Aluno Premium | `portal.css`, `portal-shared.js`, `/api/portal/me`, `/api/portal/weekly-plan`, `/api/portal/checkins`, `/api/portal/progression` | Reclassificar como Workspace do aluno; remover mentalmente dependência do plano semanal como core |
+| `portal-plano-alimentar.html` | Existe | Exibir plano alimentar ativo | Aluno Premium | `/api/portal/nutrition-plan`, `nutrition_plans` | Core Premium 3.0: Plano alimentar |
+| `portal-plano-alimentar-print.html` | Existe | Versão de consulta/impressão do plano | Aluno Premium | `/api/portal/nutrition-plan` | Compatibilidade do Plano alimentar, se necessário |
+| `portal-checkin.html` | Existe | Enviar check-in | Aluno Premium | `/api/portal/checkin`, `student_checkins` | Reclassificar como Feedback semanal |
+| `portal-progressao.html` | Existe | Registrar progressão/progresso | Aluno Premium | `/api/portal/progression`, `progression_logs` | Fora do core; conveniência candidata à descontinuação ou absorção pela Evolução do Acompanhamento |
+| `portal-biblioteca.html` | Existe | Biblioteca/apoio do portal | Aluno Premium | Dependências estáticas/portal | Reavaliar; não listado no core aprovado |
+
+## CONSULTORIA PREMIUM — Workspace do profissional
+Fluxo futuro aprovado:
+```text
+Workspace do profissional
+  ↓
+Alunos
+  ↓
+Prontuário LM
+  ↓
+Anamnese
+  ↓
+Plano alimentar
+  ↓
+Feedback semanal
+  ↓
+Pendências e condutas
+  ↓
+Evolução do Acompanhamento
+```
+
+| Tela atual | Estado atual | Objetivo atual | Quem acessa | Dependências | Estado futuro |
+|---|---|---|---|---|---|
+| `admin-login.html` | Existe | Login admin | Lucas/admin | `admin-auth.js`, `/api/admin/session/login` | Plataforma LM/Admin: autenticação profissional |
+| `admin.html` | Existe | Hub admin | Lucas/admin | `admin-auth.js` | Reclassificar como entrada do Workspace do profissional |
+| `admin-students.html` | Existe | Lista e acesso de alunos | Lucas/admin | `/api/admin/students`, `/api/admin/student-access` | Workspace do profissional: alunos/acesso operacional |
+| `admin-student.html` | Existe | Student 360/visão consolidada | Lucas/admin | `/api/admin/student-360`, planos, check-ins, acesso, follow-up | Core Premium 3.0: Prontuário LM |
+| `admin-anamneses.html` | Existe | Lista/detalhe de anamneses | Lucas/admin | `/api/admin/anamneses`, `premium_anamnesis` | Core Premium 3.0: Anamnese dentro do Prontuário/Workspace |
+| `admin-nutrition-plan.html` | Existe | Criar/editar/publicar plano alimentar | Lucas/admin | `/api/admin/nutrition-plan`, `nutrition_plans` | Core Premium 3.0: Plano alimentar |
+| `admin-weekly-plan.html` | Existe | Salvar foco/plano semanal | Lucas/admin | `/api/admin/weekly-plan`, `weekly_plans` | Estado atual / fora do novo núcleo |
+| `admin-checkins.html` | Existe | Ler e responder check-ins | Lucas/admin | `/api/admin/checkins`, `/api/admin/checkins/:id/reply` | Reclassificar como Feedback semanal |
+| `admin-followup.html` | Existe | Follow-up, retenção e ações | Lucas/admin | `/api/admin/followup-*`, `/api/admin/retention-*` | Reclassificar; não deve existir como módulo independente |
+| `admin-alerts.html` | Existe | Alertas do portal | Lucas/admin | `/api/admin/portal-alerts` | Reclassificar como gestão de pendências |
+| `admin-command-center.html` | Existe | Visão operacional, saúde, alertas e prioridade | Lucas/admin | `/api/admin/command-center`, `/api/admin/health-check`, `/api/admin/operational-logs` | Reclassificar como Workspace do profissional/gestão de pendências, sem virar módulo separado de follow-up |
 
 ## PROJETO LM
-| Tela | Objetivo | Quem acessa | Principal ação | Dependências | Estado futuro |
+| Tela | Estado atual | Objetivo | Quem acessa | Dependências | Estado futuro |
 |---|---|---|---|---|---|
-| `public/project-lm-2.html` | Entrada oficial LM 2.0 | Aluno Projeto LM | Executar jornada automatizada | `public/assets/js/project-lm-2-*`, `/api/project-lm-2/*`, `lm2_*` | Não expandir para Premium |
-| `public/project-lm-v5.html` | Entrada V5/legado moderno | Aluno Projeto LM/compatibilidade | Jornada Projeto LM V5 | `/assets/js/project-lm-v5-app.js`, `/api/project-lm/*`, `project_lm_*` | Preservar como compatibilidade conforme decisão existente |
-| `public/projeto-lm/index.html` | Alias/canônico público | Aluno Projeto LM | Entrar no Projeto LM | Assets públicos Projeto LM | Não expandir para Premium |
-| `projeto-lm-*.html` raiz | Superfícies legadas Projeto LM | Aluno Projeto LM legado | Conteúdos/jornada antiga | Scripts/rotas Projeto LM | Preservar como compatibilidade até decisão |
-| `project-lm-profile.html` | Perfil/onboarding Projeto LM legado | Aluno Projeto LM | Preencher perfil | `project-lm-profile.js`, rotas profile | Não expandir para Premium |
+| `public/project-lm-2.html` | Oficial LM 2.0 | Jornada automatizada | Aluno Projeto LM | `public/assets/js/project-lm-2-*`, `/api/project-lm-2/*`, `lm2_*` | Outro produto; não expandir para Premium |
+| `public/project-lm-v5.html` | V5/compatibilidade | Jornada Projeto LM V5 | Aluno Projeto LM | `/assets/js/project-lm-v5-app.js`, `/api/project-lm/*`, `project_lm_*` | Outro produto/compatibilidade |
+| `public/projeto-lm/index.html` | Alias/canônico público | Entrada Projeto LM | Aluno Projeto LM | Assets públicos Projeto LM | Outro produto |
+| `projeto-lm-*.html` raiz | Legado | Conteúdos/jornada antiga | Aluno Projeto LM legado | Scripts/rotas Projeto LM | Outro produto/compatibilidade |
+| `project-lm-profile.html` | Legado | Perfil/onboarding Projeto LM | Aluno Projeto LM | `project-lm-profile.js`, rotas profile | Outro produto |
 
 ## ADMIN legado/geral
-| Tela/rota | Objetivo | Quem acessa | Principal ação | Dependências | Estado futuro |
-|---|---|---|---|---|---|
-| Rotas admin `leads`, `metrics`, `alerts` | Funil/diagnóstico legado | Admin | Consultar leads/métricas/alertas | `/api/admin/leads`, `/api/admin/metrics`, `/api/admin/alerts` | Reavaliar; não parece core Premium 3.0 |
+| Tela/rota | Estado atual | Objetivo atual | Estado futuro |
+|---|---|---|---|
+| Rotas admin `leads`, `metrics`, `alerts` | Existem no Worker | Funil/diagnóstico legado | Reavaliar; não são núcleo aprovado do Premium 3.0 |
 
-## Telas realmente importantes para Premium 3.0
-### Aluno Premium
-1. Login.
-2. Portal/Home.
-3. Plano alimentar.
-4. Check-in.
-5. Progressão.
-6. Anamnese.
-7. Acesso/ponte para MFit.
+## Telas realmente importantes para o escopo aprovado
+### Workspace do aluno
+1. Anamnese.
+2. Plano alimentar.
+3. Feedback semanal.
+4. Pendências visíveis quando aplicável.
+5. Evolução do Acompanhamento quando aplicável.
+6. Link/direcionamento externo para MFit.
 
-### Admin Premium
-1. Login admin.
-2. Alunos.
-3. Student 360 / Prontuário LM.
-4. Anamneses.
-5. Plano alimentar.
-6. Plano semanal.
-7. Check-ins/feedback.
-8. Follow-up/alertas.
-9. Command Center.
+### Workspace do profissional
+1. Alunos/acesso operacional.
+2. Prontuário LM.
+3. Anamnese.
+4. Plano alimentar.
+5. Feedback semanal.
+6. Gestão de pendências.
+7. Condutas.
+8. Evolução do Acompanhamento.
 
 ## Conflitos encontrados
-- O login é uma tela compartilhada por Premium e Projeto LM; o comportamento atual depende do plano do aluno.
-- Algumas superfícies Projeto LM ainda vivem próximas ao Portal por namespace/arquivos históricos.
-- O admin contém telas core Premium e rotas legadas no mesmo Worker.
+- O login atual é compartilhado por Premium e Projeto LM; no futuro isso pertence à Plataforma LM, limitada a login, autenticação, controle de acesso e direcionamento.
+- O dashboard atual do aluno mistura itens core e fora do core, como plano semanal e progressão.
+- O admin atual possui follow-up como módulo/tela independente, mas o Premium 3.0 deve representar ações relevantes como pendências, condutas e Evolução do Acompanhamento.
+- Student 360 existe hoje; o conceito futuro aprovado é Prontuário LM.
+- Check-in existe hoje; o conceito futuro aprovado é feedback semanal.

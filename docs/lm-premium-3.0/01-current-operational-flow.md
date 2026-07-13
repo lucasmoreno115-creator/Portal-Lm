@@ -1,16 +1,38 @@
 # LM Premium 3.0 — 01 Current Operational Flow
 
 ## Objetivo
-Este documento descreve o funcionamento operacional atual da Consultoria LM Premium a partir da auditoria técnica do Build 0. Ele não propõe novas funcionalidades, não muda decisões de produto e não altera o sistema. O objetivo é explicitar como o trabalho acontece hoje para que o software sirva ao processo da consultoria, e não o contrário.
+Este documento descreve o funcionamento operacional atual da Consultoria LM Premium e diferencia explicitamente o que existe hoje no Portal do escopo futuro aprovado do LM Premium 3.0. Ele é exclusivamente documental: não propõe implementação, não altera decisões aprovadas e não modifica produção.
+
+## Separação obrigatória: estado atual vs escopo futuro aprovado
+
+### Estado atual do Portal
+Hoje o Portal LM organiza acesso, anamnese, plano alimentar, plano semanal, check-ins, progressão, follow-up, timeline, alertas e telas administrativas. Parte desse funcionamento existe por histórico do produto e por acoplamento técnico no Worker/D1.
+
+### Escopo futuro aprovado do LM Premium 3.0
+O núcleo futuro aprovado do Premium inclui somente:
+- anamnese;
+- plano alimentar;
+- feedback semanal;
+- gestão de pendências;
+- Prontuário LM;
+- Evolução do Acompanhamento;
+- Workspace do profissional;
+- Workspace do aluno.
+
+### Fora do novo núcleo
+- Plano semanal existe no Portal atual, mas não faz parte do novo núcleo Premium 3.0.
+- Progressão de carga/progressão operacional é funcionalidade de conveniência fora do core e candidata à descontinuação.
+- Follow-up não deve existir como módulo independente no Premium 3.0; ações relevantes devem ser representadas por pendências, condutas e Evolução do Acompanhamento.
+- MFit continua sendo a fonte oficial dos treinos; o Portal não substitui o MFit.
 
 ## Princípio operacional
-A Consultoria LM Premium é um serviço personalizado. O Portal LM organiza acesso, informações, check-ins, plano alimentar, plano semanal, follow-up, timeline e leitura administrativa. A decisão clínica, a prescrição nutricional, a interpretação do contexto do aluno, a atualização do plano e o acompanhamento continuam sendo responsabilidades humanas do profissional.
+A Consultoria LM Premium é um serviço personalizado. O software deve apoiar o processo de Lucas, organizar informação e reduzir perda operacional. A decisão clínica, a prescrição nutricional, a interpretação do contexto do aluno, a conduta e o acompanhamento continuam sendo responsabilidades humanas do profissional.
 
-## Visão macro do fluxo
+## Fluxo operacional atual do Portal
 ```text
 Novo aluno
   ↓
-Criar acesso
+Criar/liberar acesso
   ↓
 Enviar anamnese
   ↓
@@ -18,229 +40,235 @@ Aluno responde anamnese
   ↓
 Lucas analisa informações
   ↓
-Lucas cria plano alimentar e orientações iniciais
+Lucas cria plano alimentar
   ↓
-Aluno acessa portal e executa plano
+Aluno acessa portal e executa orientações
   ↓
-Aluno envia check-ins/progressão
+Aluno envia check-ins/feedbacks e, quando usa, registros de progressão
   ↓
-Sistema organiza dados e alertas
+Sistema organiza dados, histórico, alertas e telas admin
   ↓
-Lucas analisa feedbacks
+Lucas analisa feedbacks e histórico
   ↓
-Lucas responde, ajusta ou acompanha
+Lucas responde, ajusta plano, registra conduta ou resolve pendência
   ↓
 Consultoria continua em ciclos
 ```
 
-## Papéis
+## Fluxo futuro aprovado do Premium 3.0
+```text
+Novo aluno Premium
+  ↓
+Plataforma LM autentica e direciona
+  ↓
+Workspace do aluno apresenta anamnese
+  ↓
+Aluno responde anamnese
+  ↓
+Workspace do profissional organiza Prontuário LM
+  ↓
+Lucas analisa e define conduta
+  ↓
+Lucas registra plano alimentar
+  ↓
+Aluno executa o plano e usa MFit para treinos
+  ↓
+Aluno envia feedback semanal
+  ↓
+Sistema organiza pendências e Evolução do Acompanhamento
+  ↓
+Lucas analisa, registra conduta e atualiza plano quando necessário
+  ↓
+Consultoria continua
+```
+
+## Papéis no Premium 3.0
 
 ### Sistema
 Responsável por organizar o processo:
-- criar e validar acesso do aluno;
-- receber anamnese;
-- armazenar plano alimentar, plano semanal, check-ins, progressões e logs de acompanhamento;
-- exibir ao aluno o que já foi registrado pelo profissional;
-- exibir ao admin a visão consolidada do aluno;
-- registrar timeline e sinais operacionais;
-- preservar a separação com Projeto LM e MFit conforme documentado.
+- autenticar e direcionar o aluno por meio da Plataforma LM;
+- receber e estruturar anamnese;
+- armazenar plano alimentar definido por Lucas;
+- receber feedback semanal;
+- organizar pendências, condutas e Evolução do Acompanhamento;
+- estruturar o Prontuário LM;
+- oferecer Workspace do profissional e Workspace do aluno;
+- preservar a fronteira com Projeto LM e MFit.
 
 O sistema não é responsável por:
 - diagnosticar;
 - prescrever por conta própria;
 - substituir julgamento clínico;
 - substituir contato humano;
+- manter follow-up como módulo independente;
+- transformar plano semanal em núcleo do Premium 3.0;
 - substituir o MFit como fonte oficial de treinos.
 
 ### Lucas / profissional
 Responsável por conduzir a consultoria:
-- decidir a estratégia nutricional;
-- analisar anamnese, check-ins e progressões;
+- analisar anamnese, histórico e feedback semanal;
+- decidir estratégia nutricional e conduta;
 - criar e atualizar plano alimentar;
-- definir plano semanal/orientações;
+- avaliar pendências e resoluções;
+- registrar evolução do acompanhamento;
 - interpretar riscos, adesão, contexto e necessidades do aluno;
-- responder feedbacks e decidir próximos passos;
 - usar MFit como fonte oficial para treinos.
 
 ### Aluno
 Responsável por executar e informar:
-- acessar o Portal com email/token;
+- acessar o produto correto após login;
 - responder anamnese;
 - consultar plano alimentar e orientações;
 - executar o combinado fora do sistema;
-- enviar check-ins;
-- registrar progressão quando aplicável;
+- enviar feedback semanal;
+- responder pendências quando aplicável;
 - acessar MFit para treinos.
 
 ## Fluxo operacional detalhado
 
 ### 1. Entrada de novo aluno
-**Responsável principal:** Lucas/admin.
+**Estado atual:** `student_access` concentra email, token, plano/produto e status. O login atual redireciona o aluno conforme o plano registrado.
+
+**Escopo Premium 3.0:** a Plataforma LM é responsável somente por login, autenticação, controle de acesso e direcionamento ao produto correto. A operação Premium começa depois do direcionamento ao Workspace correto.
+
+**Responsável principal:** Lucas/admin para criação/liberação; Plataforma LM para autenticação/direcionamento.
 
 **Entradas:** dados básicos do aluno, email, plano/produto, status inicial e necessidade de acesso.
 
-**Sistema faz:** registra ou atualiza `student_access`, token e status de acesso; permite diferenciar Premium e Projeto LM pelo campo de plano já existente.
+**Saídas:** aluno autenticado e direcionado ao produto correto.
 
-**Lucas faz:** confirma que o aluno pertence à Consultoria Premium, cria/libera acesso e envia instruções de entrada.
+**Decisões humanas:** confirmar que o aluno pertence à Consultoria Premium e quando liberar acesso.
 
-**Aluno faz:** recebe instruções e acessa o Portal.
+**Decisões automáticas:** validação técnica de login/token e direcionamento por produto.
 
-**Saídas:** aluno com acesso criado, token disponível e produto associado.
+### 2. Anamnese
+**Estado atual:** `anamnese-premium.html` envia respostas para `premium_anamnesis`; admin lê e altera status por telas administrativas.
 
-**Decisões humanas:** confirmar que o aluno é Premium, decidir quando liberar, orientar o aluno.
+**Escopo Premium 3.0:** anamnese é parte do core e deve alimentar o Prontuário LM e as decisões humanas de Lucas.
 
-**Decisões automáticas:** validação técnica de login/token e redirecionamento conforme plano.
-
-### 2. Anamnese Premium
 **Responsável principal:** aluno preenche; Lucas analisa.
 
-**Entradas:** respostas de anamnese enviadas pelo aluno.
+**Entradas:** respostas de anamnese.
 
-**Sistema faz:** recebe formulário em `anamnese-premium.html`, salva em `premium_anamnesis` e permite leitura/status no admin.
-
-**Lucas faz:** analisa respostas, identifica contexto, necessidades, riscos e prioridades antes de criar ou ajustar plano.
-
-**Aluno faz:** responde com informações relevantes da consultoria.
-
-**Saídas:** anamnese registrada, disponível para análise administrativa.
+**Saídas:** anamnese registrada e disponível no Prontuário LM/Workspace do profissional.
 
 **Decisões humanas:** interpretação da anamnese e conduta.
 
-**Decisões automáticas:** persistência do envio e disponibilidade no painel admin.
+**Decisões automáticas:** persistência, organização e disponibilização no contexto do aluno.
 
-### 3. Construção do plano alimentar
+### 3. Plano alimentar
+**Estado atual:** o Portal possui telas e rotas de plano alimentar admin/aluno baseadas em `nutrition_plans`.
+
+**Escopo Premium 3.0:** plano alimentar é núcleo aprovado. O sistema registra e apresenta o plano; Lucas segue responsável por prescrever e alterar.
+
 **Responsável principal:** Lucas.
 
-**Entradas:** anamnese, objetivo do aluno, contexto clínico, histórico, feedbacks e decisão profissional.
+**Entradas:** anamnese, feedbacks, contexto clínico, histórico, objetivo e decisão profissional.
 
-**Sistema faz:** fornece tela admin para criar/editar plano alimentar e disponibiliza ao aluno o plano ativo.
+**Saídas:** plano alimentar visível ao aluno e registrado no Prontuário/Evolução quando aplicável.
 
-**Lucas faz:** define plano alimentar, orientações, estrutura e ajustes necessários.
+**Decisões humanas:** prescrição, ajustes e manutenção de estratégia.
 
-**Aluno faz:** consulta e executa o plano fora do sistema.
+**Decisões automáticas:** salvar, recuperar e exibir o plano autorizado.
 
-**Saídas:** registro em `nutrition_plans`, plano ativo visível no portal e potencial evento de timeline.
+### 4. Plano semanal existente
+**Estado atual:** o Portal atual possui `weekly_plans` e telas de plano semanal.
 
-**Decisões humanas:** prescrição, ajustes, interpretação de adesão e necessidades.
+**Escopo Premium 3.0:** plano semanal não faz parte do novo núcleo. Qualquer informação semanal relevante deve ser avaliada como feedback semanal, pendência, conduta ou Evolução do Acompanhamento, sem assumir o módulo atual como core futuro.
 
-**Decisões automáticas:** salvar, buscar plano ativo e exibir.
-
-### 4. Organização semanal
-**Responsável principal:** Lucas.
-
-**Entradas:** objetivo da semana, foco de treino/cardio/nutrição, risco principal e mensagem do coach.
-
-**Sistema faz:** salva plano semanal em `weekly_plans` e apresenta no portal/admin.
-
-**Lucas faz:** define o foco semanal com base no acompanhamento.
-
-**Aluno faz:** consulta a orientação semanal e executa o combinado.
-
-**Saídas:** plano semanal disponível.
-
-**Decisões humanas:** foco semanal, risco, mensagem e conduta.
-
-**Decisões automáticas:** persistência e exibição do plano semanal.
+**Decisão deste documento:** documentar a diferença; não remover, renomear ou migrar nada neste Build.
 
 ### 5. Execução pelo aluno
+**Estado atual:** o aluno consulta informações no Portal, executa fora do sistema e pode acessar MFit por link externo.
+
+**Escopo Premium 3.0:** o Workspace do aluno deve apoiar execução do plano alimentar e envio de feedback semanal. Treinos continuam no MFit.
+
 **Responsável principal:** aluno.
 
-**Entradas:** plano alimentar, plano semanal, rotina individual, treinos no MFit e orientações recebidas.
+**Entradas:** plano alimentar, orientações de Lucas e treinos no MFit.
 
-**Sistema faz:** mantém as informações organizadas e acessíveis.
+**Saídas:** execução prática e feedback semanal.
 
-**Lucas faz:** permanece como referência de acompanhamento e decisão.
+**Decisões humanas:** adesão, comunicação e ajustes combinados entre aluno e profissional.
 
-**Aluno faz:** executa alimentação, rotina, orientações e treinos pelo MFit.
+**Decisões automáticas:** disponibilidade de informações e registro de feedback.
 
-**Saídas:** execução prática fora do sistema e dados futuros de feedback.
+### 6. Feedback semanal
+**Estado atual:** existem check-ins e históricos em `student_checkins`; a nomenclatura atual não é necessariamente o modelo final do Premium 3.0.
 
-**Decisões humanas:** ajustes de comportamento e comunicação entre aluno e profissional.
+**Escopo Premium 3.0:** feedback semanal é núcleo aprovado. Deve servir como insumo para Lucas analisar evolução, pendências, condutas e necessidade de ajuste.
 
-**Decisões automáticas:** nenhuma decisão de prescrição; apenas disponibilidade das informações.
-
-### 6. Check-in e progressão
 **Responsável principal:** aluno envia; Lucas interpreta.
 
-**Entradas:** respostas de check-in, percepção de execução, dificuldades, peso/medidas/progresso quando aplicável.
+**Entradas:** relato do aluno sobre execução, dificuldades, adesão e evolução percebida.
 
-**Sistema faz:** salva check-ins em `student_checkins`, progressões em `progression_logs`, registra timeline e disponibiliza no admin.
+**Saídas:** feedback disponível no Workspace do profissional e na Evolução do Acompanhamento.
 
-**Lucas faz:** avalia o feedback, identifica padrões, responde quando necessário e decide se plano deve ser mantido ou alterado.
+**Decisões humanas:** análise, resposta, conduta, ajuste ou manutenção de estratégia.
 
-**Aluno faz:** envia informações com regularidade e acompanha retornos.
+**Decisões automáticas:** armazenamento, organização e vinculação ao Prontuário/Evolução.
 
-**Saídas:** histórico de check-ins/progressões, fila administrativa e contexto para decisão.
+### 7. Progressão/progressão de carga existente
+**Estado atual:** existem telas/rotas de progressão no Portal atual.
 
-**Decisões humanas:** análise, resposta, ajuste ou manutenção de estratégia.
+**Escopo Premium 3.0:** progressão de carga é funcionalidade de conveniência fora do core e candidata à descontinuação. Quando algum dado de evolução for relevante, ele deve ser tratado como parte da Evolução do Acompanhamento, não como núcleo independente.
 
-**Decisões automáticas:** armazenamento, ordenação, listagem e alertas operacionais.
+**Decisão deste documento:** classificar como fora do core; não remover nem alterar comportamento neste Build.
 
-### 7. Follow-up e retenção
-**Responsável principal:** Lucas/admin.
+### 8. Follow-up existente
+**Estado atual:** existem telas, rotas e tabelas relacionadas a follow-up, retenção e alertas.
 
-**Entradas:** sinais de ausência, risco, pendências, check-ins sem resposta, status do aluno e histórico.
+**Escopo Premium 3.0:** follow-up não deve existir como módulo independente. Ações relevantes devem ser representadas por pendências, condutas e Evolução do Acompanhamento.
 
-**Sistema faz:** organiza logs de follow-up, ações de retenção, alertas, command center e portal alerts.
+**Decisão deste documento:** classificar o follow-up atual como legado/operacional a ser reinterpretado no desenho futuro, sem remoção neste Build.
 
-**Lucas faz:** decide se deve contatar, responder, resolver pendência, atualizar plano ou apenas acompanhar.
+### 9. Gestão de pendências, Prontuário LM e Evolução do Acompanhamento
+**Estado atual:** parte das informações já existe distribuída entre Student 360, timeline, check-ins, progressões, planos, logs e alertas.
 
-**Aluno faz:** responde contatos e retoma execução quando aplicável.
+**Escopo Premium 3.0:** esses conceitos são centrais:
+- **Gestão de pendências:** organiza o que exige ação, resposta, conduta ou resolução.
+- **Prontuário LM:** consolida contexto do aluno, anamnese, plano, histórico e registros relevantes.
+- **Evolução do Acompanhamento:** registra a trajetória da consultoria, feedbacks, condutas e mudanças relevantes.
 
-**Saídas:** registro de acompanhamento, ação de retenção ou resolução.
-
-**Decisões humanas:** priorização e abordagem de acompanhamento.
-
-**Decisões automáticas:** consolidação de alertas e exibição administrativa.
-
-### 8. Ciclo contínuo de consultoria
-**Responsável principal:** Lucas e aluno.
-
-**Entradas:** histórico completo, anamnese, plano, check-ins, progressão, follow-up e contexto externo.
-
-**Sistema faz:** mantém a memória operacional da consultoria.
-
-**Lucas faz:** interpreta o conjunto de dados e define continuidade, ajustes ou novas orientações.
-
-**Aluno faz:** continua execução e feedback.
-
-**Saídas:** continuidade do acompanhamento personalizado.
-
-**Decisões humanas:** todas as decisões de conduta, prescrição e acompanhamento.
-
-**Decisões automáticas:** organização e recuperação dos dados.
+**Decisão deste documento:** reconhecer que o sistema atual contém insumos distribuídos, mas o escopo futuro aprovado exige uma organização conceitual mais clara.
 
 ## Responsabilidades por etapa
-| Etapa | Sistema | Lucas/profissional | Aluno |
-|---|---|---|---|
-| Acesso | Armazena e valida email/token/status/plano | Cria/libera acesso | Usa credenciais |
-| Anamnese | Recebe e lista respostas | Analisa e interpreta | Preenche |
-| Plano alimentar | Salva e exibe plano | Prescreve e atualiza | Consulta e executa |
-| Plano semanal | Salva e exibe foco semanal | Define foco e mensagem | Consulta e aplica |
-| Check-in | Salva e lista feedbacks | Analisa e responde | Envia feedback |
-| Progressão | Salva histórico | Interpreta evolução | Registra dados |
-| Follow-up | Organiza alertas/logs | Decide contato/ação | Responde/retoma |
-| Treino | Apenas aponta para MFit quando aplicável | Usa MFit como fonte oficial | Acessa MFit |
+| Etapa | Estado atual do Portal | Escopo futuro aprovado | Lucas/profissional | Aluno |
+|---|---|---|---|---|
+| Acesso | `student_access`, login e redirecionamento | Plataforma LM: login, auth, acesso e direcionamento | Libera acesso | Usa credenciais |
+| Anamnese | Formulário e admin de anamneses | Core Premium 3.0 | Analisa e interpreta | Preenche |
+| Plano alimentar | Admin/aluno via `nutrition_plans` | Core Premium 3.0 | Prescreve e atualiza | Consulta e executa |
+| Plano semanal | Existe em `weekly_plans` | Fora do novo núcleo | Pode usar informação apenas se fizer sentido | Consulta enquanto existir |
+| Check-in/feedback | `student_checkins` | Feedback semanal core | Analisa e responde | Envia feedback |
+| Progressão | Existe como conveniência | Fora do core/candidata à descontinuação | Interpreta se relevante | Registra se existir |
+| Follow-up | Módulo/telas existentes | Não deve ser módulo independente | Age por pendências/condutas | Responde quando acionado |
+| Pendências | Distribuídas em alertas/logs/status | Core Premium 3.0 | Decide/resoluciona | Responde/resolve |
+| Prontuário LM | Parcial em Student 360 | Core Premium 3.0 | Usa para decisão | Não administra |
+| Evolução do Acompanhamento | Parcial em timeline/históricos | Core Premium 3.0 | Registra conduta | Fornece feedback |
+| Treino | Link externo MFit | MFit externo | Usa MFit como fonte oficial | Acessa MFit |
 
 ## Decisões humanas versus automáticas
 
 ### Decisões humanas
 - O que prescrever.
-- Quando alterar plano.
-- Como interpretar anamnese e check-in.
-- Como responder feedback.
-- Quando acionar aluno.
+- Quando alterar plano alimentar.
+- Como interpretar anamnese e feedback semanal.
+- Qual conduta registrar.
+- Qual pendência criar, priorizar ou resolver.
 - Como conduzir estratégia nutricional e acompanhamento.
 
-### Decisões automáticas atuais
-- Validar acesso por email/token.
-- Redirecionar aluno conforme plano registrado.
+### Decisões automáticas atuais ou futuras permitidas
+- Validar acesso por email/token ou mecanismo aprovado.
+- Direcionar aluno conforme produto.
 - Salvar formulários e registros.
-- Carregar plano ativo/históricos.
-- Agregar informações para telas admin.
-- Exibir alertas/logs operacionais.
+- Carregar plano alimentar e históricos.
+- Organizar Prontuário LM, pendências e Evolução do Acompanhamento.
+- Exibir informações operacionais sem tomar decisão clínica.
 
 ## Conflitos ou pontos a não decidir neste documento
-- O sistema atual compartilha `student_access` entre Premium e Projeto LM; isso é fato operacional atual, não decisão de arquitetura final.
+- O sistema atual compartilha `student_access` entre Premium e Projeto LM; isso é estado atual, não desenho final obrigatório.
 - Rotas Projeto LM sob `/api/portal/project-lm/*` existem; este documento não decide remoção nem renomeação.
+- Plano semanal existe hoje, mas não pertence ao novo núcleo Premium 3.0.
+- Progressão de carga/progressão operacional existe hoje, mas é conveniência fora do core e candidata à descontinuação.
+- Follow-up existe hoje, mas não deve permanecer como módulo independente no Premium 3.0.
 - O Portal não deve assumir treino Premium; o MFit continua boundary externa.
