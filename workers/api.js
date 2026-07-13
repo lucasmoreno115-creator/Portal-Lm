@@ -2302,6 +2302,22 @@ async function ensureSchemaUncached(db) {
 
   await ensureColumn(db, 'student_access', 'whatsapp', 'TEXT');
   await ensureColumn(db, 'student_access', 'plan', "TEXT DEFAULT 'premium'");
+  await ensureColumn(db, 'student_access', 'student_id', 'TEXT');
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS premium_students (
+    student_id TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    normalized_email TEXT NOT NULL,
+    display_name TEXT,
+    consultation_status TEXT NOT NULL DEFAULT 'NEW',
+    access_status TEXT NOT NULL DEFAULT 'ACTIVE',
+    source TEXT NOT NULL DEFAULT 'MIGRATION',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`).run();
+  await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_students_normalized_email ON premium_students(normalized_email)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_students_access_status ON premium_students(access_status)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_student_access_student_id ON student_access(student_id)`).run();
 
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS project_lm_profiles (
@@ -2554,6 +2570,7 @@ async function ensureSchemaUncached(db) {
   await ensureColumn(db, 'followup_logs', 'due_date', 'TEXT');
   await ensureColumn(db, 'followup_logs', 'resolved_at', 'TEXT');
   await ensureColumn(db, 'followup_logs', 'resolution_status', "TEXT DEFAULT 'OPEN'");
+  await ensureColumn(db, 'followup_logs', 'student_id', 'TEXT');
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS retention_actions (
     id TEXT PRIMARY KEY,
@@ -2593,6 +2610,7 @@ async function ensureSchemaUncached(db) {
   await ensureColumn(db, 'student_checkins', 'coach_status', "TEXT DEFAULT 'pending'");
   await ensureColumn(db, 'student_checkins', 'reviewed_at', 'TEXT');
   await ensureColumn(db, 'student_checkins', 'reviewed_by', 'TEXT');
+  await ensureColumn(db, 'student_checkins', 'student_id', 'TEXT');
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS progression_logs (
     id TEXT PRIMARY KEY,
@@ -2605,6 +2623,8 @@ async function ensureSchemaUncached(db) {
     decision TEXT,
     created_at TEXT NOT NULL
   )`).run();
+
+  await ensureColumn(db, 'progression_logs', 'student_id', 'TEXT');
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS weekly_plans (
     id TEXT PRIMARY KEY,
@@ -2620,6 +2640,7 @@ async function ensureSchemaUncached(db) {
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
   )`).run();
 
+  await ensureColumn(db, 'weekly_plans', 'student_id', 'TEXT');
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_weekly_plans_student_email ON weekly_plans(student_email)`
   ).run();
@@ -2638,6 +2659,7 @@ async function ensureSchemaUncached(db) {
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`).run();
+  await ensureColumn(db, 'nutrition_plans', 'student_id', 'TEXT');
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_nutrition_plans_student_email ON nutrition_plans(student_email)`
   ).run();
@@ -2668,6 +2690,7 @@ async function ensureSchemaUncached(db) {
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_followup_logs_student_created ON followup_logs(student_email, created_at)`
   ).run();
+  await ensureColumn(db, 'retention_actions', 'student_id', 'TEXT');
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_retention_actions_student_email ON retention_actions(student_email)`
   ).run();
@@ -2683,6 +2706,7 @@ async function ensureSchemaUncached(db) {
     created_at TEXT NOT NULL
   )`).run();
 
+  await ensureColumn(db, 'activity_timeline', 'student_id', 'TEXT');
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_activity_timeline_student_created ON activity_timeline(student_email, created_at)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_activity_timeline_created ON activity_timeline(created_at)`).run();
 
@@ -2716,6 +2740,7 @@ async function ensureSchemaUncached(db) {
     updated_at TEXT NOT NULL
   )`).run();
 
+  await ensureColumn(db, 'premium_anamnesis', 'student_id', 'TEXT');
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_premium_anamnesis_created_at ON premium_anamnesis(created_at)`
   ).run();
@@ -2726,6 +2751,16 @@ async function ensureSchemaUncached(db) {
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_retention_actions_created_at ON retention_actions(created_at)`
   ).run();
+  for (const statement of [
+    'CREATE INDEX IF NOT EXISTS idx_premium_anamnesis_student_id ON premium_anamnesis(student_id)',
+    'CREATE INDEX IF NOT EXISTS idx_nutrition_plans_student_id ON nutrition_plans(student_id)',
+    'CREATE INDEX IF NOT EXISTS idx_student_checkins_student_id ON student_checkins(student_id)',
+    'CREATE INDEX IF NOT EXISTS idx_activity_timeline_student_id ON activity_timeline(student_id)',
+    'CREATE INDEX IF NOT EXISTS idx_weekly_plans_student_id ON weekly_plans(student_id)',
+    'CREATE INDEX IF NOT EXISTS idx_progression_logs_student_id ON progression_logs(student_id)',
+    'CREATE INDEX IF NOT EXISTS idx_followup_logs_student_id ON followup_logs(student_id)',
+    'CREATE INDEX IF NOT EXISTS idx_retention_actions_student_id ON retention_actions(student_id)'
+  ]) await db.prepare(statement).run();
 }
 
 
