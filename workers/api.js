@@ -77,7 +77,7 @@ function createPremiumApplication(env, request) {
   const reminderRepository = createD1FeedbackReminderRepository(env.DB);
   const scheduleService = createWeeklyFeedbackScheduleService();
   const reminderService = createWeeklyFeedbackReminderService({ scheduleService });
-  const workspaceRepository = createD1ProfessionalWorkspaceRepository(env.DB);
+  const workspaceRepository = createD1ProfessionalWorkspaceRepository(env.DB, { scheduleService });
   return {
     anamnesisRepository: createD1AnamnesisRepository(env.DB),
     nutritionPlanRepository: createD1NutritionPlanRepository(env.DB),
@@ -917,7 +917,7 @@ export default {
         if (url.pathname === '/api/admin/premium/workspace/saturday-review' && method === 'GET') {
           const premiumApp = createPremiumApplication(env, request);
           const result = await premiumApp.getSaturdayReviewSummary({});
-          return json(result.ok ? { ok: true, data: presentWorkspaceSummary(result.data) } : { ok: false, error: result.error }, result.status || 200);
+          return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
         }
 
 

@@ -58,3 +58,10 @@ Não há automação clínica, score, IA, interpretação de exames, envio autom
 
 ## 18. Próximos passos
 Aprimorar ergonomia de operação e navegação depois de validação de uso real, sem avançar para automação clínica ou Build 7.
+
+## Correções pós-review PR #269
+
+- A busca normaliza espaços, escapa `%`, `_` e `\\`, mantém SQL parametrizado e só inclui telefone quando há pelo menos 4 dígitos úteis, impedindo `LIKE '%%'` em buscas alfabéticas.
+- Os indicadores `feedbacksAwaitingAnalysis` e `studentsWithoutResponse` usam o `weekRef` operacional atual obtido por `weekly-feedback-schedule-service.js`, sem considerar histórico antigo como semana atual.
+- O endpoint `/api/admin/premium/workspace/saturday-review` retorna visão semanal real com `weekRef`, `isSaturday`, feedbacks aguardando análise, alunos sem resposta, feedbacks analisados, pendências criadas por decisão e planos pendentes de atualização.
+- A próxima pendência deixou de usar serialização `id|type|...`; o read model agora retorna colunas separadas para preservar `|`, aspas, quebras de linha e HTML malicioso como texto.
