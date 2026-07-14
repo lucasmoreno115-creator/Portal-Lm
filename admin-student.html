@@ -56,6 +56,7 @@
           <button id='quickReplyCheckinBtn' type='button'>✅ Responder Check-in</button>
           <button id='activateAccessBtn' type='button'>🚀 Liberar Acesso</button>
           <button id='toggleStudentStatusBtn' type='button'>🚫 Inativar aluno</button>
+          <a id='openPremiumRecordBtn' class='secondary-link' href='#' hidden>📒 Abrir Prontuário LM</a>
         </div>
         <div class='student-action-row'>
           <textarea id='accessMessageOutput' rows='6' placeholder='Mensagem de acesso será gerada aqui'></textarea>
@@ -448,6 +449,17 @@
     function maskCredential(credential) {
       return credential ? '•'.repeat(Math.min(Math.max(credential.length, 8), 16)) : '';
     }
+    function isPremiumStudentRecordEnabled() { return window.PREMIUM_STUDENT_RECORD_ENABLED === true || localStorage.getItem('PREMIUM_STUDENT_RECORD_ENABLED') === 'true'; }
+
+    function renderPremiumRecordNavigation(student) {
+      const link = byId('openPremiumRecordBtn');
+      if (!link) return;
+      const studentId = student?.student_id || student?.studentId || null;
+      const enabled = isPremiumStudentRecordEnabled() && studentId;
+      link.hidden = !enabled;
+      if (enabled) link.href = `/admin-premium-student-record.html?student_id=${encodeURIComponent(studentId)}`;
+    }
+
     function renderStudentAccess(student) {
       const credential = getStudentTemporaryCredential(student);
       const credentialLabel = credential
@@ -1034,6 +1046,7 @@
 
         renderSummary(student, answers);
         renderStudentAccess(student);
+        renderPremiumRecordNavigation(student);
         renderAnamnesis(anamnesis, answers);
         renderCheckin(checkin);
         latestCheckinId = checkin?.id || null;
