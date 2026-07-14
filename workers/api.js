@@ -55,6 +55,7 @@ import { createGetSaturdayReviewSummaryUseCase } from './premium/application/get
 import { presentWorkspaceSummary } from './premium/presenters/professional-workspace-summary-presenter.js';
 import { presentWorkspaceStudentSummary, presentWorkspaceStudentContext } from './premium/presenters/professional-workspace-student-presenter.js';
 import { presentWorkspacePendingItems } from './premium/presenters/professional-workspace-pending-presenter.js';
+import { presentSaturdayReview } from './premium/presenters/professional-workspace-saturday-presenter.js';
 
 
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
@@ -917,7 +918,7 @@ export default {
         if (url.pathname === '/api/admin/premium/workspace/saturday-review' && method === 'GET') {
           const premiumApp = createPremiumApplication(env, request);
           const result = await premiumApp.getSaturdayReviewSummary({});
-          return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
+          return json(result.ok ? { ok: true, data: presentSaturdayReview(result.data) } : { ok: false, error: result.error }, result.status || 200);
         }
 
 

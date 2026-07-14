@@ -22,6 +22,7 @@ async function seed(db){
   await db.prepare(`INSERT INTO premium_pending_items(id,student_id,type,title,description,status,priority,source,related_entity_type,related_entity_id,created_at,updated_at) VALUES('pend-special','s2','MANUAL','Título com | barra "aspas"','Linha 1
 <script>alert(1)</script>','OPEN','HIGH','manual',NULL,NULL,'2026-07-14','2026-07-14')`).run();
   await db.prepare(`INSERT INTO premium_pending_items(id,student_id,type,title,description,status,priority,source,related_entity_type,related_entity_id,created_at,updated_at) VALUES('decision-plan','s1','CREATE_NUTRITION_PLAN','Atualizar plano','Criada por conduta','OPEN','NORMAL','professional_decision','student_checkins','current-open','2026-07-18','2026-07-18')`).run();
+  await db.prepare(`INSERT INTO premium_pending_items(id,student_id,type,title,description,status,priority,source,related_entity_type,related_entity_id,created_at,updated_at) VALUES('old-decision','s4','CONTACT_STUDENT','Contato antigo','Outra semana','OPEN','NORMAL','professional_decision','student_checkins','old-fb','2026-07-10','2026-07-10')`).run();
 }
 
 test('workspace search covers name, missing name, email, phone, escaped wildcards and normalized spaces', async()=>withDb(async(_db,repo)=>{
@@ -53,7 +54,7 @@ test('saturday review returns real current-week lists and excludes Projeto LM', 
   assert.deepEqual(review.feedbacksAnalyzed.map(i=>i.student_id), ['s2']);
   assert.ok(review.studentsWithoutResponse.some(i=>i.student_id==='s4'), 'histórico antigo não conta como resposta da semana atual');
   assert.equal(review.studentsWithoutResponse.some(i=>i.student_id==='p1'), false);
-  assert.equal(review.pendingItemsCreatedByDecisions.length, 1);
+  assert.deepEqual(review.pendingItemsCreatedByDecisions.map(i=>i.id), ['decision-plan']);
   assert.equal(review.plansPendingUpdate.length, 1);
   assert.equal(JSON.stringify(review).includes('coach_reply'), false);
 }));

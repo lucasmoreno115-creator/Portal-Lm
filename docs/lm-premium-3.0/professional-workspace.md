@@ -65,3 +65,9 @@ Aprimorar ergonomia de operação e navegação depois de validação de uso rea
 - Os indicadores `feedbacksAwaitingAnalysis` e `studentsWithoutResponse` usam o `weekRef` operacional atual obtido por `weekly-feedback-schedule-service.js`, sem considerar histórico antigo como semana atual.
 - O endpoint `/api/admin/premium/workspace/saturday-review` retorna visão semanal real com `weekRef`, `isSaturday`, feedbacks aguardando análise, alunos sem resposta, feedbacks analisados, pendências criadas por decisão e planos pendentes de atualização.
 - A próxima pendência deixou de usar serialização `id|type|...`; o read model agora retorna colunas separadas para preservar `|`, aspas, quebras de linha e HTML malicioso como texto.
+
+## Correção final PR #269 — consumo do modo sábado pela UI
+
+- Quando o summary retorna `isSaturday=true`, a UI chama `/api/admin/premium/workspace/saturday-review`; em sexta, domingo e demais dias o endpoint não é chamado.
+- O bloco “Revisão semanal” renderiza `weekRef`, feedbacks aguardando análise, alunos sem resposta, feedbacks analisados, pendências criadas por decisões e planos aguardando atualização, sempre com listas resumidas e CTAs vindos do contrato/presenter.
+- Pendências criadas por decisão entram na revisão semanal somente quando vinculadas por `related_entity_type='student_checkins'` a um feedback da `weekRef` atual; pendências antigas ou sem vínculo semanal explícito ficam fora do modo sábado.
