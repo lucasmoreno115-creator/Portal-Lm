@@ -68,7 +68,7 @@ function createPremiumApplication(env, request) {
     identityService,
     getNutritionPlan: createGetNutritionPlanUseCase({ identityService, nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), log }),
     saveNutritionPlan: createSaveNutritionPlanUseCase({ identityService, nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), eventRepository, log, randomUUID: () => crypto.randomUUID() }),
-    submitWeeklyFeedback: createSubmitWeeklyFeedbackUseCase({ identityService, weeklyFeedbackRepository, pendingItemRepository, eventRepository, log, randomUUID: () => crypto.randomUUID() }),
+    submitWeeklyFeedback: createSubmitWeeklyFeedbackUseCase({ identityService, weeklyFeedbackRepository, pendingItemRepository, eventRepository, db: env.DB, log, randomUUID: () => crypto.randomUUID() }),
     listWeeklyFeedbacks: createListWeeklyFeedbacksUseCase({ identityService, weeklyFeedbackRepository, log }),
     analyzeWeeklyFeedback: createAnalyzeWeeklyFeedbackUseCase({ weeklyFeedbackRepository }),
     analyzeAnamnesis: createAnalyzeAnamnesisUseCase({ anamnesisRepository: createD1AnamnesisRepository(env.DB) }),
@@ -750,9 +750,10 @@ export default {
               created_at: now,
             }
           });
-          if (submitResult.blocked) return json({ ok: false, error: 'Não foi possível gravar dados Premium com segurança.' }, 403);
+          if (submitResult.blocked) return json({ ok: false, error: submitResult.error || 'Não foi possível gravar dados Premium com segurança.' }, submitResult.status || 403);
+          if (submitResult.ok === false) return json({ ok: false, error: submitResult.error || 'Não foi possível gravar dados Premium com segurança.' }, submitResult.status || 409);
 
-          return json({ ok: true, data: { id, weekRef, createdAt: now } });
+          return json({ ok: true, data: { id: submitResult.saved?.id || id, weekRef, createdAt: now } });
         }
 
         if (url.pathname === '/api/portal/checkins' && method === 'GET') {
@@ -787,8 +788,9 @@ export default {
           if (current.data.status === 'ANALYZED') return json({ ok: false, error: 'Este Feedback Semanal já foi analisado por Lucas.' }, 409);
           const id = current.data.feedback?.id || crypto.randomUUID();
           const submitResult = await premiumApp.submitWeeklyFeedback.execute({ route: url.pathname, method, feedback: { id, student_email: studentEmail, week_ref: current.data.weekRef, training_adherence: body?.trainingAdherence || null, nutrition_adherence: body?.nutritionAdherence || null, cardio_adherence: body?.cardioAdherence || null, free_meals: body?.freeMeals || null, hunger_level: body?.hungerLevel || null, binge_or_snacking: body?.bingeOrSnacking || null, sleep_quality: body?.sleepQuality || null, energy_level: body?.energyLevel || null, stress_level: body?.stressLevel || null, weekly_weight: body?.weeklyWeight || null, waist: body?.waist || null, strength_status: body?.strengthStatus || null, main_difficulty: body?.mainDifficulty || null, routine_context: body?.routineContext || null, weekly_score: body?.weeklyScore || null, support_needed: body?.supportNeeded || null, created_at: now, submitted_at: now, available_at: current.data.availableAt, updated_at: now } });
-          if (submitResult.blocked) return json({ ok: false, error: 'Não foi possível gravar dados Premium com segurança.' }, 403);
-          return json({ ok: true, data: { weekRef: current.data.weekRef, submittedAt: now, status: 'RESPONDED' } });
+          if (submitResult.blocked) return json({ ok: false, error: submitResult.error || 'Não foi possível gravar dados Premium com segurança.' }, submitResult.status || 403);
+          if (submitResult.ok === false) return json({ ok: false, error: submitResult.error || 'Não foi possível gravar dados Premium com segurança.' }, submitResult.status || 409);
+          return json({ ok: true, data: { id: submitResult.saved?.id || id, weekRef: current.data.weekRef, submittedAt: now, status: 'RESPONDED' } });
         }
 
         if (url.pathname === '/api/portal/premium/weekly-feedback/history' && method === 'GET') {

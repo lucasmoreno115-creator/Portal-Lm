@@ -1,4 +1,5 @@
 const TIME_ZONE = 'America/Sao_Paulo';
+const WEEKDAYS = Object.freeze(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
 
 function parts(date, timeZone = TIME_ZONE) {
   const formatter = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
@@ -16,13 +17,14 @@ function zonedLocalToUtc(local, timeZone = TIME_ZONE) {
 function addDays(d, n) { const x = new Date(d); x.setUTCDate(x.getUTCDate() + n); return x; }
 function isoWeek(date) { const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())); const day = d.getUTCDay() || 7; d.setUTCDate(d.getUTCDate() + 4 - day); const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1)); const week = Math.ceil((((d - yearStart) / 86400000) + 1) / 7); return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`; }
 function localMidday(date, timeZone = TIME_ZONE) { const p = parts(date, timeZone); return utcDateFromLocal(p, 12); }
-function localIsoForWeekday(date, targetDow, hour, minute, timeZone = TIME_ZONE) { const p = parts(date, timeZone); const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(p.weekday); const localDate = addDays(utcDateFromLocal(p, 0, 0, 0), targetDow - dow); const target = { year: localDate.getUTCFullYear(), month: localDate.getUTCMonth() + 1, day: localDate.getUTCDate(), hour, minute, second: 0 }; return zonedLocalToUtc(target, timeZone).toISOString(); }
+function cycleDelta(dow, targetDow) { if (dow === 0 && targetDow >= 5) return targetDow - 7; return targetDow - dow; }
+function localIsoForCycleWeekday(date, targetDow, hour, minute, timeZone = TIME_ZONE) { const p = parts(date, timeZone); const dow = WEEKDAYS.indexOf(p.weekday); const localDate = addDays(utcDateFromLocal(p, 0, 0, 0), cycleDelta(dow, targetDow)); const target = { year: localDate.getUTCFullYear(), month: localDate.getUTCMonth() + 1, day: localDate.getUTCDate(), hour, minute, second: 0 }; return zonedLocalToUtc(target, timeZone).toISOString(); }
 export function createWeeklyFeedbackScheduleService({ timeZone = TIME_ZONE, deadlineHour = 12 } = {}) {
   return Object.freeze({
     timeZone,
     getWeekRef(now = new Date()) { return isoWeek(localMidday(now, timeZone)); },
-    getAvailability(now = new Date()) { return { weekRef: this.getWeekRef(now), availableAt: localIsoForWeekday(now, 5, 0, 0, timeZone), recommendedDeadline: localIsoForWeekday(now, 6, deadlineHour, 0, timeZone) }; },
-    isAvailable(now = new Date()) { const p = parts(now, timeZone); const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(p.weekday); return dow >= 5; },
+    getAvailability(now = new Date()) { return { weekRef: this.getWeekRef(now), availableAt: localIsoForCycleWeekday(now, 5, 0, 0, timeZone), recommendedDeadline: localIsoForCycleWeekday(now, 6, deadlineHour, 0, timeZone) }; },
+    isAvailable(now = new Date()) { const dow = WEEKDAYS.indexOf(parts(now, timeZone).weekday); return dow === 5 || dow === 6 || dow === 0; },
     isAfterRecommendedDeadline(now = new Date()) { return now.getTime() > new Date(this.getAvailability(now).recommendedDeadline).getTime(); },
     isSubmittedLate(submittedAt, ref = new Date(submittedAt)) { if (!submittedAt) return false; return new Date(submittedAt).getTime() > new Date(this.getAvailability(ref).recommendedDeadline).getTime(); },
     getReminderType(now = new Date()) { const p = parts(now, timeZone); if (p.weekday === 'Fri') return 'FRIDAY_PREPARATION'; if (p.weekday === 'Sat' && p.hour < deadlineHour) return 'SATURDAY_MORNING'; return null; },

@@ -13,27 +13,30 @@ export function createD1WeeklyFeedbackRepository(db) {
       return rows(await db.prepare('SELECT * FROM student_checkins WHERE lower(student_email) = lower(?) ORDER BY datetime(created_at) DESC, id DESC LIMIT ?').bind(email, limit).all());
     },
     async create(record) {
-      const existing = record.student_id && record.week_ref ? await this.findByStudentAndWeek(record.student_id, record.week_ref) : null;
-      if (existing && String(existing.coach_status || '').toLowerCase() !== 'reviewed') return this.submit(existing.id, record);
-      if (existing) return existing;
-      await db.prepare(`INSERT INTO student_checkins (
+      await db.prepare(`INSERT OR IGNORE INTO student_checkins (
         id, student_id, student_email, week_ref, training_adherence, nutrition_adherence, cardio_adherence,
         free_meals, hunger_level, binge_or_snacking, sleep_quality, energy_level, stress_level,
         weekly_weight, waist, strength_status, main_difficulty, routine_context, weekly_score,
-        support_needed, created_at, submitted_at, available_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+        support_needed, created_at, submitted_at, available_at, updated_at, coach_status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`).bind(
         record.id, record.student_id ?? null, record.student_email, record.week_ref, record.training_adherence ?? null,
         record.nutrition_adherence ?? null, record.cardio_adherence ?? null, record.free_meals ?? null,
         record.hunger_level ?? null, record.binge_or_snacking ?? null, record.sleep_quality ?? null,
         record.energy_level ?? null, record.stress_level ?? null, record.weekly_weight ?? null,
         record.waist ?? null, record.strength_status ?? null, record.main_difficulty ?? null,
-        record.routine_context ?? null, record.weekly_score ?? null, record.support_needed ?? null, record.created_at, record.submitted_at ?? record.created_at, record.available_at ?? null, record.updated_at ?? record.created_at
+        record.routine_context ?? null, record.weekly_score ?? null, record.support_needed ?? null, record.created_at,
+        record.submitted_at ?? record.created_at, record.available_at ?? null, record.updated_at ?? record.created_at
       ).run();
-      return this.findById(record.id);
+      const saved = record.student_id && record.week_ref ? await this.findByStudentAndWeek(record.student_id, record.week_ref) : await this.findById(record.id);
+      if (!saved) return { ...record, student_id: record.student_id ?? null };
+      if (saved.id !== record.id) return this.submit(saved.id, record);
+      return saved;
     },
     async submit(id, record) {
-      await db.prepare(`UPDATE student_checkins SET training_adherence=?, nutrition_adherence=?, cardio_adherence=?, free_meals=?, hunger_level=?, binge_or_snacking=?, sleep_quality=?, energy_level=?, stress_level=?, weekly_weight=?, waist=?, strength_status=?, main_difficulty=?, routine_context=?, weekly_score=?, support_needed=?, submitted_at=COALESCE(submitted_at, ?), updated_at=? WHERE id=? AND (coach_status IS NULL OR lower(coach_status) != 'reviewed')`).bind(record.training_adherence ?? null, record.nutrition_adherence ?? null, record.cardio_adherence ?? null, record.free_meals ?? null, record.hunger_level ?? null, record.binge_or_snacking ?? null, record.sleep_quality ?? null, record.energy_level ?? null, record.stress_level ?? null, record.weekly_weight ?? null, record.waist ?? null, record.strength_status ?? null, record.main_difficulty ?? null, record.routine_context ?? null, record.weekly_score ?? null, record.support_needed ?? null, record.submitted_at ?? record.created_at ?? new Date().toISOString(), record.updated_at ?? new Date().toISOString(), id).run();
-      return this.findById(id);
+      const result = await db.prepare(`UPDATE student_checkins SET training_adherence=?, nutrition_adherence=?, cardio_adherence=?, free_meals=?, hunger_level=?, binge_or_snacking=?, sleep_quality=?, energy_level=?, stress_level=?, weekly_weight=?, waist=?, strength_status=?, main_difficulty=?, routine_context=?, weekly_score=?, support_needed=?, submitted_at=COALESCE(submitted_at, ?), updated_at=? WHERE id=? AND (coach_status IS NULL OR upper(coalesce(coach_status,'')) NOT IN ('REVIEWED','REPLIED','ANALYZED','ANALISADO','ANALISADA'))`).bind(record.training_adherence ?? null, record.nutrition_adherence ?? null, record.cardio_adherence ?? null, record.free_meals ?? null, record.hunger_level ?? null, record.binge_or_snacking ?? null, record.sleep_quality ?? null, record.energy_level ?? null, record.stress_level ?? null, record.weekly_weight ?? null, record.waist ?? null, record.strength_status ?? null, record.main_difficulty ?? null, record.routine_context ?? null, record.weekly_score ?? null, record.support_needed ?? null, record.submitted_at ?? record.created_at ?? new Date().toISOString(), record.updated_at ?? new Date().toISOString(), id).run();
+      const saved = await this.findById(id);
+      if (changes(result) === 0 && saved && ['REVIEWED','REPLIED','ANALYZED','ANALISADO','ANALISADA'].includes(String(saved.coach_status || '').toUpperCase())) return { blocked: true, status: 409, record: saved };
+      return saved;
     },
     async listPendingAnalysis({ limit = 50 } = {}) { return rows(await db.prepare(`SELECT * FROM student_checkins WHERE (coach_status IS NULL OR lower(coach_status) IN ('pending','responded')) AND submitted_at IS NOT NULL ORDER BY datetime(submitted_at) ASC LIMIT ?`).bind(limit).all()); },
     async listMissingResponses({ weekRef, deadline, limit = 50 } = {}) { return rows(await db.prepare(`SELECT ps.* FROM premium_students ps LEFT JOIN student_checkins sc ON sc.student_id=ps.student_id AND sc.week_ref=? WHERE ps.consultation_status='ACTIVE' AND ps.access_status='ACTIVE' AND (sc.id IS NULL OR sc.submitted_at IS NULL) ORDER BY ps.display_name ASC, ps.email ASC LIMIT ?`).bind(weekRef, limit).all()); },
