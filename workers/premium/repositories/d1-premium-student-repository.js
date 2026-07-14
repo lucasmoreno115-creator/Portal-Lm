@@ -71,6 +71,12 @@ export function createD1PremiumStudentRepository(db) {
         .bind(email, normalizedEmail, new Date().toISOString(), studentId).run();
       return this.findByStudentId(studentId);
     },
+    async list({ status = null, limit = 100 } = {}) {
+      const where = status ? 'WHERE consultation_status = ?' : '';
+      const params = status ? [status, limit] : [limit];
+      const result = await db.prepare(`SELECT * FROM premium_students ${where} ORDER BY display_name ASC, email ASC LIMIT ?`).bind(...params).all();
+      return rowResult(result);
+    },
     async listBackfillCandidates() {
       const result = await db.prepare(`SELECT id, name, email, status, plan, plan_type, student_id, created_at FROM student_access
         ORDER BY created_at ASC, email ASC`).all();

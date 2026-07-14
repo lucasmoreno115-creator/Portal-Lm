@@ -1,6 +1,7 @@
 import { createPremiumUseCase } from './create-use-case.js';
 import { resolvePremiumIdentityForLegacyEmail } from './dual-write-helpers.js';
 
+const ANALYZE_WEEKLY_FEEDBACK = 'ANALYZE_WEEKLY_FEEDBACK';
 export function createSubmitWeeklyFeedbackUseCase(depsOrHandler) {
   if (typeof depsOrHandler === 'function') return createPremiumUseCase('submit-weekly-feedback', depsOrHandler);
   const deps = depsOrHandler;
@@ -8,6 +9,7 @@ export function createSubmitWeeklyFeedbackUseCase(depsOrHandler) {
     const identity = await resolvePremiumIdentityForLegacyEmail({ identityService: deps.identityService, email: feedback.student_email, log: deps.log, area: 'premium_weekly_feedback', route, method, allowLegacyFallback: true });
     if (identity.blocked) return { ok: false, blocked: true, reason: identity.reason, identity };
     const saved = await deps.weeklyFeedbackRepository.create({ ...feedback, student_id: identity.student_id });
+    await deps.pendingItemRepository?.create?.({ id: deps.randomUUID(), student_id: identity.student_id, type: ANALYZE_WEEKLY_FEEDBACK, title: 'Analisar Feedback Semanal', description: `Feedback semanal ${feedback.week_ref} enviado pelo aluno.`, priority: 'NORMAL', source: 'automatic', related_entity_type: 'student_checkins', related_entity_id: saved.id, created_at: feedback.created_at, updated_at: feedback.created_at });
     await deps.eventRepository?.append?.({ id: deps.randomUUID(), student_id: identity.student_id, student_email: feedback.student_email, event_type: 'FEEDBACK_RECEIVED', source: 'portal', title: 'Check-in enviado', metadata: { checkin_id: feedback.id, week_ref: feedback.week_ref }, created_at: feedback.created_at });
     return { saved, identity };
   });

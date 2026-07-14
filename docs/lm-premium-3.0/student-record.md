@@ -55,3 +55,7 @@ Para rollback visual, desabilite `PREMIUM_STUDENT_RECORD_ENABLED`/navegação. O
 ## 14. Próximos passos
 
 No Build 4, evoluir a experiência profissional com mais fluxo de trabalho apenas se aprovado, mantendo a separação entre decisão profissional e automação operacional.
+
+## 15. Evolução Build 4 — Feedback Semanal
+
+O Feedback Semanal passa a criar pendência `ANALYZE_WEEKLY_FEEDBACK` no envio e a decisão profissional registrada por Lucas gera uma evolução `PROFESSIONAL_DECISION` relacionada a `student_checkins`. A decisão resolve a pendência de análise e pode criar pendência adicional conforme a conduta, mantendo o Prontuário LM como fonte longitudinal sem duplicar timelines.
