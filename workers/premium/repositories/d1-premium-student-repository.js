@@ -1,6 +1,52 @@
 import { normalizePremiumStudentEmail } from '../services/student-identity-service.js';
 
 function rowResult(result) { return result?.results ?? []; }
+function changedRows(result) { return Number(result?.meta?.changes ?? result?.changes ?? 0); }
+
+const ASSOCIATION_QUERIES = Object.freeze({
+  student_access: Object.freeze({
+    select: 'SELECT id, email, student_id FROM student_access ORDER BY created_at ASC, id ASC',
+    update: 'UPDATE student_access SET student_id = ? WHERE id = ? AND student_id IS NULL',
+  }),
+  premium_anamnesis: Object.freeze({
+    select: 'SELECT id, student_email, student_id FROM premium_anamnesis ORDER BY created_at ASC, id ASC',
+    update: 'UPDATE premium_anamnesis SET student_id = ? WHERE id = ? AND student_id IS NULL',
+  }),
+  nutrition_plans: Object.freeze({
+    select: 'SELECT id, student_email, student_id FROM nutrition_plans ORDER BY created_at ASC, id ASC',
+    update: 'UPDATE nutrition_plans SET student_id = ? WHERE id = ? AND student_id IS NULL',
+  }),
+  student_checkins: Object.freeze({
+    select: 'SELECT id, student_email, student_id FROM student_checkins ORDER BY created_at ASC, id ASC',
+    update: 'UPDATE student_checkins SET student_id = ? WHERE id = ? AND student_id IS NULL',
+  }),
+  activity_timeline: Object.freeze({
+    select: 'SELECT id, student_email, student_id FROM activity_timeline ORDER BY created_at ASC, id ASC',
+    update: 'UPDATE activity_timeline SET student_id = ? WHERE id = ? AND student_id IS NULL',
+  }),
+  weekly_plans: Object.freeze({
+    select: 'SELECT id, student_email, student_id FROM weekly_plans ORDER BY created_at ASC, id ASC',
+    update: 'UPDATE weekly_plans SET student_id = ? WHERE id = ? AND student_id IS NULL',
+  }),
+  progression_logs: Object.freeze({
+    select: 'SELECT id, student_email, student_id FROM progression_logs ORDER BY created_at ASC, id ASC',
+    update: 'UPDATE progression_logs SET student_id = ? WHERE id = ? AND student_id IS NULL',
+  }),
+  followup_logs: Object.freeze({
+    select: 'SELECT id, student_email, student_id FROM followup_logs ORDER BY created_at ASC, id ASC',
+    update: 'UPDATE followup_logs SET student_id = ? WHERE id = ? AND student_id IS NULL',
+  }),
+  retention_actions: Object.freeze({
+    select: 'SELECT id, student_email, student_id FROM retention_actions ORDER BY created_at ASC, id ASC',
+    update: 'UPDATE retention_actions SET student_id = ? WHERE id = ? AND student_id IS NULL',
+  }),
+});
+
+function assertAllowedTable(table) {
+  const query = ASSOCIATION_QUERIES[table];
+  if (!query) throw new Error(`UNSUPPORTED_PREMIUM_STUDENT_IDENTITY_TABLE:${table}`);
+  return query;
+}
 
 export function createD1PremiumStudentRepository(db) {
   return Object.freeze({
@@ -27,8 +73,38 @@ export function createD1PremiumStudentRepository(db) {
     },
     async listBackfillCandidates() {
       const result = await db.prepare(`SELECT id, name, email, status, plan, plan_type, student_id, created_at FROM student_access
-        WHERE lower(coalesce(plan, 'premium')) = 'premium' ORDER BY created_at ASC, email ASC`).all();
+        ORDER BY created_at ASC, email ASC`).all();
       return rowResult(result);
+    },
+    async listAssociationCandidates(tables = Object.keys(ASSOCIATION_QUERIES)) {
+      const output = {};
+      for (const table of tables) {
+        const query = assertAllowedTable(table);
+        const result = await db.prepare(query.select).all();
+        output[table] = rowResult(result);
+      }
+      return output;
+    },
+    async associateStudentId(table, id, studentId) {
+      const query = assertAllowedTable(table);
+      const result = await db.prepare(query.update).bind(studentId, id).run();
+      return changedRows(result);
+    },
+    async batchAssociateStudentIds(updates) {
+      const statements = updates.map((update) => {
+        const query = assertAllowedTable(update.table);
+        return db.prepare(query.update).bind(update.student_id, update.id);
+      });
+      if (statements.length === 0) return [];
+      if (typeof db.batch === 'function') {
+        const results = await db.batch(statements);
+        return results.map(changedRows);
+      }
+      const results = [];
+      for (const statement of statements) {
+        results.push(changedRows(await statement.run()));
+      }
+      return results;
     },
   });
 }
