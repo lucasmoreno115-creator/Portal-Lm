@@ -1,0 +1,1 @@
+export function createListMissingWeeklyFeedbacksUseCase({ weeklyFeedbackRepository, scheduleService }) { return ({ now = new Date(), limit = 50 } = {}) => { const a = scheduleService.getAvailability(now); return weeklyFeedbackRepository.listMissingResponses({ weekRef: a.weekRef, deadline: a.recommendedDeadline, limit }); }; }

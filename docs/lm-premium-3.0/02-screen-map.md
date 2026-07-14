@@ -142,3 +142,9 @@ Evolução do Acompanhamento
 - `public/admin-premium-student-record.html?student_id=<student_id>`: nova superfície administrativa Premium, protegida por sessão admin, destinada à leitura longitudinal do acompanhamento profissional.
 - A tela coexiste com `admin-student.html` (Student 360) e com as páginas legadas de anamnese, plano alimentar, check-ins e follow-up.
 - A navegação para o Prontuário deve respeitar a feature flag simples `PREMIUM_STUDENT_RECORD_ENABLED`; quando desligada, as páginas legadas continuam sendo o caminho operacional.
+
+## Build 4 — Feedback Semanal Premium
+
+- `public/portal-premium-weekly-feedback.html`: superfície mobile-first do aluno para visualizar semana, prazo recomendado, enviar/editar feedback antes da análise, ver confirmação, resposta profissional e histórico recente.
+- `public/admin-premium-weekly-feedbacks.html`: superfície operacional de sábado para listar feedbacks aguardando análise, alunos sem resposta e registrar conduta profissional.
+- As telas coexistem com `portal-checkin.html` e `admin-checkins.html`; rotas legadas continuam como compatibilidade.

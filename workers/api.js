@@ -27,6 +27,15 @@ import { createResolvePendingItemUseCase } from './premium/application/resolve-p
 import { createUpdateConsultationStatusUseCase } from './premium/application/update-consultation-status.js';
 import { createRecordProfessionalDecisionUseCase } from './premium/application/record-professional-decision.js';
 import { presentStudentRecord } from './premium/presenters/student-record-presenter.js';
+import { createD1FeedbackReminderRepository } from './premium/repositories/d1-feedback-reminder-repository.js';
+import { createWeeklyFeedbackScheduleService } from './premium/services/weekly-feedback-schedule-service.js';
+import { createWeeklyFeedbackReminderService } from './premium/services/weekly-feedback-reminder-service.js';
+import { createGetCurrentWeeklyFeedbackUseCase } from './premium/application/get-current-weekly-feedback.js';
+import { createGetWeeklyFeedbackForReviewUseCase } from './premium/application/get-weekly-feedback-for-review.js';
+import { createListFeedbacksAwaitingAnalysisUseCase } from './premium/application/list-feedbacks-awaiting-analysis.js';
+import { createListMissingWeeklyFeedbacksUseCase } from './premium/application/list-missing-weekly-feedbacks.js';
+import { createPrepareWeeklyFeedbackRemindersUseCase } from './premium/application/prepare-weekly-feedback-reminders.js';
+
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
 import { buildD1HealthCheck, tableExists } from './services/health-check-service.js';
 import { jsonWithUsage } from './services/endpoint-usage-service.js';
@@ -43,10 +52,14 @@ function createPremiumApplication(env, request) {
   const studentRecordRepository = createD1StudentRecordRepository(env.DB);
   const followupEntryRepository = createD1FollowupEntryRepository(env.DB);
   const pendingItemRepository = createD1PendingItemRepository(env.DB);
+  const weeklyFeedbackRepository = createD1WeeklyFeedbackRepository(env.DB);
+  const reminderRepository = createD1FeedbackReminderRepository(env.DB);
+  const scheduleService = createWeeklyFeedbackScheduleService();
+  const reminderService = createWeeklyFeedbackReminderService({ scheduleService });
   return {
     anamnesisRepository: createD1AnamnesisRepository(env.DB),
     nutritionPlanRepository: createD1NutritionPlanRepository(env.DB),
-    weeklyFeedbackRepository: createD1WeeklyFeedbackRepository(env.DB),
+    weeklyFeedbackRepository,
     eventRepository,
     studentRepository,
     studentRecordRepository,
@@ -55,16 +68,21 @@ function createPremiumApplication(env, request) {
     identityService,
     getNutritionPlan: createGetNutritionPlanUseCase({ identityService, nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), log }),
     saveNutritionPlan: createSaveNutritionPlanUseCase({ identityService, nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), eventRepository, log, randomUUID: () => crypto.randomUUID() }),
-    submitWeeklyFeedback: createSubmitWeeklyFeedbackUseCase({ identityService, weeklyFeedbackRepository: createD1WeeklyFeedbackRepository(env.DB), eventRepository, log, randomUUID: () => crypto.randomUUID() }),
-    listWeeklyFeedbacks: createListWeeklyFeedbacksUseCase({ identityService, weeklyFeedbackRepository: createD1WeeklyFeedbackRepository(env.DB), log }),
-    analyzeWeeklyFeedback: createAnalyzeWeeklyFeedbackUseCase({ weeklyFeedbackRepository: createD1WeeklyFeedbackRepository(env.DB) }),
+    submitWeeklyFeedback: createSubmitWeeklyFeedbackUseCase({ identityService, weeklyFeedbackRepository, pendingItemRepository, eventRepository, db: env.DB, log, randomUUID: () => crypto.randomUUID() }),
+    listWeeklyFeedbacks: createListWeeklyFeedbacksUseCase({ identityService, weeklyFeedbackRepository, log }),
+    analyzeWeeklyFeedback: createAnalyzeWeeklyFeedbackUseCase({ weeklyFeedbackRepository }),
     analyzeAnamnesis: createAnalyzeAnamnesisUseCase({ anamnesisRepository: createD1AnamnesisRepository(env.DB) }),
     getStudentRecord: createGetStudentRecordUseCase({ studentRepository, studentRecordRepository, pendingItemRepository, randomUUID: () => crypto.randomUUID() }),
     addFollowupEntry: createAddFollowupEntryUseCase({ studentRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
     createPendingItem: createCreatePendingItemUseCase({ studentRepository, pendingItemRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
     resolvePendingItem: createResolvePendingItemUseCase({ pendingItemRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
     updateConsultationStatus: createUpdateConsultationStatusUseCase({ studentRepository, followupEntryRepository, db: env.DB, randomUUID: () => crypto.randomUUID() }),
-    recordProfessionalDecision: createRecordProfessionalDecisionUseCase({ weeklyFeedbackRepository: createD1WeeklyFeedbackRepository(env.DB), followupEntryRepository, db: env.DB, randomUUID: () => crypto.randomUUID() }),
+    recordProfessionalDecision: createRecordProfessionalDecisionUseCase({ weeklyFeedbackRepository, followupEntryRepository, pendingItemRepository, db: env.DB, randomUUID: () => crypto.randomUUID() }),
+    getCurrentWeeklyFeedback: createGetCurrentWeeklyFeedbackUseCase({ identityService, weeklyFeedbackRepository, scheduleService }),
+    getWeeklyFeedbackForReview: createGetWeeklyFeedbackForReviewUseCase({ weeklyFeedbackRepository, pendingItemRepository, followupEntryRepository, scheduleService }),
+    listFeedbacksAwaitingAnalysis: createListFeedbacksAwaitingAnalysisUseCase({ weeklyFeedbackRepository }),
+    listMissingWeeklyFeedbacks: createListMissingWeeklyFeedbacksUseCase({ weeklyFeedbackRepository, scheduleService }),
+    prepareWeeklyFeedbackReminders: createPrepareWeeklyFeedbackRemindersUseCase({ studentRepository, weeklyFeedbackRepository, reminderRepository, reminderService, scheduleService, randomUUID: () => crypto.randomUUID() }),
   };
 }
 
@@ -732,9 +750,10 @@ export default {
               created_at: now,
             }
           });
-          if (submitResult.blocked) return json({ ok: false, error: 'Não foi possível gravar dados Premium com segurança.' }, 403);
+          if (submitResult.blocked) return json({ ok: false, error: submitResult.error || 'Não foi possível gravar dados Premium com segurança.' }, submitResult.status || 403);
+          if (submitResult.ok === false) return json({ ok: false, error: submitResult.error || 'Não foi possível gravar dados Premium com segurança.' }, submitResult.status || 409);
 
-          return json({ ok: true, data: { id, weekRef, createdAt: now } });
+          return json({ ok: true, data: { id: submitResult.saved?.id || id, weekRef, createdAt: now } });
         }
 
         if (url.pathname === '/api/portal/checkins' && method === 'GET') {
@@ -742,6 +761,43 @@ export default {
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const premiumApp = createPremiumApplication(env, request);
           const result = await premiumApp.listWeeklyFeedbacks.execute({ email: studentEmail, limit: 20, route: url.pathname, method });
+          if (result.blocked) return json({ ok: false, error: 'Não foi possível acessar dados Premium com segurança.' }, 403);
+          return json({ ok: true, data: (result.records || []).map(publicWeeklyFeedback) });
+        }
+
+
+        if (url.pathname === '/api/portal/premium/weekly-feedback/current' && method === 'GET') {
+          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          if (premiumOnlyResponse) return premiumOnlyResponse;
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.getCurrentWeeklyFeedback({ email: studentEmail });
+          if (result.blocked) return json({ ok: false, error: 'Não foi possível acessar dados Premium com segurança.' }, 403);
+          const feedback = result.data.feedback;
+          return json({ ok: true, data: { weekRef: result.data.weekRef, status: result.data.status, availableAt: result.data.availableAt, recommendedDeadline: result.data.recommendedDeadline, submittedAt: result.data.submittedAt, isLate: result.data.isLate, questions: feedback ? publicWeeklyFeedback(feedback) : {}, professionalResponse: feedback?.coach_reply ? { message: feedback.coach_reply, respondedAt: feedback.coach_reply_at } : null } });
+        }
+
+        if (url.pathname === '/api/portal/premium/weekly-feedback/current' && method === 'POST') {
+          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          if (premiumOnlyResponse) return premiumOnlyResponse;
+          const body = await safeJson(request);
+          const now = new Date().toISOString();
+          const premiumApp = createPremiumApplication(env, request);
+          const current = await premiumApp.getCurrentWeeklyFeedback({ email: studentEmail });
+          if (current.blocked) return json({ ok: false, error: 'Não foi possível gravar dados Premium com segurança.' }, 403);
+          if (current.data.status === 'NOT_AVAILABLE') return json({ ok: false, error: 'Seu Feedback Semanal ainda não está disponível.' }, 409);
+          if (current.data.status === 'ANALYZED') return json({ ok: false, error: 'Este Feedback Semanal já foi analisado por Lucas.' }, 409);
+          const id = current.data.feedback?.id || crypto.randomUUID();
+          const submitResult = await premiumApp.submitWeeklyFeedback.execute({ route: url.pathname, method, feedback: { id, student_email: studentEmail, week_ref: current.data.weekRef, training_adherence: body?.trainingAdherence || null, nutrition_adherence: body?.nutritionAdherence || null, cardio_adherence: body?.cardioAdherence || null, free_meals: body?.freeMeals || null, hunger_level: body?.hungerLevel || null, binge_or_snacking: body?.bingeOrSnacking || null, sleep_quality: body?.sleepQuality || null, energy_level: body?.energyLevel || null, stress_level: body?.stressLevel || null, weekly_weight: body?.weeklyWeight || null, waist: body?.waist || null, strength_status: body?.strengthStatus || null, main_difficulty: body?.mainDifficulty || null, routine_context: body?.routineContext || null, weekly_score: body?.weeklyScore || null, support_needed: body?.supportNeeded || null, created_at: now, submitted_at: now, available_at: current.data.availableAt, updated_at: now } });
+          if (submitResult.blocked) return json({ ok: false, error: submitResult.error || 'Não foi possível gravar dados Premium com segurança.' }, submitResult.status || 403);
+          if (submitResult.ok === false) return json({ ok: false, error: submitResult.error || 'Não foi possível gravar dados Premium com segurança.' }, submitResult.status || 409);
+          return json({ ok: true, data: { id: submitResult.saved?.id || id, weekRef: current.data.weekRef, submittedAt: now, status: 'RESPONDED' } });
+        }
+
+        if (url.pathname === '/api/portal/premium/weekly-feedback/history' && method === 'GET') {
+          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          if (premiumOnlyResponse) return premiumOnlyResponse;
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.listWeeklyFeedbacks.execute({ email: studentEmail, limit: 12, route: url.pathname, method });
           if (result.blocked) return json({ ok: false, error: 'Não foi possível acessar dados Premium com segurança.' }, 403);
           return json({ ok: true, data: (result.records || []).map(publicWeeklyFeedback) });
         }
@@ -1591,6 +1647,35 @@ export default {
           return json({ ok: true, data: updated });
         }
 
+
+
+        if (url.pathname === '/api/admin/premium/weekly-feedbacks/pending' && method === 'GET') {
+          const premiumApp = createPremiumApplication(env, request);
+          return json({ ok: true, data: await premiumApp.listFeedbacksAwaitingAnalysis({ limit: Math.min(Number(url.searchParams.get('limit') || 50), 50) }) });
+        }
+        if (url.pathname === '/api/admin/premium/weekly-feedbacks/missing' && method === 'GET') {
+          const premiumApp = createPremiumApplication(env, request);
+          return json({ ok: true, data: await premiumApp.listMissingWeeklyFeedbacks({ limit: Math.min(Number(url.searchParams.get('limit') || 50), 50) }) });
+        }
+        if (url.pathname === '/api/admin/premium/weekly-feedbacks/reminders/prepare' && method === 'POST') {
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.prepareWeeklyFeedbackReminders({ env, now: new Date() });
+          return json(result);
+        }
+        if (/^\/api\/admin\/premium\/weekly-feedbacks\/[^/]+$/.test(url.pathname) && method === 'GET') {
+          const id = decodeURIComponent(url.pathname.split('/').pop() || '');
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.getWeeklyFeedbackForReview({ id });
+          return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
+        }
+        if (/^\/api\/admin\/premium\/(weekly-feedbacks|feedbacks)\/[^/]+\/decision$/.test(url.pathname) && method === 'POST') {
+          const parts = url.pathname.split('/');
+          const id = decodeURIComponent(parts[5] || '');
+          const body = await safeJson(request);
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.recordProfessionalDecision({ feedback_id: id, decision_type: body?.decision_type, note: nullableTrimmed(body?.note), created_by: request.headers.get('x-admin-user') || 'admin' });
+          return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
+        }
 
         if (url.pathname === '/api/admin/command-center' && method === 'GET') {
           const currentWeekRef = getWeekRef(new Date());
@@ -2786,6 +2871,14 @@ async function ensureSchemaUncached(db) {
   await ensureColumn(db, 'student_checkins', 'reviewed_at', 'TEXT');
   await ensureColumn(db, 'student_checkins', 'reviewed_by', 'TEXT');
   await ensureColumn(db, 'student_checkins', 'student_id', 'TEXT');
+  await ensureColumn(db, 'student_checkins', 'available_at', 'TEXT');
+  await ensureColumn(db, 'student_checkins', 'submitted_at', 'TEXT');
+  await ensureColumn(db, 'student_checkins', 'analyzed_at', 'TEXT');
+  await ensureColumn(db, 'student_checkins', 'decision_type', 'TEXT');
+  await ensureColumn(db, 'student_checkins', 'decision_note', 'TEXT');
+  await ensureColumn(db, 'student_checkins', 'decision_by', 'TEXT');
+  await ensureColumn(db, 'student_checkins', 'decision_at', 'TEXT');
+  await ensureColumn(db, 'student_checkins', 'updated_at', 'TEXT');
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS progression_logs (
     id TEXT PRIMARY KEY,
@@ -2924,6 +3017,10 @@ async function ensureSchemaUncached(db) {
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_pending_items_status ON premium_pending_items(status)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_pending_items_created_at ON premium_pending_items(created_at)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_pending_items_related ON premium_pending_items(related_entity_type, related_entity_id)`).run();
+  await db.prepare(`CREATE TABLE IF NOT EXISTS premium_feedback_reminders (id TEXT PRIMARY KEY, student_id TEXT NOT NULL, week_ref TEXT NOT NULL, reminder_type TEXT NOT NULL, channel TEXT NOT NULL DEFAULT 'OPERATIONAL_QUEUE', status TEXT NOT NULL DEFAULT 'PENDING', scheduled_for TEXT NOT NULL, sent_at TEXT, failure_reason TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`).run();
+  await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_feedback_reminders_unique ON premium_feedback_reminders(student_id, week_ref, reminder_type, channel)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_feedback_reminders_status ON premium_feedback_reminders(status, scheduled_for)`).run();
+
   await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_pending_items_open_unique ON premium_pending_items(student_id, type, COALESCE(related_entity_type, ''), COALESCE(related_entity_id, '')) WHERE status = 'OPEN'`).run();
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS operational_logs (

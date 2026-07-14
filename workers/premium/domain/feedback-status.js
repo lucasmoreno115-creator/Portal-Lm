@@ -59,3 +59,17 @@ export function normalizeCoachStatus(status) {
 export function isAnalyzedCoachStatus(status) {
   return ANALYZED_COACH_STATUSES.has(normalizeCoachStatus(status));
 }
+
+export function normalizeFeedbackStatus(status) {
+  const normalized = normalizeCoachStatus(status);
+  if (!normalized || normalized === 'PENDING') return FeedbackStatus.RESPONDED;
+  if (ANALYZED_COACH_STATUSES.has(normalized)) return FeedbackStatus.ANALYZED;
+  if (normalized === FeedbackStatus.NOT_AVAILABLE) return FeedbackStatus.NOT_AVAILABLE;
+  if (normalized === FeedbackStatus.AVAILABLE) return FeedbackStatus.AVAILABLE;
+  if (normalized === FeedbackStatus.RESPONDED) return FeedbackStatus.RESPONDED;
+  return normalized;
+}
+
+export function isFeedbackAnalyzed(status) {
+  return normalizeFeedbackStatus(status) === FeedbackStatus.ANALYZED;
+}
