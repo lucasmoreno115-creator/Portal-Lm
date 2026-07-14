@@ -5,9 +5,11 @@ function d1() {
   return { calls, prepare(sql){ const call={sql,binds:[]}; calls.push(call); return {
     bind(...v){ call.binds=v; return this; },
     async first(){
-      if (/SELECT \* FROM nutrition_plans WHERE id/.test(sql)) return { id: call.binds[0], student_id:'s1', student_email:'a@x.com', status: state.published ? 'PUBLISHED' : 'DRAFT', is_active: state.published ? 1 : 0, updated_at:'rev1', title:'Plano', meals_json:JSON.stringify([{name:'Café',items:[{food:'Ovos',quantity:'2'}]}]) };
-      if (/status = 'DRAFT'/.test(sql) && /ORDER BY datetime/.test(sql)) return state.inserted ? { id:'d1', student_id:'s1', student_email:'a@x.com', status:'DRAFT', is_active:0, updated_at:'rev1', title:'Plano', meals_json:'[]' } : null;
+      if (/SELECT \* FROM nutrition_plans WHERE id/.test(sql)) return { id: call.binds[0], student_id:'s1', student_email:'a@x.com', status: state.published ? 'PUBLISHED' : 'DRAFT', is_active: state.published ? 1 : 0, updated_at:'rev1', version_number: state.published ? 2 : null, published_by: state.published ? 'admin' : null, supersedes_plan_id:null, source_feedback_id:null, title:'Plano', meals_json:JSON.stringify([{name:'Café',items:[{food:'Ovos',quantity:'2'}]}]) };
+      if (/status = 'DRAFT'/.test(sql) && /ORDER BY datetime/.test(sql)) return state.inserted ? { id:'d1', student_id:'s1', student_email:'a@x.com', status:'DRAFT', is_active:0, updated_at:'rev1', version_number: state.published ? 2 : null, published_by: state.published ? 'admin' : null, supersedes_plan_id:null, source_feedback_id:null, title:'Plano', meals_json:'[]' } : null;
       if (/MAX\(version_number\)/.test(sql)) return { next_version: 2 };
+      if (/premium_followup_entries/.test(sql)) return { id:'plan-change:d1' };
+      if (/COUNT\(1\) AS count/.test(sql)) return { count:0 };
       return null;
     },
     async all(){return {results:[]};},

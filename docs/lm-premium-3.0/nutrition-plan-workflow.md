@@ -18,7 +18,7 @@ O schema interno contém `title`, `goal`, `strategy`, `generalGuidance`, `meals`
 A criação de rascunho usa `student_id` como identidade principal, preserva o plano publicado atual e usa `INSERT OR IGNORE` mais índice único parcial de draft aberto após 0032 para idempotência sob concorrência.
 
 ## 6. Publicação
-Publicar valida apenas estrutura e executa um CAS condicional por `id`, `student_id` e `status = DRAFT`. Arquivamento, `PLAN_CHANGE` e resolução de pendência só ocorrem depois de confirmar que o draft foi realmente publicado. A publicação não calcula dieta, macros ou calorias.
+Publicar valida apenas estrutura e executa um CAS condicional por `id`, `student_id` e `status = DRAFT` em conjunto lógico com os efeitos derivados. A operação só retorna sucesso depois de confirmar plano `PUBLISHED`, `is_active = 1`, versão atribuída, plano anterior arquivado quando existir, `PLAN_CHANGE` existente e pendências relacionadas resolvidas. A publicação não calcula dieta, macros ou calorias.
 
 ## 7. Histórico
 O histórico lista versões por aluno com status, versão, publicação, responsável, objetivo e origem. Conteúdo integral de todas as versões não precisa ser carregado na primeira resposta.
@@ -51,10 +51,10 @@ Aluno: `GET /api/portal/premium/nutrition-plan/current`. Admin: endpoints sob `/
 Aluno não envia `student_id`; admin usa `student_id` do contexto. O presenter público remove IDs internos, status técnico, pendências, histórico e observações privadas. UI usa `textContent`/DOM APIs.
 
 ## 17. Idempotência
-Criação de rascunho retorna rascunho aberto existente. Publicação já publicada retorna sucesso idempotente. Evolução `PLAN_CHANGE` usa ID determinístico por plano.
+Criação de rascunho retorna rascunho aberto existente. Retry de publicação já `PUBLISHED` executa `ensurePublicationEffects`: recria `PLAN_CHANGE` determinístico se faltar, resolve pendência ainda aberta, não cria nova versão, não arquiva outro plano e só retorna sucesso após confirmar todos os efeitos.
 
 ## 18. Atomicidade
-A publicação usa atualização condicional verificável antes dos efeitos colaterais e usa `DB.batch` quando disponível para registrar evolução e resolver pendências somente após confirmar a mudança real do draft para `PUBLISHED`.
+A publicação agrupa CAS, `PLAN_CHANGE` e resolução de pendências em batch quando disponível e sempre relê/valida os efeitos após o batch. Se D1 ou a rede falhar após mudança parcial, o retry obrigatório chama `ensurePublicationEffects` e repara efeitos idempotentes antes de retornar sucesso.
 
 ## 19. Feature flag
 `PREMIUM_NUTRITION_PLAN_WORKFLOW_ENABLED` protege a adoção visual da nova UI. Editor legado e leitura legada permanecem disponíveis para rollback.
