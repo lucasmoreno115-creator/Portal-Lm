@@ -15,10 +15,10 @@ O ciclo oficial é `DRAFT → PUBLISHED → ARCHIVED`. Rascunhos não aparecem a
 O schema interno contém `title`, `goal`, `strategy`, `generalGuidance`, `meals`, `substitutions`, `adherenceRules`, `notes` e `whatsappMessage`. Cada refeição contém `id`, `name`, `time`, `guidance`, `items` e `substitutions`; cada item contém `food`, `quantity`, `unit` e `note`.
 
 ## 5. Rascunho
-A criação de rascunho usa `student_id` como identidade principal e preserva o plano publicado atual. Preferencialmente há um rascunho aberto por aluno; múltiplos rascunhos exigem justificativa operacional futura.
+A criação de rascunho usa `student_id` como identidade principal, preserva o plano publicado atual e usa `INSERT OR IGNORE` mais índice único parcial de draft aberto após 0032 para idempotência sob concorrência.
 
 ## 6. Publicação
-Publicar valida apenas estrutura, arquiva o plano publicado anterior, publica o rascunho, atualiza `is_active`, registra evolução `PLAN_CHANGE` e resolve pendência relacionada. A publicação não calcula dieta, macros ou calorias.
+Publicar valida apenas estrutura e executa um CAS condicional por `id`, `student_id` e `status = DRAFT`. Arquivamento, `PLAN_CHANGE` e resolução de pendência só ocorrem depois de confirmar que o draft foi realmente publicado. A publicação não calcula dieta, macros ou calorias.
 
 ## 7. Histórico
 O histórico lista versões por aluno com status, versão, publicação, responsável, objetivo e origem. Conteúdo integral de todas as versões não precisa ser carregado na primeira resposta.
@@ -30,10 +30,10 @@ O histórico lista versões por aluno com status, versão, publicação, respons
 Campos existentes de `nutrition_plans` são reaproveitados. `student_email` permanece temporariamente para compatibilidade; `student_id` é o vínculo principal do workflow novo.
 
 ## 10. Migration
-`0031_add_nutrition_plan_lifecycle.sql` adiciona `status`, `version_number`, `published_at`, `published_by`, `archived_at`, `supersedes_plan_id`, `source_feedback_id` e `private_notes`, sem remover colunas.
+`0031_add_nutrition_plan_lifecycle.sql` adiciona somente colunas e índices não exclusivos. Nenhum backfill e nenhum índice único ocorre antes da auditoria. Depois de auditoria sem conflitos, `0032_finalize_nutrition_plan_lifecycle.sql` faz o backfill controlado e cria os índices únicos de `PUBLISHED`, `DRAFT` aberto e versão por aluno.
 
 ## 11. Auditoria
-Antes do rollout, executar `scripts/audit-nutrition-plan-lifecycle.mjs`. Conflitos de múltiplos ativos, ativo sem `student_id`, divergência e-mail/identidade, Projeto LM e incompatibilidade `status/is_active` bloqueiam rollout.
+Ordem obrigatória: aplicar 0031, executar `scripts/audit-nutrition-plan-lifecycle.mjs`, resolver todos os conflitos e somente então aplicar 0032. Conflitos de múltiplos ativos, múltiplos `PUBLISHED`, múltiplos `DRAFT`, draft sem `student_id`, ativo sem `student_id`, divergência e-mail/identidade, Projeto LM e incompatibilidade `status/is_active` bloqueiam rollout com exit code 1.
 
 ## 12. Integração com Feedback Semanal
 Rascunhos podem receber `source_feedback_id`. Decisão `UPDATE_PLAN` não altera dieta automaticamente; apenas mantém o vínculo para Lucas criar e publicar uma nova versão.
@@ -54,7 +54,7 @@ Aluno não envia `student_id`; admin usa `student_id` do contexto. O presenter p
 Criação de rascunho retorna rascunho aberto existente. Publicação já publicada retorna sucesso idempotente. Evolução `PLAN_CHANGE` usa ID determinístico por plano.
 
 ## 18. Atomicidade
-A publicação usa `DB.batch` quando disponível para arquivar versão anterior, publicar nova versão, registrar evolução e resolver pendências como unidade operacional.
+A publicação usa atualização condicional verificável antes dos efeitos colaterais e usa `DB.batch` quando disponível para registrar evolução e resolver pendências somente após confirmar a mudança real do draft para `PUBLISHED`.
 
 ## 19. Feature flag
 `PREMIUM_NUTRITION_PLAN_WORKFLOW_ENABLED` protege a adoção visual da nova UI. Editor legado e leitura legada permanecem disponíveis para rollback.

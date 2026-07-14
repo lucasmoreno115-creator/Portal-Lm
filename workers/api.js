@@ -1596,7 +1596,7 @@ export default {
           const body = await safeJson(request);
           const premiumApp = createPremiumApplication(env, request);
           const result = await premiumApp.createNutritionPlanDraft.execute({ student_id, plan: body?.plan || body || {}, source_feedback_id: body?.source_feedback_id || null });
-          return json({ ok: result.ok, data: presentAdminNutritionPlan(result.data), error: result.error }, result.ok ? 200 : 404);
+          return json({ ok: result.ok, data: presentAdminNutritionPlan(result.data), error: result.error }, result.ok ? 200 : (result.conflict ? 409 : 404));
         }
         const adminNutritionPlanMatch = url.pathname.match(/^\/api\/admin\/premium\/nutrition-plans\/([^/]+)\/(draft|publish|archive|duplicate-as-draft)$/);
         if (adminNutritionPlanMatch && ['PATCH','POST'].includes(method)) {
