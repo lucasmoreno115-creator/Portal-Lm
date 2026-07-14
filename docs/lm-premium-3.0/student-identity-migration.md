@@ -36,14 +36,15 @@ A fonte principal é `student_access`, sem `coalesce` e sem default silencioso p
 - `plan` e `plan_type` conflitantes geram conflito.
 - ambos ausentes geram conflito.
 - valor desconhecido gera conflito.
+- quando o mesmo e-mail aparece em acessos de produtos diferentes, a regra conservadora bloqueia todo o e-mail no backfill (`MIXED_PRODUCT_ACCESS_FOR_EMAIL`): nenhum acesso recebe `student_id` até revisão manual.
 
-A associação usa allowlist fixa de tabelas/colunas, queries parametrizadas e `DB.batch` quando disponível no adapter D1. O backfill cria identidades em `premium_students` e atualiza `student_id` apenas quando a coluna está nula, preservando associações existentes. A segunda execução não duplica identidade nem sobrescreve `student_id` válido.
+A associação usa allowlist fixa de tabelas/colunas, queries parametrizadas e `DB.batch` quando disponível no adapter D1. Para `student_access`, o backfill nunca associa por simples igualdade de e-mail: ele só atualiza o `id` exato do acesso Premium elegível e unívoco que originou a identidade. Registros Projeto LM, com classificação ausente, desconhecida ou conflitante nunca são atualizados. O backfill cria identidades em `premium_students` e atualiza `student_id` apenas quando a coluna está nula. Quando um registro já possui `student_id`, valor igual conta como associação existente; valor diferente gera `IDENTITY_ASSOCIATION_MISMATCH` e nunca é sobrescrito. A segunda execução não duplica identidade nem sobrescreve `student_id` válido.
 
 ## 8. Conflitos possíveis
-O relatório estruturado inclui `type`, `table`, `record`, `email`, `reason` e `recommended_action`. O Build detecta e não corrige silenciosamente: `EMPTY_EMAIL`, `MULTIPLE_ACCESS_RECORDS`, `MISSING_PRODUCT_CLASSIFICATION`, `CONFLICTING_PRODUCT_CLASSIFICATION`, `UNKNOWN_PRODUCT_CLASSIFICATION`, `NON_PREMIUM_ACCESS`, `IDENTITY_COLLISION` e `PREMIUM_DATA_WITHOUT_ACCESS`. Tokens não são emitidos no relatório.
+O relatório estruturado inclui `type`, `table`, `record`, `email`, `reason` e `recommended_action`. O Build detecta e não corrige silenciosamente: `EMPTY_EMAIL`, `MULTIPLE_ACCESS_RECORDS`, `MISSING_PRODUCT_CLASSIFICATION`, `CONFLICTING_PRODUCT_CLASSIFICATION`, `UNKNOWN_PRODUCT_CLASSIFICATION`, `NON_PREMIUM_ACCESS`, `MIXED_PRODUCT_ACCESS_FOR_EMAIL`, `IDENTITY_COLLISION`, `IDENTITY_ASSOCIATION_MISMATCH` e `PREMIUM_DATA_WITHOUT_ACCESS`. Tokens não são emitidos no relatório.
 
 ## 9. Relatório de execução
-O resultado do backfill contém `mode`, `candidates`, `created`, `associated`, `skipped`, `planned_created`, `planned_associated` e `conflicts`. Em `dry-run`, `created` e `associated` permanecem zero porque nada é persistido; os campos `planned_*` mostram o impacto previsto. Em `apply`, `created` e `associated` representam alterações realmente persistidas pelo repository D1.
+O resultado do backfill contém `mode`, `candidates`, `created`, `associated`, `skipped`, `existing_associations`, `planned_created`, `planned_associated` e `conflicts`. Em `dry-run`, `created` e `associated` permanecem zero porque nada é persistido; os campos `planned_*` mostram o impacto previsto. Em `apply`, `created` e `associated` representam alterações realmente persistidas pelo repository D1.
 
 ## 10. Dual-read
 `workers/premium/services/student-identity-service.js` resolve por `student_id` quando informado e usa e-mail normalizado como fallback temporário. O serviço retorna resultado explícito (`ok`, `method`, `student`, `error`) e rejeita ausências, ambiguidade e alunos classificados como Projeto LM.

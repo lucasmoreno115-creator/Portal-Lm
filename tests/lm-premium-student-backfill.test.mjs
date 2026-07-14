@@ -148,3 +148,76 @@ test('D1 adapter em apply persiste student_id com queries parametrizadas e sem c
   assert.equal(db.state.student_access[0].student_id, 'uuid-d1');
   assert.equal(db.state.nutrition_plans[0].student_id, 'uuid-d1');
 });
+
+test('Premium e Projeto LM com mesmo e-mail bloqueiam o e-mail e não compartilham student_id', async () => {
+  const repository = memoryRepository([
+    { id: 'premium-access', name: 'Aluna', email: 'same@example.com', status: 'ACTIVE', plan: 'premium' },
+    { id: 'project-access', name: 'Aluna Projeto', email: ' SAME@example.com ', status: 'ACTIVE', plan: 'projeto_lm' },
+  ]);
+  const tables = {
+    student_access: [
+      { id: 'premium-access', email: 'same@example.com' },
+      { id: 'project-access', email: 'same@example.com' },
+    ],
+  };
+  const dryRun = await runPremiumStudentIdentityBackfill({ repository, tables, randomUUID: () => 'uuid-shared' });
+  assert.equal(dryRun.created, 0);
+  assert.equal(dryRun.associated, 0);
+  assert.equal(repository.students.length, 0);
+  assert.equal(tables.student_access[0].student_id, undefined);
+  assert.equal(tables.student_access[1].student_id, undefined);
+  assert(dryRun.conflicts.some((conflict) => conflict.type === 'MIXED_PRODUCT_ACCESS_FOR_EMAIL'));
+
+  const apply = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, randomUUID: () => 'uuid-shared' });
+  assert.equal(apply.created, 0);
+  assert.equal(apply.associated, 0);
+  assert.equal(repository.students.length, 0);
+  assert.equal(tables.student_access[0].student_id, undefined);
+  assert.equal(tables.student_access[1].student_id, undefined);
+  assert.equal(repository.associatedCalls.length, 0);
+});
+
+test('student_access usa apenas o id exato do candidato Premium elegível', async () => {
+  const repository = memoryRepository([{ id: 'premium-access', name: 'Aluna', email: 'aluna@example.com', status: 'ACTIVE', plan: 'premium' }]);
+  const tables = {
+    student_access: [
+      { id: 'premium-access', email: 'aluna@example.com' },
+      { id: 'other-access-same-email', email: 'aluna@example.com' },
+    ],
+  };
+  const result = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, randomUUID: () => 'uuid-exact' });
+  assert.equal(result.created, 1);
+  assert.equal(result.associated, 1);
+  assert.deepEqual(repository.associatedCalls.map((call) => call.id), ['premium-access']);
+});
+
+test('student_id existente correto conta como associação existente e execução continua idempotente', async () => {
+  const repository = memoryRepository(
+    [{ id: 'premium-access', name: 'Aluna', email: 'aluna@example.com', status: 'ACTIVE', plan: 'premium' }],
+    [{ student_id: 'uuid-ok', email: 'aluna@example.com', normalized_email: 'aluna@example.com' }]
+  );
+  const tables = { student_access: [{ id: 'premium-access', email: 'aluna@example.com', student_id: 'uuid-ok' }] };
+  const first = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, randomUUID: () => 'uuid-new' });
+  const second = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, randomUUID: () => 'uuid-newer' });
+  assert.equal(first.created, 0);
+  assert.equal(first.associated, 0);
+  assert.equal(first.existing_associations, 1);
+  assert.equal(second.created, 0);
+  assert.equal(second.associated, 0);
+  assert.equal(second.existing_associations, 1);
+  assert.equal(repository.students.length, 1);
+  assert.equal(tables.student_access[0].student_id, 'uuid-ok');
+});
+
+test('student_id existente diferente gera conflito e nunca sobrescreve', async () => {
+  const repository = memoryRepository(
+    [{ id: 'premium-access', name: 'Aluna', email: 'aluna@example.com', status: 'ACTIVE', plan: 'premium' }],
+    [{ student_id: 'uuid-resolved', email: 'aluna@example.com', normalized_email: 'aluna@example.com' }]
+  );
+  const tables = { student_access: [{ id: 'premium-access', email: 'aluna@example.com', student_id: 'other-id' }] };
+  const result = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, randomUUID: () => 'uuid-unused' });
+  assert.equal(result.created, 0);
+  assert.equal(result.associated, 0);
+  assert.equal(tables.student_access[0].student_id, 'other-id');
+  assert(result.conflicts.some((conflict) => conflict.type === 'IDENTITY_ASSOCIATION_MISMATCH'));
+});

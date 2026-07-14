@@ -92,7 +92,9 @@ export async function runPremiumStudentIdentityBackfill({
   const conflicts = [];
   const candidates = await repository.listBackfillCandidates();
   const associationTables = await listAssociationCandidates(repository, tables);
-  const byEmail = new Map();
+  const accessByEmail = new Map();
+  const eligibleByEmail = new Map();
+  const blockedEmails = new Set();
 
   for (const candidate of candidates) {
     let normalizedEmail = '';
@@ -104,25 +106,48 @@ export async function runPremiumStudentIdentityBackfill({
     }
 
     const eligibility = evaluatePremiumEligibility(candidate);
+    const entry = { ...candidate, normalized_email: normalizedEmail, eligibility };
+    const allForEmail = accessByEmail.get(normalizedEmail) ?? [];
+    allForEmail.push(entry);
+    accessByEmail.set(normalizedEmail, allForEmail);
+
     if (!eligibility.eligible) {
       conflicts.push(createConflict(eligibility.conflictType, 'student_access', candidate.id, candidate.email, eligibility.reason, 'Revisar classificação de produto antes de executar o backfill.'));
       continue;
     }
 
-    const bucket = byEmail.get(normalizedEmail) ?? [];
-    bucket.push({ ...candidate, normalized_email: normalizedEmail });
-    byEmail.set(normalizedEmail, bucket);
+    const eligibleForEmail = eligibleByEmail.get(normalizedEmail) ?? [];
+    eligibleForEmail.push(entry);
+    eligibleByEmail.set(normalizedEmail, eligibleForEmail);
+  }
+
+  for (const [normalizedEmail, accessRows] of accessByEmail) {
+    const hasEligible = accessRows.some((row) => row.eligibility.eligible);
+    const hasIneligible = accessRows.some((row) => !row.eligibility.eligible);
+    if (hasEligible && hasIneligible) {
+      blockedEmails.add(normalizedEmail);
+      conflicts.push(createConflict(
+        'MIXED_PRODUCT_ACCESS_FOR_EMAIL',
+        'student_access',
+        accessRows.map((row) => row.id).join(','),
+        normalizedEmail,
+        'Mesmo e-mail aparece em acessos Premium e não Premium/ambíguos; por regra conservadora o e-mail inteiro fica bloqueado neste backfill.',
+        'Resolver manualmente a classificação por acesso antes de associar student_id.'
+      ));
+    }
   }
 
   let created = 0;
   let associated = 0;
   let skipped = 0;
+  let existing_associations = 0;
   let planned_created = 0;
   let planned_associated = 0;
 
-  for (const [normalizedEmail, rows] of byEmail) {
+  for (const [normalizedEmail, rows] of eligibleByEmail) {
+    if (blockedEmails.has(normalizedEmail)) continue;
     if (rows.length > 1) {
-      conflicts.push(createConflict('MULTIPLE_ACCESS_RECORDS', 'student_access', rows.map((r) => r.id).join(','), normalizedEmail, 'Mais de um acesso para o mesmo e-mail normalizado.', 'Revisar manualmente antes de vincular.'));
+      conflicts.push(createConflict('MULTIPLE_ACCESS_RECORDS', 'student_access', rows.map((r) => r.id).join(','), normalizedEmail, 'Mais de um acesso Premium elegível para o mesmo e-mail normalizado.', 'Revisar manualmente antes de vincular.'));
       continue;
     }
 
@@ -162,7 +187,20 @@ export async function runPremiumStudentIdentityBackfill({
         const recordEmail = record[config.emailColumn];
         const recordNormalized = normalizePremiumStudentEmail(recordEmail);
         if (recordNormalized !== normalizedEmail) continue;
+        if (table === 'student_access' && record[config.idColumn] !== access.id) continue;
         if (record.student_id) {
+          if (record.student_id === student.student_id) {
+            existing_associations += 1;
+          } else {
+            conflicts.push(createConflict(
+              'IDENTITY_ASSOCIATION_MISMATCH',
+              table,
+              record[config.idColumn],
+              recordEmail,
+              'Registro já possui student_id diferente da identidade Premium resolvida.',
+              'Revisar manualmente antes de qualquer alteração; o backfill nunca sobrescreve student_id existente.'
+            ));
+          }
           skipped += 1;
           continue;
         }
@@ -185,7 +223,7 @@ export async function runPremiumStudentIdentityBackfill({
       const recordEmail = record[config.emailColumn];
       const normalizedEmail = normalizePremiumStudentEmail(recordEmail);
       if (record.student_id) continue;
-      if (!byEmail.has(normalizedEmail)) {
+      if (!eligibleByEmail.has(normalizedEmail) && !accessByEmail.has(normalizedEmail)) {
         conflicts.push(createConflict('PREMIUM_DATA_WITHOUT_ACCESS', table, record[config.idColumn], recordEmail, 'Dado Premium sem acesso Premium correspondente.', 'Revisar origem antes de associar.'));
       }
     }
@@ -197,6 +235,7 @@ export async function runPremiumStudentIdentityBackfill({
     created,
     associated,
     skipped,
+    existing_associations,
     planned_created,
     planned_associated,
     conflicts,
