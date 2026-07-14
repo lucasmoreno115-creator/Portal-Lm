@@ -64,7 +64,7 @@ function createPremiumApplication(env, request) {
     createPendingItem: createCreatePendingItemUseCase({ studentRepository, pendingItemRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
     resolvePendingItem: createResolvePendingItemUseCase({ pendingItemRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
     updateConsultationStatus: createUpdateConsultationStatusUseCase({ studentRepository, followupEntryRepository, db: env.DB, randomUUID: () => crypto.randomUUID() }),
-    recordProfessionalDecision: createRecordProfessionalDecisionUseCase({ weeklyFeedbackRepository: createD1WeeklyFeedbackRepository(env.DB), followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
+    recordProfessionalDecision: createRecordProfessionalDecisionUseCase({ weeklyFeedbackRepository: createD1WeeklyFeedbackRepository(env.DB), followupEntryRepository, db: env.DB, randomUUID: () => crypto.randomUUID() }),
   };
 }
 
@@ -2901,6 +2901,7 @@ async function ensureSchemaUncached(db) {
   )`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_followup_entries_student_created ON premium_followup_entries(student_id, created_at)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_followup_entries_related ON premium_followup_entries(related_entity_type, related_entity_id)`).run();
+  await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_followup_entries_decision_unique ON premium_followup_entries(entry_type, related_entity_type, related_entity_id) WHERE entry_type = 'PROFESSIONAL_DECISION' AND related_entity_type IS NOT NULL AND related_entity_id IS NOT NULL`).run();
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS premium_pending_items (
     id TEXT PRIMARY KEY,
@@ -2923,7 +2924,7 @@ async function ensureSchemaUncached(db) {
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_pending_items_status ON premium_pending_items(status)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_pending_items_created_at ON premium_pending_items(created_at)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_pending_items_related ON premium_pending_items(related_entity_type, related_entity_id)`).run();
-  await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_pending_items_open_unique ON premium_pending_items(student_id, type, related_entity_type, related_entity_id) WHERE status = 'OPEN'`).run();
+  await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_pending_items_open_unique ON premium_pending_items(student_id, type, COALESCE(related_entity_type, ''), COALESCE(related_entity_id, '')) WHERE status = 'OPEN'`).run();
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS operational_logs (
     id TEXT PRIMARY KEY,

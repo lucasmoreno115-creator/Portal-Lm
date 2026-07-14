@@ -1,3 +1,4 @@
+import { isAnalyzedCoachStatus } from '../domain/feedback-status.js';
 function rows(result) { return result?.results ?? []; }
 function parseJson(value, fallback) { try { return value ? JSON.parse(value) : fallback; } catch { return fallback; } }
 export function createD1StudentRecordRepository(db) {
@@ -15,7 +16,7 @@ export function createD1StudentRecordRepository(db) {
     async listPendingItems(studentId, { status = 'OPEN', limit = 100 } = {}) { return rows(await db.prepare(`SELECT * FROM premium_pending_items WHERE student_id=? AND status=? ORDER BY CASE priority WHEN 'HIGH' THEN 0 ELSE 1 END, datetime(created_at) DESC LIMIT ?`).bind(studentId, status, limit).all()); },
     async getCurrentSummary(studentId) {
       const [student, anamnesis, plan, feedbacks, pending, decision] = await Promise.all([this.getStudentHeader(studentId), this.getAnamnesis(studentId), this.getCurrentNutritionPlan(studentId), this.listRecentFeedbacks(studentId, { limit: 12 }), this.listPendingItems(studentId), db.prepare(`SELECT * FROM premium_followup_entries WHERE student_id=? AND entry_type='PROFESSIONAL_DECISION' ORDER BY datetime(created_at) DESC LIMIT 1`).bind(studentId).first()]);
-      const unanalyzed = feedbacks.filter((f) => !['reviewed', 'replied', 'ANALYZED', 'ANALISADO'].includes(String(f.coach_status || '').trim())).length;
+      const unanalyzed = feedbacks.filter((f) => !isAnalyzedCoachStatus(f.coach_status)).length;
       let next = 'Nenhuma ação imediata';
       if (anamnesis && !['ANALISADA', 'ANALYZED'].includes(String(anamnesis.status || '').toUpperCase())) next = 'Anamnese aguardando análise';
       else if (unanalyzed > 0) next = 'Feedback semanal aguardando resposta';

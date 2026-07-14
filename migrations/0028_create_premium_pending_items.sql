@@ -25,5 +25,10 @@ CREATE INDEX IF NOT EXISTS idx_premium_pending_items_created_at
 CREATE INDEX IF NOT EXISTS idx_premium_pending_items_related
   ON premium_pending_items(related_entity_type, related_entity_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_pending_items_open_unique
-  ON premium_pending_items(student_id, type, related_entity_type, related_entity_id)
+  ON premium_pending_items(
+    student_id,
+    type,
+    COALESCE(related_entity_type, ''),
+    COALESCE(related_entity_id, '')
+  )
   WHERE status = 'OPEN';

@@ -49,3 +49,13 @@ export function transitionFeedbackStatus(from, to, options = {}) {
 export function listFeedbackStatuses() {
   return Object.values(FeedbackStatus);
 }
+
+export const ANALYZED_COACH_STATUSES = Object.freeze(new Set(['REVIEWED', 'REPLIED', 'ANALYZED', 'ANALISADO', 'ANALISADA']));
+
+export function normalizeCoachStatus(status) {
+  return String(status || '').trim().toUpperCase();
+}
+
+export function isAnalyzedCoachStatus(status) {
+  return ANALYZED_COACH_STATUSES.has(normalizeCoachStatus(status));
+}

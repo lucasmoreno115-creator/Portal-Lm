@@ -30,7 +30,7 @@ A tabela `premium_pending_items` armazena ações reais. Status: `OPEN`, `RESOLV
 
 ## 8. Regras automáticas
 
-As pendências automáticas são objetivas e idempotentes: anamnese respondida e não analisada gera `ANALYZE_ANAMNESIS`; feedback respondido e não analisado gera `ANALYZE_WEEKLY_FEEDBACK`; consultoria `ACTIVE` sem plano ativo gera `CREATE_NUTRITION_PLAN`.
+As pendências automáticas são objetivas e idempotentes: anamnese respondida e não analisada gera `ANALYZE_ANAMNESIS`; feedback respondido e não analisado gera `ANALYZE_WEEKLY_FEEDBACK`; consultoria `ACTIVE` sem plano ativo gera `CREATE_NUTRITION_PLAN`. A idempotência é garantida no banco por índice único parcial que normaliza `NULL` com `COALESCE(related_entity_type, '')` e `COALESCE(related_entity_id, '')`, e o repository usa `INSERT OR IGNORE` seguido de leitura da pendência aberta existente/criada.
 
 ## 9. Endpoints
 
@@ -42,7 +42,7 @@ Todos os endpoints ficam dentro do gate `/api/admin/` e exigem admin autorizado.
 
 ## 11. Performance
 
-A primeira resposta limita feedbacks a 12 itens e evolução a 50 registros. Repositórios usam SQL parametrizado e índices por `student_id`, status, data e entidade relacionada.
+A primeira resposta limita feedbacks a 12 itens e evolução a 50 registros. Repositórios usam SQL parametrizado e índices por `student_id`, status, data e entidade relacionada. Alterações de status da consultoria e decisões profissionais usam `DB.batch` para tratar atualização e registro de evolução como uma unidade operacional, evitando sucesso parcial e duplicação em retry.
 
 ## 12. Limitações
 
