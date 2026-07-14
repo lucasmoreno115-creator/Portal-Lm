@@ -1,0 +1,2 @@
+// LM Premium 3.0 Build 5 nutrition-plan workflow use case.
+export function createGetNutritionPlanDraftUseCase({ studentRepository, nutritionPlanRepository }) { return { async execute({ student_id }) { const student = await studentRepository.findByStudentId(student_id); if (!student) return { ok:false, error:'STUDENT_NOT_FOUND' }; return { ok:true, data: await nutritionPlanRepository.findDraftByStudentId(student_id) }; } }; }

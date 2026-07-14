@@ -62,3 +62,7 @@ A tela é operacional e simples. Não há envio real de mensagens, comparação 
 
 ## 21. Próximos passos
 No Build futuro, ampliar navegação dos workspaces e UX de alteração de decisão, sem avançar para automação clínica.
+
+## 22. Evolução Build 5 — vínculo com Plano Alimentar
+
+Quando uma decisão profissional `UPDATE_PLAN` cria pendência `CREATE_NUTRITION_PLAN`, o novo workflow de plano alimentar pode criar rascunho com `source_feedback_id`. A pendência só é resolvida na publicação da nova versão; abrir editor ou criar rascunho não altera plano e não encerra pendência.

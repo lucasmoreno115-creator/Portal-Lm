@@ -1,0 +1,5 @@
+import test from 'node:test'; import assert from 'node:assert/strict';
+import { NUTRITION_PLAN_STATUS, canEditNutritionPlan, isLifecycleCompatible } from '../workers/premium/domain/nutrition-plan-status.js';
+import { validateNutritionPlanStructure, toCanonicalNutritionPlan } from '../workers/premium/domain/nutrition-plan-schema.js';
+test('nutrition plan lifecycle states and draft editability',()=>{ assert.deepEqual(Object.values(NUTRITION_PLAN_STATUS), ['DRAFT','PUBLISHED','ARCHIVED']); assert.equal(canEditNutritionPlan({status:'DRAFT'}), true); assert.equal(canEditNutritionPlan({status:'PUBLISHED'}), false); assert.equal(isLifecycleCompatible({status:'ARCHIVED',is_active:1}), false); });
+test('canonical schema validates structure but not clinical content',()=>{ const result=validateNutritionPlanStructure({title:'Plano', meals:[{id:'m1',name:'Café',items:[{food:'Item',quantity:'1',unit:'un'}]}]}); assert.equal(result.ok,true); assert.equal(toCanonicalNutritionPlan(result.plan).meals[0].items[0].food,'Item'); assert.equal(validateNutritionPlanStructure({title:'',meals:[]}).ok,false); });
