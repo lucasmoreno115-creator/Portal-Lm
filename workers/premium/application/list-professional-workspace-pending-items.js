@@ -1,0 +1,1 @@
+export function createListProfessionalWorkspacePendingItemsUseCase({ workspaceRepository }) { return async function listProfessionalWorkspacePendingItems(input={}) { return { ok:true, data: await workspaceRepository.listPendingItems(input) }; }; }

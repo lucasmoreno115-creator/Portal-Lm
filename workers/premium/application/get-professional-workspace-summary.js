@@ -1,0 +1,1 @@
+export function createGetProfessionalWorkspaceSummaryUseCase({ workspaceRepository }) { return async function getProfessionalWorkspaceSummary(input={}) { const data=await workspaceRepository.getSummary(input); return { ok:true, data:{...data, featureEnabled:Boolean(input.featureEnabled)} }; }; }

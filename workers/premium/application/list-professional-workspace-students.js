@@ -1,0 +1,1 @@
+export function createListProfessionalWorkspaceStudentsUseCase({ workspaceRepository }) { return async function listProfessionalWorkspaceStudents(input={}) { return { ok:true, data: await workspaceRepository.listStudents(input) }; }; }

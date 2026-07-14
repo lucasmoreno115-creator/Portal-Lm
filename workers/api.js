@@ -45,6 +45,16 @@ import { createArchiveNutritionPlanUseCase } from './premium/application/archive
 import { createDraftFromPublishedPlanUseCase } from './premium/application/create-draft-from-published-plan.js';
 import { presentPublicNutritionPlan } from './premium/presenters/nutrition-plan-public-presenter.js';
 import { presentAdminNutritionPlan, presentAdminNutritionPlanSummary } from './premium/presenters/nutrition-plan-admin-presenter.js';
+import { createD1ProfessionalWorkspaceRepository } from './premium/repositories/d1-professional-workspace-repository.js';
+import { createGetProfessionalWorkspaceSummaryUseCase } from './premium/application/get-professional-workspace-summary.js';
+import { createListProfessionalWorkspaceStudentsUseCase } from './premium/application/list-professional-workspace-students.js';
+import { createSearchProfessionalWorkspaceStudentsUseCase } from './premium/application/search-professional-workspace-students.js';
+import { createGetProfessionalWorkspaceStudentUseCase } from './premium/application/get-professional-workspace-student.js';
+import { createListProfessionalWorkspacePendingItemsUseCase } from './premium/application/list-professional-workspace-pending-items.js';
+import { createGetSaturdayReviewSummaryUseCase } from './premium/application/get-saturday-review-summary.js';
+import { presentWorkspaceSummary } from './premium/presenters/professional-workspace-summary-presenter.js';
+import { presentWorkspaceStudentSummary, presentWorkspaceStudentContext } from './premium/presenters/professional-workspace-student-presenter.js';
+import { presentWorkspacePendingItems } from './premium/presenters/professional-workspace-pending-presenter.js';
 
 
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
@@ -67,6 +77,7 @@ function createPremiumApplication(env, request) {
   const reminderRepository = createD1FeedbackReminderRepository(env.DB);
   const scheduleService = createWeeklyFeedbackScheduleService();
   const reminderService = createWeeklyFeedbackReminderService({ scheduleService });
+  const workspaceRepository = createD1ProfessionalWorkspaceRepository(env.DB);
   return {
     anamnesisRepository: createD1AnamnesisRepository(env.DB),
     nutritionPlanRepository: createD1NutritionPlanRepository(env.DB),
@@ -101,6 +112,12 @@ function createPremiumApplication(env, request) {
     updateNutritionPlanDraft: createUpdateNutritionPlanDraftUseCase({ nutritionPlanRepository: createD1NutritionPlanRepository(env.DB) }),
     publishNutritionPlan: createPublishNutritionPlanUseCase({ nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), randomUUID: () => crypto.randomUUID() }),
     archiveNutritionPlan: createArchiveNutritionPlanUseCase({ nutritionPlanRepository: createD1NutritionPlanRepository(env.DB) }),
+    getProfessionalWorkspaceSummary: createGetProfessionalWorkspaceSummaryUseCase({ workspaceRepository }),
+    listProfessionalWorkspaceStudents: createListProfessionalWorkspaceStudentsUseCase({ workspaceRepository }),
+    searchProfessionalWorkspaceStudents: createSearchProfessionalWorkspaceStudentsUseCase({ workspaceRepository }),
+    getProfessionalWorkspaceStudent: createGetProfessionalWorkspaceStudentUseCase({ workspaceRepository }),
+    listProfessionalWorkspacePendingItems: createListProfessionalWorkspacePendingItemsUseCase({ workspaceRepository }),
+    getSaturdayReviewSummary: createGetSaturdayReviewSummaryUseCase({ workspaceRepository }),
     createDraftFromPublishedPlan: createDraftFromPublishedPlanUseCase({ nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), randomUUID: () => crypto.randomUUID() }),
   };
 }
@@ -867,6 +884,40 @@ export default {
             message: 'Tentativa admin não autorizada.'
           });
           return json({ ok: false, error: 'Unauthorized' }, 401);
+        }
+
+
+        if (url.pathname === '/api/admin/premium/workspace/summary' && method === 'GET') {
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.getProfessionalWorkspaceSummary({ featureEnabled: env.PREMIUM_PROFESSIONAL_WORKSPACE_ENABLED === 'true' });
+          return json(result.ok ? { ok: true, data: presentWorkspaceSummary(result.data) } : { ok: false, error: result.error }, result.status || 200);
+        }
+        if (url.pathname === '/api/admin/premium/workspace/students' && method === 'GET') {
+          const premiumApp = createPremiumApplication(env, request);
+          const params = Object.fromEntries(url.searchParams.entries());
+          const result = await premiumApp.listProfessionalWorkspaceStudents(params);
+          return json(result.ok ? { ok: true, data: { ...result.data, items: result.data.items.map(presentWorkspaceStudentSummary) } } : { ok: false, error: result.error }, result.status || 200);
+        }
+        if (url.pathname === '/api/admin/premium/workspace/students/search' && method === 'GET') {
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.searchProfessionalWorkspaceStudents({ q: url.searchParams.get('q') || '', limit: url.searchParams.get('limit') || 20 });
+          return json(result.ok ? { ok: true, data: { ...result.data, items: result.data.items.map(presentWorkspaceStudentSummary) } } : { ok: false, error: result.error }, result.status || 200);
+        }
+        const workspaceStudentMatch = url.pathname.match(/^\/api\/admin\/premium\/workspace\/students\/([^/]+)$/);
+        if (workspaceStudentMatch && method === 'GET') {
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.getProfessionalWorkspaceStudent(decodeURIComponent(workspaceStudentMatch[1]));
+          return json(result.ok && result.data ? { ok: true, data: presentWorkspaceStudentContext(result.data) } : { ok: false, error: 'Aluno não encontrado' }, result.data ? 200 : 404);
+        }
+        if (url.pathname === '/api/admin/premium/workspace/pending-items' && method === 'GET') {
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.listProfessionalWorkspacePendingItems(Object.fromEntries(url.searchParams.entries()));
+          return json(result.ok ? { ok: true, data: { ...result.data, items: presentWorkspacePendingItems(result.data.items) } } : { ok: false, error: result.error }, result.status || 200);
+        }
+        if (url.pathname === '/api/admin/premium/workspace/saturday-review' && method === 'GET') {
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.getSaturdayReviewSummary({});
+          return json(result.ok ? { ok: true, data: presentWorkspaceSummary(result.data) } : { ok: false, error: result.error }, result.status || 200);
         }
 
 
