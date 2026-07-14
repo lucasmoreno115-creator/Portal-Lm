@@ -1,24 +1,137 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createSubmitWeeklyFeedbackUseCase } from '../workers/premium/application/submit-weekly-feedback.js';
+import { execFileSync } from 'node:child_process';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import worker from '../workers/api.js';
 
-test('payload público de envio de check-in permanece sem student_id ou metadados internos', async () => {
-  const publicResponse = { ok: true, data: { id: 'c1', weekRef: '2026-W29', createdAt: 'now' } };
-  assert.deepEqual(Object.keys(publicResponse.data), ['id', 'weekRef', 'createdAt']);
-  assert.equal('student_id' in publicResponse.data, false);
-  assert.equal('identity_method' in publicResponse.data, false);
-  assert.equal('fallback' in publicResponse.data, false);
-});
+class SqliteD1 {
+  constructor(file) { this.file = file; }
+  prepare(sql) { return new SqliteD1Statement(this.file, sql); }
+  async batch(statements) { const results = []; for (const statement of statements) results.push(await statement.run()); return results; }
+}
 
-test('casos de uso recebem dependências por injeção e não expõem student_id automaticamente', async () => {
-  const uc = createSubmitWeeklyFeedbackUseCase({
-    identityService: { async resolve() { return { ok: true, student: { student_id: 'internal' } }; } },
-    weeklyFeedbackRepository: { async create(record) { return record; } },
-    eventRepository: { async append() {} },
-    randomUUID: () => 'event-1',
-  });
-  const result = await uc.execute({ feedback: { id: 'c1', student_email: 'a@example.com', week_ref: '2026-W29', created_at: 'now' } });
-  assert.equal(result.saved.student_id, 'internal');
-  const publicResponse = { ok: true, data: { id: result.saved.id, weekRef: result.saved.week_ref, createdAt: result.saved.created_at } };
-  assert.equal('student_id' in publicResponse.data, false);
-});
+class SqliteD1Statement {
+  constructor(file, sql, params = []) { this.file = file; this.sql = sql; this.params = params; }
+  bind(...params) { return new SqliteD1Statement(this.file, this.sql, params); }
+  sqlWithParams() {
+    let index = 0;
+    return this.sql.replace(/\?/g, () => sqlValue(this.params[index++]));
+  }
+  async run() {
+    execFileSync('sqlite3', [this.file], { input: this.sqlWithParams() + ';' });
+    const readonly = /^\s*(CREATE|ALTER|DROP|PRAGMA|INSERT OR IGNORE)/i.test(this.sql);
+    return { meta: { changes: readonly ? 0 : 1 } };
+  }
+  async all() {
+    const out = execFileSync('sqlite3', ['-json', this.file, this.sqlWithParams()], { encoding: 'utf8' }).trim();
+    return { results: out ? JSON.parse(out) : [] };
+  }
+  async first() {
+    const { results } = await this.all();
+    return results[0] ?? null;
+  }
+}
+
+function sqlValue(value) {
+  if (value == null) return 'NULL';
+  if (typeof value === 'number') return String(value);
+  return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+async function withDb(fn) {
+  const dir = await mkdtemp(join(tmpdir(), 'portal-lm-premium-contract-'));
+  const file = join(dir, 'test.db');
+  const db = new SqliteD1(file);
+  try {
+    await worker.fetch(new Request('https://portal.test/api/health'), { DB: db, ADMIN_TOKEN: 'admin-token' });
+    await fn(db);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+async function seedAccess(db, { id = 'access-1', email = 'student@example.com', token = 'token', plan = 'premium', planType = 'PREMIUM' } = {}) {
+  await db.prepare(`INSERT INTO student_access (id, name, email, access_token, status, plan_type, plan, created_at) VALUES (?, ?, ?, ?, 'ACTIVE', ?, ?, ?)`)
+    .bind(id, 'Student', email, token, planType, plan, '2026-07-14T00:00:00.000Z').run();
+}
+
+async function seedPremiumStudent(db, { studentId = 'student-1', email = 'student@example.com' } = {}) {
+  await db.prepare(`INSERT INTO premium_students (student_id, email, normalized_email, display_name, consultation_status, access_status, source, created_at, updated_at) VALUES (?, ?, ?, 'Student', 'NEW', 'ACTIVE', 'TEST', ?, ?)`).bind(studentId, email, email.toLowerCase(), '2026-07-14T00:00:00.000Z', '2026-07-14T00:00:00.000Z').run();
+}
+
+async function api(db, method, pathname, { body, email = 'student@example.com', token = 'token', admin = false } = {}) {
+  const headers = { 'content-type': 'application/json' };
+  if (admin) headers['x-admin-token'] = 'admin-token';
+  else { headers['x-student-email'] = email; headers['x-student-token'] = token; }
+  const response = await worker.fetch(new Request(`https://portal.test${pathname}`, { method, headers, body: body ? JSON.stringify(body) : undefined }), { DB: db, ADMIN_TOKEN: 'admin-token' });
+  return { status: response.status, body: await response.json() };
+}
+
+function assertNoInternalFields(value) {
+  const text = JSON.stringify(value);
+  assert.equal(text.includes('student_id'), false);
+  assert.equal(text.includes('identity_method'), false);
+  assert.equal(text.includes('fallback'), false);
+}
+
+test('GET /api/portal/nutrition-plan preserva contrato público e bloqueia Projeto LM', async () => withDb(async (db) => {
+  await seedAccess(db);
+  await seedPremiumStudent(db);
+  await db.prepare(`INSERT INTO nutrition_plans (id, student_id, student_email, title, meals_json, substitutions_json, adherence_rules_json, is_active, created_at, updated_at) VALUES ('plan-1', 'student-1', 'student@example.com', 'Plano', '[]', '[]', '[]', 1, '2026-07-14T00:00:00.000Z', '2026-07-14T00:00:00.000Z')`).run();
+  const response = await api(db, 'GET', '/api/portal/nutrition-plan');
+  assert.equal(response.status, 200);
+  assert.equal(response.body.ok, true);
+  assert.equal(response.body.data.id, 'plan-1');
+  assertNoInternalFields(response.body);
+
+  await seedAccess(db, { id: 'project-access', email: 'project@example.com', token: 'project-token', plan: 'projeto_lm', planType: 'projeto_lm' });
+  const blocked = await api(db, 'GET', '/api/portal/nutrition-plan', { email: 'project@example.com', token: 'project-token' });
+  assert.equal(blocked.status, 403);
+  assert.equal(blocked.body.ok, false);
+}));
+
+test('POST /api/portal/checkin e GET /api/portal/checkins preservam contrato público e autenticação', async () => withDb(async (db) => {
+  const unauthorized = await worker.fetch(new Request('https://portal.test/api/portal/checkins'), { DB: db, ADMIN_TOKEN: 'admin-token' });
+  assert.equal(unauthorized.status, 401);
+
+  await seedAccess(db);
+  await seedPremiumStudent(db);
+  const created = await api(db, 'POST', '/api/portal/checkin', { body: { trainingAdherence: 'ok', weeklyScore: '8' } });
+  assert.equal(created.status, 200);
+  assert.deepEqual(Object.keys(created.body.data), ['id', 'weekRef', 'createdAt']);
+  assertNoInternalFields(created.body);
+
+  const listed = await api(db, 'GET', '/api/portal/checkins');
+  assert.equal(listed.status, 200);
+  assert.equal(listed.body.ok, true);
+  assert.equal(Array.isArray(listed.body.data), true);
+  assert.equal(listed.body.data.length, 1);
+  assertNoInternalFields(listed.body);
+
+  await seedAccess(db, { id: 'project-access', email: 'project@example.com', token: 'project-token', plan: 'projeto_lm', planType: 'projeto_lm' });
+  const blocked = await api(db, 'POST', '/api/portal/checkin', { email: 'project@example.com', token: 'project-token', body: {} });
+  assert.equal(blocked.status, 403);
+}));
+
+test('admin endpoints migrados preservam shape público sem campos internos', async () => withDb(async (db) => {
+  await seedAccess(db);
+  await seedPremiumStudent(db);
+  const savedPlan = await api(db, 'POST', '/api/admin/nutrition-plan', { admin: true, body: { student_email: 'student@example.com', title: 'Plano', meals: [{ name: 'Café' }], substitutions: [], adherence_rules: [] } });
+  assert.equal(savedPlan.status, 200);
+  assert.equal(savedPlan.body.ok, true);
+  assertNoInternalFields(savedPlan.body);
+
+  await db.prepare(`INSERT INTO student_checkins (id, student_id, student_email, week_ref, created_at) VALUES ('checkin-1', 'student-1', 'student@example.com', '2026-W29', '2026-07-14T00:00:00.000Z')`).run();
+  const replied = await api(db, 'PATCH', '/api/admin/checkins/checkin-1/reply', { admin: true, body: { coach_reply: 'Resposta', coach_status: 'replied' } });
+  assert.equal(replied.status, 200);
+  assert.deepEqual(Object.keys(replied.body.data), ['id', 'coach_status', 'coach_reply', 'coach_reply_at', 'reviewed_at', 'reviewed_by']);
+  assertNoInternalFields(replied.body);
+
+  await db.prepare(`INSERT INTO premium_anamnesis (id, student_id, student_name, student_email, student_phone, status, answers_json, created_at, updated_at) VALUES ('anam-1', 'student-1', 'Student', 'student@example.com', '11999999999', 'RECEBIDA', '{}', '2026-07-14T00:00:00.000Z', '2026-07-14T00:00:00.000Z')`).run();
+  const anamnesis = await api(db, 'PATCH', '/api/admin/anamneses/anam-1', { admin: true, body: { status: 'ANALISADA' } });
+  assert.equal(anamnesis.status, 200);
+  assert.deepEqual(Object.keys(anamnesis.body.data), ['id', 'status', 'updated_at']);
+  assertNoInternalFields(anamnesis.body);
+}));

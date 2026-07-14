@@ -46,6 +46,52 @@ function createPremiumApplication(env, request) {
 }
 
 
+function publicNutritionPlan(plan) {
+  if (!plan) return null;
+  return {
+    id: plan.id,
+    student_email: plan.student_email,
+    title: plan.title,
+    goal: plan.goal,
+    strategy: plan.strategy,
+    meals: Array.isArray(plan.meals) ? plan.meals : safeJsonParseArray(plan.meals_json),
+    substitutions: Array.isArray(plan.substitutions) ? plan.substitutions : safeJsonParseArray(plan.substitutions_json),
+    adherence_rules: Array.isArray(plan.adherence_rules) ? plan.adherence_rules : safeJsonParseArray(plan.adherence_rules_json),
+    notes: plan.notes,
+    whatsapp_message: plan.whatsapp_message,
+    created_at: plan.created_at,
+    updated_at: plan.updated_at,
+  };
+}
+
+function publicWeeklyFeedback(row) {
+  return {
+    id: row.id,
+    student_email: row.student_email,
+    week_ref: row.week_ref,
+    training_adherence: row.training_adherence,
+    nutrition_adherence: row.nutrition_adherence,
+    cardio_adherence: row.cardio_adherence,
+    free_meals: row.free_meals,
+    hunger_level: row.hunger_level,
+    binge_or_snacking: row.binge_or_snacking,
+    sleep_quality: row.sleep_quality,
+    energy_level: row.energy_level,
+    stress_level: row.stress_level,
+    weekly_weight: row.weekly_weight,
+    waist: row.waist,
+    strength_status: row.strength_status,
+    main_difficulty: row.main_difficulty,
+    routine_context: row.routine_context,
+    weekly_score: row.weekly_score,
+    support_needed: row.support_needed,
+    created_at: row.created_at,
+    coach_status: row.coach_status,
+    coach_reply: row.coach_reply,
+    coach_reply_at: row.coach_reply_at,
+  };
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -92,6 +138,21 @@ export default {
 
         const premiumApp = createPremiumApplication(env, request);
         const identityResult = await premiumApp.identityService.resolve({ email: studentEmail });
+        if (identityResult.error === 'AMBIGUOUS_STUDENT_IDENTITY' || identityResult.error === 'NON_PREMIUM_STUDENT') {
+          await logOperationalEvent(env.DB, {
+            level: 'warn',
+            area: 'premium_anamnesis',
+            event: 'PREMIUM_IDENTITY_ASSOCIATION_CONFLICT',
+            route: url.pathname,
+            method,
+            student_email: studentEmail,
+            metadata: { reason: identityResult.error }
+          });
+          return json({ ok: false, error: 'Não foi possível gravar dados Premium com segurança.' }, 403);
+        }
+        if (identityResult.error === 'EMAIL_REQUIRED') {
+          return json({ ok: false, error: 'student_email é obrigatório.' }, 400);
+        }
         const studentId = identityResult.ok ? identityResult.student.student_id : null;
         await logOperationalEvent(env.DB, {
           level: identityResult.ok ? 'info' : 'warn',
@@ -255,6 +316,12 @@ export default {
         }
 
         const studentEmail = auth.student.email;
+        const blockProjectLmOnPremiumCore = () => {
+          if (!isPremiumPortalStudent(auth.student)) {
+            return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
+          }
+          return null;
+        };
 
 
         if (url.pathname === '/api/project-lm-2/onboarding' && method === 'POST') {
@@ -591,9 +658,12 @@ export default {
 
 
         if (url.pathname === '/api/portal/nutrition-plan' && method === 'GET') {
+          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          if (premiumOnlyResponse) return premiumOnlyResponse;
           const premiumApp = createPremiumApplication(env, request);
           const result = await premiumApp.getNutritionPlan.execute({ email: studentEmail, route: url.pathname, method });
-          const plan = result.record;
+          if (result.blocked) return json({ ok: false, error: 'Não foi possível acessar dados Premium com segurança.' }, 403);
+          const plan = publicNutritionPlan(result.record);
           if (!plan) {
             return json({
               ok: true,
@@ -605,13 +675,15 @@ export default {
         }
 
         if (url.pathname === '/api/portal/checkin' && method === 'POST') {
+          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          if (premiumOnlyResponse) return premiumOnlyResponse;
           const body = await safeJson(request);
           const now = new Date().toISOString();
           const weekRef = getWeekRef(new Date());
           const id = crypto.randomUUID();
 
           const premiumApp = createPremiumApplication(env, request);
-          await premiumApp.submitWeeklyFeedback.execute({
+          const submitResult = await premiumApp.submitWeeklyFeedback.execute({
             route: url.pathname,
             method,
             feedback: {
@@ -637,14 +709,18 @@ export default {
               created_at: now,
             }
           });
+          if (submitResult.blocked) return json({ ok: false, error: 'Não foi possível gravar dados Premium com segurança.' }, 403);
 
           return json({ ok: true, data: { id, weekRef, createdAt: now } });
         }
 
         if (url.pathname === '/api/portal/checkins' && method === 'GET') {
+          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          if (premiumOnlyResponse) return premiumOnlyResponse;
           const premiumApp = createPremiumApplication(env, request);
-          const { records } = await premiumApp.listWeeklyFeedbacks.execute({ email: studentEmail, limit: 20, route: url.pathname, method });
-          return json({ ok: true, data: records || [] });
+          const result = await premiumApp.listWeeklyFeedbacks.execute({ email: studentEmail, limit: 20, route: url.pathname, method });
+          if (result.blocked) return json({ ok: false, error: 'Não foi possível acessar dados Premium com segurança.' }, 403);
+          return json({ ok: true, data: (result.records || []).map(publicWeeklyFeedback) });
         }
 
         if (url.pathname === '/api/portal/progression' && method === 'POST') {
@@ -1317,6 +1393,11 @@ export default {
             return json({ ok: false, error: 'adherence_rules deve ser um array.' }, 400);
           }
 
+          const accessForPlan = await env.DB.prepare(`SELECT plan, plan_type AS planType FROM student_access WHERE lower(email)=? LIMIT 1`).bind(studentEmail).first();
+          if (accessForPlan && isProjectLmPlan(accessForPlan)) {
+            return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
+          }
+
           const now = new Date().toISOString();
           const id = crypto.randomUUID();
 
@@ -1339,7 +1420,8 @@ export default {
               updated_at: now,
             }
           });
-          const saved = saveResult.saved;
+          if (saveResult.blocked) return json({ ok: false, error: 'Não foi possível gravar dados Premium com segurança.' }, 403);
+          const saved = publicNutritionPlan(saveResult.saved);
           return json({ ok: true, data: saved });
         }
 
@@ -4418,6 +4500,10 @@ function isProjectLmPlan(student) {
   const plan = normalizeStudentPlan(student?.plan);
   const planType = String(student?.planType || '').trim().toLowerCase();
   return plan === 'projeto_lm' || planType === 'projeto_lm' || planType === 'project_lm';
+}
+
+function isPremiumPortalStudent(student) {
+  return !isProjectLmPlan(student) && normalizeStudentPlan(student?.plan) === 'premium';
 }
 
 function canUseProjectLmProgress(student) {

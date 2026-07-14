@@ -14,5 +14,6 @@ export function createGetNutritionPlanUseCase(depsOrHandler) {
     area: 'premium_nutrition_plan',
     route,
     method,
+    allowLegacyFallback: true,
   }));
 }

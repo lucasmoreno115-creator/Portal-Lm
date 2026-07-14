@@ -6,11 +6,15 @@ export function createD1NutritionPlanRepository(db) {
       return db.prepare('SELECT * FROM nutrition_plans WHERE student_id = ? AND is_active = 1 ORDER BY datetime(updated_at) DESC, datetime(created_at) DESC, id DESC LIMIT 1').bind(studentId).first();
     },
     findCurrentByEmail(email) {
-      return db.prepare('SELECT * FROM nutrition_plans WHERE lower(student_email) = lower(?) AND is_active = 1 ORDER BY datetime(updated_at) DESC, datetime(created_at) DESC, id DESC LIMIT 1').bind(email).first();
+      return db.prepare('SELECT * FROM nutrition_plans WHERE lower(student_email) = lower(?) AND student_id IS NULL AND is_active = 1 ORDER BY datetime(updated_at) DESC, datetime(created_at) DESC, id DESC LIMIT 1').bind(email).first();
     },
     async saveCurrent(plan) {
       const now = plan.updated_at ?? plan.created_at ?? new Date().toISOString();
-      const deactivate = db.prepare('UPDATE nutrition_plans SET is_active = 0, updated_at = ? WHERE lower(student_email) = lower(?) AND is_active = 1').bind(now, plan.student_email);
+      const hasStudentId = Boolean(plan.student_id);
+      if (!hasStudentId && !plan.allowLegacyFallback) throw new Error('LEGACY_EMAIL_FALLBACK_NOT_ALLOWED');
+      const deactivate = hasStudentId
+        ? db.prepare('UPDATE nutrition_plans SET is_active = 0, updated_at = ? WHERE student_id = ? AND is_active = 1').bind(now, plan.student_id)
+        : db.prepare('UPDATE nutrition_plans SET is_active = 0, updated_at = ? WHERE lower(student_email) = lower(?) AND student_id IS NULL AND is_active = 1').bind(now, plan.student_email);
       const insert = db.prepare(`INSERT INTO nutrition_plans (
         id, student_id, student_email, title, goal, strategy, meals_json, substitutions_json,
         adherence_rules_json, notes, whatsapp_message, is_active, created_at, updated_at
@@ -21,7 +25,7 @@ export function createD1NutritionPlanRepository(db) {
       );
       if (typeof db.batch === 'function') await db.batch([deactivate, insert]);
       else { await deactivate.run(); await insert.run(); }
-      return this.findCurrentByEmail(plan.student_email);
+      return hasStudentId ? this.findCurrentByStudentId(plan.student_id) : this.findCurrentByEmail(plan.student_email);
     },
     async updateCurrent(id, updates) {
       const result = await db.prepare(`UPDATE nutrition_plans SET title = ?, goal = ?, strategy = ?, meals_json = ?, substitutions_json = ?, adherence_rules_json = ?, notes = ?, whatsapp_message = ?, updated_at = ? WHERE id = ? AND is_active = 1`).bind(

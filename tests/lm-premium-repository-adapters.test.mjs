@@ -55,3 +55,38 @@ test('adapter Premium de eventos rejeita eventos que não pertencem ao Premium',
   await createD1PremiumEventRepository(db).append({ id: 'e1', student_email: 'a@example.com', event_type: 'FEEDBACK_RECEIVED', title: 'Feedback', created_at: 'now' });
   await assert.rejects(() => createD1PremiumEventRepository(db).append({ id: 'e2', student_email: 'a@example.com', event_type: 'PROJECT_LM_ACTION', title: 'Projeto', created_at: 'now' }), /INVALID_PREMIUM_EVENT/);
 });
+
+test('plano alimentar com student_id desativa e retorna por student_id sem cruzar por e-mail', async () => {
+  const db = d1();
+  await createD1NutritionPlanRepository(db).saveCurrent({ id: 'p1', student_id: 's1', student_email: 'shared@example.com', meals_json: '[]', created_at: 'now', updated_at: 'now' });
+  assert.match(db.calls[0].sql, /WHERE student_id = \? AND is_active = 1/);
+  assert.deepEqual(db.calls[0].binds, ['now', 's1']);
+  assert.match(db.calls.at(-1).sql, /WHERE student_id = \? AND is_active = 1/);
+  assert.deepEqual(db.calls.at(-1).binds, ['s1']);
+});
+
+test('plano alimentar legado exige fallback autorizado e limita desativação a student_id IS NULL', async () => {
+  const db = d1();
+  await assert.rejects(() => createD1NutritionPlanRepository(db).saveCurrent({ id: 'p1', student_email: 'legacy@example.com', meals_json: '[]' }), /LEGACY_EMAIL_FALLBACK_NOT_ALLOWED/);
+
+  const allowed = d1();
+  await createD1NutritionPlanRepository(allowed).saveCurrent({ id: 'p1', student_id: null, allowLegacyFallback: true, student_email: 'legacy@example.com', meals_json: '[]', created_at: 'now', updated_at: 'now' });
+  assert.match(allowed.calls[0].sql, /lower\(student_email\) = lower\(\?\) AND student_id IS NULL AND is_active = 1/);
+  assert.match(allowed.calls.at(-1).sql, /student_id IS NULL AND is_active = 1/);
+});
+
+test('plano alimentar com mudança de e-mail mantém continuidade pelo mesmo student_id', async () => {
+  const db = d1();
+  await createD1NutritionPlanRepository(db).saveCurrent({ id: 'p2', student_id: 'same-student', student_email: 'new@example.com', meals_json: '[]', created_at: 'now', updated_at: 'now' });
+  assert.equal(db.calls[0].binds[1], 'same-student');
+  assert.equal(db.calls[1].binds[1], 'same-student');
+  assert.equal(db.calls[1].binds[2], 'new@example.com');
+});
+
+test('alternância entre leitura por ID e fallback por e-mail não cria dois planos ativos no caminho legado', async () => {
+  const db = d1();
+  await createD1NutritionPlanRepository(db).findCurrentByStudentId('s1');
+  await createD1NutritionPlanRepository(db).findCurrentByEmail('legacy@example.com');
+  assert.match(db.calls[0].sql, /student_id = \?/);
+  assert.match(db.calls[1].sql, /student_id IS NULL/);
+});
