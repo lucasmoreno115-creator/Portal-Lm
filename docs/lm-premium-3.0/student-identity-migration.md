@@ -63,3 +63,6 @@ Estados clínicos complexos não são inferidos: o estado inicial conservador é
 
 ## 15. Próximos passos para Build 2B
 Conectar dual-write mínimo nos pontos seguros, ampliar uso interno de `student_id` em consultas Premium, decidir FK formal após auditoria de conflitos e manter Projeto LM isolado.
+
+## 16. Evolução Build 2B — repository adapters e dual-write mínimo
+O Build 2B conecta adapters D1 reais para anamnese, plano alimentar, feedback semanal/check-ins e eventos Premium. As gravações centrais passam a tentar resolver identidade com `student-identity-service.js`; quando a identidade é unívoca, `student_id` é persistido junto com o e-mail legado. Quando a identidade está ausente, ambígua ou não Premium, o fluxo legado por e-mail é preservado sem associar `student_id`, com observabilidade técnica sanitizada. Nenhum payload público passa a expor `student_id`, e nenhuma migration adicional foi criada.

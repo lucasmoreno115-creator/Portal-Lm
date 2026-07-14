@@ -5,6 +5,18 @@ import { inferRiskLevelFromOutcome } from './student-lifecycle.js';
 import { buildActionUrl } from './command-center.js';
 import { buildStudentSummary } from './student360.js';
 import { logOperationalEvent } from './services/operational-log-service.js';
+import { createD1PremiumStudentRepository } from './premium/repositories/d1-premium-student-repository.js';
+import { createD1AnamnesisRepository } from './premium/repositories/d1-anamnesis-repository.js';
+import { createD1NutritionPlanRepository } from './premium/repositories/d1-nutrition-plan-repository.js';
+import { createD1WeeklyFeedbackRepository } from './premium/repositories/d1-weekly-feedback-repository.js';
+import { createD1PremiumEventRepository } from './premium/repositories/d1-premium-event-repository.js';
+import { createStudentIdentityService } from './premium/services/student-identity-service.js';
+import { createSaveNutritionPlanUseCase } from './premium/application/save-nutrition-plan.js';
+import { createGetNutritionPlanUseCase } from './premium/application/get-nutrition-plan.js';
+import { createSubmitWeeklyFeedbackUseCase } from './premium/application/submit-weekly-feedback.js';
+import { createListWeeklyFeedbacksUseCase } from './premium/application/list-weekly-feedbacks.js';
+import { createAnalyzeWeeklyFeedbackUseCase } from './premium/application/analyze-weekly-feedback.js';
+import { createAnalyzeAnamnesisUseCase } from './premium/application/analyze-anamnesis.js';
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
 import { buildD1HealthCheck, tableExists } from './services/health-check-service.js';
 import { jsonWithUsage } from './services/endpoint-usage-service.js';
@@ -12,6 +24,27 @@ import { createAdminSession, invalidateAdminSession, isAdminAuthorized, validate
 export { normalizeEmail, normalizeStudentPlan } from './services/auth-service.js';
 
 const ensuredSchemaByDb = new WeakMap();
+
+function createPremiumApplication(env, request) {
+  const studentRepository = createD1PremiumStudentRepository(env.DB);
+  const identityService = createStudentIdentityService({ repository: studentRepository });
+  const log = (payload) => logOperationalEvent(env.DB, payload);
+  const eventRepository = createD1PremiumEventRepository(env.DB);
+  return {
+    anamnesisRepository: createD1AnamnesisRepository(env.DB),
+    nutritionPlanRepository: createD1NutritionPlanRepository(env.DB),
+    weeklyFeedbackRepository: createD1WeeklyFeedbackRepository(env.DB),
+    eventRepository,
+    identityService,
+    getNutritionPlan: createGetNutritionPlanUseCase({ identityService, nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), log }),
+    saveNutritionPlan: createSaveNutritionPlanUseCase({ identityService, nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), eventRepository, log, randomUUID: () => crypto.randomUUID() }),
+    submitWeeklyFeedback: createSubmitWeeklyFeedbackUseCase({ identityService, weeklyFeedbackRepository: createD1WeeklyFeedbackRepository(env.DB), eventRepository, log, randomUUID: () => crypto.randomUUID() }),
+    listWeeklyFeedbacks: createListWeeklyFeedbacksUseCase({ identityService, weeklyFeedbackRepository: createD1WeeklyFeedbackRepository(env.DB), log }),
+    analyzeWeeklyFeedback: createAnalyzeWeeklyFeedbackUseCase({ weeklyFeedbackRepository: createD1WeeklyFeedbackRepository(env.DB) }),
+    analyzeAnamnesis: createAnalyzeAnamnesisUseCase({ anamnesisRepository: createD1AnamnesisRepository(env.DB) }),
+  };
+}
+
 
 export default {
   async fetch(request, env) {
@@ -57,23 +90,31 @@ export default {
         const id = crypto.randomUUID();
         const now = new Date().toISOString();
 
-        await env.DB.prepare(
-          `INSERT INTO premium_anamnesis (
-            id, student_name, student_email, student_phone, status,
-            answers_json, internal_scores_json, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(
+        const premiumApp = createPremiumApplication(env, request);
+        const identityResult = await premiumApp.identityService.resolve({ email: studentEmail });
+        const studentId = identityResult.ok ? identityResult.student.student_id : null;
+        await logOperationalEvent(env.DB, {
+          level: identityResult.ok ? 'info' : 'warn',
+          area: 'premium_anamnesis',
+          event: identityResult.ok ? 'PREMIUM_IDENTITY_DUAL_WRITE_SUCCESS' : 'PREMIUM_IDENTITY_EMAIL_FALLBACK_USED',
+          route: url.pathname,
+          method,
+          student_email: studentEmail,
+          metadata: { student_id: studentId, reason: identityResult.error || null }
+        });
+        await premiumApp.anamnesisRepository.create({
           id,
-          studentName,
-          studentEmail,
-          studentPhone,
+          student_id: studentId,
+          student_name: studentName,
+          student_email: studentEmail,
+          student_phone: studentPhone,
           status,
-          JSON.stringify(answers),
-          JSON.stringify(internalScores),
-          now,
-          now
-        ).run();
-        await logActivityEvent(env.DB, { student_email: studentEmail, event_type: EVENT_TYPES.ANAMNESE_SUBMITTED, source: 'portal', title: 'Anamnese enviada', payload: { anamnesis_id: id, status } });
+          answers_json: JSON.stringify(answers),
+          internal_scores_json: JSON.stringify(internalScores),
+          created_at: now,
+          updated_at: now,
+        });
+        await premiumApp.eventRepository.append({ id: crypto.randomUUID(), student_id: studentId, student_email: studentEmail, event_type: 'ANAMNESIS_SENT', source: 'portal', title: 'Anamnese enviada', metadata: { anamnesis_id: id, status }, created_at: now });
 
         const normalizedWhatsapp = normalizeWhatsapp(studentPhone);
         const existingAccess = await env.DB.prepare(
@@ -550,7 +591,9 @@ export default {
 
 
         if (url.pathname === '/api/portal/nutrition-plan' && method === 'GET') {
-          const plan = await getActiveNutritionPlanByEmail(env.DB, studentEmail);
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.getNutritionPlan.execute({ email: studentEmail, route: url.pathname, method });
+          const plan = result.record;
           if (!plan) {
             return json({
               ok: true,
@@ -567,45 +610,41 @@ export default {
           const weekRef = getWeekRef(new Date());
           const id = crypto.randomUUID();
 
-          await env.DB.prepare(`INSERT INTO student_checkins (
-            id, student_email, week_ref, training_adherence, nutrition_adherence, cardio_adherence,
-            free_meals, hunger_level, binge_or_snacking, sleep_quality, energy_level, stress_level,
-            weekly_weight, waist, strength_status, main_difficulty, routine_context, weekly_score,
-            support_needed, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-          .bind(
-            id,
-            studentEmail,
-            weekRef,
-            body?.trainingAdherence || null,
-            body?.nutritionAdherence || null,
-            body?.cardioAdherence || null,
-            body?.freeMeals || null,
-            body?.hungerLevel || null,
-            body?.bingeOrSnacking || null,
-            body?.sleepQuality || null,
-            body?.energyLevel || null,
-            body?.stressLevel || null,
-            body?.weeklyWeight || null,
-            body?.waist || null,
-            body?.strengthStatus || null,
-            body?.mainDifficulty || null,
-            body?.routineContext || null,
-            body?.weeklyScore || null,
-            body?.supportNeeded || null,
-            now
-          ).run();
-          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: EVENT_TYPES.CHECKIN_SUBMITTED, source: 'portal', title: 'Check-in enviado', payload: { checkin_id: id, week_ref: weekRef } });
+          const premiumApp = createPremiumApplication(env, request);
+          await premiumApp.submitWeeklyFeedback.execute({
+            route: url.pathname,
+            method,
+            feedback: {
+              id,
+              student_email: studentEmail,
+              week_ref: weekRef,
+              training_adherence: body?.trainingAdherence || null,
+              nutrition_adherence: body?.nutritionAdherence || null,
+              cardio_adherence: body?.cardioAdherence || null,
+              free_meals: body?.freeMeals || null,
+              hunger_level: body?.hungerLevel || null,
+              binge_or_snacking: body?.bingeOrSnacking || null,
+              sleep_quality: body?.sleepQuality || null,
+              energy_level: body?.energyLevel || null,
+              stress_level: body?.stressLevel || null,
+              weekly_weight: body?.weeklyWeight || null,
+              waist: body?.waist || null,
+              strength_status: body?.strengthStatus || null,
+              main_difficulty: body?.mainDifficulty || null,
+              routine_context: body?.routineContext || null,
+              weekly_score: body?.weeklyScore || null,
+              support_needed: body?.supportNeeded || null,
+              created_at: now,
+            }
+          });
 
           return json({ ok: true, data: { id, weekRef, createdAt: now } });
         }
 
         if (url.pathname === '/api/portal/checkins' && method === 'GET') {
-          const { results } = await env.DB.prepare(
-            `SELECT id, student_email, week_ref, training_adherence, nutrition_adherence, cardio_adherence, free_meals, hunger_level, binge_or_snacking, sleep_quality, energy_level, stress_level, weekly_weight, waist, strength_status, main_difficulty, routine_context, weekly_score, support_needed, created_at, coach_status, coach_reply, coach_reply_at FROM student_checkins WHERE student_email=? ORDER BY created_at DESC LIMIT 20`
-          ).bind(studentEmail).all();
-
-          return json({ ok: true, data: results || [] });
+          const premiumApp = createPremiumApplication(env, request);
+          const { records } = await premiumApp.listWeeklyFeedbacks.execute({ email: studentEmail, limit: 20, route: url.pathname, method });
+          return json({ ok: true, data: records || [] });
         }
 
         if (url.pathname === '/api/portal/progression' && method === 'POST') {
@@ -1281,34 +1320,26 @@ export default {
           const now = new Date().toISOString();
           const id = crypto.randomUUID();
 
-          await env.DB.prepare(
-            `UPDATE nutrition_plans
-             SET is_active=0, updated_at=?
-             WHERE lower(student_email)=? AND is_active=1`
-          ).bind(now, studentEmail).run();
-
-          await env.DB.prepare(
-            `INSERT INTO nutrition_plans (
-              id, student_email, title, goal, strategy, meals_json, substitutions_json,
-              adherence_rules_json, notes, whatsapp_message, is_active, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`
-          ).bind(
-            id,
-            studentEmail,
-            title,
-            goal,
-            strategy,
-            JSON.stringify(meals),
-            JSON.stringify(substitutions),
-            JSON.stringify(adherenceRules),
-            notes,
-            whatsappMessage,
-            now,
-            now
-          ).run();
-
-          await logActivityEvent(env.DB, { student_email: studentEmail, event_type: EVENT_TYPES.NUTRITION_PLAN_UPDATED, source: 'admin', title: 'Plano alimentar atualizado', payload: { nutrition_plan_id: id } });
-          const saved = await getActiveNutritionPlanByEmail(env.DB, studentEmail);
+          const premiumApp = createPremiumApplication(env, request);
+          const saveResult = await premiumApp.saveNutritionPlan.execute({
+            route: url.pathname,
+            method,
+            plan: {
+              id,
+              student_email: studentEmail,
+              title,
+              goal,
+              strategy,
+              meals_json: JSON.stringify(meals),
+              substitutions_json: JSON.stringify(substitutions),
+              adherence_rules_json: JSON.stringify(adherenceRules),
+              notes,
+              whatsapp_message: whatsappMessage,
+              created_at: now,
+              updated_at: now,
+            }
+          });
+          const saved = saveResult.saved;
           return json({ ok: true, data: saved });
         }
 
@@ -1394,17 +1425,10 @@ export default {
             return json({ ok: false, error: 'Check-in não encontrado.' }, 404);
           }
 
-          await env.DB.prepare(
-            `UPDATE student_checkins
-             SET coach_reply=?,
-                 coach_reply_at=?,
-                 coach_status=?,
-                 reviewed_at=?,
-                 reviewed_by=?
-             WHERE id=?`
-          ).bind(coachReply, now, coachStatus, now, reviewedBy, id).run();
-          const studentEmailForActivity = await env.DB.prepare(`SELECT student_email FROM student_checkins WHERE id=? LIMIT 1`).bind(id).first();
-          await logActivityEvent(env.DB, { student_email: String(studentEmailForActivity?.student_email || '').toLowerCase(), event_type: EVENT_TYPES.COACH_REPLY_SENT, source: 'admin', title: 'Resposta do coach enviada', payload: { checkin_id: id, coach_status: coachStatus } });
+          const premiumApp = createPremiumApplication(env, request);
+          await premiumApp.analyzeWeeklyFeedback.execute({ id, decision: { coach_reply: coachReply, coach_reply_at: now, coach_status: coachStatus, reviewed_at: now, reviewed_by: reviewedBy } });
+          const studentEmailForActivity = await env.DB.prepare(`SELECT student_email, student_id FROM student_checkins WHERE id=? LIMIT 1`).bind(id).first();
+          await premiumApp.eventRepository.append({ id: crypto.randomUUID(), student_id: studentEmailForActivity?.student_id ?? null, student_email: String(studentEmailForActivity?.student_email || '').toLowerCase(), event_type: 'FEEDBACK_ANALYZED', source: 'admin', title: 'Resposta do coach enviada', metadata: { checkin_id: id, coach_status: coachStatus }, created_at: now });
 
           const updated = await env.DB.prepare(
             `SELECT id, coach_status, coach_reply, coach_reply_at, reviewed_at, reviewed_by
@@ -2217,11 +2241,10 @@ Me responde aqui para ajustarmos o próximo passo e evitar que sua semana fique 
           }
 
           const now = new Date().toISOString();
-          const result = await env.DB.prepare(
-            `UPDATE premium_anamnesis SET status=?, updated_at=? WHERE id=?`
-          ).bind(status, now, id).run();
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.analyzeAnamnesis.execute({ id, status, updated_at: now });
 
-          if (!result?.meta?.changes) {
+          if (!result?.ok) {
             return json({ ok: false, error: 'Anamnese não encontrada.' }, 404);
           }
 
