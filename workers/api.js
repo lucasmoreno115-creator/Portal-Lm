@@ -17,6 +17,16 @@ import { createSubmitWeeklyFeedbackUseCase } from './premium/application/submit-
 import { createListWeeklyFeedbacksUseCase } from './premium/application/list-weekly-feedbacks.js';
 import { createAnalyzeWeeklyFeedbackUseCase } from './premium/application/analyze-weekly-feedback.js';
 import { createAnalyzeAnamnesisUseCase } from './premium/application/analyze-anamnesis.js';
+import { createD1StudentRecordRepository } from './premium/repositories/d1-student-record-repository.js';
+import { createD1FollowupEntryRepository } from './premium/repositories/d1-followup-entry-repository.js';
+import { createD1PendingItemRepository } from './premium/repositories/d1-pending-item-repository.js';
+import { createGetStudentRecordUseCase } from './premium/application/get-student-record.js';
+import { createAddFollowupEntryUseCase } from './premium/application/add-followup-entry.js';
+import { createCreatePendingItemUseCase } from './premium/application/create-pending-item.js';
+import { createResolvePendingItemUseCase } from './premium/application/resolve-pending-item.js';
+import { createUpdateConsultationStatusUseCase } from './premium/application/update-consultation-status.js';
+import { createRecordProfessionalDecisionUseCase } from './premium/application/record-professional-decision.js';
+import { presentStudentRecord } from './premium/presenters/student-record-presenter.js';
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
 import { buildD1HealthCheck, tableExists } from './services/health-check-service.js';
 import { jsonWithUsage } from './services/endpoint-usage-service.js';
@@ -30,11 +40,18 @@ function createPremiumApplication(env, request) {
   const identityService = createStudentIdentityService({ repository: studentRepository });
   const log = (payload) => logOperationalEvent(env.DB, payload);
   const eventRepository = createD1PremiumEventRepository(env.DB);
+  const studentRecordRepository = createD1StudentRecordRepository(env.DB);
+  const followupEntryRepository = createD1FollowupEntryRepository(env.DB);
+  const pendingItemRepository = createD1PendingItemRepository(env.DB);
   return {
     anamnesisRepository: createD1AnamnesisRepository(env.DB),
     nutritionPlanRepository: createD1NutritionPlanRepository(env.DB),
     weeklyFeedbackRepository: createD1WeeklyFeedbackRepository(env.DB),
     eventRepository,
+    studentRepository,
+    studentRecordRepository,
+    followupEntryRepository,
+    pendingItemRepository,
     identityService,
     getNutritionPlan: createGetNutritionPlanUseCase({ identityService, nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), log }),
     saveNutritionPlan: createSaveNutritionPlanUseCase({ identityService, nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), eventRepository, log, randomUUID: () => crypto.randomUUID() }),
@@ -42,6 +59,12 @@ function createPremiumApplication(env, request) {
     listWeeklyFeedbacks: createListWeeklyFeedbacksUseCase({ identityService, weeklyFeedbackRepository: createD1WeeklyFeedbackRepository(env.DB), log }),
     analyzeWeeklyFeedback: createAnalyzeWeeklyFeedbackUseCase({ weeklyFeedbackRepository: createD1WeeklyFeedbackRepository(env.DB) }),
     analyzeAnamnesis: createAnalyzeAnamnesisUseCase({ anamnesisRepository: createD1AnamnesisRepository(env.DB) }),
+    getStudentRecord: createGetStudentRecordUseCase({ studentRepository, studentRecordRepository, pendingItemRepository, randomUUID: () => crypto.randomUUID() }),
+    addFollowupEntry: createAddFollowupEntryUseCase({ studentRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
+    createPendingItem: createCreatePendingItemUseCase({ studentRepository, pendingItemRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
+    resolvePendingItem: createResolvePendingItemUseCase({ pendingItemRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
+    updateConsultationStatus: createUpdateConsultationStatusUseCase({ studentRepository, followupEntryRepository, db: env.DB, randomUUID: () => crypto.randomUUID() }),
+    recordProfessionalDecision: createRecordProfessionalDecisionUseCase({ weeklyFeedbackRepository: createD1WeeklyFeedbackRepository(env.DB), followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
   };
 }
 
@@ -772,6 +795,53 @@ export default {
         }
 
 
+        const premiumRecordMatch = url.pathname.match(/^\/api\/admin\/premium\/students\/([^/]+)\/record$/);
+        if (premiumRecordMatch && method === 'GET') {
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.getStudentRecord({ student_id: decodeURIComponent(premiumRecordMatch[1]) });
+          return json(result.ok ? { ok: true, data: presentStudentRecord(result.data) } : { ok: false, error: result.error }, result.status || 200);
+        }
+
+        const followupEntryMatch = url.pathname.match(/^\/api\/admin\/premium\/students\/([^/]+)\/followup-entries$/);
+        if (followupEntryMatch && method === 'POST') {
+          const premiumApp = createPremiumApplication(env, request);
+          const body = await safeJson(request);
+          const result = await premiumApp.addFollowupEntry({ ...body, student_id: decodeURIComponent(followupEntryMatch[1]), created_by: request.headers.get('x-admin-user') || 'admin' });
+          return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 201);
+        }
+
+        const pendingItemMatch = url.pathname.match(/^\/api\/admin\/premium\/students\/([^/]+)\/pending-items$/);
+        if (pendingItemMatch && method === 'POST') {
+          const premiumApp = createPremiumApplication(env, request);
+          const body = await safeJson(request);
+          const result = await premiumApp.createPendingItem({ ...body, student_id: decodeURIComponent(pendingItemMatch[1]), created_by: request.headers.get('x-admin-user') || 'admin' });
+          return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 201);
+        }
+
+        const resolvePendingMatch = url.pathname.match(/^\/api\/admin\/premium\/pending-items\/([^/]+)\/resolve$/);
+        if (resolvePendingMatch && method === 'PATCH') {
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.resolvePendingItem({ id: decodeURIComponent(resolvePendingMatch[1]), created_by: request.headers.get('x-admin-user') || 'admin' });
+          return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
+        }
+
+        const statusMatch = url.pathname.match(/^\/api\/admin\/premium\/students\/([^/]+)\/status$/);
+        if (statusMatch && method === 'PATCH') {
+          const premiumApp = createPremiumApplication(env, request);
+          const body = await safeJson(request);
+          const result = await premiumApp.updateConsultationStatus({ student_id: decodeURIComponent(statusMatch[1]), status: body?.status, created_by: request.headers.get('x-admin-user') || 'admin' });
+          return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
+        }
+
+        const decisionMatch = url.pathname.match(/^\/api\/admin\/premium\/feedbacks\/([^/]+)\/decision$/);
+        if (decisionMatch && method === 'POST') {
+          const premiumApp = createPremiumApplication(env, request);
+          const body = await safeJson(request);
+          const result = await premiumApp.recordProfessionalDecision({ feedback_id: decodeURIComponent(decisionMatch[1]), decision_type: body?.decision_type, note: body?.note, created_by: request.headers.get('x-admin-user') || 'admin' });
+          return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
+        }
+
+
         if (url.pathname === '/api/admin/endpoint-usage' && method === 'GET') {
           const daysRaw = Number(url.searchParams.get('days') || 14);
           const days = Number.isFinite(daysRaw) ? Math.min(Math.max(Math.trunc(daysRaw), 1), 90) : 14;
@@ -865,7 +935,7 @@ export default {
           }
 
           const studentAccess = await env.DB.prepare(
-            `SELECT name, email, whatsapp, plan_type, status, access_token
+            `SELECT student_id, name, email, whatsapp, plan_type, status, access_token
              FROM student_access
              WHERE lower(email)=?
              LIMIT 1`
@@ -920,7 +990,7 @@ export default {
             return json({ ok: false, error: 'Nenhum dado encontrado para este email. Verifique se há acesso, anamnese, check-in ou plano alimentar cadastrado.' }, 404);
           }
 
-          const student = buildStudentSummary({ studentAccess, latestAnamnesis, latestCheckin, activeNutritionPlan, email });
+          const student = { ...buildStudentSummary({ studentAccess, latestAnamnesis, latestCheckin, activeNutritionPlan, email }), student_id: studentAccess?.student_id || latestAnamnesis?.student_id || latestCheckin?.student_id || activeNutritionPlan?.student_id || null };
           const timeline = buildBaseTimeline({ latestAnamnesis, latestCheckin, activeWeeklyPlan, activeNutritionPlan });
 
           const timelineType = String(url.searchParams.get('timeline_type') || '').trim().toUpperCase() || null;
@@ -2814,6 +2884,46 @@ async function ensureSchemaUncached(db) {
   await ensureColumn(db, 'activity_timeline', 'student_id', 'TEXT');
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_activity_timeline_student_created ON activity_timeline(student_email, created_at)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_activity_timeline_created ON activity_timeline(created_at)`).run();
+
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS premium_followup_entries (
+    id TEXT PRIMARY KEY,
+    student_id TEXT NOT NULL,
+    entry_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT,
+    source TEXT NOT NULL DEFAULT 'admin',
+    related_entity_type TEXT,
+    related_entity_id TEXT,
+    created_by TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_followup_entries_student_created ON premium_followup_entries(student_id, created_at)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_followup_entries_related ON premium_followup_entries(related_entity_type, related_entity_id)`).run();
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS premium_pending_items (
+    id TEXT PRIMARY KEY,
+    student_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'OPEN',
+    priority TEXT NOT NULL DEFAULT 'NORMAL',
+    source TEXT NOT NULL DEFAULT 'manual',
+    related_entity_type TEXT,
+    related_entity_id TEXT,
+    due_at TEXT,
+    resolved_at TEXT,
+    created_by TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_pending_items_student_status ON premium_pending_items(student_id, status)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_pending_items_status ON premium_pending_items(status)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_pending_items_created_at ON premium_pending_items(created_at)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_pending_items_related ON premium_pending_items(related_entity_type, related_entity_id)`).run();
+  await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_pending_items_open_unique ON premium_pending_items(student_id, type, related_entity_type, related_entity_id) WHERE status = 'OPEN'`).run();
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS operational_logs (
     id TEXT PRIMARY KEY,

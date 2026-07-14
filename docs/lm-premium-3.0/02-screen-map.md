@@ -136,3 +136,9 @@ Evolução do Acompanhamento
 - O admin atual possui follow-up como módulo/tela independente, mas o Premium 3.0 deve representar ações relevantes como pendências, condutas e Evolução do Acompanhamento.
 - Student 360 existe hoje; o conceito futuro aprovado é Prontuário LM.
 - Check-in existe hoje; o conceito futuro aprovado é feedback semanal.
+
+## Build 3 — Prontuário LM
+
+- `public/admin-premium-student-record.html?student_id=<student_id>`: nova superfície administrativa Premium, protegida por sessão admin, destinada à leitura longitudinal do acompanhamento profissional.
+- A tela coexiste com `admin-student.html` (Student 360) e com as páginas legadas de anamnese, plano alimentar, check-ins e follow-up.
+- A navegação para o Prontuário deve respeitar a feature flag simples `PREMIUM_STUDENT_RECORD_ENABLED`; quando desligada, as páginas legadas continuam sendo o caminho operacional.
