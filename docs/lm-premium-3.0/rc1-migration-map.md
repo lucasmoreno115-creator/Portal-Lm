@@ -25,3 +25,9 @@ Validação RC1: números Premium não duplicados e ordem obrigatória preservad
 - Cenário limpo deve aplicar todas as migrations via controle do D1 e retornar auditoria sem `BLOCKING`.
 - Cenário com conflitos deve parar antes de `0032`, sem correção automática e sem apagamento.
 - Reaplicação manual de migrations com mutação/backfill deve ser tratada como inadequada; reaplicação segura é via tabela de controle de migrations.
+
+## Evidência e pendências após PR #270
+- Evidência local: testes validam que o snapshot vazio, mas completo, é auditável; snapshot incompleto não é auditado e retorna exit code `2`.
+- Evidência simulada: E2E com SQLite temporário valida persistência dos principais fluxos sem alterar migrations existentes.
+- Pendente de staging: executar migrations em D1 temporário com dump real, gerar schema JSON, rodar auditoria, smoke e verify com evidências reais.
+- Bloqueador de deploy: qualquer ausência de tabela/coluna/índice essencial, auditoria com `BLOCKING` ou smoke não executado/reprovado.

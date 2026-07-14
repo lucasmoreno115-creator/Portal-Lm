@@ -3,43 +3,66 @@
 ## Resultado
 READY WITH WARNINGS
 
+## Ferramentas implementadas
+- Auditoria operacional por snapshot JSON obrigatório: `node scripts/audit-lm-premium-rc1.mjs --snapshot ./snapshot.json`.
+- Smoke HTTP real com `fetch`, timeout, autenticação admin/aluno, dry-run explícito e mascaramento de dados sensíveis.
+- Verify pós-deploy operacional com `--snapshot`, `--schema`, `--smoke-results` e `--flags`.
+- E2E local integrado com banco SQLite temporário, persistência, presenters e invariantes principais.
+
+## Ferramentas executadas localmente
+- Suite `node --test tests/lm-premium-*.test.mjs`.
+- Suite `npm test`.
+- `node --check workers/api.js`.
+- Auditoria com fixture válido.
+- Auditoria sem argumento, confirmando exit code `2`.
+- Smoke `--dry-run`, confirmando `smokeExecuted: false`.
+- Smoke HTTP com servidor/mock integrado nos testes.
+- Verify com evidências válidas.
+- Verify sem argumentos, confirmando exit code `2`.
+
+## Ferramentas executadas em staging
+Pendente. Nenhum smoke autenticado de staging foi executado nesta etapa local.
+
+## Ferramentas executadas em produção
+Não executado. Não houve deploy, tag, merge ou ação em produção.
+
 ## Bloqueadores
-Nenhum bloqueador foi observado nos testes locais RC1. Deploy real continua condicionado à auditoria com snapshot/staging de dados reais sem `BLOCKING`.
+Nenhum bloqueador local após implementação dos scripts operacionais e testes. Staging ainda é bloqueador para aprovação final de deploy.
 
 ## Avisos
-- A ref local `main` não existia no container; a base usada foi o HEAD local `5aff53c814c9c3f37cb8514748ec570ed83461bc`.
-- Smoke HTTP real requer ambiente autenticado/staging.
-- Auditoria unificada não corrige dados; conflitos exigem decisão operacional manual.
+- A ref local `main` não estava disponível no container original; base registrada: `5aff53c814c9c3f37cb8514748ec570ed83461bc`.
+- Backup e restore estão documentados, mas não foram validados contra D1 real de staging/produção.
+- Smoke HTTP real foi implementado e testado com mock local; execução autenticada em staging continua pendente.
 
 ## Auditorias executadas
-Auditoria unificada RC1 por snapshot JSON e testes de cenários limpo/conflito.
+Auditoria RC1 com snapshot fixture válido e cenários bloqueantes em testes.
 
 ## Testes executados
-`node --test tests/lm-premium-*.test.mjs`, `npm test`, `node --check workers/api.js`.
+`node --test tests/lm-premium-*.test.mjs`, `npm test`, `node --check workers/api.js` e checks CLI obrigatórios.
 
 ## Fluxos E2E
-Cobertos por teste isolado de happy path, conflito e preservação de isolamento Projeto LM/Premium.
+Novo aluno Premium, feedback semanal, atualização de plano, status da consulta e isolamento Projeto LM foram cobertos em SQLite temporário com estado persistido.
 
 ## Segurança
-Sem Critical/High na revisão estática; payload público sensível coberto por teste RC1.
+Sem Critical/High local. Smoke mascara tokens; payload público do plano é validado sem draft/private notes.
 
 ## Performance
-Workspace já possui testes existentes e migration `0033` de índices; RC1 documenta risco de validação em staging para query count real.
+Índices essenciais são verificados pelo verify via evidência de schema; query count real permanece pendente de staging.
 
 ## Migrations
-Mapa produzido; nenhuma migration corretiva criada.
+Mapa atualizado. Nenhuma migration corretiva foi criada.
 
 ## Backup e restore
-Procedimento documentado com tabelas críticas e critérios de parada.
+Procedimento documentado. Validação real em D1/staging pendente.
 
 ## Feature flags
-Inventário e validação mínima implementados.
+Verify exige evidência explícita das flags `PREMIUM_PROFESSIONAL_WORKSPACE_ENABLED` e `PREMIUM_NUTRITION_PLAN_WORKFLOW_ENABLED`.
 
 ## Rollback
-Rollback documentado por restore validado + desligamento visual por flags.
+Procedimento documentado; teste real de restore em staging ainda pendente.
 
 ## Riscos residuais
-Dependência de staging/produção para validar dados reais, autenticação real e smoke HTTP autenticado.
+Dados reais podem revelar conflitos não presentes nas fixtures; smoke autenticado, backup/restore e performance precisam ser validados em staging.
 
 ## Recomendação
-Prosseguir para staging controlado, executar backup, auditoria com dados reais e smoke autenticado. Não iniciar Build 7 até a RC1 ser validada.
+Prosseguir para staging controlado. Não iniciar Build 7 até auditoria, smoke e verify passarem com dados e autenticação reais.

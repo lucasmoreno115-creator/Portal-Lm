@@ -1,17 +1,19 @@
 # RC1 — Checklist de release
 
 ## Antes do deploy
-- [ ] Backup confirmado e validado.
+- [ ] Backup D1 real exportado e validado.
 - [ ] SHA da release registrado.
-- [ ] Migrations revisadas na ordem.
-- [ ] Auditoria sem `BLOCKING`.
-- [ ] Testes completos executados.
+- [ ] Snapshot JSON gerado com todas as tabelas obrigatórias.
+- [ ] `audit-lm-premium-rc1` executado sem `BLOCKING`.
+- [ ] Schema JSON validado com tabelas, colunas e índices essenciais.
+- [ ] Smoke HTTP de staging executado e aprovado.
+- [ ] Verify pós-deploy executado com evidências reais.
 - [ ] Feature flags definidas.
 - [ ] Variáveis de ambiente verificadas.
 - [ ] Plano de rollback disponível.
 
 ## Durante o deploy
-- [ ] Aplicar migrations na ordem.
+- [ ] Aplicar migrations na ordem documentada.
 - [ ] Executar auditorias intermediárias.
 - [ ] Interromper em conflito.
 - [ ] Validar schema.
@@ -33,4 +35,4 @@
 - [ ] Performance básica.
 
 ## Critérios de rollback
-Perda/divergência de identidade, múltiplos planos publicados, vazamento de dados, Projeto LM aparecendo no Premium, autenticação quebrada, migration incompleta, erro sistêmico no Workspace ou dados misturados entre alunos.
+Perda/divergência de identidade, múltiplos planos publicados, vazamento de dados, Projeto LM aparecendo no Premium, autenticação quebrada, migration incompleta, erro sistêmico no Workspace ou dados de alunos misturados.

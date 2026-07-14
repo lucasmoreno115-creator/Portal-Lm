@@ -1,21 +1,25 @@
 # RC1 — Revisão de segurança
 
-## Resultado
-Sem achados Critical ou High identificados na revisão estática RC1. Status: READY WITH WARNINGS até validação em staging real.
+## Evidência real local
+- Smoke HTTP implementado não imprime tokens e redige chaves sensíveis na saída JSON.
+- Auditoria e verify não modificam dados.
+- Testes verificam payload público sem `token`, senha, sessão, `private_notes`, draft ou metadata operacional.
+- Revisão estática confirma uso de queries parametrizadas nos repositories Premium existentes.
 
-## Itens revisados
-- SQL parametrizado nos repositories D1 Premium.
-- Uso de `textContent`/DOM seguro nas páginas Premium; não foi introduzido `innerHTML` na RC1.
-- URLs dinâmicas com `encodeURIComponent` nas chamadas com IDs.
-- Admin gate e sessão de aluno cobertos por contratos de smoke/security.
-- Payload público sem `token`, senha, sessão, `private_notes`, draft ou metadata operacional interna.
-- Paginação/limites presentes nos read models do Workspace.
+## Evidência simulada
+- Smoke autenticado foi exercido com HTTP mockado/local nos testes, cobrindo 401, 403, 404, 409, 500, timeout e payload inválido.
+
+## Pendente de staging
+- Executar smoke contra URL real de staging com tokens rotacionáveis.
+- Validar logs reais sem dados sensíveis.
+- Validar headers/sessões reais de admin e aluno.
 
 ## Achados
 | Severidade | Achado | Status |
 |---|---|---|
-| Medium | Smoke real depende de ambiente autenticado/staging para confirmar gates HTTP ponta a ponta. | Documentado |
-| Low | Auditoria RC1 aceita snapshot JSON; export D1 precisa adaptação operacional se formato for SQL. | Documentado |
-| Informational | `premium_feedback_reminders` é fila operacional, não envio automático. | Sem ação |
+| Medium | Smoke real de staging ainda pendente. | Warning |
+| Medium | Backup/restore real ainda pendente. | Warning |
+| Low | Auditoria usa snapshot JSON; export D1 precisa produzir contrato documentado. | Warning |
+| Informational | Não houve Build 7, IA, automação ou envio automático. | OK |
 
-Critical e High bloqueiam RC1; nenhum foi registrado nesta revisão local.
+Critical e High bloqueiam RC1; nenhum foi identificado localmente.
