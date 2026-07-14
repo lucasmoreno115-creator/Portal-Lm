@@ -59,3 +59,7 @@ No Build 4, evoluir a experiência profissional com mais fluxo de trabalho apena
 ## 15. Evolução Build 4 — Feedback Semanal
 
 O Feedback Semanal passa a criar pendência `ANALYZE_WEEKLY_FEEDBACK` no envio e a decisão profissional registrada por Lucas gera uma evolução `PROFESSIONAL_DECISION` relacionada a `student_checkins`. A decisão resolve a pendência de análise e pode criar pendência adicional conforme a conduta, mantendo o Prontuário LM como fonte longitudinal sem duplicar timelines.
+
+## 16. Evolução Build 5 — Plano Alimentar
+
+A seção de Plano Alimentar do Prontuário passa a considerar plano atual publicado, rascunho administrativo, origem por Feedback Semanal, pendência relacionada, versão e histórico resumido. Publicações geram evolução `PLAN_CHANGE` com metadados, sem copiar o conteúdo integral da dieta.

@@ -35,6 +35,17 @@ import { createGetWeeklyFeedbackForReviewUseCase } from './premium/application/g
 import { createListFeedbacksAwaitingAnalysisUseCase } from './premium/application/list-feedbacks-awaiting-analysis.js';
 import { createListMissingWeeklyFeedbacksUseCase } from './premium/application/list-missing-weekly-feedbacks.js';
 import { createPrepareWeeklyFeedbackRemindersUseCase } from './premium/application/prepare-weekly-feedback-reminders.js';
+import { createGetCurrentNutritionPlanUseCase } from './premium/application/get-current-nutrition-plan.js';
+import { createGetNutritionPlanHistoryUseCase } from './premium/application/get-nutrition-plan-history.js';
+import { createGetNutritionPlanDraftUseCase } from './premium/application/get-nutrition-plan-draft.js';
+import { createCreateNutritionPlanDraftUseCase } from './premium/application/create-nutrition-plan-draft.js';
+import { createUpdateNutritionPlanDraftUseCase } from './premium/application/update-nutrition-plan-draft.js';
+import { createPublishNutritionPlanUseCase } from './premium/application/publish-nutrition-plan.js';
+import { createArchiveNutritionPlanUseCase } from './premium/application/archive-nutrition-plan.js';
+import { createDraftFromPublishedPlanUseCase } from './premium/application/create-draft-from-published-plan.js';
+import { presentPublicNutritionPlan } from './premium/presenters/nutrition-plan-public-presenter.js';
+import { presentAdminNutritionPlan, presentAdminNutritionPlanSummary } from './premium/presenters/nutrition-plan-admin-presenter.js';
+
 
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
 import { buildD1HealthCheck, tableExists } from './services/health-check-service.js';
@@ -83,6 +94,14 @@ function createPremiumApplication(env, request) {
     listFeedbacksAwaitingAnalysis: createListFeedbacksAwaitingAnalysisUseCase({ weeklyFeedbackRepository }),
     listMissingWeeklyFeedbacks: createListMissingWeeklyFeedbacksUseCase({ weeklyFeedbackRepository, scheduleService }),
     prepareWeeklyFeedbackReminders: createPrepareWeeklyFeedbackRemindersUseCase({ studentRepository, weeklyFeedbackRepository, reminderRepository, reminderService, scheduleService, randomUUID: () => crypto.randomUUID() }),
+    getCurrentNutritionPlanWorkflow: createGetCurrentNutritionPlanUseCase({ studentRepository, nutritionPlanRepository: createD1NutritionPlanRepository(env.DB) }),
+    getNutritionPlanHistory: createGetNutritionPlanHistoryUseCase({ studentRepository, nutritionPlanRepository: createD1NutritionPlanRepository(env.DB) }),
+    getNutritionPlanDraft: createGetNutritionPlanDraftUseCase({ studentRepository, nutritionPlanRepository: createD1NutritionPlanRepository(env.DB) }),
+    createNutritionPlanDraft: createCreateNutritionPlanDraftUseCase({ studentRepository, nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), randomUUID: () => crypto.randomUUID() }),
+    updateNutritionPlanDraft: createUpdateNutritionPlanDraftUseCase({ nutritionPlanRepository: createD1NutritionPlanRepository(env.DB) }),
+    publishNutritionPlan: createPublishNutritionPlanUseCase({ nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), randomUUID: () => crypto.randomUUID() }),
+    archiveNutritionPlan: createArchiveNutritionPlanUseCase({ nutritionPlanRepository: createD1NutritionPlanRepository(env.DB) }),
+    createDraftFromPublishedPlan: createDraftFromPublishedPlanUseCase({ nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), randomUUID: () => crypto.randomUUID() }),
   };
 }
 
@@ -698,13 +717,13 @@ export default {
         }
 
 
-        if (url.pathname === '/api/portal/nutrition-plan' && method === 'GET') {
+        if ((url.pathname === '/api/portal/nutrition-plan' || url.pathname === '/api/portal/premium/nutrition-plan/current') && method === 'GET') {
           const premiumOnlyResponse = blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const premiumApp = createPremiumApplication(env, request);
           const result = await premiumApp.getNutritionPlan.execute({ email: studentEmail, route: url.pathname, method });
           if (result.blocked) return json({ ok: false, error: 'Não foi possível acessar dados Premium com segurança.' }, 403);
-          const plan = publicNutritionPlan(result.record);
+          const plan = url.pathname === '/api/portal/premium/nutrition-plan/current' ? presentPublicNutritionPlan(result.record) : publicNutritionPlan(result.record);
           if (!plan) {
             return json({
               ok: true,
@@ -1551,6 +1570,50 @@ export default {
           return json({ ok: true, data: saved });
         }
 
+
+        const adminNutritionStudentMatch = url.pathname.match(/^\/api\/admin\/premium\/students\/([^/]+)\/nutrition-plan(?:\/(history|draft))?$/);
+        if (adminNutritionStudentMatch && method === 'GET') {
+          const student_id = decodeURIComponent(adminNutritionStudentMatch[1]);
+          const segment = adminNutritionStudentMatch[2] || null;
+          const premiumApp = createPremiumApplication(env, request);
+          if (segment === 'history') {
+            const result = await premiumApp.getNutritionPlanHistory.execute({ student_id });
+            if (!result.ok) return json(result, 404);
+            return json({ ok: true, data: result.data.map(presentAdminNutritionPlanSummary) });
+          }
+          if (segment === 'draft') {
+            const result = await premiumApp.getNutritionPlanDraft.execute({ student_id });
+            if (!result.ok) return json(result, 404);
+            return json({ ok: true, data: presentAdminNutritionPlan(result.data) });
+          }
+          const current = await premiumApp.getCurrentNutritionPlanWorkflow.execute({ student_id });
+          const draft = await premiumApp.getNutritionPlanDraft.execute({ student_id });
+          const history = await premiumApp.getNutritionPlanHistory.execute({ student_id, limit: 20 });
+          return json({ ok: true, data: { current: presentAdminNutritionPlan(current.data), draft: presentAdminNutritionPlan(draft.data), history: (history.data || []).map(presentAdminNutritionPlanSummary), relatedPendingItem: null, sourceFeedback: null } });
+        }
+        if (adminNutritionStudentMatch && method === 'POST' && adminNutritionStudentMatch[2] === 'draft') {
+          const student_id = decodeURIComponent(adminNutritionStudentMatch[1]);
+          const body = await safeJson(request);
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.createNutritionPlanDraft.execute({ student_id, plan: body?.plan || body || {}, source_feedback_id: body?.source_feedback_id || null });
+          return json({ ok: result.ok, data: presentAdminNutritionPlan(result.data), error: result.error }, result.ok ? 200 : 404);
+        }
+        const adminNutritionPlanMatch = url.pathname.match(/^\/api\/admin\/premium\/nutrition-plans\/([^/]+)\/(draft|publish|archive|duplicate-as-draft)$/);
+        if (adminNutritionPlanMatch && ['PATCH','POST'].includes(method)) {
+          const id = decodeURIComponent(adminNutritionPlanMatch[1]);
+          const action = adminNutritionPlanMatch[2];
+          const body = await safeJson(request);
+          const premiumApp = createPremiumApplication(env, request);
+          const plan = await premiumApp.nutritionPlanRepository.findById(id);
+          if (!plan) return json({ ok:false, error:'NOT_FOUND' }, 404);
+          let result;
+          if (action === 'draft' && method === 'PATCH') result = await premiumApp.updateNutritionPlanDraft.execute({ id, student_id: plan.student_id, updates: body || {} });
+          else if (action === 'publish' && method === 'POST') result = await premiumApp.publishNutritionPlan.execute({ id, student_id: plan.student_id, published_by: 'admin', professional_note: body?.professional_note || null });
+          else if (action === 'archive' && method === 'POST') result = await premiumApp.archiveNutritionPlan.execute({ id, student_id: plan.student_id });
+          else if (action === 'duplicate-as-draft' && method === 'POST') result = await premiumApp.createDraftFromPublishedPlan.execute({ id, student_id: plan.student_id, source_feedback_id: body?.source_feedback_id || null });
+          else return json({ ok:false, error:'METHOD_NOT_ALLOWED' }, 405);
+          return json({ ok: result.ok, data: presentAdminNutritionPlan(result.data), error: result.error, details: result.details }, result.ok ? 200 : (result.conflict ? 409 : 400));
+        }
 
         if (url.pathname === '/api/admin/checkins' && method === 'GET') {
           const statusFilter = nullableTrimmed(url.searchParams.get('status'));
@@ -2928,6 +2991,14 @@ async function ensureSchemaUncached(db) {
     updated_at TEXT NOT NULL
   )`).run();
   await ensureColumn(db, 'nutrition_plans', 'student_id', 'TEXT');
+  await ensureColumn(db, 'nutrition_plans', 'status', 'TEXT');
+  await ensureColumn(db, 'nutrition_plans', 'version_number', 'INTEGER');
+  await ensureColumn(db, 'nutrition_plans', 'published_at', 'TEXT');
+  await ensureColumn(db, 'nutrition_plans', 'published_by', 'TEXT');
+  await ensureColumn(db, 'nutrition_plans', 'archived_at', 'TEXT');
+  await ensureColumn(db, 'nutrition_plans', 'supersedes_plan_id', 'TEXT');
+  await ensureColumn(db, 'nutrition_plans', 'source_feedback_id', 'TEXT');
+  await ensureColumn(db, 'nutrition_plans', 'private_notes', 'TEXT');
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_nutrition_plans_student_email ON nutrition_plans(student_email)`
   ).run();
@@ -3067,6 +3138,7 @@ async function ensureSchemaUncached(db) {
   for (const statement of [
     'CREATE INDEX IF NOT EXISTS idx_premium_anamnesis_student_id ON premium_anamnesis(student_id)',
     'CREATE INDEX IF NOT EXISTS idx_nutrition_plans_student_id ON nutrition_plans(student_id)',
+    'CREATE INDEX IF NOT EXISTS idx_nutrition_plans_student_status ON nutrition_plans(student_id, status)',
     'CREATE INDEX IF NOT EXISTS idx_student_checkins_student_id ON student_checkins(student_id)',
     'CREATE INDEX IF NOT EXISTS idx_activity_timeline_student_id ON activity_timeline(student_id)',
     'CREATE INDEX IF NOT EXISTS idx_weekly_plans_student_id ON weekly_plans(student_id)',

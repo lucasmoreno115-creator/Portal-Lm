@@ -148,3 +148,9 @@ Evolução do Acompanhamento
 - `public/portal-premium-weekly-feedback.html`: superfície mobile-first do aluno para visualizar semana, prazo recomendado, enviar/editar feedback antes da análise, ver confirmação, resposta profissional e histórico recente.
 - `public/admin-premium-weekly-feedbacks.html`: superfície operacional de sábado para listar feedbacks aguardando análise, alunos sem resposta e registrar conduta profissional.
 - As telas coexistem com `portal-checkin.html` e `admin-checkins.html`; rotas legadas continuam como compatibilidade.
+
+## Build 5 — Plano Alimentar Profissional
+
+- `public/admin-premium-nutrition-plan.html?student_id=<student_id>`: nova superfície administrativa para ciclo `DRAFT → PUBLISHED → ARCHIVED`, protegida por sessão admin e por adoção visual via `PREMIUM_NUTRITION_PLAN_WORKFLOW_ENABLED`.
+- `public/portal-premium-nutrition-plan.html`: superfície mobile-first para leitura do plano `PUBLISHED` atual, sem rascunhos, histórico administrativo ou IDs internos.
+- `admin-nutrition-plan.html` e `/api/admin/nutrition-plan` permanecem como compatibilidade legada durante o rollback visual.

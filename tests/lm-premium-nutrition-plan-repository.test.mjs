@@ -1,0 +1,3 @@
+import test from 'node:test'; import assert from 'node:assert/strict';
+import { createD1NutritionPlanRepository } from '../workers/premium/repositories/d1-nutrition-plan-repository.js';
+test('repository exposes Build 5 lifecycle methods',()=>{ const repo=createD1NutritionPlanRepository({prepare(){ return {bind(){return this}, first(){}, all(){return Promise.resolve({results:[]})}, run(){return Promise.resolve({meta:{changes:1}})}} }}); for (const m of ['findById','findCurrentByStudentId','findDraftByStudentId','listByStudentId','createDraft','updateDraft','publish','archive','findPreviousPublished','findBySourceFeedback']) assert.equal(typeof repo[m],'function'); });
