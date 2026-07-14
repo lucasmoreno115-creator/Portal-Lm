@@ -1,4 +1,7 @@
-# RC1 — Revisão de segurança
+# Release 3.0.0 — Revisão de segurança
+
+> Release 3.0.0: este documento é mantido como histórico da RC1 e referência operacional para a release oficial.
+
 
 ## Evidência real local
 - Smoke HTTP implementado não imprime tokens e redige chaves sensíveis na saída JSON.

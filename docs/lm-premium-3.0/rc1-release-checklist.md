@@ -1,4 +1,7 @@
-# RC1 — Checklist de release
+# Release 3.0.0 — Checklist de release
+
+> Release 3.0.0: este documento é mantido como histórico da RC1 e referência operacional para a release oficial.
+
 
 ## Antes do deploy
 - [ ] Backup D1 real exportado e validado.
