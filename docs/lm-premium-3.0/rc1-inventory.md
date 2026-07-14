@@ -1,4 +1,7 @@
-# LM Premium 3.0 RC1 — Inventário da main
+# LM Premium 3.0 Release 3.0.0 — Inventário da main
+
+> Release 3.0.0: este documento é mantido como histórico da RC1 e referência operacional para a release oficial.
+
 
 - Base verificada: `5aff53c814c9c3f37cb8514748ec570ed83461bc` (branch local `work`; não havia ref local `main` disponível no container).
 - Última migration: `0033_add_professional_workspace_indexes.sql`.

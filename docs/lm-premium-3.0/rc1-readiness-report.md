@@ -1,4 +1,7 @@
-# LM Premium 3.0 RC1 — Readiness report
+# LM Premium 3.0 Release 3.0.0 — Readiness report
+
+> Release 3.0.0: este documento é mantido como histórico da RC1 e referência operacional para a release oficial.
+
 
 ## Resultado
 READY WITH WARNINGS
