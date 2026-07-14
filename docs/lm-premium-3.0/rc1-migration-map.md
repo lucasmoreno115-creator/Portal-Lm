@@ -28,6 +28,6 @@ Validação RC1: números Premium não duplicados e ordem obrigatória preservad
 
 ## Evidência e pendências após PR #270
 - Evidência local: testes validam que o snapshot vazio, mas completo, é auditável; snapshot incompleto não é auditado e retorna exit code `2`.
-- Evidência simulada: E2E com SQLite temporário valida persistência dos principais fluxos sem alterar migrations existentes.
+- Evidência local: E2E com SQLite temporário aplica os arquivos reais de migration Premium até `0033` e valida persistência dos principais fluxos sem alterar migrations existentes.
 - Pendente de staging: executar migrations em D1 temporário com dump real, gerar schema JSON, rodar auditoria, smoke e verify com evidências reais.
 - Bloqueador de deploy: qualquer ausência de tabela/coluna/índice essencial, auditoria com `BLOCKING` ou smoke não executado/reprovado.

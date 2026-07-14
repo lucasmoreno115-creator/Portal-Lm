@@ -7,7 +7,7 @@ READY WITH WARNINGS
 - Auditoria operacional por snapshot JSON obrigatório: `node scripts/audit-lm-premium-rc1.mjs --snapshot ./snapshot.json`.
 - Smoke HTTP real com `fetch`, timeout, autenticação admin/aluno, dry-run explícito e mascaramento de dados sensíveis.
 - Verify pós-deploy operacional com `--snapshot`, `--schema`, `--smoke-results` e `--flags`.
-- E2E local integrado com banco SQLite temporário, persistência, presenters e invariantes principais.
+- E2E local integrado com banco SQLite temporário, migrations Premium reais até `0033`, repositories reais, casos de uso reais, read models e presenters.
 
 ## Ferramentas executadas localmente
 - Suite `node --test tests/lm-premium-*.test.mjs`.
@@ -41,7 +41,7 @@ Auditoria RC1 com snapshot fixture válido e cenários bloqueantes em testes.
 `node --test tests/lm-premium-*.test.mjs`, `npm test`, `node --check workers/api.js` e checks CLI obrigatórios.
 
 ## Fluxos E2E
-Novo aluno Premium, feedback semanal, atualização de plano, status da consulta e isolamento Projeto LM foram cobertos em SQLite temporário com estado persistido.
+Novo aluno Premium, feedback semanal, atualização de plano, status da consulta e isolamento Projeto LM foram cobertos em SQLite temporário aplicando migrations reais e exercitando repositories/casos de uso/read models de produção.
 
 ## Segurança
 Sem Critical/High local. Smoke mascara tokens; payload público do plano é validado sem draft/private notes.
