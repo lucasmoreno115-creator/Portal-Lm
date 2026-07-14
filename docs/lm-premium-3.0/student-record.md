@@ -38,7 +38,7 @@ Endpoints administrativos internos: `GET /api/admin/premium/students/:student_id
 
 ## 10. Segurança
 
-Todos os endpoints ficam dentro do gate `/api/admin/` e exigem admin autorizado. O prontuário não usa e-mail como identificador principal, não retorna tokens, não autentica aluno por `student_id` e consulta apenas registros vinculados ao `student_id` Premium.
+Todos os endpoints ficam dentro do gate `/api/admin/` e exigem admin autorizado. O prontuário não usa e-mail como identificador principal, não retorna tokens, não autentica aluno por `student_id` e consulta apenas registros vinculados ao `student_id` Premium. Na UI administrativa, dados vindos do banco, do aluno ou do profissional são renderizados com `textContent`, `createElement` e `replaceChildren`; `innerHTML` não deve interpolar conteúdo dinâmico. JSON de anamnese deve ser atribuído a `pre.textContent`.
 
 ## 11. Performance
 

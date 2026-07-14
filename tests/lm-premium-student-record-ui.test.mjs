@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+
+const maliciousValues = [
+  '<img src=x onerror=alert(1)>',
+  '</pre><img src=x onerror=alert(1)>',
+  '<script>alert(1)</script>',
+  'texto com aspas " \' < > &',
+  'javascript:alert(1)'
+];
 
 test('Prontuário LM renderiza estrutura, empty states e não expõe token', () => {
   const html = readFileSync(new URL('../public/admin-premium-student-record.html', import.meta.url), 'utf8');
@@ -12,8 +21,97 @@ test('Prontuário LM renderiza estrutura, empty states e não expõe token', () 
   assert.match(js, /admin-nutrition-plan\.html\?email=/);
 });
 
+test('HTML seguro: Prontuário não usa innerHTML nem interpolação HTML dinâmica', () => {
+  const rootJs = readFileSync(new URL('../admin-premium-student-record.js', import.meta.url), 'utf8');
+  const publicJs = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
+  const assetJs = readFileSync(new URL('../public/assets/js/admin-premium-student-record.js', import.meta.url), 'utf8');
+  assert.equal(rootJs, publicJs);
+  assert.equal(rootJs, assetJs);
+  assert.doesNotMatch(rootJs, /\.innerHTML\s*=/);
+  assert.match(rootJs, /textContent/);
+  assert.match(rootJs, /replaceChildren/);
+});
+
+test('XSS: dados maliciosos aparecem como texto sem criar elementos ou atributos perigosos', async () => {
+  const source = readFileSync(new URL('../admin-premium-student-record.js', import.meta.url), 'utf8');
+  const dom = createFakeDocument();
+  const payload = maliciousRecord();
+  const context = {
+    document: dom.document,
+    window: { LMAdminAuth: { requireAdmin(){}, attachLogout(){}, getAdminAuthHeaders(headers){ return headers; } } },
+    location: { search: '?student_id=student-xss' },
+    URLSearchParams,
+    FormData: class {},
+    fetch: async (url) => ({ ok: true, json: async () => ({ ok: true, data: payload, url }) }),
+    console,
+  };
+  vm.runInNewContext(source, context);
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const createdTags = dom.created.map((node) => node.tagName);
+  assert.equal(createdTags.includes('img'), false);
+  assert.equal(createdTags.includes('script'), false);
+  const attrs = dom.created.flatMap((node) => Object.entries(node.attributes));
+  assert.equal(attrs.some(([name]) => /^on/i.test(name)), false);
+  assert.equal(attrs.some(([name, value]) => name === 'href' && String(value).startsWith('javascript:')), false);
+  const allText = dom.text();
+  for (const value of maliciousValues) assert.match(allText, new RegExp(escapeRegExp(value)));
+});
+
 test('Student 360 expõe navegação do prontuário apenas com feature flag', () => {
   const html = readFileSync(new URL('../admin-student.html', import.meta.url), 'utf8');
   assert.match(html, /PREMIUM_STUDENT_RECORD_ENABLED/);
   assert.match(html, /admin-premium-student-record\.html\?student_id=/);
 });
+
+function maliciousRecord() {
+  const [img, preBreak, script, special, jsUrl] = maliciousValues;
+  return {
+    student: { name: img, email: jsUrl, phone: special, consultation_status: 'ACTIVE', last_activity_at: '2026-07-14T00:00:00.000Z' },
+    summary: { open_pending_items_count: 1, next_operational_action: script },
+    pending_items: [{ id: 'pending-xss', title: img, priority: special, source: script, created_at: '2026-07-14T00:00:00.000Z' }],
+    anamnesis: { status: script, created_at: '2026-07-14T00:00:00.000Z', updated_at: '2026-07-14T00:00:00.000Z', answers: { attack: preBreak, nested: { special } } },
+    nutrition_plan: { title: img, goal: script, strategy: special, updated_at: '2026-07-14T00:00:00.000Z' },
+    feedbacks: [{ created_at: '2026-07-14T00:00:00.000Z', week_ref: preBreak, training_adherence: img, nutrition_adherence: script, sleep_quality: special, coach_status: jsUrl }],
+    followup_entries: [{ title: img, entry_type: 'PROFESSIONAL_NOTE', content: preBreak, created_at: '2026-07-14T00:00:00.000Z' }]
+  };
+}
+
+function createFakeDocument() {
+  const created = [];
+  class Element {
+    constructor(tagName, id = '') {
+      this.tagName = tagName.toLowerCase();
+      this.id = id;
+      this.children = [];
+      this.attributes = {};
+      this.dataset = {};
+      this.className = '';
+      this.hidden = false;
+      this.disabled = false;
+      this._text = '';
+      created.push(this);
+    }
+    set textContent(value) { this._text = String(value ?? ''); this.children = []; }
+    get textContent() { return [this._text, ...this.children.map((child) => child.textContent)].join(''); }
+    append(...nodes) { this.children.push(...nodes.filter(Boolean)); }
+    replaceChildren(...nodes) { this.children = nodes.filter(Boolean); this._text = ''; }
+    setAttribute(name, value) { this.attributes[name] = String(value); }
+    addEventListener() {}
+    reset() {}
+  }
+  const ids = ['state','record','studentName','contact','status','summary','pendingList','anamnesis','plan','feedbacks','entries','entryForm','adminLogoutBtn','primaryAction'];
+  const elements = new Map(ids.map((id) => [id, new Element(id === 'entryForm' ? 'form' : 'div', id)]));
+  const document = {
+    getElementById(id) { return elements.get(id) || null; },
+    createElement(tagName) { return new Element(tagName); },
+    addEventListener() {},
+  };
+  return { document, created, text: () => [...elements.values()].map((node) => node.textContent).join('\n') };
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
