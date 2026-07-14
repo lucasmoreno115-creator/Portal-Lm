@@ -1,0 +1,1 @@
+export function createSearchProfessionalWorkspaceStudentsUseCase({ workspaceRepository }) { return async function searchProfessionalWorkspaceStudents(input={}) { return { ok:true, data: await workspaceRepository.searchStudents(input) }; }; }

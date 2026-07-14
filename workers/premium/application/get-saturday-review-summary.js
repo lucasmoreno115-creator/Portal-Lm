@@ -1,0 +1,1 @@
+export function createGetSaturdayReviewSummaryUseCase({ workspaceRepository }) { return async function getSaturdayReviewSummary(input={}) { return { ok:true, data: await workspaceRepository.getSaturdayReview(input) }; }; }

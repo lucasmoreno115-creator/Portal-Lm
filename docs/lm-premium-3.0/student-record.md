@@ -63,3 +63,7 @@ O Feedback Semanal passa a criar pendência `ANALYZE_WEEKLY_FEEDBACK` no envio e
 ## 16. Evolução Build 5 — Plano Alimentar
 
 A seção de Plano Alimentar do Prontuário passa a considerar plano atual publicado, rascunho administrativo, origem por Feedback Semanal, pendência relacionada, versão e histórico resumido. Publicações geram evolução `PLAN_CHANGE` com metadados, sem copiar o conteúdo integral da dieta.
+
+## 17. Evolução Build 6 — Workspace Profissional
+
+O Workspace Premium passa a abrir o Prontuário LM como contexto completo do aluno e reutiliza `premium_pending_items` e `premium_followup_entries` para pendências e evolução. Ele não duplica timeline nem substitui o Prontuário; apenas exibe resumo operacional e CTAs fixos.

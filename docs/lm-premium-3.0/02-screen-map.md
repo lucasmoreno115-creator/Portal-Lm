@@ -154,3 +154,9 @@ Evolução do Acompanhamento
 - `public/admin-premium-nutrition-plan.html?student_id=<student_id>`: nova superfície administrativa para ciclo `DRAFT → PUBLISHED → ARCHIVED`, protegida por sessão admin e por adoção visual via `PREMIUM_NUTRITION_PLAN_WORKFLOW_ENABLED`.
 - `public/portal-premium-nutrition-plan.html`: superfície mobile-first para leitura do plano `PUBLISHED` atual, sem rascunhos, histórico administrativo ou IDs internos.
 - `admin-nutrition-plan.html` e `/api/admin/nutrition-plan` permanecem como compatibilidade legada durante o rollback visual.
+
+## Build 6 — Workspace Premium do Profissional
+
+- `public/admin-premium-workspace.html`: superfície operacional principal para Lucas, protegida por sessão admin e adoção visual via `PREMIUM_PROFESSIONAL_WORKSPACE_ENABLED`.
+- Consolida Inbox de `premium_pending_items`, lista paginada de `premium_students`, busca por nome/e-mail/telefone, indicadores operacionais e painel contextual sob demanda.
+- Coexiste com Student 360, Prontuário LM, Feedback Semanal, Anamnese e Plano Alimentar; rollback visual mantém todas as páginas legadas.

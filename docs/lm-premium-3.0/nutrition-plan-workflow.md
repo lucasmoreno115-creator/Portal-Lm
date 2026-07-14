@@ -67,3 +67,7 @@ A UI é inicial e operacional. Não há prescrição automática, cálculo energ
 
 ## 22. Próximos passos
 No próximo Build, evoluir navegação e experiência dos Workspaces sem automatizar conduta clínica e sem substituir o MFit.
+
+## 23. Evolução Build 6 — Workspace Profissional
+
+O Workspace Premium mostra apenas resumo do plano atual, rascunhos e pendências de atualização. O conteúdo completo das refeições permanece no workflow de Plano Alimentar, e a publicação continua sendo o único fluxo que resolve pendências de atualização.

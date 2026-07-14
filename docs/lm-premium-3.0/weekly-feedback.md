@@ -66,3 +66,7 @@ No Build futuro, ampliar navegação dos workspaces e UX de alteração de decis
 ## 22. Evolução Build 5 — vínculo com Plano Alimentar
 
 Quando uma decisão profissional `UPDATE_PLAN` cria pendência `CREATE_NUTRITION_PLAN`, o novo workflow de plano alimentar pode criar rascunho com `source_feedback_id`. A pendência só é resolvida na publicação da nova versão; abrir editor ou criar rascunho não altera plano e não encerra pendência.
+
+## 23. Evolução Build 6 — Workspace Profissional
+
+O Workspace Premium lista feedbacks aguardando análise por meio de pendências `ANALYZE_WEEKLY_FEEDBACK`, expõe indicadores de alunos sem resposta e aponta o CTA para `admin-premium-weekly-feedbacks.html`. O relato completo continua carregado na tela de Feedback Semanal.
