@@ -1,0 +1,78 @@
+{
+  "version": "3.0.0",
+  "release": "LM Premium 3.0.0 — Production Release",
+  "date": "2026-07-14",
+  "builds": ["0", "1", "2", "3", "4", "5", "6", "RC1"],
+  "migrations": [
+    "0004_nutrition_plans.sql",
+    "0005_premium_anamnesis.sql",
+    "0006_activity_timeline.sql",
+    "0007_student_access_plan.sql",
+    "0025_create_premium_students.sql",
+    "0026_add_student_id_to_premium_tables.sql",
+    "0027_create_premium_followup_entries.sql",
+    "0028_create_premium_pending_items.sql",
+    "0029_add_weekly_feedback_operational_fields.sql",
+    "0030_create_premium_feedback_reminders.sql",
+    "0031_add_nutrition_plan_lifecycle.sql",
+    "0032_finalize_nutrition_plan_lifecycle.sql",
+    "0033_add_professional_workspace_indexes.sql"
+  ],
+  "tables": [
+    "premium_students",
+    "premium_anamnesis",
+    "nutrition_plans",
+    "student_checkins",
+    "activity_timeline",
+    "premium_followup_entries",
+    "premium_pending_items",
+    "premium_feedback_reminders",
+    "student_access",
+    "weekly_plans",
+    "progression_logs",
+    "followup_logs",
+    "retention_actions"
+  ],
+  "repositories": [
+    "d1-premium-student-repository",
+    "d1-anamnesis-repository",
+    "d1-weekly-feedback-repository",
+    "d1-nutrition-plan-repository",
+    "d1-student-record-repository",
+    "d1-followup-entry-repository",
+    "d1-pending-item-repository",
+    "d1-feedback-reminder-repository",
+    "d1-professional-workspace-repository",
+    "d1-premium-event-repository"
+  ],
+  "services": [
+    "student-identity-service",
+    "consultation-schedule-service",
+    "premium-event-service",
+    "weekly-feedback-schedule-service",
+    "weekly-feedback-reminder-service"
+  ],
+  "presenters": [
+    "student-record-presenter",
+    "weekly-feedback-presenter",
+    "nutrition-plan-public-presenter",
+    "nutrition-plan-admin-presenter",
+    "professional-workspace-summary-presenter",
+    "professional-workspace-student-presenter",
+    "professional-workspace-pending-presenter",
+    "professional-workspace-saturday-presenter",
+    "workspace-presenter"
+  ],
+  "workers": ["workers/api.js", "workers/premium/*"],
+  "feature_flags": ["PREMIUM_PROFESSIONAL_WORKSPACE_ENABLED"],
+  "scripts": [
+    "scripts/audit-lm-premium-rc1.mjs",
+    "scripts/smoke-lm-premium-rc1.mjs",
+    "scripts/verify-lm-premium-rc1.mjs",
+    "scripts/audit-weekly-feedback-duplicates.mjs",
+    "scripts/audit-nutrition-plan-lifecycle.mjs",
+    "scripts/premium-student-identity-backfill.mjs"
+  ],
+  "tests": ["npm test", "node --check workers/api.js"],
+  "status": "production-ready-documentation-release"
+}

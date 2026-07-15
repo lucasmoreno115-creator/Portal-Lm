@@ -1,0 +1,14 @@
+{
+  "ok": false,
+  "smokeExecuted": false,
+  "dryRun": false,
+  "status": "NOT_EXECUTED",
+  "environment": "staging",
+  "reason": "Missing secure staging base URL, admin token, student token, student id and Cloudflare/Wrangler access in the execution environment.",
+  "containsSecrets": false,
+  "summary": {
+    "passed": 0,
+    "failed": 0,
+    "notExecuted": true
+  }
+}

@@ -1,4 +1,7 @@
-# RC1 — Bug log
+# Release 3.0.0 — Bug log
+
+> Release 3.0.0: este documento é mantido como histórico da RC1 e referência operacional para a release oficial.
+
 
 ## Bugs encontrados na PR #270
 1. Auditoria CLI aceitava ausência de dados e retornava sucesso.

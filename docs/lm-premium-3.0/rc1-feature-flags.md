@@ -1,4 +1,7 @@
-# RC1 — Feature flags
+# Release 3.0.0 — Feature flags
+
+> Release 3.0.0: este documento é mantido como histórico da RC1 e referência operacional para a release oficial.
+
 
 ## Flags inventariadas
 - `PREMIUM_PROFESSIONAL_WORKSPACE_ENABLED`: controla exposição visual/operacional do Workspace Profissional.

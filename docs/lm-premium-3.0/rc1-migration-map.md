@@ -1,4 +1,7 @@
-# LM Premium 3.0 RC1 — Mapa de migrations
+# LM Premium 3.0 Release 3.0.0 — Mapa de migrations
+
+> Release 3.0.0: este documento é mantido como histórico da RC1 e referência operacional para a release oficial.
+
 
 Validação RC1: números Premium não duplicados e ordem obrigatória preservada de `0004` até `0033`.
 

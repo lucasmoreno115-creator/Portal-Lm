@@ -1,4 +1,7 @@
-# RC1 — Backup, restore e rollback
+# Release 3.0.0 — Backup, restore e rollback
+
+> Release 3.0.0: este documento é mantido como histórico da RC1 e referência operacional para a release oficial.
+
 
 ## Tabelas críticas
 `premium_students`, `student_access`, `premium_anamnesis`, `student_checkins`, `nutrition_plans`, `premium_pending_items`, `premium_followup_entries`, `activity_timeline`.
