@@ -11,6 +11,8 @@ const root = process.cwd();
 const migrationsDir = path.join(root, 'migrations');
 const expectedDir = path.join(root, 'database', 'expected');
 const bootstrapFile = path.join(root, 'database', 'bootstrap', 'legacy-base-schema.sql');
+const replayOverridesDir = path.join(root, 'database', 'replay-overrides');
+const replayOverridesManifest = path.join(replayOverridesDir, 'manifest.json');
 const baselineDir = path.join(root, 'database', 'baseline');
 const releaseRoot = path.join(root, 'release');
 
@@ -28,6 +30,9 @@ export const migrationFiles = (dir = migrationsDir) => readdirSync(dir).filter(f
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], ...opts });
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 const fileHash = file => sha256(readFileSync(file));
+function loadReplayOverrides() { if (!existsSync(replayOverridesManifest)) return new Map(); const manifest = JSON.parse(readFileSync(replayOverridesManifest, 'utf8')); return new Map((manifest.overrides || []).map(o => [o.migration, { ...o, path: path.join(replayOverridesDir, o.migration) }])); }
+function columnsExist(db, table, names) { const cols = parseJsonRows(sqlite('-json', db, `PRAGMA table_info(${JSON.stringify(table)});`)).map(c => c.name); return names.every(name => cols.includes(name)); }
+function shouldUseReplayOverride(db, file, override, environment = 'local') { if (!override) return false; if (environment === 'production' || override.productionAllowed === true) return false; if (file === '0021_lm2_week_transition_activation.sql') return columnsExist(db, 'lm2_journeys', ['week_started_at', 'week_completed_at']); return false; }
 const writeJsonAtomic = (file, data) => { mkdirSync(path.dirname(file), { recursive: true }); const tmp = `${file}.tmp-${process.pid}`; writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`); renameSync(tmp, file); };
 const writeAtomic = (file, data) => { mkdirSync(path.dirname(file), { recursive: true }); const tmp = `${file}.tmp-${process.pid}`; writeFileSync(tmp, data); renameSync(tmp, file); };
 const sqlite = (...args) => run('sqlite3', args);
@@ -53,10 +58,12 @@ function extractStatement(sql, offset) {
   return { line: before, context: lines.join('\n') };
 }
 
-export function replayMigrations({ dir = migrationsDir, bootstrap = bootstrapFile } = {}) {
+export function replayMigrations({ dir = migrationsDir, bootstrap = bootstrapFile, useOverrides = true, environment = 'local' } = {}) {
   const temp = mkdtempSync(path.join(os.tmpdir(), 'portal-lm-db-'));
   const db = path.join(temp, 'expected.sqlite');
   const applied = [];
+  const overridesUsed = [];
+  const overrides = loadReplayOverrides();
   try {
     if (bootstrap) {
       try { sqlite(db, `.read ${bootstrap}`); }
@@ -65,7 +72,13 @@ export function replayMigrations({ dir = migrationsDir, bootstrap = bootstrapFil
     for (const file of migrationFiles(dir)) {
       const full = path.join(dir, file);
       try {
-        sqlite(db, `.read ${full}`);
+        const override = useOverrides ? overrides.get(file) : null;
+        if (override && shouldUseReplayOverride(db, file, override, environment)) {
+          sqlite(db, `.read ${override.path}`);
+          overridesUsed.push({ migration: file, override: path.relative(root, override.path), reason: override.reason, originalMigrationHash: override.originalMigrationHash, overrideHash: override.overrideHash, result: 'SEMANTICALLY_SATISFIED' });
+        } else {
+          sqlite(db, `.read ${full}`);
+        }
         applied.push(file);
       } catch (error) {
         const stderr = String(error.stderr || error.message || '');
@@ -75,7 +88,7 @@ export function replayMigrations({ dir = migrationsDir, bootstrap = bootstrapFil
         return { ok: false, status: 'BLOCKING', database: db, applied, error: { migration: file, message: stderr.trim(), statement } };
       }
     }
-    return { ok: true, status: 'PASS', database: db, applied };
+    return { ok: true, status: 'PASS', database: db, applied, overridesUsed };
   } catch (error) {
     rmSync(temp, { recursive: true, force: true });
     throw error;
@@ -133,7 +146,7 @@ function emitExpected() {
   const sql = schema.objects.map(o => `${o.sql};`).join('\n\n') + '\n';
   const canonical = canonicalSchema(schema);
   writeAtomic(path.join(expectedDir, 'migration-schema.sql'), sql);
-  writeJsonAtomic(path.join(expectedDir, 'migration-schema.json'), { generatedAt: new Date().toISOString(), source: 'database/bootstrap/legacy-base-schema.sql + versioned migrations', bootstrap: 'database/bootstrap/legacy-base-schema.sql', migrations: replay.applied, schemaHash: sha256(JSON.stringify(canonical)), ...canonical });
+  writeJsonAtomic(path.join(expectedDir, 'migration-schema.json'), { generatedAt: new Date().toISOString(), source: 'database/bootstrap/legacy-base-schema.sql + versioned migrations + registered replay overrides', bootstrap: 'database/bootstrap/legacy-base-schema.sql', migrations: replay.applied, overridesUsed: replay.overridesUsed, replayOrder: ['database/bootstrap/legacy-base-schema.sql', ...replay.applied], schemaHash: sha256(JSON.stringify(canonical)), ...canonical });
 }
 
 function catalog() {
@@ -150,6 +163,7 @@ function catalog() {
 }
 
 function wrangler(args) { return run(process.env.WRANGLER_BIN || 'wrangler', args); }
+function sqlLiteral(value) { return `'${String(value ?? '').replaceAll("'", "''")}'`; }
 function requireSafeNonProduction(environment, database, databaseId) { if (environment === 'production' || database === PRODUCTION_DB || databaseId === PRODUCTION_DB_ID) { const err = new Error('Production database is blocked for this operation.'); err.exitCode = 2; throw err; } }
 function evidence(kind, data) { const version = readVersion(); const body = { command: process.argv.join(' '), startedAt: data.startedAt, completedAt: new Date().toISOString(), exitCode: data.exitCode ?? 0, source: 'scripts/db-tool.mjs', environment: data.environment, databaseName: data.databaseName, databaseId: data.databaseId, status: data.status, checks: data.checks || [], errors: data.errors || [], hashes: data.hashes || {} }; writeJsonAtomic(path.join(releaseRoot, version, `${kind}.json`), body); return body; }
 
@@ -180,7 +194,8 @@ function audit(args) { const env = args.environment || 'staging'; const dbName =
 function backup(args) { const env=args.environment||'staging'; const db=args.database||'lmsystemv2-staging-db'; const id=args['database-id']; const startedAt=new Date().toISOString(); const out=args.output||path.join(root,'backups',`${env}-${new Date().toISOString().replace(/[:.]/g,'-')}.sql`); mkdirSync(path.dirname(out),{recursive:true}); wrangler(['d1','export',db,'--remote','--output',out]); if(!existsSync(out)) throw new Error('Backup export did not create a file.'); const st=statSync(out); evidence('backup',{startedAt,environment:env,databaseName:db,databaseId:id,status:'PASS',checks:['file-created','sha256'],hashes:{backup:fileHash(out)},}); console.log(JSON.stringify({file:out,size:st.size,sha256:fileHash(out)})); }
 function restore(args) { const env=args.environment; const db=args.database; const id=args['database-id']; const file=args.file; const startedAt=new Date().toISOString(); requireSafeNonProduction(env,db,id); if(args['confirm-restore']!==true) throw new Error('Restore requires --confirm-restore.'); if(!file || !existsSync(file)) throw new Error('Restore file is missing.'); wrangler(['d1','execute',db,'--remote','--file',file]); evidence('restore',{startedAt,environment:env,databaseName:db,databaseId:id,status:'PASS',checks:['file-exists','import-command-completed'],hashes:{restore:fileHash(file)}}); }
 function assertRemoteDatabaseEmpty(db) { const rows = remoteQuery(db, "SELECT name,type FROM sqlite_schema WHERE type IN ('table','index','trigger','view') AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' AND name <> 'd1_migrations' ORDER BY name;"); if (rows.length) { const err = new Error(`Refusing to provision non-empty database; found application objects: ${rows.map(r => r.name).join(', ')}`); err.exitCode = 2; throw err; } }
-function provisionStaging(args) { const env='staging'; const db=args.database; const id=args['database-id']; const startedAt=new Date().toISOString(); if(!db) throw new Error('Provision staging requires --database.'); requireSafeNonProduction(env,db,id); if(args['confirm-empty-or-disposable']!==true) throw new Error('Provision staging requires --confirm-empty-or-disposable.'); assertRemoteDatabaseEmpty(db); wrangler(['d1','execute',db,'--remote','--file',bootstrapFile]); wrangler(['d1','migrations','apply',db,'--remote']); evidence('provision-staging',{startedAt,environment:env,databaseName:db,databaseId:id,status:'PASS',checks:['empty-or-disposable-confirmed','legacy-bootstrap-applied','wrangler-migrations-applied','d1_migrations-managed-by-wrangler'],hashes:{bootstrap:fileHash(bootstrapFile)}}); }
+function remoteColumnsExist(db, table, names) { const cols = remoteQuery(db, `PRAGMA table_info(${quoteIdent(table)});`).map(c => c.name); return names.every(name => cols.includes(name)); }
+function provisionStaging(args) { const env='staging'; const db=args.database; const id=args['database-id']; const startedAt=new Date().toISOString(); if(!db) throw new Error('Provision staging requires --database.'); requireSafeNonProduction(env,db,id); if(args['confirm-empty-or-disposable']!==true) throw new Error('Provision staging requires --confirm-empty-or-disposable.'); assertRemoteDatabaseEmpty(db); const overrides = loadReplayOverrides(); const applied=[]; const overridesUsed=[]; wrangler(['d1','execute',db,'--remote','--file',bootstrapFile]); wrangler(['d1','execute',db,'--remote','--command',`CREATE TABLE IF NOT EXISTS database_bootstrap_history (id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL, original_hash TEXT, executed_hash TEXT, result TEXT NOT NULL, reason TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);`]); wrangler(['d1','execute',db,'--remote','--command',`INSERT INTO database_bootstrap_history (id, kind, name, executed_hash, result, reason) VALUES ('bootstrap:legacy-base-schema', 'bootstrap', 'database/bootstrap/legacy-base-schema.sql', '${fileHash(bootstrapFile)}', 'APPLIED', 'Build 6.5 legacy bootstrap for empty staging');`]); for (const file of migrationFiles()) { const override=overrides.get(file); if (override && file==='0021_lm2_week_transition_activation.sql' && remoteColumnsExist(db,'lm2_journeys',['week_started_at','week_completed_at'])) { wrangler(['d1','execute',db,'--remote','--file',override.path]); wrangler(['d1','execute',db,'--remote','--command',`INSERT INTO database_bootstrap_history (id, kind, name, original_hash, executed_hash, result, reason) VALUES ('override:${file}', 'replay-override', '${file}', '${override.originalMigrationHash}', '${override.overrideHash}', 'SEMANTICALLY_SATISFIED', ${sqlLiteral(override.reason)});`]); overridesUsed.push({ migration:file, override:path.relative(root,override.path), originalMigrationHash:override.originalMigrationHash, overrideHash:override.overrideHash, result:'SEMANTICALLY_SATISFIED' }); } else { const full=path.join(migrationsDir,file); wrangler(['d1','execute',db,'--remote','--file',full]); wrangler(['d1','execute',db,'--remote','--command',`INSERT INTO database_bootstrap_history (id, kind, name, original_hash, executed_hash, result) VALUES ('migration:${file}', 'migration', '${file}', '${fileHash(full)}', '${fileHash(full)}', 'APPLIED');`]); } applied.push(file); } evidence('provision-staging',{startedAt,environment:env,databaseName:db,databaseId:id,status:'PASS',checks:['empty-or-disposable-confirmed','legacy-bootstrap-applied','controlled-migrations-applied','database_bootstrap_history-recorded'],hashes:{bootstrap:fileHash(bootstrapFile)},}); }
 function smoke(args) { const startedAt=new Date().toISOString(); if(args['skip-smoke']) { evidence('smoke',{startedAt,environment:args.environment,status:'NOT_EXECUTED',checks:[{smokeExecuted:false}],errors:['Smoke was not executed.']}); process.exitCode=2; return; } run('node',['scripts/smoke-lm-premium-rc1.mjs'],{stdio:'inherit'}); const artifact=path.join(root,'artifacts','staging-smoke-results.json'); const result=existsSync(artifact)?JSON.parse(readFileSync(artifact,'utf8')):{}; const ok=result.smokeExecuted===true && result.ok===true && result.failed===0; evidence('smoke',{startedAt,environment:args.environment,status:ok?'PASS':'BLOCKING',checks:[result],hashes:existsSync(artifact)?{smoke:fileHash(artifact)}:{}}); if(!ok) process.exitCode=2; }
 function productionPlan(args) { const gates = { allow:process.env.ALLOW_PRODUCTION_DEPLOY==='true', id:process.env.CONFIRM_PRODUCTION_DATABASE_ID===PRODUCTION_DB_ID, version:process.env.CONFIRM_RELEASE_VERSION===readVersion(), confirm:args['confirm-production']===true }; const status = Object.values(gates).every(Boolean) ? 'PASS' : 'BLOCKING'; writeJsonAtomic(path.join(root,'artifacts','production-deploy-plan.json'), { status, gates, writesExecuted:false }); if(status==='BLOCKING') process.exitCode=2; }
 

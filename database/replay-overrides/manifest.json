@@ -1,0 +1,23 @@
+{
+  "overrides": [
+    {
+      "migration": "0021_lm2_week_transition_activation.sql",
+      "reason": "0019_lm2_data_layer.sql in the current repository already creates lm2_journeys.week_started_at and lm2_journeys.week_completed_at; replaying the historical 0021 ALTER statements against an empty database therefore conflicts even though the semantic schema effect is already present.",
+      "originalMigrationHash": "f9a2bcddcab6c6688afa62835713e17ed9d74f4486e32edd9cc2f9fa1fa066b6",
+      "overrideHash": "de69bd5946036c806fb5816c5a3cd5c9118126960a6b4be4691bb76776d0a925",
+      "appliesTo": [
+        "local-empty-database-replay",
+        "migration-derived-expected-schema",
+        "new-staging-provisioning"
+      ],
+      "environments": [
+        "local",
+        "staging-new-empty-or-disposable"
+      ],
+      "productionAllowed": false,
+      "semanticEffect": "Marks 0021 as semantically satisfied only when week_started_at and week_completed_at already exist from 0019; otherwise tooling must run the original migration.",
+      "approvedByBuild": "Build 6.5",
+      "createdAt": "2026-07-15T00:00:00.000Z"
+    }
+  ]
+}

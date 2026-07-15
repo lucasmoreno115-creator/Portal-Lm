@@ -134,3 +134,43 @@ test('Build 6.5 bootstrap failure is BLOCKING and does not produce partial expec
     assert.equal(existsSync(path.join(dir, 'migration-schema.json')), false);
   } finally { rmSync(dir, { recursive:true, force:true }); }
 });
+
+test('Build 6.5 replay override: 0021 historical migration remains original and hash is validated', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { createHash } = await import('node:crypto');
+  const original = readFileSync('migrations/0021_lm2_week_transition_activation.sql', 'utf8');
+  assert.equal(original, 'ALTER TABLE lm2_journeys ADD COLUMN week_started_at TEXT;\nALTER TABLE lm2_journeys ADD COLUMN week_completed_at TEXT;\n');
+  const manifest = JSON.parse(readFileSync('database/replay-overrides/manifest.json', 'utf8'));
+  const override = manifest.overrides.find((item) => item.migration === '0021_lm2_week_transition_activation.sql');
+  assert.equal(createHash('sha256').update(original).digest('hex'), override.originalMigrationHash);
+  assert.equal(override.productionAllowed, false);
+});
+
+test('Build 6.5 replay override: complete replay uses registered override without modifying migration', () => {
+  const result = replayMigrations();
+  assert.equal(result.ok, true);
+  assert.equal(result.overridesUsed.length, 1);
+  assert.equal(result.overridesUsed[0].migration, '0021_lm2_week_transition_activation.sql');
+  assert.equal(result.overridesUsed[0].result, 'SEMANTICALLY_SATISFIED');
+});
+
+test('Build 6.5 replay override: disabling overrides detects the 0019/0021 conflict', () => {
+  const result = replayMigrations({ useOverrides: false });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 'BLOCKING');
+  assert.equal(result.error.migration, '0021_lm2_week_transition_activation.sql');
+});
+
+test('Build 6.5 replay override: production environment cannot use replay override', () => {
+  const result = replayMigrations({ environment: 'production' });
+  assert.equal(result.ok, false);
+  assert.equal(result.error.migration, '0021_lm2_week_transition_activation.sql');
+});
+
+test('Build 6.5 expected schema records original migration and replay override hashes', async () => {
+  const { readFileSync } = await import('node:fs');
+  const expected = JSON.parse(readFileSync('database/expected/migration-schema.json', 'utf8'));
+  assert.ok(expected.migrations.includes('0021_lm2_week_transition_activation.sql'));
+  assert.equal(expected.overridesUsed[0].originalMigrationHash, 'f9a2bcddcab6c6688afa62835713e17ed9d74f4486e32edd9cc2f9fa1fa066b6');
+  assert.equal(expected.overridesUsed[0].overrideHash, 'de69bd5946036c806fb5816c5a3cd5c9118126960a6b4be4691bb76776d0a925');
+});

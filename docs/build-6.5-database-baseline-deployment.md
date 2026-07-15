@@ -30,6 +30,7 @@ The command executes:
 ```text
 database/bootstrap/legacy-base-schema.sql
 → migrations/*.sql in lexical order
+→ registered replay override when 0021 is semantically satisfied by 0019
 → SQLite/D1 introspection
 → database/expected/migration-schema.sql
 → database/expected/migration-schema.json
@@ -42,6 +43,14 @@ After successful replay, regenerate the catalog:
 ```bash
 npm run db:catalog
 ```
+
+## Replay override for 0019/0021 compatibility
+
+The historical migration `0021_lm2_week_transition_activation.sql` remains immutable and still contains the original `ALTER TABLE` statements. The replay conflict exists because the current `0019_lm2_data_layer.sql` already creates `lm2_journeys.week_started_at` and `lm2_journeys.week_completed_at`, so applying 0021 during empty-database replay would attempt to add duplicate columns.
+
+Build 6.5 resolves this outside `migrations/` with `database/replay-overrides/0021_lm2_week_transition_activation.sql` and `database/replay-overrides/manifest.json`. The override is allowed only for local empty-database replay, migration-derived expected schema generation, and new empty/disposable staging provisioning. It is never allowed in production.
+
+The manifest records the historical migration hash, override hash, reason, allowed environments, semantic effect, and `productionAllowed: false`. During replay, the tool verifies that the 0021 columns already exist from 0019, executes the override, records the historical migration as semantically satisfied, and continues with later migrations. Without the override, the duplicate-column conflict remains detectable and blocking.
 
 ## Production baseline
 
@@ -87,12 +96,15 @@ Provisioning does this sequence:
 confirm non-production database name/id
 → query sqlite_schema and block non-empty application databases
 → apply database/bootstrap/legacy-base-schema.sql explicitly
-→ run wrangler d1 migrations apply so d1_migrations records real migrations
+→ apply migrations 0004–0020
+→ execute the registered 0021 replay override when the columns already exist
+→ apply migrations 0022–0033
+→ record bootstrap/migration/override execution in database_bootstrap_history evidence
 → run audit/verify as separate gates
 → write evidence
 ```
 
-The bootstrap is recorded in evidence and not inserted as a fake migration row. Production `d1_migrations` is never edited by this PR.
+The bootstrap and override are recorded in evidence/history and not inserted as fake production migrations. Production `d1_migrations` is never edited by this PR. For a new staging database, `database_bootstrap_history` records the original migration hash, override hash, semantic result, and reason for auditability.
 
 ## Backup and restore
 
