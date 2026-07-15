@@ -1,3 +1,9 @@
 
 # Generated GitHub Pages publish staging directory
 github-pages-artifact/
+
+# Build 6.5 generated database operation artifacts
+backups/
+release/
+artifacts/db-audit-*.json
+artifacts/production-deploy-plan.json

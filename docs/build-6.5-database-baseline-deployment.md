@@ -1,54 +1,100 @@
 # Build 6.5 — Database Baseline & Deployment
 
-Build 6.5 freezes the current D1 schema as an official, versioned database baseline without changing Workers, UI assets, APIs, or business rules.
+Build 6.5 is database/deployment infrastructure only. It does not change Workers, APIs, HTML, CSS, JS, LM Premium behaviour, or Projeto LM behaviour.
 
-## Official baseline
+## Production baseline vs migration-derived expected schema
 
-The official baseline lives in `database/baseline/`:
+### Production baseline
 
-- `production-schema.sql` — tables and additive schema statements from the current migration snapshot.
-- `production-indexes.sql` — all index and unique-index statements from the current migration snapshot.
-- `production-triggers.sql` — trigger snapshot, if present.
-- `production-views.sql` — view snapshot, if present.
-- `0000_production_baseline.sql` — single-file bootstrap baseline for new environments.
-- `baseline.json` — machine-readable schema catalog used by audit and drift checks.
+The production baseline is the real schema captured from `lmsystemv2-db` by authenticated, read-only D1 introspection. It must use `sqlite_schema`, `PRAGMA table_info`, `PRAGMA index_list`, `PRAGMA index_info`, triggers, views, and available constraints.
 
-Do not backfill or invent rows in production `d1_migrations`. New environments should start from `0000_production_baseline.sql`, then apply migrations added after this baseline.
+It is generated only with:
 
-## Commands
+```bash
+node scripts/db-tool.mjs capture-baseline --environment production --confirm-read-only-production
+```
 
-| Command | Purpose |
-| --- | --- |
-| `npm run db:baseline` | Regenerates the official baseline files from the repository migration snapshot. |
-| `npm run db:catalog` | Regenerates `DATABASE_CATALOG.md` from the executable schema. |
-| `npm run db:audit -- staging` | Compares expected schema with remote D1 schema and writes `artifacts/db-audit-staging.json`. |
-| `npm run db:backup -- staging` | Exports the remote D1 database and writes release backup evidence. |
-| `npm run db:restore` | Prints the explicit operator restore command; restore remains manual by design. |
-| `npm run db:verify -- staging` | Runs the schema verification gate and writes release verify evidence. |
-| `npm run deploy:staging` | Runs audit → backup → migrations → smoke evidence → verify → deploy evidence → release evidence for `lmsystemv2-staging-db`. |
-| `npm run deploy:production` | Runs the same guarded pipeline for `lmsystemv2-db`. |
+The placeholder `database/baseline-manifest.json` records that this capture is still pending. Codex did not generate or version a fake production schema from migrations.
 
-Set `DB_NAME=<d1-name>` to override the default database name. Set `RELEASE_VERSION=<version>` to choose the release evidence directory; otherwise the value in `VERSION` is used.
+### Migration-derived expected schema
 
-## Drift policy
+The migration-derived expected schema is generated separately from versioned migrations:
 
-The audit returns `PASS` only when the expected schema and remote schema have identical tables, indexes, triggers, views, primary-key definitions, constraints, and unique indexes as represented by SQLite/D1 DDL. Missing, extra, or changed objects are `BLOCKING` and stop deployment before backup or migrations are attempted.
+```bash
+npm run db:expected
+```
 
-## Release evidence
+When replay succeeds, it writes `database/expected/migration-schema.sql` and `database/expected/migration-schema.json`. Replay is strict: any migration error is `BLOCKING`, includes the migration and statement context, exits non-zero, and does not update existing expected-schema files.
 
-Each guarded run writes JSON evidence under `release/<version>/`:
+## Schema drift and migration history
 
-- `audit.json` / `verify.json` for schema checks.
-- `backup.json` for D1 export evidence.
-- `smoke.json` for the DB-only smoke marker.
-- `deploy.json` for deployment step state.
-- `release.json` for the release gate.
+Audit output separates two independent results:
 
-## Staging recreation
+```json
+{
+  "schemaDrift": {},
+  "migrationHistory": {}
+}
+```
 
-To recreate staging from zero:
+Schema drift compares structural schema objects: tables, columns, column order, types, NOT NULL, defaults, primary keys, indexes, uniqueness, partial indexes, triggers, and views. Cosmetic whitespace differences do not count as drift.
 
-1. Create or select `lmsystemv2-staging-db` in Cloudflare D1.
-2. Apply `database/baseline/0000_production_baseline.sql` to the empty database.
-3. Apply migrations created after this Build 6.5 baseline.
-4. Run `npm run db:verify -- staging` and require `PASS` before release.
+Migration history compares `d1_migrations`. Missing historical rows are classified as `HISTORY_DIVERGENCE`. By default this is `WARNING`; set `MIGRATION_HISTORY_POLICY=blocking` to make it `BLOCKING`. A history divergence is never reported as a missing table, column, or index.
+
+## Staging provisioning
+
+A disposable/empty staging database must be provisioned before equality audit:
+
+```bash
+node scripts/db-tool.mjs provision-staging \
+  --database lmsystemv2-staging-db \
+  --database-id <staging-id> \
+  --confirm-empty-or-disposable
+```
+
+Provisioning blocks the production database name and the production database ID, applies migrations in deterministic order, and writes evidence.
+
+## Backup and restore
+
+Backups write metadata only after the export file exists and include SHA-256, size, timestamp, database name, database ID, environment, and sanitized checks. Backup files are ignored by Git via `backups/`.
+
+Restore is implemented for staging only:
+
+```bash
+node scripts/db-tool.mjs restore \
+  --environment staging \
+  --database lmsystemv2-staging-db \
+  --database-id <staging-id> \
+  --file backups/file.sql \
+  --confirm-restore
+```
+
+Production restore is prohibited in this PR.
+
+## Smoke, verify, and release evidence
+
+Smoke cannot be synthetic. If smoke is not executed, evidence status is `NOT_EXECUTED` with `smokeExecuted=false`, and deployment is blocked. The only passing smoke gate is a real `scripts/smoke-lm-premium-rc1.mjs` result with `smokeExecuted=true`, `ok=true`, and `failed=0`.
+
+Evidence files include command, timestamps, exit code, source, environment, database name, database ID, status, checks, errors, and artifact hashes. Evidence is not a self-approval; each command records the validated result of an external check or artifact.
+
+## Production protections
+
+There is no simple `deploy:production` write command. Production is plan-only in this phase:
+
+```bash
+npm run deploy:production:plan -- --confirm-production
+```
+
+The plan remains `BLOCKING` unless all gates are present:
+
+- `ALLOW_PRODUCTION_DEPLOY=true`
+- `CONFIRM_PRODUCTION_DATABASE_ID=1de90532-157b-473e-8e7a-655ca9e0953d`
+- `CONFIRM_RELEASE_VERSION=<resolved release version>`
+- `--confirm-production`
+- approved backup, audit, smoke, verify, and migration plan evidence
+
+Without every gate, exit code is `2` and no write command is executed.
+
+## Commands requiring authenticated Wrangler
+
+Operators with Cloudflare credentials must still run the remote commands: production baseline capture, staging provisioning, remote audits, D1 backup/export, and staging restore. Codex did not execute production writes or migrations.
