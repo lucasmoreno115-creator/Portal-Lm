@@ -1,0 +1,19 @@
+{
+  "baselineVersion": null,
+  "sourceEnvironment": "production",
+  "sourceDatabase": "lmsystemv2-db",
+  "sourceDatabaseId": "1de90532-157b-473e-8e7a-655ca9e0953d",
+  "capturedAt": null,
+  "capturedBy": null,
+  "readOnlyCapture": true,
+  "schemaHash": null,
+  "objectCount": 0,
+  "tableCount": 0,
+  "indexCount": 0,
+  "triggerCount": 0,
+  "viewCount": 0,
+  "migrationHistoryStatus": "NOT_CAPTURED",
+  "productionDataIncluded": false,
+  "status": "PENDING_AUTHENTICATED_READ_ONLY_CAPTURE",
+  "requiredCommand": "node scripts/db-tool.mjs capture-baseline --environment production --confirm-read-only-production"
+}

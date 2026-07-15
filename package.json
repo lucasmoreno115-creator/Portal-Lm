@@ -4,6 +4,16 @@
     "test": "node --test",
     "build:project-lm-runtime": "node scripts/build-project-lm-runtime.mjs",
     "check:project-lm-runtime": "node scripts/check-project-lm-runtime.mjs",
-    "prepare:pages-artifact": "node scripts/prepare-pages-artifact.mjs"
+    "prepare:pages-artifact": "node scripts/prepare-pages-artifact.mjs",
+    "db:expected": "node scripts/db-tool.mjs expected",
+    "db:capture-baseline": "node scripts/db-tool.mjs capture-baseline",
+    "db:audit:staging": "node scripts/db-tool.mjs audit --environment staging",
+    "db:audit:production": "node scripts/db-tool.mjs audit --environment production",
+    "db:backup:staging": "node scripts/db-tool.mjs backup --environment staging",
+    "db:backup:production": "node scripts/db-tool.mjs backup --environment production",
+    "db:restore:staging": "node scripts/db-tool.mjs restore --environment staging",
+    "db:provision:staging": "node scripts/db-tool.mjs provision-staging",
+    "db:catalog": "node scripts/db-tool.mjs catalog",
+    "deploy:production:plan": "node scripts/db-tool.mjs production-plan"
   }
 }
