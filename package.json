@@ -4,6 +4,14 @@
     "test": "node --test",
     "build:project-lm-runtime": "node scripts/build-project-lm-runtime.mjs",
     "check:project-lm-runtime": "node scripts/check-project-lm-runtime.mjs",
-    "prepare:pages-artifact": "node scripts/prepare-pages-artifact.mjs"
+    "prepare:pages-artifact": "node scripts/prepare-pages-artifact.mjs",
+    "db:baseline": "node scripts/db-tool.mjs baseline",
+    "db:audit": "node scripts/db-tool.mjs audit",
+    "db:backup": "node scripts/db-tool.mjs backup",
+    "db:restore": "node scripts/db-tool.mjs restore",
+    "db:verify": "node scripts/db-tool.mjs verify",
+    "db:catalog": "node scripts/db-tool.mjs catalog",
+    "deploy:staging": "node scripts/db-tool.mjs deploy staging",
+    "deploy:production": "node scripts/db-tool.mjs deploy production"
   }
 }
