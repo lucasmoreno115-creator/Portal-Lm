@@ -171,6 +171,76 @@ test('Build 6.5 expected schema records original migration and replay override h
   const { readFileSync } = await import('node:fs');
   const expected = JSON.parse(readFileSync('database/expected/migration-schema.json', 'utf8'));
   assert.ok(expected.migrations.includes('0021_lm2_week_transition_activation.sql'));
-  assert.equal(expected.overridesUsed[0].originalMigrationHash, 'f9a2bcddcab6c6688afa62835713e17ed9d74f4486e32edd9cc2f9fa1fa066b6');
-  assert.equal(expected.overridesUsed[0].overrideHash, 'de69bd5946036c806fb5816c5a3cd5c9118126960a6b4be4691bb76776d0a925');
+  assert.equal(expected.overridesUsed[0].originalMigrationHashActual, 'f9a2bcddcab6c6688afa62835713e17ed9d74f4486e32edd9cc2f9fa1fa066b6');
+  assert.equal(expected.overridesUsed[0].overrideHashActual, 'de69bd5946036c806fb5816c5a3cd5c9118126960a6b4be4691bb76776d0a925');
+});
+
+async function createOverrideReplayFixture({ originalSql, overrideSql, manifestPatch = {}, omitOverride = false } = {}) {
+  const { createHash } = await import('node:crypto');
+  const { mkdirSync, readFileSync, writeFileSync } = await import('node:fs');
+  const dir = tempDir();
+  const overridesDir = path.join(dir, 'overrides');
+  mkdirSync(overridesDir);
+  writeMigration(dir, '0019_lm2_data_layer.sql', 'CREATE TABLE lm2_journeys (student_id TEXT PRIMARY KEY, week_started_at TEXT, week_completed_at TEXT);');
+  const historical = originalSql ?? 'ALTER TABLE lm2_journeys ADD COLUMN week_started_at TEXT;\nALTER TABLE lm2_journeys ADD COLUMN week_completed_at TEXT;\n';
+  writeMigration(dir, '0021_lm2_week_transition_activation.sql', historical);
+  writeMigration(dir, '0022_after_override.sql', 'CREATE TABLE after_override (id TEXT PRIMARY KEY);');
+  const overridePath = path.join(overridesDir, '0021_lm2_week_transition_activation.sql');
+  const override = overrideSql ?? 'CREATE TABLE override_marker (id TEXT PRIMARY KEY);\n';
+  if (!omitOverride) writeFileSync(overridePath, override);
+  const hash = (value) => createHash('sha256').update(value).digest('hex');
+  const manifest = { overrides: [{ migration: '0021_lm2_week_transition_activation.sql', reason: 'test override reason', originalMigrationHash: hash(historical), overrideHash: hash(override), appliesTo: ['local-empty-database-replay'], environments: ['local'], productionAllowed: false, semanticEffect: 'test semantic effect', approvedByBuild: 'Build 6.5', createdAt: '2026-07-15T00:00:00.000Z', ...manifestPatch }] };
+  const manifestPath = path.join(dir, 'manifest.json');
+  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  return { dir, overridesDir, manifestPath, manifest, historical, override, readFileSync };
+}
+
+test('Build 6.5 override validation: correct original and override hashes allow replay', async () => {
+  const fx = await createOverrideReplayFixture();
+  try {
+    const result = replayMigrations({ dir: fx.dir, bootstrap: null, overridesManifest: fx.manifestPath, overridesDir: fx.overridesDir });
+    assert.equal(result.ok, true);
+    assert.equal(result.overridesUsed[0].hashesVerified, true);
+    assert.equal(result.overridesUsed[0].semanticConditionVerified, true);
+  } finally { rmSync(fx.dir, { recursive:true, force:true }); }
+});
+
+test('Build 6.5 override validation: altered original migration hash blocks before next migration', async () => {
+  const fx = await createOverrideReplayFixture({ manifestPatch: { originalMigrationHash: '0'.repeat(64) } });
+  try {
+    const result = replayMigrations({ dir: fx.dir, bootstrap: null, overridesManifest: fx.manifestPath, overridesDir: fx.overridesDir });
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, 'REPLAY_OVERRIDE_INVALID');
+    assert.equal(result.error.errors[0].field, 'originalMigrationHash');
+    assert.equal(result.applied.includes('0022_after_override.sql'), false);
+  } finally { rmSync(fx.dir, { recursive:true, force:true }); }
+});
+
+test('Build 6.5 override validation: altered override hash blocks and does not execute override SQL', async () => {
+  const fx = await createOverrideReplayFixture({ manifestPatch: { overrideHash: '1'.repeat(64) } });
+  try {
+    const result = replayMigrations({ dir: fx.dir, bootstrap: null, overridesManifest: fx.manifestPath, overridesDir: fx.overridesDir });
+    assert.equal(result.ok, false);
+    assert.equal(result.error.errors.some((error) => error.field === 'overrideHash'), true);
+    const { execFileSync } = await import('node:child_process');
+    const tables = execFileSync('sqlite3', ['-json', result.database, "SELECT name FROM sqlite_schema WHERE type='table' AND name='override_marker';"], { encoding: 'utf8' });
+    assert.equal(tables.trim(), '');
+  } finally { rmSync(fx.dir, { recursive:true, force:true }); }
+});
+
+test('Build 6.5 override validation: invalid manifest hash, missing override, productionAllowed and unauthorized environment block', async () => {
+  const invalidHash = await createOverrideReplayFixture({ manifestPatch: { originalMigrationHash: 'not-a-sha' } });
+  const missing = await createOverrideReplayFixture({ omitOverride: true });
+  const prodAllowed = await createOverrideReplayFixture({ manifestPatch: { productionAllowed: true } });
+  const envDenied = await createOverrideReplayFixture({ manifestPatch: { environments: ['staging-new-empty-or-disposable'], appliesTo: ['new-staging-provisioning'] } });
+  try {
+    for (const fx of [invalidHash, missing, prodAllowed, envDenied]) {
+      const result = replayMigrations({ dir: fx.dir, bootstrap: null, overridesManifest: fx.manifestPath, overridesDir: fx.overridesDir });
+      assert.equal(result.ok, false);
+      assert.equal(result.status, 'BLOCKING');
+      assert.equal(result.overridesUsed.length, 0);
+    }
+  } finally {
+    for (const fx of [invalidHash, missing, prodAllowed, envDenied]) rmSync(fx.dir, { recursive:true, force:true });
+  }
 });

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-15T20:37:46.215Z",
+  "generatedAt": "2026-07-15T20:50:10.675Z",
   "source": "database/bootstrap/legacy-base-schema.sql + versioned migrations + registered replay overrides",
   "bootstrap": "database/bootstrap/legacy-base-schema.sql",
   "migrations": [
@@ -39,9 +39,15 @@
       "migration": "0021_lm2_week_transition_activation.sql",
       "override": "database/replay-overrides/0021_lm2_week_transition_activation.sql",
       "reason": "0019_lm2_data_layer.sql in the current repository already creates lm2_journeys.week_started_at and lm2_journeys.week_completed_at; replaying the historical 0021 ALTER statements against an empty database therefore conflicts even though the semantic schema effect is already present.",
-      "originalMigrationHash": "f9a2bcddcab6c6688afa62835713e17ed9d74f4486e32edd9cc2f9fa1fa066b6",
-      "overrideHash": "de69bd5946036c806fb5816c5a3cd5c9118126960a6b4be4691bb76776d0a925",
-      "result": "SEMANTICALLY_SATISFIED"
+      "result": "SEMANTICALLY_SATISFIED",
+      "originalMigrationPath": "migrations/0021_lm2_week_transition_activation.sql",
+      "originalMigrationHashExpected": "f9a2bcddcab6c6688afa62835713e17ed9d74f4486e32edd9cc2f9fa1fa066b6",
+      "originalMigrationHashActual": "f9a2bcddcab6c6688afa62835713e17ed9d74f4486e32edd9cc2f9fa1fa066b6",
+      "overridePath": "database/replay-overrides/0021_lm2_week_transition_activation.sql",
+      "overrideHashExpected": "de69bd5946036c806fb5816c5a3cd5c9118126960a6b4be4691bb76776d0a925",
+      "overrideHashActual": "de69bd5946036c806fb5816c5a3cd5c9118126960a6b4be4691bb76776d0a925",
+      "hashesVerified": true,
+      "semanticConditionVerified": true
     }
   ],
   "replayOrder": [

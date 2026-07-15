@@ -30,7 +30,48 @@ export const migrationFiles = (dir = migrationsDir) => readdirSync(dir).filter(f
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], ...opts });
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 const fileHash = file => sha256(readFileSync(file));
-function loadReplayOverrides() { if (!existsSync(replayOverridesManifest)) return new Map(); const manifest = JSON.parse(readFileSync(replayOverridesManifest, 'utf8')); return new Map((manifest.overrides || []).map(o => [o.migration, { ...o, path: path.join(replayOverridesDir, o.migration) }])); }
+
+function isValidSha256(value) { return /^[a-f0-9]{64}$/i.test(String(value || '')); }
+function environmentAllowed(override, environment) {
+  if (environment === 'production') return false;
+  if ((override.environments || []).includes(environment)) return true;
+  if (environment === 'local' && (override.appliesTo || []).includes('local-empty-database-replay')) return true;
+  if (environment === 'staging' && (override.appliesTo || []).includes('new-staging-provisioning')) return true;
+  return false;
+}
+function loadReplayOverrides({ manifestPath = replayOverridesManifest, overridesDir = replayOverridesDir } = {}) {
+  if (!existsSync(manifestPath)) return new Map();
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  return new Map((manifest.overrides || []).map(o => [o.migration, { ...o, path: path.join(overridesDir, o.migration), manifestPath }]));
+}
+function validateReplayOverride({ file, originalPath, override, environment }) {
+  const errors = [];
+  if (!override || override.migration !== file) errors.push({ field: 'migration', message: 'Override manifest migration does not match current migration.' });
+  if (override?.productionAllowed !== false) errors.push({ field: 'productionAllowed', message: 'Replay overrides must set productionAllowed to false.' });
+  if (!environmentAllowed(override || {}, environment)) errors.push({ field: 'environment', message: `Replay override is not allowed in ${environment}.` });
+  if (!isValidSha256(override?.originalMigrationHash)) errors.push({ field: 'originalMigrationHash', message: 'Invalid original migration SHA-256.' });
+  if (!isValidSha256(override?.overrideHash)) errors.push({ field: 'overrideHash', message: 'Invalid override SHA-256.' });
+  if (!override?.reason) errors.push({ field: 'reason', message: 'Replay override reason is required.' });
+  if (!override?.semanticEffect) errors.push({ field: 'semanticEffect', message: 'Replay override semanticEffect is required.' });
+  if (!override?.path || !existsSync(override.path)) errors.push({ field: 'overridePath', message: 'Replay override file is missing.' });
+  const originalMigrationHashActual = existsSync(originalPath) ? fileHash(originalPath) : null;
+  const overrideHashActual = override?.path && existsSync(override.path) ? fileHash(override.path) : null;
+  if (override?.originalMigrationHash && originalMigrationHashActual !== override.originalMigrationHash) errors.push({ field: 'originalMigrationHash', message: 'Original migration hash mismatch.', expected: override.originalMigrationHash, actual: originalMigrationHashActual });
+  if (override?.overrideHash && overrideHashActual !== override.overrideHash) errors.push({ field: 'overrideHash', message: 'Replay override hash mismatch.', expected: override.overrideHash, actual: overrideHashActual });
+  return {
+    ok: errors.length === 0,
+    errors,
+    evidence: {
+      originalMigrationPath: path.relative(root, originalPath),
+      originalMigrationHashExpected: override?.originalMigrationHash,
+      originalMigrationHashActual,
+      overridePath: override?.path ? path.relative(root, override.path) : null,
+      overrideHashExpected: override?.overrideHash,
+      overrideHashActual,
+      hashesVerified: errors.filter(e => /Hash|hash/.test(e.field)).length === 0 && Boolean(originalMigrationHashActual) && Boolean(overrideHashActual),
+    }
+  };
+}
 function columnsExist(db, table, names) { const cols = parseJsonRows(sqlite('-json', db, `PRAGMA table_info(${JSON.stringify(table)});`)).map(c => c.name); return names.every(name => cols.includes(name)); }
 function shouldUseReplayOverride(db, file, override, environment = 'local') { if (!override) return false; if (environment === 'production' || override.productionAllowed === true) return false; if (file === '0021_lm2_week_transition_activation.sql') return columnsExist(db, 'lm2_journeys', ['week_started_at', 'week_completed_at']); return false; }
 const writeJsonAtomic = (file, data) => { mkdirSync(path.dirname(file), { recursive: true }); const tmp = `${file}.tmp-${process.pid}`; writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`); renameSync(tmp, file); };
@@ -58,12 +99,12 @@ function extractStatement(sql, offset) {
   return { line: before, context: lines.join('\n') };
 }
 
-export function replayMigrations({ dir = migrationsDir, bootstrap = bootstrapFile, useOverrides = true, environment = 'local' } = {}) {
+export function replayMigrations({ dir = migrationsDir, bootstrap = bootstrapFile, useOverrides = true, environment = 'local', overridesManifest = replayOverridesManifest, overridesDir = replayOverridesDir } = {}) {
   const temp = mkdtempSync(path.join(os.tmpdir(), 'portal-lm-db-'));
   const db = path.join(temp, 'expected.sqlite');
   const applied = [];
   const overridesUsed = [];
-  const overrides = loadReplayOverrides();
+  const overrides = loadReplayOverrides({ manifestPath: overridesManifest, overridesDir });
   try {
     if (bootstrap) {
       try { sqlite(db, `.read ${bootstrap}`); }
@@ -73,9 +114,13 @@ export function replayMigrations({ dir = migrationsDir, bootstrap = bootstrapFil
       const full = path.join(dir, file);
       try {
         const override = useOverrides ? overrides.get(file) : null;
-        if (override && shouldUseReplayOverride(db, file, override, environment)) {
+        if (override) {
+          const validation = validateReplayOverride({ file, originalPath: full, override, environment });
+          if (!validation.ok) return { ok: false, status: 'BLOCKING', database: db, applied, overridesUsed, error: { migration: file, code: 'REPLAY_OVERRIDE_INVALID', errors: validation.errors, evidence: validation.evidence } };
+          const semanticConditionVerified = shouldUseReplayOverride(db, file, override, environment);
+          if (!semanticConditionVerified) return { ok: false, status: 'BLOCKING', database: db, applied, overridesUsed, error: { migration: file, code: 'REPLAY_OVERRIDE_SEMANTIC_CONDITION_NOT_MET', evidence: { ...validation.evidence, semanticConditionVerified: false } } };
           sqlite(db, `.read ${override.path}`);
-          overridesUsed.push({ migration: file, override: path.relative(root, override.path), reason: override.reason, originalMigrationHash: override.originalMigrationHash, overrideHash: override.overrideHash, result: 'SEMANTICALLY_SATISFIED' });
+          overridesUsed.push({ migration: file, override: path.relative(root, override.path), reason: override.reason, result: 'SEMANTICALLY_SATISFIED', ...validation.evidence, hashesVerified: true, semanticConditionVerified: true });
         } else {
           sqlite(db, `.read ${full}`);
         }
@@ -195,7 +240,7 @@ function backup(args) { const env=args.environment||'staging'; const db=args.dat
 function restore(args) { const env=args.environment; const db=args.database; const id=args['database-id']; const file=args.file; const startedAt=new Date().toISOString(); requireSafeNonProduction(env,db,id); if(args['confirm-restore']!==true) throw new Error('Restore requires --confirm-restore.'); if(!file || !existsSync(file)) throw new Error('Restore file is missing.'); wrangler(['d1','execute',db,'--remote','--file',file]); evidence('restore',{startedAt,environment:env,databaseName:db,databaseId:id,status:'PASS',checks:['file-exists','import-command-completed'],hashes:{restore:fileHash(file)}}); }
 function assertRemoteDatabaseEmpty(db) { const rows = remoteQuery(db, "SELECT name,type FROM sqlite_schema WHERE type IN ('table','index','trigger','view') AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' AND name <> 'd1_migrations' ORDER BY name;"); if (rows.length) { const err = new Error(`Refusing to provision non-empty database; found application objects: ${rows.map(r => r.name).join(', ')}`); err.exitCode = 2; throw err; } }
 function remoteColumnsExist(db, table, names) { const cols = remoteQuery(db, `PRAGMA table_info(${quoteIdent(table)});`).map(c => c.name); return names.every(name => cols.includes(name)); }
-function provisionStaging(args) { const env='staging'; const db=args.database; const id=args['database-id']; const startedAt=new Date().toISOString(); if(!db) throw new Error('Provision staging requires --database.'); requireSafeNonProduction(env,db,id); if(args['confirm-empty-or-disposable']!==true) throw new Error('Provision staging requires --confirm-empty-or-disposable.'); assertRemoteDatabaseEmpty(db); const overrides = loadReplayOverrides(); const applied=[]; const overridesUsed=[]; wrangler(['d1','execute',db,'--remote','--file',bootstrapFile]); wrangler(['d1','execute',db,'--remote','--command',`CREATE TABLE IF NOT EXISTS database_bootstrap_history (id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL, original_hash TEXT, executed_hash TEXT, result TEXT NOT NULL, reason TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);`]); wrangler(['d1','execute',db,'--remote','--command',`INSERT INTO database_bootstrap_history (id, kind, name, executed_hash, result, reason) VALUES ('bootstrap:legacy-base-schema', 'bootstrap', 'database/bootstrap/legacy-base-schema.sql', '${fileHash(bootstrapFile)}', 'APPLIED', 'Build 6.5 legacy bootstrap for empty staging');`]); for (const file of migrationFiles()) { const override=overrides.get(file); if (override && file==='0021_lm2_week_transition_activation.sql' && remoteColumnsExist(db,'lm2_journeys',['week_started_at','week_completed_at'])) { wrangler(['d1','execute',db,'--remote','--file',override.path]); wrangler(['d1','execute',db,'--remote','--command',`INSERT INTO database_bootstrap_history (id, kind, name, original_hash, executed_hash, result, reason) VALUES ('override:${file}', 'replay-override', '${file}', '${override.originalMigrationHash}', '${override.overrideHash}', 'SEMANTICALLY_SATISFIED', ${sqlLiteral(override.reason)});`]); overridesUsed.push({ migration:file, override:path.relative(root,override.path), originalMigrationHash:override.originalMigrationHash, overrideHash:override.overrideHash, result:'SEMANTICALLY_SATISFIED' }); } else { const full=path.join(migrationsDir,file); wrangler(['d1','execute',db,'--remote','--file',full]); wrangler(['d1','execute',db,'--remote','--command',`INSERT INTO database_bootstrap_history (id, kind, name, original_hash, executed_hash, result) VALUES ('migration:${file}', 'migration', '${file}', '${fileHash(full)}', '${fileHash(full)}', 'APPLIED');`]); } applied.push(file); } evidence('provision-staging',{startedAt,environment:env,databaseName:db,databaseId:id,status:'PASS',checks:['empty-or-disposable-confirmed','legacy-bootstrap-applied','controlled-migrations-applied','database_bootstrap_history-recorded'],hashes:{bootstrap:fileHash(bootstrapFile)},}); }
+function provisionStaging(args) { const env='staging'; const db=args.database; const id=args['database-id']; const startedAt=new Date().toISOString(); if(!db) throw new Error('Provision staging requires --database.'); requireSafeNonProduction(env,db,id); if(args['confirm-empty-or-disposable']!==true) throw new Error('Provision staging requires --confirm-empty-or-disposable.'); assertRemoteDatabaseEmpty(db); const overrides = loadReplayOverrides(); const applied=[]; const overridesUsed=[]; wrangler(['d1','execute',db,'--remote','--file',bootstrapFile]); wrangler(['d1','execute',db,'--remote','--command',`CREATE TABLE IF NOT EXISTS database_bootstrap_history (id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL, original_hash TEXT, executed_hash TEXT, result TEXT NOT NULL, reason TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);`]); wrangler(['d1','execute',db,'--remote','--command',`INSERT INTO database_bootstrap_history (id, kind, name, executed_hash, result, reason) VALUES ('bootstrap:legacy-base-schema', 'bootstrap', 'database/bootstrap/legacy-base-schema.sql', '${fileHash(bootstrapFile)}', 'APPLIED', 'Build 6.5 legacy bootstrap for empty staging');`]); for (const file of migrationFiles()) { const override=overrides.get(file); if (override) { const validation=validateReplayOverride({file, originalPath:path.join(migrationsDir,file), override, environment:env}); if(!validation.ok){ const err=new Error(`Replay override validation failed for ${file}: ${JSON.stringify(validation.errors)}`); err.exitCode=2; throw err; } if(!remoteColumnsExist(db,'lm2_journeys',['week_started_at','week_completed_at'])){ const err=new Error(`Replay override semantic condition not met for ${file}`); err.exitCode=2; throw err; } wrangler(['d1','execute',db,'--remote','--file',override.path]); wrangler(['d1','execute',db,'--remote','--command',`INSERT INTO database_bootstrap_history (id, kind, name, original_hash, executed_hash, result, reason) VALUES ('override:${file}', 'replay-override', '${file}', '${validation.evidence.originalMigrationHashActual}', '${validation.evidence.overrideHashActual}', 'SEMANTICALLY_SATISFIED', ${sqlLiteral(override.reason)});`]); overridesUsed.push({ migration:file, override:path.relative(root,override.path), ...validation.evidence, hashesVerified:true, semanticConditionVerified:true, result:'SEMANTICALLY_SATISFIED' }); } else { const full=path.join(migrationsDir,file); wrangler(['d1','execute',db,'--remote','--file',full]); wrangler(['d1','execute',db,'--remote','--command',`INSERT INTO database_bootstrap_history (id, kind, name, original_hash, executed_hash, result) VALUES ('migration:${file}', 'migration', '${file}', '${fileHash(full)}', '${fileHash(full)}', 'APPLIED');`]); } applied.push(file); } evidence('provision-staging',{startedAt,environment:env,databaseName:db,databaseId:id,status:'PASS',checks:['empty-or-disposable-confirmed','legacy-bootstrap-applied','controlled-migrations-applied','database_bootstrap_history-recorded'],hashes:{bootstrap:fileHash(bootstrapFile)},}); }
 function smoke(args) { const startedAt=new Date().toISOString(); if(args['skip-smoke']) { evidence('smoke',{startedAt,environment:args.environment,status:'NOT_EXECUTED',checks:[{smokeExecuted:false}],errors:['Smoke was not executed.']}); process.exitCode=2; return; } run('node',['scripts/smoke-lm-premium-rc1.mjs'],{stdio:'inherit'}); const artifact=path.join(root,'artifacts','staging-smoke-results.json'); const result=existsSync(artifact)?JSON.parse(readFileSync(artifact,'utf8')):{}; const ok=result.smokeExecuted===true && result.ok===true && result.failed===0; evidence('smoke',{startedAt,environment:args.environment,status:ok?'PASS':'BLOCKING',checks:[result],hashes:existsSync(artifact)?{smoke:fileHash(artifact)}:{}}); if(!ok) process.exitCode=2; }
 function productionPlan(args) { const gates = { allow:process.env.ALLOW_PRODUCTION_DEPLOY==='true', id:process.env.CONFIRM_PRODUCTION_DATABASE_ID===PRODUCTION_DB_ID, version:process.env.CONFIRM_RELEASE_VERSION===readVersion(), confirm:args['confirm-production']===true }; const status = Object.values(gates).every(Boolean) ? 'PASS' : 'BLOCKING'; writeJsonAtomic(path.join(root,'artifacts','production-deploy-plan.json'), { status, gates, writesExecuted:false }); if(status==='BLOCKING') process.exitCode=2; }
 
