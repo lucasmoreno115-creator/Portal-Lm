@@ -1,0 +1,4016 @@
+{
+  "generatedAt": "2026-07-15T20:22:44.325Z",
+  "source": "database/bootstrap/legacy-base-schema.sql + versioned migrations",
+  "bootstrap": "database/bootstrap/legacy-base-schema.sql",
+  "migrations": [
+    "0004_nutrition_plans.sql",
+    "0005_premium_anamnesis.sql",
+    "0006_activity_timeline.sql",
+    "0007_student_access_plan.sql",
+    "0008_project_lm_profile.sql",
+    "0009_project_lm_daily_actions.sql",
+    "0010_project_lm_library.sql",
+    "0011_project_lm_weekly_missions.sql",
+    "0012_project_lm_profiles.sql",
+    "0013_project_lm_profile_initial_data.sql",
+    "0014_project_lm_profile_complete_onboarding.sql",
+    "0015_performance_indexes_checkins_progression.sql",
+    "0016_performance_indexes_weekly_plans.sql",
+    "0017_operational_logs.sql",
+    "0018_project_lm_v5_foundation.sql",
+    "0019_lm2_data_layer.sql",
+    "0020_lm2_daily_checkins.sql",
+    "0021_lm2_week_transition_activation.sql",
+    "0022_lm2_weeks_3_4_program_completion.sql",
+    "0023_project_lm_training_plans.sql",
+    "0024_project_lm_training_model_refinement.sql",
+    "0025_create_premium_students.sql",
+    "0026_add_student_id_to_premium_tables.sql",
+    "0027_create_premium_followup_entries.sql",
+    "0028_create_premium_pending_items.sql",
+    "0029_add_weekly_feedback_operational_fields.sql",
+    "0030_create_premium_feedback_reminders.sql",
+    "0031_add_nutrition_plan_lifecycle.sql",
+    "0032_finalize_nutrition_plan_lifecycle.sql",
+    "0033_add_professional_workspace_indexes.sql"
+  ],
+  "schemaHash": "61e69338523e531e73e225ce22e779361de0ea6cedc562db22f33abb52c6c8cf",
+  "tables": {
+    "activity_timeline": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "event_type",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "source",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'system'",
+          "pk": 0
+        },
+        {
+          "name": "title",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "metadata_json",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_activity_timeline_created",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_activity_timeline_student_created",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email",
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_activity_timeline_student_id",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_activity_timeline_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "diagnostic_results": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_diagnostic_results_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "followup_logs": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "contact_type",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'WHATSAPP'",
+          "pk": 0
+        },
+        {
+          "name": "reason",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "note",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "outcome",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "risk_level",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "next_action",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "due_date",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "resolved_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "resolution_status",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": "'OPEN'",
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_followup_logs_created_at",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_followup_logs_resolution_status_due_date",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "resolution_status",
+            "due_date"
+          ]
+        },
+        {
+          "name": "idx_followup_logs_student_created",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email",
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_followup_logs_student_email",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email"
+          ]
+        },
+        {
+          "name": "idx_followup_logs_student_id",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_followup_logs_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "leads": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_leads_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "lm2_checkins": {
+      "columns": [
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "checkin_date",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "week_number",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "answer",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "continuity_point",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_lm2_checkins_student_date",
+          "unique": true,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id",
+            "checkin_date"
+          ]
+        }
+      ]
+    },
+    "lm2_journeys": {
+      "columns": [
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "current_week",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": "1",
+          "pk": 0
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'active'",
+          "pk": 0
+        },
+        {
+          "name": "started_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "completed_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "week_started_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "week_completed_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "program_completed_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "premium_bridge_eligible",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": "0",
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_lm2_journeys_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        }
+      ]
+    },
+    "lm2_profiles": {
+      "columns": [
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "goal",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "sex",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "weight_kg",
+          "type": "REAL",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "nutrition_plan_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "training_plan_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "onboarding_completed",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": "1",
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_lm2_profiles_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        }
+      ]
+    },
+    "lm2_week_1_foundation": {
+      "columns": [
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "video_completed",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": "0",
+          "pk": 0
+        },
+        {
+          "name": "unable_to_train",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "overeating",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "no_motivation",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "video_completed_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "plan_b_saved_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_lm2_week_1_foundation_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        }
+      ]
+    },
+    "lm2_week_2_foundation": {
+      "columns": [
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "video_completed",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": "0",
+          "pk": 0
+        },
+        {
+          "name": "reflection",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "minimum_response",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_lm2_week_2_foundation_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        }
+      ]
+    },
+    "lm2_week_3_foundation": {
+      "columns": [
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "video_completed",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": "0",
+          "pk": 0
+        },
+        {
+          "name": "reflection",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "minimum_response",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "completed_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_lm2_week_3_foundation_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        }
+      ]
+    },
+    "lm2_week_4_foundation": {
+      "columns": [
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "video_completed",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": "0",
+          "pk": 0
+        },
+        {
+          "name": "reflection",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "minimum_response",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "completed_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_lm2_week_4_foundation_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        }
+      ]
+    },
+    "nutrition_plans": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "title",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "goal",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "strategy",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "meals_json",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "substitutions_json",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "adherence_rules_json",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "whatsapp_message",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "is_active",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt_value": "1",
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "version_number",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "published_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "published_by",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "archived_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "supersedes_plan_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "source_feedback_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "private_notes",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_nutrition_plans_single_active",
+          "unique": true,
+          "origin": "c",
+          "partial": true,
+          "columns": [
+            "student_email"
+          ]
+        },
+        {
+          "name": "idx_nutrition_plans_single_open_draft_student",
+          "unique": true,
+          "origin": "c",
+          "partial": true,
+          "columns": [
+            "student_id"
+          ]
+        },
+        {
+          "name": "idx_nutrition_plans_single_published_student",
+          "unique": true,
+          "origin": "c",
+          "partial": true,
+          "columns": [
+            "student_id"
+          ]
+        },
+        {
+          "name": "idx_nutrition_plans_source_feedback",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "source_feedback_id"
+          ]
+        },
+        {
+          "name": "idx_nutrition_plans_student_email",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email"
+          ]
+        },
+        {
+          "name": "idx_nutrition_plans_student_id",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        },
+        {
+          "name": "idx_nutrition_plans_student_published",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id",
+            "published_at"
+          ]
+        },
+        {
+          "name": "idx_nutrition_plans_student_status",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id",
+            "status"
+          ]
+        },
+        {
+          "name": "idx_nutrition_plans_student_version",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id",
+            "version_number"
+          ]
+        },
+        {
+          "name": "idx_nutrition_plans_student_version_unique",
+          "unique": true,
+          "origin": "c",
+          "partial": true,
+          "columns": [
+            "student_id",
+            "version_number"
+          ]
+        },
+        {
+          "name": "idx_nutrition_plans_workspace_student_status",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id",
+            "status",
+            "is_active",
+            "updated_at"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_nutrition_plans_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "operational_logs": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "level",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "area",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "event",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "route",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "method",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "admin_context",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "message",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "metadata",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_operational_logs_area_created_at",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "area",
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_operational_logs_created_at",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_operational_logs_level_created_at",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "level",
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_operational_logs_student_email_created_at",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email",
+            "created_at"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_operational_logs_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "premium_anamnesis": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "student_name",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_phone",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'RECEBIDA'",
+          "pk": 0
+        },
+        {
+          "name": "answers_json",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "internal_scores_json",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_premium_anamnesis_created_at",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_premium_anamnesis_student_email",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email"
+          ]
+        },
+        {
+          "name": "idx_premium_anamnesis_student_id",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        },
+        {
+          "name": "idx_premium_anamnesis_workspace_student_status",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id",
+            "status",
+            "created_at"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_premium_anamnesis_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "premium_feedback_reminders": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "week_ref",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "reminder_type",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "channel",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'OPERATIONAL_QUEUE'",
+          "pk": 0
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'PENDING'",
+          "pk": 0
+        },
+        {
+          "name": "scheduled_for",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "sent_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "failure_reason",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_premium_feedback_reminders_status",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "status",
+            "scheduled_for"
+          ]
+        },
+        {
+          "name": "idx_premium_feedback_reminders_unique",
+          "unique": true,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id",
+            "week_ref",
+            "reminder_type",
+            "channel"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_premium_feedback_reminders_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "premium_followup_entries": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "entry_type",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "title",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "content",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "source",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'admin'",
+          "pk": 0
+        },
+        {
+          "name": "related_entity_type",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "related_entity_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_by",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_premium_followup_entries_decision_unique",
+          "unique": true,
+          "origin": "c",
+          "partial": true,
+          "columns": [
+            "entry_type",
+            "related_entity_type",
+            "related_entity_id"
+          ]
+        },
+        {
+          "name": "idx_premium_followup_entries_related",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "related_entity_type",
+            "related_entity_id"
+          ]
+        },
+        {
+          "name": "idx_premium_followup_entries_student_created",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id",
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_premium_followup_entries_type",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "entry_type"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_premium_followup_entries_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "premium_pending_items": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "type",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "title",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'OPEN'",
+          "pk": 0
+        },
+        {
+          "name": "priority",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'NORMAL'",
+          "pk": 0
+        },
+        {
+          "name": "source",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'manual'",
+          "pk": 0
+        },
+        {
+          "name": "related_entity_type",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "related_entity_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "due_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "resolved_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_by",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_premium_pending_items_created_at",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_premium_pending_items_open_unique",
+          "unique": true,
+          "origin": "c",
+          "partial": true,
+          "columns": [
+            "student_id",
+            "type",
+            null,
+            null
+          ]
+        },
+        {
+          "name": "idx_premium_pending_items_related",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "related_entity_type",
+            "related_entity_id"
+          ]
+        },
+        {
+          "name": "idx_premium_pending_items_status",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "status"
+          ]
+        },
+        {
+          "name": "idx_premium_pending_items_student_status",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id",
+            "status"
+          ]
+        },
+        {
+          "name": "idx_premium_pending_items_workspace",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "status",
+            "priority",
+            "type",
+            "created_at",
+            "student_id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_premium_pending_items_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "premium_students": {
+      "columns": [
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "normalized_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "display_name",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "consultation_status",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'NEW'",
+          "pk": 0
+        },
+        {
+          "name": "access_status",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'ACTIVE'",
+          "pk": 0
+        },
+        {
+          "name": "source",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'MIGRATION'",
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_premium_students_access_status",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "access_status"
+          ]
+        },
+        {
+          "name": "idx_premium_students_consultation_status",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "consultation_status"
+          ]
+        },
+        {
+          "name": "idx_premium_students_normalized_email",
+          "unique": true,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "normalized_email"
+          ]
+        },
+        {
+          "name": "idx_premium_students_status_name",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "consultation_status",
+            "display_name",
+            "email"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_premium_students_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        }
+      ]
+    },
+    "progression_logs": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "exercise",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "target_zone",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "load_used",
+          "type": "REAL",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "reps_done",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "rir",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "decision",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_progression_logs_student_created",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email",
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_progression_logs_student_id",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_progression_logs_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "project_lm_daily_actions": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "action_date",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "action_type",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "completed",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt_value": "1",
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_project_lm_daily_actions_student_date",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email",
+            "action_date"
+          ]
+        },
+        {
+          "name": "idx_project_lm_daily_actions_unique",
+          "unique": true,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email",
+            "action_date",
+            "action_type"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_project_lm_daily_actions_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "project_lm_journeys": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'active'",
+          "pk": 0
+        },
+        {
+          "name": "current_stage",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": "1",
+          "pk": 0
+        },
+        {
+          "name": "stage_2_unlocked_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "stage_3_unlocked_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "stage_4_unlocked_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "maintenance_started_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_project_lm_journeys_student_email",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email"
+          ]
+        },
+        {
+          "name": "idx_project_lm_journeys_student_id",
+          "unique": true,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_project_lm_journeys_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "project_lm_library_content": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "slug",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "title",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "video_url",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "summary",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "action_text",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "unlock_rule",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'always'",
+          "pk": 0
+        },
+        {
+          "name": "sort_order",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt_value": "0",
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_project_lm_library_content_sort",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "sort_order"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_project_lm_library_content_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_project_lm_library_content_2",
+          "unique": true,
+          "origin": "u",
+          "partial": false,
+          "columns": [
+            "slug"
+          ]
+        }
+      ]
+    },
+    "project_lm_library_progress": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "content_slug",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "completed",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt_value": "0",
+          "pk": 0
+        },
+        {
+          "name": "completed_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_project_lm_library_progress_student",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email"
+          ]
+        },
+        {
+          "name": "idx_project_lm_library_progress_unique",
+          "unique": true,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email",
+            "content_slug"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_project_lm_library_progress_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "project_lm_maintenance_goals": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "journey_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "goal",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_project_lm_maintenance_goals_journey",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "journey_id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_project_lm_maintenance_goals_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "project_lm_plan_b": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "journey_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "emergency_meal",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "minimum_workout",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "minimum_movement",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "minimum_self_care",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_project_lm_plan_b_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_project_lm_plan_b_2",
+          "unique": true,
+          "origin": "u",
+          "partial": false,
+          "columns": [
+            "journey_id"
+          ]
+        }
+      ]
+    },
+    "project_lm_profile": {
+      "columns": [
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "goal",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "main_difficulty",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "onboarding_completed",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt_value": "0",
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_project_lm_profile_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "student_email"
+          ]
+        }
+      ]
+    },
+    "project_lm_profiles": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "user_id",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "sex",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": "CURRENT_TIMESTAMP",
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": "CURRENT_TIMESTAMP",
+          "pk": 0
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "goal",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "weight_kg",
+          "type": "REAL",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "height_cm",
+          "type": "REAL",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "nutrition_plan_code",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "objective",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "initial_plan_code",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_project_lm_profiles_user_id",
+          "unique": true,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "user_id"
+          ]
+        }
+      ]
+    },
+    "project_lm_recovery_protocols": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "journey_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "overeating",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "missed_workout",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "travel",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "difficult_week",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "lack_of_motivation",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_project_lm_recovery_protocols_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_project_lm_recovery_protocols_2",
+          "unique": true,
+          "origin": "u",
+          "partial": false,
+          "columns": [
+            "journey_id"
+          ]
+        }
+      ]
+    },
+    "project_lm_stage1_actions": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "journey_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "title",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "completed",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": "0",
+          "pk": 0
+        },
+        {
+          "name": "completed_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_project_lm_stage1_actions_journey",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "journey_id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_project_lm_stage1_actions_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "project_lm_victories": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "journey_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_project_lm_victories_journey",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "journey_id",
+            "created_at"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_project_lm_victories_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "project_lm_weekly_missions": {
+      "columns": [
+        {
+          "name": "week_number",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "title",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "main_mission",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "success_criteria",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": []
+    },
+    "retention_actions": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "financial_reason",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "proposed_action",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "accepted_status",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "note",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_retention_actions_student_email",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email"
+          ]
+        },
+        {
+          "name": "idx_retention_actions_student_id",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_retention_actions_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "student_access": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "access_token",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'ACTIVE'",
+          "pk": 0
+        },
+        {
+          "name": "plan_type",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "whatsapp",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "plan",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": "'premium'",
+          "pk": 0
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_student_access_email",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "email"
+          ]
+        },
+        {
+          "name": "idx_student_access_student_id",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_student_access_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_student_access_2",
+          "unique": true,
+          "origin": "u",
+          "partial": false,
+          "columns": [
+            "email"
+          ]
+        }
+      ]
+    },
+    "student_checkins": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "week_ref",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "training_adherence",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "nutrition_adherence",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "cardio_adherence",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "free_meals",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "hunger_level",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "binge_or_snacking",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "sleep_quality",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "energy_level",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "stress_level",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "weekly_weight",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "waist",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "strength_status",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "main_difficulty",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "routine_context",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "weekly_score",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "support_needed",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "coach_reply",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "coach_reply_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "coach_status",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": "'pending'",
+          "pk": 0
+        },
+        {
+          "name": "reviewed_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "reviewed_by",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "available_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "submitted_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "analyzed_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "decision_type",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "decision_note",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "decision_by",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "decision_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_student_checkins_coach_status_created",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "coach_status",
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_student_checkins_student_created",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email",
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_student_checkins_student_id",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        },
+        {
+          "name": "idx_student_checkins_student_id_week_unique",
+          "unique": true,
+          "origin": "c",
+          "partial": true,
+          "columns": [
+            "student_id",
+            "week_ref"
+          ]
+        },
+        {
+          "name": "idx_student_checkins_student_week",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email",
+            "week_ref"
+          ]
+        },
+        {
+          "name": "idx_student_checkins_week_status",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "week_ref",
+            "coach_status",
+            "submitted_at"
+          ]
+        },
+        {
+          "name": "idx_student_checkins_workspace_student_status",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id",
+            "coach_status",
+            "created_at"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_student_checkins_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "training_exercises": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "session_code",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "order_index",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": "0",
+          "pk": 0
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "sets",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "reps",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "rest_seconds",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "video_url",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "''",
+          "pk": 0
+        },
+        {
+          "name": "active",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": "1",
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "CURRENT_TIMESTAMP",
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "CURRENT_TIMESTAMP",
+          "pk": 0
+        },
+        {
+          "name": "session_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "exercise_key",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "instruction_url",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_training_exercises_key",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "exercise_key"
+          ]
+        },
+        {
+          "name": "idx_training_exercises_session",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "session_code",
+            "active",
+            "order_index"
+          ]
+        },
+        {
+          "name": "idx_training_exercises_session_id",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "session_id",
+            "active",
+            "order_index"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_training_exercises_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "training_plans": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "code",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "audience",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "location",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "active",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": "1",
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "CURRENT_TIMESTAMP",
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "CURRENT_TIMESTAMP",
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_training_plans_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_training_plans_2",
+          "unique": true,
+          "origin": "u",
+          "partial": false,
+          "columns": [
+            "code"
+          ]
+        }
+      ]
+    },
+    "training_sessions": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "plan_code",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "code",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "week_day",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "order_index",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": "0",
+          "pk": 0
+        },
+        {
+          "name": "active",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": "1",
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "CURRENT_TIMESTAMP",
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "CURRENT_TIMESTAMP",
+          "pk": 0
+        },
+        {
+          "name": "plan_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_training_sessions_plan",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "plan_code",
+            "active",
+            "order_index"
+          ]
+        },
+        {
+          "name": "idx_training_sessions_plan_id",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "plan_id",
+            "active",
+            "order_index"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_training_sessions_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_training_sessions_2",
+          "unique": true,
+          "origin": "u",
+          "partial": false,
+          "columns": [
+            "code"
+          ]
+        }
+      ]
+    },
+    "weekly_plans": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "week_ref",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "training_focus",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "cardio_target",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "nutrition_focus",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "main_risk",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "coach_message",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": "'ACTIVE'",
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": "CURRENT_TIMESTAMP",
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": "CURRENT_TIMESTAMP",
+          "pk": 0
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_weekly_plans_student_email",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email"
+          ]
+        },
+        {
+          "name": "idx_weekly_plans_student_id",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id"
+          ]
+        },
+        {
+          "name": "idx_weekly_plans_student_updated",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email",
+            "updated_at"
+          ]
+        },
+        {
+          "name": "idx_weekly_plans_student_week_status",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_email",
+            "week_ref",
+            "status"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_weekly_plans_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    }
+  },
+  "triggers": [],
+  "views": []
+}

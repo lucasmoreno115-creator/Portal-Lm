@@ -10,6 +10,7 @@ export const PRODUCTION_DB_ID = '1de90532-157b-473e-8e7a-655ca9e0953d';
 const root = process.cwd();
 const migrationsDir = path.join(root, 'migrations');
 const expectedDir = path.join(root, 'database', 'expected');
+const bootstrapFile = path.join(root, 'database', 'bootstrap', 'legacy-base-schema.sql');
 const baselineDir = path.join(root, 'database', 'baseline');
 const releaseRoot = path.join(root, 'release');
 
@@ -30,6 +31,7 @@ const fileHash = file => sha256(readFileSync(file));
 const writeJsonAtomic = (file, data) => { mkdirSync(path.dirname(file), { recursive: true }); const tmp = `${file}.tmp-${process.pid}`; writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`); renameSync(tmp, file); };
 const writeAtomic = (file, data) => { mkdirSync(path.dirname(file), { recursive: true }); const tmp = `${file}.tmp-${process.pid}`; writeFileSync(tmp, data); renameSync(tmp, file); };
 const sqlite = (...args) => run('sqlite3', args);
+const parseJsonRows = output => output && output.trim() ? JSON.parse(output) : [];
 
 function readVersion() {
   if (process.env.RELEASE_VERSION && /^\d+\.\d+\.\d+/.test(process.env.RELEASE_VERSION)) return process.env.RELEASE_VERSION;
@@ -51,11 +53,15 @@ function extractStatement(sql, offset) {
   return { line: before, context: lines.join('\n') };
 }
 
-export function replayMigrations({ dir = migrationsDir } = {}) {
+export function replayMigrations({ dir = migrationsDir, bootstrap = bootstrapFile } = {}) {
   const temp = mkdtempSync(path.join(os.tmpdir(), 'portal-lm-db-'));
   const db = path.join(temp, 'expected.sqlite');
   const applied = [];
   try {
+    if (bootstrap) {
+      try { sqlite(db, `.read ${bootstrap}`); }
+      catch (error) { return { ok: false, status: 'BLOCKING', database: db, applied, error: { file: bootstrap, migration: 'legacy-base-schema.sql', message: String(error.stderr || error.message || '').trim(), statement: { line: null, context: null } } }; }
+    }
     for (const file of migrationFiles(dir)) {
       const full = path.join(dir, file);
       try {
@@ -77,13 +83,13 @@ export function replayMigrations({ dir = migrationsDir } = {}) {
 }
 
 export function introspectSqliteDb(db) {
-  const objects = JSON.parse(sqlite('-json', db, "SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE type IN ('table','index','trigger','view') AND name NOT LIKE 'sqlite_%' ORDER BY type,name;"));
+  const objects = parseJsonRows(sqlite('-json', db, "SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE type IN ('table','index','trigger','view') AND name NOT LIKE 'sqlite_%' ORDER BY type,name;"));
   const tables = objects.filter(o => o.type === 'table').map(o => o.name).sort();
   const columns = {};
   const indexes = {};
   for (const table of tables) {
-    columns[table] = JSON.parse(sqlite('-json', db, `PRAGMA table_info(${JSON.stringify(table)});`));
-    indexes[table] = JSON.parse(sqlite('-json', db, `PRAGMA index_list(${JSON.stringify(table)});`)).map(idx => ({ ...idx, columns: JSON.parse(sqlite('-json', db, `PRAGMA index_info(${JSON.stringify(idx.name)});`)) }));
+    columns[table] = parseJsonRows(sqlite('-json', db, `PRAGMA table_info(${JSON.stringify(table)});`));
+    indexes[table] = parseJsonRows(sqlite('-json', db, `PRAGMA index_list(${JSON.stringify(table)});`)).map(idx => ({ ...idx, columns: parseJsonRows(sqlite('-json', db, `PRAGMA index_info(${JSON.stringify(idx.name)});`)) }));
   }
   return { objects, tables, columns, indexes, triggers: objects.filter(o => o.type === 'trigger'), views: objects.filter(o => o.type === 'view') };
 }
@@ -127,7 +133,7 @@ function emitExpected() {
   const sql = schema.objects.map(o => `${o.sql};`).join('\n\n') + '\n';
   const canonical = canonicalSchema(schema);
   writeAtomic(path.join(expectedDir, 'migration-schema.sql'), sql);
-  writeJsonAtomic(path.join(expectedDir, 'migration-schema.json'), { generatedAt: new Date().toISOString(), source: 'versioned migrations', migrations: replay.applied, schemaHash: sha256(JSON.stringify(canonical)), ...canonical });
+  writeJsonAtomic(path.join(expectedDir, 'migration-schema.json'), { generatedAt: new Date().toISOString(), source: 'database/bootstrap/legacy-base-schema.sql + versioned migrations', bootstrap: 'database/bootstrap/legacy-base-schema.sql', migrations: replay.applied, schemaHash: sha256(JSON.stringify(canonical)), ...canonical });
 }
 
 function catalog() {
@@ -138,7 +144,7 @@ function catalog() {
     return;
   }
   const schema = JSON.parse(readFileSync(schemaFile, 'utf8'));
-  const lines = ['# Database Catalog', '', 'Generated from `database/expected/migration-schema.json` when migration replay succeeds.', '', '## Build 6.5 note', '', 'Production baseline is captured only by authenticated read-only D1 introspection; migration-derived expected schema is stored separately under `database/expected/`.', '', '## Tables', ''];
+  const lines = ['# Database Catalog', '', 'Generated from `database/expected/migration-schema.json` after replaying `database/bootstrap/legacy-base-schema.sql` and all versioned migrations.', '', '## Build 6.5 note', '', 'Production baseline is captured only by authenticated read-only D1 introspection; migration-derived expected schema is stored separately under `database/expected/`.', '', '## Tables', ''];
   for (const [table, def] of Object.entries(schema.tables || {})) { lines.push(`### ${table}`, '', '| Column | Type | Not null | Default | PK |', '| --- | --- | --- | --- | --- |'); for (const c of def.columns) lines.push(`| ${c.name} | ${c.type} | ${c.notnull} | ${c.dflt_value ?? ''} | ${c.pk} |`); lines.push('', 'Indexes:', ''); for (const idx of def.indexes) lines.push(`- ${idx.name} (${idx.columns.join(', ')}) unique=${idx.unique} partial=${idx.partial}`); lines.push(''); }
   writeAtomic(path.join(root, 'DATABASE_CATALOG.md'), `${lines.join('\n')}\n`);
 }
@@ -173,7 +179,8 @@ function remoteMigrations(database) { try { return remoteQuery(database, 'SELECT
 function audit(args) { const env = args.environment || 'staging'; const dbName = args.database || (env === 'production' ? PRODUCTION_DB : 'lmsystemv2-staging-db'); const startedAt = new Date().toISOString(); const replay = replayMigrations(); if (!replay.ok) { const report = { schemaDrift:{status:'BLOCKING', error:replay.error}, migrationHistory:{status:'NOT_EVALUATED'}, status:'BLOCKING' }; writeJsonAtomic(path.join(root,'artifacts',`db-audit-${env}.json`), report); process.exitCode=2; return; } const expected = introspectSqliteDb(replay.database); const actual = remoteIntrospect(dbName); const drift = compareSchemas(expected, actual); const history = migrationHistory(migrationFiles(), remoteMigrations(dbName)); const status = drift.status === 'BLOCKING' || history.status === 'BLOCKING' ? 'BLOCKING' : history.status === 'WARNING' ? 'WARNING' : 'PASS'; writeJsonAtomic(path.join(root,'artifacts',`db-audit-${env}.json`), { schemaDrift: drift, migrationHistory: history, status }); evidence('audit', { startedAt, environment:env, databaseName:dbName, databaseId:args['database-id'], status, checks:['schemaDrift','migrationHistory'] }); if (status === 'BLOCKING') process.exitCode = 2; }
 function backup(args) { const env=args.environment||'staging'; const db=args.database||'lmsystemv2-staging-db'; const id=args['database-id']; const startedAt=new Date().toISOString(); const out=args.output||path.join(root,'backups',`${env}-${new Date().toISOString().replace(/[:.]/g,'-')}.sql`); mkdirSync(path.dirname(out),{recursive:true}); wrangler(['d1','export',db,'--remote','--output',out]); if(!existsSync(out)) throw new Error('Backup export did not create a file.'); const st=statSync(out); evidence('backup',{startedAt,environment:env,databaseName:db,databaseId:id,status:'PASS',checks:['file-created','sha256'],hashes:{backup:fileHash(out)},}); console.log(JSON.stringify({file:out,size:st.size,sha256:fileHash(out)})); }
 function restore(args) { const env=args.environment; const db=args.database; const id=args['database-id']; const file=args.file; const startedAt=new Date().toISOString(); requireSafeNonProduction(env,db,id); if(args['confirm-restore']!==true) throw new Error('Restore requires --confirm-restore.'); if(!file || !existsSync(file)) throw new Error('Restore file is missing.'); wrangler(['d1','execute',db,'--remote','--file',file]); evidence('restore',{startedAt,environment:env,databaseName:db,databaseId:id,status:'PASS',checks:['file-exists','import-command-completed'],hashes:{restore:fileHash(file)}}); }
-function provisionStaging(args) { const env='staging'; const db=args.database; const id=args['database-id']; const startedAt=new Date().toISOString(); if(!db) throw new Error('Provision staging requires --database.'); requireSafeNonProduction(env,db,id); if(args['confirm-empty-or-disposable']!==true) throw new Error('Provision staging requires --confirm-empty-or-disposable.'); for(const file of migrationFiles()) wrangler(['d1','execute',db,'--remote','--file',path.join(migrationsDir,file)]); evidence('provision-staging',{startedAt,environment:env,databaseName:db,databaseId:id,status:'PASS',checks:['non-production-target','migrations-applied']}); }
+function assertRemoteDatabaseEmpty(db) { const rows = remoteQuery(db, "SELECT name,type FROM sqlite_schema WHERE type IN ('table','index','trigger','view') AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' AND name <> 'd1_migrations' ORDER BY name;"); if (rows.length) { const err = new Error(`Refusing to provision non-empty database; found application objects: ${rows.map(r => r.name).join(', ')}`); err.exitCode = 2; throw err; } }
+function provisionStaging(args) { const env='staging'; const db=args.database; const id=args['database-id']; const startedAt=new Date().toISOString(); if(!db) throw new Error('Provision staging requires --database.'); requireSafeNonProduction(env,db,id); if(args['confirm-empty-or-disposable']!==true) throw new Error('Provision staging requires --confirm-empty-or-disposable.'); assertRemoteDatabaseEmpty(db); wrangler(['d1','execute',db,'--remote','--file',bootstrapFile]); wrangler(['d1','migrations','apply',db,'--remote']); evidence('provision-staging',{startedAt,environment:env,databaseName:db,databaseId:id,status:'PASS',checks:['empty-or-disposable-confirmed','legacy-bootstrap-applied','wrangler-migrations-applied','d1_migrations-managed-by-wrangler'],hashes:{bootstrap:fileHash(bootstrapFile)}}); }
 function smoke(args) { const startedAt=new Date().toISOString(); if(args['skip-smoke']) { evidence('smoke',{startedAt,environment:args.environment,status:'NOT_EXECUTED',checks:[{smokeExecuted:false}],errors:['Smoke was not executed.']}); process.exitCode=2; return; } run('node',['scripts/smoke-lm-premium-rc1.mjs'],{stdio:'inherit'}); const artifact=path.join(root,'artifacts','staging-smoke-results.json'); const result=existsSync(artifact)?JSON.parse(readFileSync(artifact,'utf8')):{}; const ok=result.smokeExecuted===true && result.ok===true && result.failed===0; evidence('smoke',{startedAt,environment:args.environment,status:ok?'PASS':'BLOCKING',checks:[result],hashes:existsSync(artifact)?{smoke:fileHash(artifact)}:{}}); if(!ok) process.exitCode=2; }
 function productionPlan(args) { const gates = { allow:process.env.ALLOW_PRODUCTION_DEPLOY==='true', id:process.env.CONFIRM_PRODUCTION_DATABASE_ID===PRODUCTION_DB_ID, version:process.env.CONFIRM_RELEASE_VERSION===readVersion(), confirm:args['confirm-production']===true }; const status = Object.values(gates).every(Boolean) ? 'PASS' : 'BLOCKING'; writeJsonAtomic(path.join(root,'artifacts','production-deploy-plan.json'), { status, gates, writesExecuted:false }); if(status==='BLOCKING') process.exitCode=2; }
 

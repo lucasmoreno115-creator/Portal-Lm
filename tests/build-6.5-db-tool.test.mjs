@@ -103,3 +103,34 @@ test('Build 6.5 production guard: plan blocks without all explicit gates', () =>
 test('Build 6.5 CLI parser supports flags required by restore and baseline', () => {
   assert.deepEqual(parseArgs(['restore', '--environment', 'staging', '--file', 'backups/a.sql', '--confirm-restore']), { _: ['restore'], environment: 'staging', file: 'backups/a.sql', 'confirm-restore': true });
 });
+
+test('Build 6.5 integrated replay: legacy bootstrap plus all official migrations reaches expected schema PASS', () => {
+  const result = replayMigrations();
+  assert.equal(result.ok, true);
+  const expectedOrder = result.applied.toSorted();
+  assert.deepEqual(result.applied, expectedOrder);
+});
+
+test('Build 6.5 integrated schema confirms Premium, Projeto LM and Build 6 indexes', async () => {
+  const { introspectSqliteDb } = await import('../scripts/db-tool.mjs');
+  const result = replayMigrations();
+  assert.equal(result.ok, true);
+  const finalSchema = introspectSqliteDb(result.database);
+  assert.equal(compareSchemas(finalSchema, finalSchema).status, 'PASS');
+  for (const table of ['student_access', 'student_checkins', 'nutrition_plans', 'premium_students', 'premium_pending_items', 'premium_followup_entries']) assert.ok(finalSchema.tables.includes(table), table);
+  for (const table of ['project_lm_profiles', 'project_lm_journeys', 'lm2_profiles', 'training_plans']) assert.ok(finalSchema.tables.includes(table), table);
+  const allIndexes = Object.values(finalSchema.indexes).flat().map(index => index.name);
+  for (const index of ['idx_premium_students_status_name', 'idx_premium_pending_items_workspace', 'idx_student_checkins_workspace_student_status', 'idx_nutrition_plans_workspace_student_status']) assert.ok(allIndexes.includes(index), index);
+});
+
+test('Build 6.5 bootstrap failure is BLOCKING and does not produce partial expected artifact', () => {
+  const dir = tempDir();
+  try {
+    writeMigration(dir, '0001_valid.sql', 'CREATE TABLE after_bootstrap (id TEXT PRIMARY KEY);');
+    const result = replayMigrations({ dir, bootstrap: path.join(dir, 'missing-bootstrap.sql') });
+    assert.equal(result.ok, false);
+    assert.equal(result.status, 'BLOCKING');
+    assert.equal(result.error.migration, 'legacy-base-schema.sql');
+    assert.equal(existsSync(path.join(dir, 'migration-schema.json')), false);
+  } finally { rmSync(dir, { recursive:true, force:true }); }
+});

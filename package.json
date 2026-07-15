@@ -14,7 +14,6 @@
     "db:restore:staging": "node scripts/db-tool.mjs restore --environment staging",
     "db:provision:staging": "node scripts/db-tool.mjs provision-staging",
     "db:catalog": "node scripts/db-tool.mjs catalog",
-    "deploy:staging": "node scripts/db-tool.mjs provision-staging --environment staging",
     "deploy:production:plan": "node scripts/db-tool.mjs production-plan"
   }
 }
