@@ -43,3 +43,10 @@
 - [ ] Confirmar Prontuário, Feedback, Plano, Anamnese e Student 360 por `student_id`.
 - [ ] Confirmar rollback em `/admin-legacy.html`.
 - [ ] Não executar migrations em produção para este Build.
+
+### Correção PR #276
+
+- [ ] Confirmar `PREMIUM_ADMIN_CUTOVER_ENABLED=true` em staging antes de promover `/admin` para o Workspace.
+- [ ] Confirmar `PREMIUM_ADMIN_CUTOVER_ENABLED=false` abrindo `/admin-legacy.html`.
+- [ ] Confirmar que `/admin-legacy.html` contém o Admin Hub legado operacional.
+- [ ] Confirmar que `/admin-anamneses.html?student_id=...` e `/admin-student.html?student_id=...` abrem telas funcionais reais.

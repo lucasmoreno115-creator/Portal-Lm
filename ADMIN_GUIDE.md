@@ -42,3 +42,7 @@ Atualize status de consulta somente quando o estado operacional do aluno mudar: 
 ## Build 6.6 — Admin Premium oficial
 
 A entrada administrativa oficial do LM Premium passa a ser `/admin`, servida por `public/admin-premium-workspace.html`. As rotas `/admin.html` e `/admin-student.html` são compatibilidade temporária e direcionam o profissional para o Workspace. O Admin legado fica marcado como `Legacy Admin — rollback only` em `/admin-legacy.html`.
+
+### Correção PR #276
+
+O rollback real fica em `/admin-legacy.html` e preserva o Admin Hub legado operacional, com Command Center, Student 360, cadastro de aluno, autenticação e logout. A rota `/admin` é decidida por `PREMIUM_ADMIN_CUTOVER_ENABLED`: ligada abre o Workspace Premium; desligada abre o legado real. A Anamnese do Workspace aponta para a tela funcional existente `/admin-anamneses.html?student_id=...`, e o Student 360 permanece funcional em `/admin-student.html?student_id=...`.

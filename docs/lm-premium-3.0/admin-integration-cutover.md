@@ -2,17 +2,17 @@
 
 ## Rota oficial
 
-A rota canônica do Admin LM Premium é `/admin`, servida pelo Workspace Premium em `public/admin-premium-workspace.html`. A página preserva o visual atual do Workspace e adiciona apenas o shell administrativo, navegação integrada e ações contextuais.
+A rota canônica do Admin LM Premium é `/admin`. A decisão de cutover real ocorre no Worker (`workers/api.js`) e no bootstrap `public/admin.html`: com `PREMIUM_ADMIN_CUTOVER_ENABLED=true`, `/admin` abre `public/admin-premium-workspace.html`; com a flag desligada, `/admin` abre o Admin legado real em `public/admin-legacy.html`. A página do Workspace preserva o visual atual e adiciona apenas shell administrativo, navegação integrada e ações contextuais.
 
 ## Rotas legadas e rollback
 
 | rota | comportamento | fallback |
 | --- | --- | --- |
-| `/admin` | abre Workspace Premium oficial | desligar `PREMIUM_PROFESSIONAL_WORKSPACE_ENABLED` e usar `/admin-legacy.html` |
-| `/admin.html` | redireciona para `/admin` | rollback manual para `/admin-legacy.html` |
-| `/admin-student.html` | redireciona para `/admin`; Student 360 abre pelo contexto | `/admin-legacy.html` |
+| `/admin` | Worker direciona conforme `PREMIUM_ADMIN_CUTOVER_ENABLED` | desligar a flag para abrir `/admin-legacy.html` |
+| `/admin.html` | bootstrap estático consulta `/api/admin/premium/cutover-route` | fallback automático para `/admin-legacy.html` |
+| `/admin-student.html` | Student 360 real e protegido, aberto pelo Workspace com `student_id` | fallback por e-mail no fluxo antigo |
 | `/admin-premium-workspace.html` | arquivo-base preservado | continua acessível |
-| `/admin-legacy.html` | Legacy Admin — rollback only | uso temporário |
+| `/admin-legacy.html` | Admin Hub legado real com Command Center, Student 360, cadastro de aluno, auth e logout | uso temporário quando o Workspace ou o cutover estiver desligado |
 
 ## Shell administrativo
 
@@ -23,7 +23,7 @@ O shell nativo HTML/CSS/JS fica no Workspace e centraliza cabeçalho, identidade
 - Prontuário LM: aberto por `student_id` em `/admin-premium-student-record.html?student_id=...`.
 - Feedback Semanal: aberto por `student_id` em `/admin-premium-weekly-feedbacks.html?student_id=...` e diretamente pela Inbox.
 - Plano Alimentar: CTA principal usa `/admin-premium-nutrition-plan.html?student_id=...` e ciclo `DRAFT → PUBLISHED → ARCHIVED`; o editor antigo fica rotulado como `Editor legado`.
-- Anamnese: aberta por `student_id` em `/admin-anamnesis.html?student_id=...` até o módulo completo usar o mesmo shell.
+- Anamnese: CTA claramente legado, aberto por `student_id` em `/admin-anamneses.html?student_id=...`, reutilizando a tela funcional existente de Anamneses (`/api/admin/anamneses`).
 - Student 360: permanece como aprofundamento de aluno único, aberto pelo contexto do Workspace.
 - Evolução: exibida no painel contextual do aluno selecionado.
 
@@ -35,7 +35,7 @@ O shell nativo HTML/CSS/JS fica no Workspace e centraliza cabeçalho, identidade
 | `PREMIUM_STUDENT_RECORD_ENABLED` | ambiente | `true` | `true` | Student 360 legado | habilita Prontuário LM |
 | `PREMIUM_WEEKLY_FEEDBACK_ENABLED` | ambiente | `true` | `true` | check-ins/admin legado | habilita revisão semanal |
 | `PREMIUM_NUTRITION_PLAN_WORKFLOW_ENABLED` | ambiente | `true` | `true` | `admin-nutrition-plan.html` | habilita lifecycle de plano |
-| `PREMIUM_ADMIN_CUTOVER_ENABLED` | documentada | `true` em staging | `true` após aprovação | `/admin-legacy.html` | governa links oficiais do Admin |
+| `PREMIUM_ADMIN_CUTOVER_ENABLED` | Worker/bootstrap | `true` em staging | `true` após aprovação | `/admin-legacy.html` | governa `/admin`: Workspace quando ligada, Admin legado real quando desligada |
 
 ## Endpoints usados
 
@@ -79,6 +79,7 @@ Nenhuma migration nova foi criada neste Build. O cutover depende das tabelas Pre
 
 ## Riscos e dependências
 
-- A produção só deve apontar `/admin` ao Workspace após validação de staging.
-- O módulo de Anamnese ainda usa página ponte; deve receber shell completo no próximo incremento sem criar rota por e-mail.
-- Rollback deve ser simples: desligar flag do Workspace e divulgar `/admin-legacy.html` temporariamente.
+- A produção só deve manter `PREMIUM_ADMIN_CUTOVER_ENABLED=true` após validação de staging.
+- A Anamnese permanece no destino legado funcional `/admin-anamneses.html?student_id=...`; não há página placeholder.
+- Student 360 permanece funcional em `/admin-student.html?student_id=...` e não redireciona para o Workspace.
+- Rollback simples: desligar `PREMIUM_ADMIN_CUTOVER_ENABLED` para `/admin` abrir `/admin-legacy.html`; desligar `PREMIUM_PROFESSIONAL_WORKSPACE_ENABLED` para bloquear as listas do Workspace e exibir CTA para o legado real.
