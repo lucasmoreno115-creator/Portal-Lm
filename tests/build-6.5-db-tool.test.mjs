@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, existsSync, rmSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { compareSchemas, main, parseArgs, replayMigrations, PRODUCTION_DB, PRODUCTION_DB_ID } from '../scripts/db-tool.mjs';
+import { execFileSync } from 'node:child_process';
+import { classifyWranglerBin, compareSchemas, isDirectExecution, main, normalizeExecutablePath, parseArgs, replayMigrations, resolveWranglerInvocation, wrangler, PRODUCTION_DB, PRODUCTION_DB_ID, WRANGLER_BIN_TYPES } from '../scripts/db-tool.mjs';
 
 function tempDir() { return mkdtempSync(path.join(os.tmpdir(), 'build65-test-')); }
 function writeMigration(dir, name, sql) { writeFileSync(path.join(dir, name), sql); }
@@ -243,4 +244,133 @@ test('Build 6.5 override validation: invalid manifest hash, missing override, pr
   } finally {
     for (const fx of [invalidHash, missing, prodAllowed, envDenied]) rmSync(fx.dir, { recursive:true, force:true });
   }
+});
+
+function wranglerCommandLine({ wranglerBin, platform = 'win32', args = ['d1', 'execute', 'lmsystemv2-db', '--remote', '--json', '--command', 'SELECT 1;'] } = {}) {
+  const invocation = resolveWranglerInvocation({ wranglerBin, platform, exists: () => false });
+  return [invocation.command, ...invocation.prefixArgs, ...args];
+}
+
+test('Build 6.5 Wrangler launcher: classifies npx, Wrangler, and custom executables explicitly', () => {
+  assert.equal(classifyWranglerBin('npx'), WRANGLER_BIN_TYPES.NPX_LAUNCHER);
+  assert.equal(classifyWranglerBin('npx.cmd'), WRANGLER_BIN_TYPES.NPX_LAUNCHER);
+  assert.equal(classifyWranglerBin('C:\\tools\\npx.cmd'), WRANGLER_BIN_TYPES.NPX_LAUNCHER);
+  assert.equal(classifyWranglerBin('/usr/local/bin/npx'), WRANGLER_BIN_TYPES.NPX_LAUNCHER);
+  assert.equal(classifyWranglerBin('wrangler'), WRANGLER_BIN_TYPES.WRANGLER_LAUNCHER);
+  assert.equal(classifyWranglerBin('wrangler.cmd'), WRANGLER_BIN_TYPES.WRANGLER_LAUNCHER);
+  assert.equal(classifyWranglerBin('C:\\repo\\node_modules\\.bin\\wrangler.cmd'), WRANGLER_BIN_TYPES.WRANGLER_LAUNCHER);
+  assert.equal(classifyWranglerBin('/custom/bin/cloudflare-runner'), WRANGLER_BIN_TYPES.UNKNOWN_CUSTOM_EXECUTABLE);
+});
+
+test('Build 6.5 Wrangler launcher: WRANGLER_BIN=npx.cmd inserts wrangler before the full D1 command', () => {
+  const sql = 'SELECT * FROM students WHERE name = "Ana Maria";';
+  assert.deepEqual(wranglerCommandLine({ wranglerBin: 'npx.cmd', args: ['d1', 'execute', 'lmsystemv2-db', '--remote', '--json', '--command', sql] }), [
+    'cmd.exe', '/d', '/s', '/c', 'npx.cmd', 'wrangler', 'd1', 'execute', 'lmsystemv2-db', '--remote', '--json', '--command', sql,
+  ]);
+});
+
+test('Build 6.5 Wrangler launcher: WRANGLER_BIN=npx inserts wrangler on Unix', () => {
+  assert.deepEqual(resolveWranglerInvocation({ wranglerBin: 'npx', platform: 'linux' }), {
+    command: 'npx', prefixArgs: ['wrangler'], binType: WRANGLER_BIN_TYPES.NPX_LAUNCHER, source: 'WRANGLER_BIN',
+  });
+});
+
+test('Build 6.5 Wrangler launcher: full path to npx.cmd inserts wrangler and preserves spaces', () => {
+  const bin = 'C:\\Program Files\\nodejs\\npx.cmd';
+  assert.deepEqual(resolveWranglerInvocation({ wranglerBin: bin, platform: 'win32' }), {
+    command: 'cmd.exe', prefixArgs: ['/d', '/s', '/c', bin, 'wrangler'], binType: WRANGLER_BIN_TYPES.NPX_LAUNCHER, source: 'WRANGLER_BIN',
+  });
+});
+
+test('Build 6.5 Wrangler launcher: local node_modules Wrangler cmd does not insert wrangler twice', () => {
+  const bin = 'C:\\repo\\node_modules\\.bin\\wrangler.cmd';
+  assert.deepEqual(resolveWranglerInvocation({ wranglerBin: bin, platform: 'win32' }), {
+    command: 'cmd.exe', prefixArgs: ['/d', '/s', '/c', bin], binType: WRANGLER_BIN_TYPES.WRANGLER_LAUNCHER, source: 'WRANGLER_BIN',
+  });
+});
+
+test('Build 6.5 Wrangler launcher: WRANGLER_BIN=wrangler.cmd and full Wrangler path do not add wrangler', () => {
+  assert.deepEqual(resolveWranglerInvocation({ wranglerBin: 'wrangler.cmd', platform: 'win32' }), {
+    command: 'cmd.exe', prefixArgs: ['/d', '/s', '/c', 'wrangler.cmd'], binType: WRANGLER_BIN_TYPES.WRANGLER_LAUNCHER, source: 'WRANGLER_BIN',
+  });
+  assert.deepEqual(resolveWranglerInvocation({ wranglerBin: 'C:\\Cloudflare Tools\\wrangler.cmd', platform: 'win32' }).prefixArgs, ['/d', '/s', '/c', 'C:\\Cloudflare Tools\\wrangler.cmd']);
+});
+
+test('Build 6.5 Wrangler launcher: automatic fallback uses npx.cmd wrangler on Windows and npx wrangler on Linux', () => {
+  assert.deepEqual(resolveWranglerInvocation({ platform: 'win32', exists: () => false }), {
+    command: 'cmd.exe', prefixArgs: ['/d', '/s', '/c', 'npx.cmd', 'wrangler'], binType: WRANGLER_BIN_TYPES.NPX_LAUNCHER, source: 'NPX_FALLBACK', fallbackCommand: 'wrangler.cmd',
+  });
+  assert.deepEqual(resolveWranglerInvocation({ platform: 'linux', exists: () => false }), {
+    command: 'npx', prefixArgs: ['wrangler'], binType: WRANGLER_BIN_TYPES.NPX_LAUNCHER, source: 'NPX_FALLBACK', fallbackCommand: 'wrangler',
+  });
+});
+
+test('Build 6.5 Wrangler launcher: D1 args and SQL are separate argv entries, including spaces, quotes, and cmd metacharacters', () => {
+  const sqlValues = [
+    'SELECT * FROM students WHERE full_name = "Ana Maria";',
+    "SELECT 'single quote''s value' AS text;",
+    'SELECT "a&b|c(d);" AS dangerous_chars;',
+  ];
+  for (const sql of sqlValues) {
+    const commandLine = wranglerCommandLine({ wranglerBin: 'npx.cmd', args: ['d1', 'execute', 'lmsystemv2-db', '--remote', '--json', '--command', sql] });
+    assert.deepEqual(commandLine.slice(0, 13), ['cmd.exe', '/d', '/s', '/c', 'npx.cmd', 'wrangler', 'd1', 'execute', 'lmsystemv2-db', '--remote', '--json', '--command', sql]);
+    assert.equal(commandLine.at(-1), sql);
+  }
+});
+
+test('Build 6.5 Wrangler launcher: token-like values are not added to stdout/stderr launcher args', () => {
+  const oldToken = process.env.CLOUDFLARE_API_TOKEN;
+  process.env.CLOUDFLARE_API_TOKEN = 'secret-token-must-not-appear';
+  try {
+    const printable = JSON.stringify(wranglerCommandLine({ wranglerBin: 'npx.cmd' }));
+    assert.equal(printable.includes(process.env.CLOUDFLARE_API_TOKEN), false);
+  } finally {
+    if (oldToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
+    else process.env.CLOUDFLARE_API_TOKEN = oldToken;
+  }
+});
+
+test('Build 6.5 Windows entrypoint: direct execution compares normalized paths case-insensitively', () => {
+  assert.equal(isDirectExecution({ metaUrl: 'file:///C:/Repo/scripts/db-tool.mjs', argv1: 'c:\\repo\\scripts\\DB-TOOL.MJS', platform: 'win32' }), true);
+  assert.equal(normalizeExecutablePath('C:/Repo/scripts/../scripts/db-tool.mjs', { platform: 'win32' }), 'c:/repo/scripts/db-tool.mjs');
+});
+
+test('Build 6.5 Windows entrypoint: subprocess real exit code for unknown command is 2', () => {
+  try {
+    execFileSync(process.execPath, ['scripts/db-tool.mjs', 'unknown-command'], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+    assert.fail('unknown command should fail');
+  } catch (error) {
+    assert.equal(error.status, 2);
+    assert.match(String(error.stderr), /Usage: db-tool/);
+  }
+});
+
+test('Build 6.5 Wrangler launcher: local Wrangler is resolved before npx fallback', () => {
+  const cwd = tempDir();
+  try {
+    const local = path.join(cwd, 'node_modules', '.bin', 'wrangler.cmd');
+    assert.deepEqual(resolveWranglerInvocation({ platform: 'win32', cwd, exists: candidate => candidate === local }), {
+      command: 'cmd.exe', prefixArgs: ['/d', '/s', '/c', local], binType: WRANGLER_BIN_TYPES.WRANGLER_LAUNCHER, source: 'LOCAL_WRANGLER',
+    });
+  } finally { rmSync(cwd, { recursive: true, force: true }); }
+});
+
+test('Build 6.5 Wrangler launcher: real subprocess receives D1 SQL metacharacters intact through npx launcher', () => {
+  const dir = tempDir();
+  try {
+    const bin = path.join(dir, 'npx');
+    const log = path.join(dir, 'argv.json');
+    writeFileSync(bin, `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(log)}, JSON.stringify({ argv: process.argv.slice(2), stdoutToken: process.env.CLOUDFLARE_API_TOKEN || '' }));\nprocess.stdout.write(JSON.stringify([{ results: [] }]));\n`);
+    chmodSync(bin, 0o755);
+    const oldToken = process.env.CLOUDFLARE_API_TOKEN;
+    process.env.CLOUDFLARE_API_TOKEN = 'token-stays-in-env-only';
+    const sql = `SELECT "two words", 'single quote', "a&b|c(d);" FROM table_name WHERE note = "x y";`;
+    const stdout = wrangler(['d1', 'execute', 'lmsystemv2-db', '--remote', '--json', '--command', sql], { wranglerBin: bin, platform: 'linux' });
+    const recorded = JSON.parse(readFileSync(log, 'utf8'));
+    assert.equal(stdout.includes(process.env.CLOUDFLARE_API_TOKEN), false);
+    assert.deepEqual(recorded.argv, ['wrangler', 'd1', 'execute', 'lmsystemv2-db', '--remote', '--json', '--command', sql]);
+    assert.equal(recorded.stdoutToken, process.env.CLOUDFLARE_API_TOKEN);
+    if (oldToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
+    else process.env.CLOUDFLARE_API_TOKEN = oldToken;
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
