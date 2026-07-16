@@ -39,3 +39,7 @@ Banco usa tabelas Premium e tabelas legadas compatíveis, com migrations histór
 ## Read Models
 
 Workspace e Saturday Review usam consultas otimizadas e índices para listar alunos, pendências, status e eventos recentes.
+
+## Build 6.6 — Admin Shell Premium
+
+O Admin Shell Premium é nativo HTML/CSS/JS e preserva o Workspace Premium como base visual. Ele centraliza autenticação via `admin-auth.js`, logout, loading, erro, feature flag desligada, navegação administrativa única e painel contextual por `student_id`.

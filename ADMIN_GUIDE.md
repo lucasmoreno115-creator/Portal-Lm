@@ -38,3 +38,7 @@ Decisões devem registrar tipo, nota e responsável. A decisão vira parte do hi
 ## Status
 
 Atualize status de consulta somente quando o estado operacional do aluno mudar: novo, aguardando anamnese, em revisão, ativo, pausado ou encerrado.
+
+## Build 6.6 — Admin Premium oficial
+
+A entrada administrativa oficial do LM Premium passa a ser `/admin`, servida por `public/admin-premium-workspace.html`. As rotas `/admin.html` e `/admin-student.html` são compatibilidade temporária e direcionam o profissional para o Workspace. O Admin legado fica marcado como `Legacy Admin — rollback only` em `/admin-legacy.html`.

@@ -66,3 +66,7 @@ Rotas legadas de plano alimentar e feedback semanal permanecem documentadas como
 ## Projeto LM
 
 Endpoints e arquivos do Projeto LM permanecem fora do escopo funcional da Release 3.0.0. Qualquer referência é apenas de isolamento/compatibilidade.
+
+## Build 6.6 — Admin Premium cutover
+
+A rota oficial `/admin` consome os endpoints `/api/admin/premium/workspace/*`, resolução de pendências em `/api/admin/premium/pending-items/:id/resolve`, Prontuário em `/api/admin/premium/students/:student_id/record`, Feedback Semanal em `/api/admin/premium/weekly-feedbacks/*` e Plano Alimentar em `/api/admin/premium/students/:student_id/nutrition-plan*`.

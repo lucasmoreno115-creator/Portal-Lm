@@ -35,3 +35,11 @@
 - [ ] Banco restaurado apenas se necessário.
 - [ ] Smoke pós-rollback executado.
 - [ ] Incidente registrado.
+
+## Build 6.6 — checklist antes de produção
+
+- [ ] Validar staging completo do Workspace Premium em `/admin`.
+- [ ] Confirmar login, logout e bloqueio de usuário não admin.
+- [ ] Confirmar Prontuário, Feedback, Plano, Anamnese e Student 360 por `student_id`.
+- [ ] Confirmar rollback em `/admin-legacy.html`.
+- [ ] Não executar migrations em produção para este Build.
