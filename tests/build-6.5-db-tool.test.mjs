@@ -244,3 +244,94 @@ test('Build 6.5 override validation: invalid manifest hash, missing override, pr
     for (const fx of [invalidHash, missing, prodAllowed, envDenied]) rmSync(fx.dir, { recursive:true, force:true });
   }
 });
+
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { isDirectExecution, normalizeExecutablePath, resolveWranglerInvocation } from '../scripts/db-tool.mjs';
+
+test('Hotfix v3.0.1 direct execution: compares normalized file URL and argv path with spaces', () => {
+  const modulePath = path.join(tempDir(), 'repo with spaces', 'scripts', 'db-tool.mjs');
+  assert.equal(isDirectExecution(pathToFileURL(modulePath).href, modulePath), true);
+  assert.equal(isDirectExecution(pathToFileURL(modulePath).href, path.join(path.dirname(modulePath), 'other.mjs')), false);
+});
+
+test('Hotfix v3.0.1 direct execution: normalizes Windows drive path case', () => {
+  assert.equal(
+    normalizeExecutablePath('C:\\Repo With Spaces\\scripts\\db-tool.mjs', 'win32'),
+    normalizeExecutablePath('c:\\repo with spaces\\scripts\\DB-TOOL.MJS', 'win32')
+  );
+});
+
+test('Hotfix v3.0.1 wrangler resolution: Windows WRANGLER_BIN npx.cmd runs through cmd.exe', () => {
+  const invocation = resolveWranglerInvocation({ env: { WRANGLER_BIN: 'npx.cmd', ComSpec: 'C:\\Windows\\System32\\cmd.exe' }, cwd: tempDir(), platform: 'win32' });
+  assert.equal(invocation.command, 'C:\\Windows\\System32\\cmd.exe');
+  assert.deepEqual(invocation.prefixArgs, ['/d', '/s', '/c', 'npx.cmd']);
+});
+
+test('Hotfix v3.0.1 wrangler resolution: Windows npx fallback runs through cmd.exe with wrangler subcommand', () => {
+  const invocation = resolveWranglerInvocation({ env: { ComSpec: 'cmd.exe' }, cwd: tempDir(), platform: 'win32' });
+  assert.equal(invocation.command, 'cmd.exe');
+  assert.deepEqual(invocation.prefixArgs, ['/d', '/s', '/c', 'npx.cmd', 'wrangler']);
+});
+
+test('Hotfix v3.0.1 wrangler resolution: Unix npx fallback and WRANGLER_BIN preserve structured args', () => {
+  const fallback = resolveWranglerInvocation({ env: {}, cwd: tempDir(), platform: 'linux' });
+  assert.equal(fallback.command, 'npx');
+  assert.deepEqual(fallback.prefixArgs, ['wrangler']);
+  const custom = resolveWranglerInvocation({ env: { WRANGLER_BIN: '/usr/local/bin/wrangler' }, cwd: tempDir(), platform: 'linux' });
+  assert.equal(custom.command, '/usr/local/bin/wrangler');
+  assert.deepEqual(custom.prefixArgs, []);
+});
+
+test('Hotfix v3.0.1 wrangler resolution: local node_modules bin is preferred before npx', async () => {
+  const { mkdirSync, writeFileSync } = await import('node:fs');
+  const dir = tempDir();
+  try {
+    mkdirSync(path.join(dir, 'node_modules', '.bin'), { recursive: true });
+    const localWrangler = path.join(dir, 'node_modules', '.bin', 'wrangler');
+    writeFileSync(localWrangler, '#!/bin/sh\n');
+    const invocation = resolveWranglerInvocation({ env: {}, cwd: dir, platform: 'linux' });
+    assert.equal(invocation.command, localWrangler);
+    assert.deepEqual(invocation.prefixArgs, []);
+  } finally { rmSync(dir, { recursive:true, force:true }); }
+});
+
+test('Hotfix v3.0.1 wrangler args: database, SQL with spaces/quotes, and file paths remain separate', () => {
+  const invocation = resolveWranglerInvocation({ env: {}, cwd: tempDir(), platform: 'win32' });
+  const d1Args = ['d1', 'execute', 'db name', '--remote', '--json', '--command', `SELECT "quoted value", name FROM table WHERE value = 'x y';`];
+  const fullArgs = [...invocation.prefixArgs, ...d1Args];
+  assert.equal(fullArgs.includes('db name'), true);
+  assert.equal(fullArgs.includes(`SELECT "quoted value", name FROM table WHERE value = 'x y';`), true);
+  assert.equal(fullArgs.some((arg) => String(arg).includes('SECRET_TOKEN')), false);
+});
+
+test('Hotfix v3.0.1 CLI subprocess: direct module execution calls main and unknown command exits 2', () => {
+  let error;
+  try {
+    execFileSync(process.execPath, ['scripts/db-tool.mjs', 'definitely-unknown-command'], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+  } catch (caught) {
+    error = caught;
+  }
+  assert.ok(error);
+  assert.equal(error.status, 2);
+  assert.match(String(error.stderr), /Usage: db-tool/);
+});
+
+
+test('Hotfix v3.0.1 CLI subprocess: missing Wrangler exits 2 without leaking token output', () => {
+  let error;
+  try {
+    execFileSync(process.execPath, ['scripts/db-tool.mjs', 'capture-baseline', '--environment', 'production', '--confirm-read-only-production'], {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, WRANGLER_BIN: path.join(tempDir(), 'missing-wrangler'), CLOUDFLARE_API_TOKEN: 'SECRET_TOKEN_SHOULD_NOT_LEAK' }
+    });
+  } catch (caught) {
+    error = caught;
+  }
+  assert.ok(error);
+  assert.equal(error.status, 2);
+  assert.match(String(error.stderr), /Unable to execute Wrangler/);
+  assert.equal(String(error.stderr).includes('SECRET_TOKEN_SHOULD_NOT_LEAK'), false);
+  assert.equal(String(error.stdout).includes('SECRET_TOKEN_SHOULD_NOT_LEAK'), false);
+});

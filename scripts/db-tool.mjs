@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
@@ -207,7 +208,68 @@ function catalog() {
   writeAtomic(path.join(root, 'DATABASE_CATALOG.md'), `${lines.join('\n')}\n`);
 }
 
-function wrangler(args) { return run(process.env.WRANGLER_BIN || 'wrangler', args); }
+
+export function normalizeExecutablePath(value, platform = process.platform) {
+  const pathApi = platform === 'win32' ? path.win32 : path;
+  const resolved = pathApi.resolve(value);
+  return platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+export function isDirectExecution(metaUrl = import.meta.url, argv1 = process.argv[1], platform = process.platform) {
+  if (!argv1) return false;
+  return normalizeExecutablePath(fileURLToPath(metaUrl), platform) === normalizeExecutablePath(argv1, platform);
+}
+
+
+function executableExistsOnPath(name, env = process.env, platform = process.platform) {
+  if (!Object.prototype.hasOwnProperty.call(env, 'PATH')) return true;
+  const pathValue = env.PATH || '';
+  const dirs = pathValue.split(path.delimiter).filter(Boolean);
+  const candidates = platform === 'win32' && !/\.(?:cmd|exe|bat)$/i.test(name) ? [name, `${name}.cmd`, `${name}.exe`, `${name}.bat`] : [name];
+  return dirs.some((dir) => candidates.some((candidate) => existsSync(path.join(dir, candidate))));
+}
+
+function windowsCmdInvocation(bin, prefixArgs = [], env = process.env) {
+  return { command: env.ComSpec || 'cmd.exe', prefixArgs: ['/d', '/s', '/c', bin, ...prefixArgs], options: {} };
+}
+
+export function resolveWranglerInvocation({ env = process.env, cwd = root, platform = process.platform } = {}) {
+  const binFromEnv = env.WRANGLER_BIN;
+  if (binFromEnv) {
+    if (platform === 'win32' && /\.cmd$/i.test(binFromEnv)) return windowsCmdInvocation(binFromEnv, [], env);
+    return { command: binFromEnv, prefixArgs: [], options: {} };
+  }
+
+  const localBin = path.join(cwd, 'node_modules', '.bin', platform === 'win32' ? 'wrangler.cmd' : 'wrangler');
+  if (existsSync(localBin)) {
+    if (platform === 'win32') return windowsCmdInvocation(localBin, [], env);
+    return { command: localBin, prefixArgs: [], options: {} };
+  }
+
+  if (executableExistsOnPath(platform === 'win32' ? 'npx.cmd' : 'npx', env, platform)) {
+    if (platform === 'win32') return windowsCmdInvocation('npx.cmd', ['wrangler'], env);
+    return { command: 'npx', prefixArgs: ['wrangler'], options: {} };
+  }
+
+  if (platform === 'win32') return windowsCmdInvocation('wrangler.cmd', [], env);
+  return { command: 'wrangler', prefixArgs: [], options: {} };
+}
+
+function wrangler(args) {
+  const invocation = resolveWranglerInvocation();
+  try {
+    return run(invocation.command, [...invocation.prefixArgs, ...args], invocation.options);
+  } catch (error) {
+    const message = String(error.message || '');
+    if (error.code === 'ENOENT' || /ENOENT|EINVAL/.test(message)) {
+      const err = new Error('Unable to execute Wrangler. Install dependencies or set WRANGLER_BIN to a valid executable.');
+      err.exitCode = 2;
+      throw err;
+    }
+    throw error;
+  }
+}
+
 function sqlLiteral(value) { return `'${String(value ?? '').replaceAll("'", "''")}'`; }
 function requireSafeNonProduction(environment, database, databaseId) { if (environment === 'production' || database === PRODUCTION_DB || databaseId === PRODUCTION_DB_ID) { const err = new Error('Production database is blocked for this operation.'); err.exitCode = 2; throw err; } }
 function evidence(kind, data) { const version = readVersion(); const body = { command: process.argv.join(' '), startedAt: data.startedAt, completedAt: new Date().toISOString(), exitCode: data.exitCode ?? 0, source: 'scripts/db-tool.mjs', environment: data.environment, databaseName: data.databaseName, databaseId: data.databaseId, status: data.status, checks: data.checks || [], errors: data.errors || [], hashes: data.hashes || {} }; writeJsonAtomic(path.join(releaseRoot, version, `${kind}.json`), body); return body; }
@@ -229,7 +291,9 @@ function captureBaseline(args) {
   writeJsonAtomic(path.join(baselineDir, 'production-baseline.json'), { capturedAt: new Date().toISOString(), sourceEnvironment: 'production', sourceDatabase: database, sourceDatabaseId: databaseId, readOnlyCapture: true, schemaHash, objects: schemaRows, tables: captured.tables, columns: captured.columns, indexes: captured.indexes, triggers: captured.triggers, views: captured.views });
   writeJsonAtomic(path.join(root, 'database', 'baseline-manifest.json'), { baselineVersion: readVersion(), sourceEnvironment: 'production', sourceDatabase: database, sourceDatabaseId: databaseId, capturedAt: new Date().toISOString(), capturedBy: process.env.USER || 'operator', readOnlyCapture: true, schemaHash, objectCount: schemaRows.length, tableCount: schemaRows.filter(r=>r.type==='table').length, indexCount: schemaRows.filter(r=>r.type==='index').length, triggerCount: schemaRows.filter(r=>r.type==='trigger').length, viewCount: schemaRows.filter(r=>r.type==='view').length, migrationHistoryStatus: 'NOT_EVALUATED', productionDataIncluded: false });
   evidence('baseline', { startedAt, environment:'production', databaseName:database, databaseId, status:'PASS', checks:['read-only sqlite_schema capture'], hashes:{ schemaHash } });
+  console.log(`Production baseline captured successfully.\nTables: ${schemaRows.filter(r=>r.type==='table').length}\nIndexes: ${schemaRows.filter(r=>r.type==='index').length}\nSchema hash: ${schemaHash}`);
 }
+
 
 function remoteQuery(database, command) { const out = JSON.parse(wrangler(['d1','execute',database,'--remote','--json','--command',command])); return out[0]?.results || out.results || []; }
 function quoteIdent(name) { return `\"${String(name).replaceAll('\"', '\"\"')}\"`; }
@@ -244,5 +308,5 @@ function provisionStaging(args) { const env='staging'; const db=args.database; c
 function smoke(args) { const startedAt=new Date().toISOString(); if(args['skip-smoke']) { evidence('smoke',{startedAt,environment:args.environment,status:'NOT_EXECUTED',checks:[{smokeExecuted:false}],errors:['Smoke was not executed.']}); process.exitCode=2; return; } run('node',['scripts/smoke-lm-premium-rc1.mjs'],{stdio:'inherit'}); const artifact=path.join(root,'artifacts','staging-smoke-results.json'); const result=existsSync(artifact)?JSON.parse(readFileSync(artifact,'utf8')):{}; const ok=result.smokeExecuted===true && result.ok===true && result.failed===0; evidence('smoke',{startedAt,environment:args.environment,status:ok?'PASS':'BLOCKING',checks:[result],hashes:existsSync(artifact)?{smoke:fileHash(artifact)}:{}}); if(!ok) process.exitCode=2; }
 function productionPlan(args) { const gates = { allow:process.env.ALLOW_PRODUCTION_DEPLOY==='true', id:process.env.CONFIRM_PRODUCTION_DATABASE_ID===PRODUCTION_DB_ID, version:process.env.CONFIRM_RELEASE_VERSION===readVersion(), confirm:args['confirm-production']===true }; const status = Object.values(gates).every(Boolean) ? 'PASS' : 'BLOCKING'; writeJsonAtomic(path.join(root,'artifacts','production-deploy-plan.json'), { status, gates, writesExecuted:false }); if(status==='BLOCKING') process.exitCode=2; }
 
-export function main(argv = process.argv.slice(2)) { const args=parseArgs(argv); const cmd=args._[0]; try { if(cmd==='expected') emitExpected(); else if(cmd==='catalog') catalog(); else if(cmd==='capture-baseline') captureBaseline(args); else if(cmd==='audit') audit(args); else if(cmd==='backup') backup(args); else if(cmd==='restore') restore(args); else if(cmd==='provision-staging') provisionStaging(args); else if(cmd==='smoke') smoke(args); else if(cmd==='production-plan') productionPlan(args); else { console.error('Usage: db-tool expected|catalog|capture-baseline|audit|backup|restore|provision-staging|smoke|production-plan'); process.exitCode=1; } } catch (error) { console.error(error.message); process.exitCode = error.exitCode || 1; } }
-if (import.meta.url === `file://${process.argv[1]}`) main();
+export function main(argv = process.argv.slice(2)) { const args=parseArgs(argv); const cmd=args._[0]; try { if(cmd==='expected') emitExpected(); else if(cmd==='catalog') catalog(); else if(cmd==='capture-baseline') captureBaseline(args); else if(cmd==='audit') audit(args); else if(cmd==='backup') backup(args); else if(cmd==='restore') restore(args); else if(cmd==='provision-staging') provisionStaging(args); else if(cmd==='smoke') smoke(args); else if(cmd==='production-plan') productionPlan(args); else { console.error('Usage: db-tool expected|catalog|capture-baseline|audit|backup|restore|provision-staging|smoke|production-plan'); process.exitCode=2; } } catch (error) { console.error(error.message); process.exitCode = error.exitCode || 1; } }
+if (isDirectExecution()) main();

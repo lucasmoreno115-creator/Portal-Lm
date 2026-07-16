@@ -150,3 +150,19 @@ Without every gate, exit code is `2` and no write command is executed.
 ## Commands requiring authenticated Wrangler
 
 Operators with Cloudflare credentials must still run the remote commands: production baseline capture, staging provisioning, remote audits, D1 backup/export, and staging restore. Codex did not execute staging remote writes, production writes, or production migrations.
+
+## Windows operator notes
+
+On Windows CMD, verify Cloudflare authentication first:
+
+```bat
+npx wrangler whoami
+```
+
+Then capture the production read-only baseline with the Node CLI path style native to CMD:
+
+```bat
+node scripts\db-tool.mjs capture-baseline --environment production --confirm-read-only-production
+```
+
+The database tooling resolves Wrangler itself. It first honors `WRANGLER_BIN`, then checks the local `node_modules` Wrangler binary, then falls back to `npx wrangler`, and finally to a global `wrangler` command path. Windows `.cmd` launchers such as `npx.cmd` are invoked through `cmd.exe /d /s /c` with D1 arguments passed separately, so operators should not create a manual `wrangler.cmd` shim.
