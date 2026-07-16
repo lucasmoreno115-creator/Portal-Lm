@@ -178,8 +178,18 @@ export default {
 
     if (method === 'OPTIONS') return corsResponse();
 
+    if (method === 'GET' && (url.pathname === '/admin' || url.pathname === '/admin/')) {
+      const target = env.PREMIUM_ADMIN_CUTOVER_ENABLED === 'true' ? '/admin-premium-workspace.html' : '/admin-legacy.html';
+      return Response.redirect(new URL(target, url.origin).toString(), 302);
+    }
+
     try {
       await ensureSchema(env.DB);
+
+      if (url.pathname === '/api/admin/premium/cutover-route' && method === 'GET') {
+        const cutoverEnabled = env.PREMIUM_ADMIN_CUTOVER_ENABLED === 'true';
+        return json({ ok: true, data: { flag: 'PREMIUM_ADMIN_CUTOVER_ENABLED', cutoverEnabled, target: cutoverEnabled ? '/admin-premium-workspace.html' : '/admin-legacy.html' } }, 200, '/api/admin/premium/cutover-route');
+      }
 
       if (url.pathname === '/api/health' && method === 'GET') {
         return json({ ok: true, status: 'healthy' });

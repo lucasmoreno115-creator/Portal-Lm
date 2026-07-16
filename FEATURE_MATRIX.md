@@ -14,3 +14,16 @@
 | Saturday Review | 6 | Consolidado | Validado | 3.0.0 |
 | Compatibilidade legada | 0-6 | Preservado | Validado | 3.0.0 |
 | Projeto LM isolado | 0-6 | Preservado | Validado | 3.0.0 |
+
+## Build 6.6 — Cutover Admin Premium
+
+| Feature | Flag | Staging | Produção | Fallback |
+| --- | --- | --- | --- | --- |
+| Workspace Premium oficial | `PREMIUM_PROFESSIONAL_WORKSPACE_ENABLED` | ligado | ligar após validação | `/admin-legacy.html` |
+| Prontuário LM | `PREMIUM_STUDENT_RECORD_ENABLED` | ligado | ligado | Student 360 legado |
+| Feedback semanal | `PREMIUM_WEEKLY_FEEDBACK_ENABLED` | ligado | ligado | check-ins legado |
+| Plano alimentar lifecycle | `PREMIUM_NUTRITION_PLAN_WORKFLOW_ENABLED` | ligado | ligado | `admin-nutrition-plan.html` |
+
+### Correção PR #276
+
+`PREMIUM_ADMIN_CUTOVER_ENABLED` é uma flag implementada no Worker/bootstrap: `true` direciona `/admin` para o Workspace Premium; `false` direciona `/admin` para `/admin-legacy.html`. `PREMIUM_PROFESSIONAL_WORKSPACE_ENABLED` continua controlando apenas o carregamento operacional do Workspace; quando desligada, listas, Inbox e contexto não são carregados e o CTA de rollback aponta para o legado real.

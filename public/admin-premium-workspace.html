@@ -1,1 +1,55 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Workspace Premium</title><link rel="stylesheet" href="assets/css/admin-premium-workspace.css"></head><body><main class="workspace"><header class="top"><div><p>LM Premium 3.0</p><h1>Workspace Premium</h1><span id="today"></span></div><label class="search">Buscar aluno<input id="search" placeholder="Nome, e-mail ou telefone"></label><nav><a href="#students">Alunos</a><a href="#inbox">Pendências</a><a href="admin-premium-weekly-feedbacks.html">Feedback Semanal</a><a href="admin-nutrition-plan.html">Editor legado</a><button id="refresh">Atualizar</button><button id="adminLogoutBtn">Sair</button></nav><span id="loading" role="status">Carregando...</span></header><section id="flag" class="panel" hidden>Workspace desligado por feature flag. Páginas legadas continuam disponíveis.</section><section id="error" class="panel error" hidden><span id="errorText"></span><button id="retry">Tentar novamente</button></section><section id="indicators" class="indicators"></section><section id="saturday" class="panel" hidden><h2>Revisão semanal</h2><p id="saturdayText">Nenhum feedback aguardando análise</p></section><div class="layout"><aside class="panel filters"><h2>Filtros</h2><button data-student-filter="all">Todos</button><button data-student-filter="ACTIVE">Ativos</button><button data-student-filter="AWAITING_ANAMNESIS">Aguardando anamnese</button><button data-student-filter="UNDER_REVIEW">Em análise</button><button data-student-filter="PAUSED">Pausados</button><button data-student-filter="ENDED">Encerrados</button><button data-student-filter="pending">Com pendências</button><button data-student-filter="no-plan">Sem plano publicado</button><button data-student-filter="feedback">Feedback aguardando análise</button><button data-student-filter="plan-update">Atualização de plano pendente</button><h2>Inbox</h2><button data-pending-filter="all">Abertas</button><button data-pending-filter="HIGH">Alta prioridade</button><button data-pending-type="ANALYZE_WEEKLY_FEEDBACK">Feedback semanal</button><button data-pending-type="CREATE_NUTRITION_PLAN">Plano alimentar</button><button data-pending-type="ANALYZE_ANAMNESIS">Anamnese</button><button data-pending-type="CONTACT_STUDENT">Contato</button><button data-pending-type="REQUEST_INFORMATION">Solicitações</button><button data-pending-type="MANUAL">Manuais</button></aside><section id="inbox" class="panel"><h2>Inbox operacional</h2><div id="pendingList" class="list skeleton">Carregando pendências... Nenhuma pendência aberta</div></section><section id="students" class="panel"><h2>Alunos</h2><div id="studentList" class="list skeleton">Carregando alunos... Nenhum aluno encontrado com estes filtros</div><button id="loadMore">Carregar mais</button></section><section id="context" class="panel context"><h2>Contexto</h2><div id="contextBody">Selecione um aluno para visualizar o acompanhamento</div></section></div></main><script src="assets/js/admin-auth.js"></script><script src="assets/js/admin-premium-workspace.js"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin LM Premium</title>
+  <link rel="canonical" href="/admin">
+  <link rel="stylesheet" href="assets/css/admin-premium-workspace.css">
+</head>
+<body>
+  <main class="workspace" data-admin-shell="premium-workspace">
+    <header class="top" aria-label="Admin Premium Shell">
+      <div>
+        <p>LM Premium 3.0</p>
+        <h1>Workspace Premium</h1>
+        <span id="today"></span>
+      </div>
+      <label class="search">Buscar aluno<input id="search" placeholder="Nome, e-mail ou telefone" autocomplete="off"></label>
+      <button id="menuToggle" class="menu-toggle" type="button" aria-expanded="false" aria-controls="adminNav">Menu</button>
+      <nav id="adminNav" aria-label="Navegação administrativa">
+        <a href="#overview" data-module="overview">Visão Geral</a>
+        <a href="#students" data-module="students">Alunos</a>
+        <a href="#inbox" data-module="pending">Pendências</a>
+        <a href="admin-premium-weekly-feedbacks.html" data-module="weekly-feedback">Feedback Semanal</a>
+        <button type="button" data-context-action="record" data-module="student-record">Prontuário LM</button>
+        <button type="button" data-context-action="nutritionPlan" data-module="nutrition-plan">Plano Alimentar</button>
+        <button type="button" data-context-action="anamnesis" data-module="anamnesis">Anamnese</button>
+        <button type="button" data-context-action="student360" data-module="student360">Student 360</button>
+        <a href="#context" data-module="evolution">Evolução</a>
+        <button id="refresh" type="button">Atualizar</button>
+        <button id="adminLogoutBtn" type="button">Sair</button>
+      </nav>
+      <span id="loading" role="status" aria-live="polite">Carregando...</span>
+    </header>
+    <section id="toast" class="panel toast" role="status" aria-live="polite" hidden></section>
+    <section id="flag" class="panel" hidden>Workspace desligado por feature flag. <a href="/admin-legacy.html">Abrir Admin legado (rollback)</a>.</section>
+    <section id="error" class="panel error" hidden><span id="errorText"></span><button id="retry" type="button">Tentar novamente</button></section>
+    <section id="overview" aria-label="Visão Geral"><div id="indicators" class="indicators"></div></section>
+    <section id="saturday" class="panel" hidden><h2>Revisão semanal</h2><div id="saturdayText">Nenhum feedback aguardando análise</div></section>
+    <div class="layout">
+      <aside class="panel filters" aria-label="Filtros administrativos">
+        <h2>Filtros</h2>
+        <button type="button" data-student-filter="all">Todos</button><button type="button" data-student-filter="ACTIVE">Ativos</button><button type="button" data-student-filter="AWAITING_ANAMNESIS">Aguardando anamnese</button><button type="button" data-student-filter="UNDER_REVIEW">Em análise</button><button type="button" data-student-filter="PAUSED">Pausados</button><button type="button" data-student-filter="ENDED">Encerrados</button><button type="button" data-student-filter="pending">Com pendências</button><button type="button" data-student-filter="no-plan">Sem plano publicado</button><button type="button" data-student-filter="feedback">Feedback aguardando análise</button><button type="button" data-student-filter="plan-update">Atualização de plano pendente</button>
+        <h2>Inbox</h2>
+        <button type="button" data-pending-filter="all">Abertas</button><button type="button" data-pending-filter="HIGH">Alta prioridade</button><button type="button" data-pending-type="ANALYZE_WEEKLY_FEEDBACK">Feedback semanal</button><button type="button" data-pending-type="CREATE_NUTRITION_PLAN">Plano alimentar</button><button type="button" data-pending-type="ANALYZE_ANAMNESIS">Anamnese</button><button type="button" data-pending-type="CONTACT_STUDENT">Contato</button><button type="button" data-pending-type="REQUEST_INFORMATION">Solicitações</button><button type="button" data-pending-type="MANUAL">Manuais</button>
+      </aside>
+      <section id="inbox" class="panel"><h2>Inbox operacional</h2><div id="pendingList" class="list skeleton">Carregando pendências... Nenhuma pendência aberta</div></section>
+      <section id="students" class="panel"><h2>Alunos</h2><div id="studentList" class="list skeleton">Carregando alunos... Nenhum aluno encontrado com estes filtros</div><button id="loadMore" type="button">Carregar mais</button></section>
+      <section id="context" class="panel context"><h2>Contexto</h2><div id="contextBody">Selecione um aluno para visualizar o acompanhamento</div></section>
+    </div>
+  </main>
+  <script src="assets/js/admin-auth.js"></script>
+  <script src="assets/js/admin-premium-workspace.js"></script>
+</body>
+</html>

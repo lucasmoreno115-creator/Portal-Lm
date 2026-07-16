@@ -1,0 +1,1313 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>LM Student 360</title>
+  <link rel='stylesheet' href='assets/css/portal.css'>
+</head>
+<body class='student-360-page'>
+  <div class='container'>
+    <a class='student-back-link' href='/admin-command-center.html'>⬅ Voltar para Command Center</a>
+    <nav>
+      <a href='/admin.html'>Admin Hub</a>
+      <a href='/admin-command-center.html'>Command Center</a>
+      <a href='/admin-student.html'>Student 360</a>
+      <a href='/admin-students.html'>Cadastro de aluno</a>
+      <button id='adminLogoutBtn' type='button'>Sair</button>
+    </nav>
+
+    <section class='card student-hero'>
+      <p class='eyebrow'>Consultoria LM • Visão única do aluno</p>
+      <h1 id='studentName'>LM Student 360</h1>
+      <div class='student-meta'>
+        <span id='studentEmail'>Email: -</span>
+        <span id='studentWhatsapp'>WhatsApp: -</span>
+        <span id='studentPlan'>Produto: -</span>
+        <span id='studentStatus'>Status: -</span>
+      </div>
+      <div class='grid'>
+        <label id='adminTokenWrap'>Token admin
+          <input id='adminToken' type='password' autocomplete='off' placeholder='Sessão admin'>
+        </label>
+        <label>Selecionar aluno
+          <select id='studentSelect'>
+            <option value=''>Selecionar aluno cadastrado...</option>
+          </select>
+        </label>
+        <label>Email do aluno
+          <input id='studentEmailInput' type='email' placeholder='aluno@email.com'>
+        </label>
+      </div>
+      <div class='student-action-row'>
+        <button id='loadBtn' type='button'>Carregar Student 360</button>
+      </div>
+      <div id='adminSessionStatus' class='status muted' hidden>🟢 Sessão administrativa ativa</div>
+      <div id='statusBox' class='status muted'>Informe email do aluno e token admin.</div>
+    </section>
+    <section class='student-360-grid'>
+      <article class='card student-360-card' id='actionsCenter'>
+        <h2>⚡ Central de Ações</h2>
+        <div class='student-action-grid'>
+          <button id='sendAccessBtn' type='button'>📩 Enviar acesso</button>
+          <button id='openWhatsappBtn' type='button'>💬 Abrir WhatsApp</button>
+          <button id='openWeeklyPlanBtn' type='button'>📋 Resolver planejamento</button>
+          <button id='openNutritionPlanBtn' type='button'>🥗 Resolver plano alimentar</button>
+          <button id='quickReplyCheckinBtn' type='button'>✅ Responder Check-in</button>
+          <button id='activateAccessBtn' type='button'>🚀 Liberar Acesso</button>
+          <button id='toggleStudentStatusBtn' type='button'>🚫 Inativar aluno</button>
+          <a id='openPremiumRecordBtn' class='secondary-link' href='#' hidden>📒 Abrir Prontuário LM</a>
+        </div>
+        <div class='student-action-row'>
+          <textarea id='accessMessageOutput' rows='6' placeholder='Mensagem de acesso será gerada aqui'></textarea>
+          <button id='copyAccessMessageBtn' type='button'>Copiar mensagem</button>
+          <button id='openAccessWhatsappBtn' type='button'>Abrir WhatsApp</button>
+        </div>
+      </article>
+
+      <article class='card student-360-card' id='studentAccessCard'>
+        <h2>🔐 Acesso do aluno</h2>
+        <div id='studentAccessDetails'></div>
+        <div class='student-action-grid'>
+          <button id='showCredentialBtn' type='button'>👁️ Mostrar</button>
+          <button id='copyAccessBtn' type='button'>📋 Copiar</button>
+          <button id='rotateTokenBtn' type='button'>🔐 Gerar nova senha</button>
+          <button id='activateAccessCardBtn' type='button'>🚀 Liberar acesso</button>
+          <button id='toggleStudentStatusCardBtn' type='button'>🚫 Inativar/Reativar</button>
+        </div>
+      </article>
+
+      <article class='card student-360-card'>
+        <h2>Resumo do aluno</h2>
+        <div id='studentSummary'></div>
+      </article>
+
+      <article class='card student-360-card'>
+        <h2>Status Operacional</h2>
+        <div id='operationalDiagnosis'></div>
+      </article>
+
+      <article class='card student-360-card'>
+        <h2>Próxima Ação Recomendada</h2>
+        <div id='nextAction'></div>
+      </article>
+
+      <article class='card student-360-card'>
+        <h2>Resumo Executivo</h2>
+        <div id='executiveSummary'></div>
+      </article>
+
+      <article class='card student-360-card'>
+        <h2>Pendências Inteligentes</h2>
+        <div id='smartPendingList'></div>
+      </article>
+
+      <article class='card student-360-card collapsible-card' data-collapse-key='anamnesis'>
+        <h2><button class='collapse-toggle' type='button' data-collapse-target='anamnesis'>📝 Bloco Anamnese</button></h2>
+        <div id='collapse-anamnesis'>
+          <div id='latestAnamnesis'></div>
+          <a class='secondary-link' id='openAnamnesis' href='/admin-anamneses.html'>Abrir rota interna da anamnese</a>
+        </div>
+      </article>
+
+      <article class='card student-360-card'>
+        <h2>✅ Bloco Check-ins</h2>
+        <div id='latestCheckin'></div>
+        <div class='student-action-row'>
+          <textarea id='coachReplyInput' rows='3' placeholder='Escreva a resposta ao check-in'></textarea>
+          <button id='replyCheckinBtn' type='button'>Responder check-in</button>
+          <a class='secondary-link' id='openCheckins' href='/admin-checkins.html'>Abrir tela auxiliar de check-ins</a>
+        </div>
+      </article>
+
+      <article class='card student-360-card'>
+        <h2>Resposta do coach</h2>
+        <div id='coachReply'></div>
+      </article>
+
+      <article class='card student-360-card collapsible-card' data-collapse-key='weeklyPlan'>
+        <h2><button class='collapse-toggle' type='button' data-collapse-target='weeklyPlan'>📋 Bloco Plano Semanal</button></h2>
+        <div id='collapse-weeklyPlan'>
+        <div id='weeklyPlan'></div>
+        <button id='editWeeklyPlanBtn' type='button'>Editar inline</button>
+        <a class='secondary-link' id='openWeeklyPlan' href='/admin-weekly-plan.html'>Abrir tela auxiliar do plano semanal</a>
+        <div class='student-action-row' id='weeklyPlanForm'>
+          <input id='planWeekRef' type='text' placeholder='2026-W20'>
+          <textarea id='planTrainingFocus' rows='2' placeholder='Foco treino'></textarea>
+          <textarea id='planCardioTarget' rows='2' placeholder='Meta cardio'></textarea>
+          <textarea id='planNutritionFocus' rows='2' placeholder='Foco nutrição'></textarea>
+          <textarea id='planMainRisk' rows='2' placeholder='Principal risco'></textarea>
+          <textarea id='planCoachMessage' rows='3' placeholder='Mensagem estratégica'></textarea>
+          <button id='saveWeeklyPlanBtn' type='button'>Salvar objetivo do planejamento</button>
+        </div>
+        </div>
+      </article>
+
+      <article class='card student-360-card collapsible-card' data-collapse-key='nutritionPlan'>
+        <h2><button class='collapse-toggle' type='button' data-collapse-target='nutritionPlan'>🥗 Bloco Plano Alimentar</button></h2>
+        <div id='collapse-nutritionPlan'>
+          <div id='nutritionPlan'></div>
+          <a class='secondary-link' id='editNutritionPlan' href='/admin-nutrition-plan.html'>Editar rota interna</a>
+        </div>
+      </article>
+
+      <article class='card student-360-card'>
+        <h2>📲 Comunicação LM</h2>
+        <div class='student-action-grid'>
+          <button id='copyWhatsappBtn' type='button'>📞 Copiar WhatsApp</button>
+          <button id='copyEmailBtn' type='button'>📧 Copiar Email</button>
+          <button id='copyStrategicSummaryBtn' type='button'>📋 Copiar Resumo Estratégico</button>
+          <button id='generateWeeklyGuidanceBtn' type='button'>📤 Orientação Semanal</button>
+          <button id='generateCheckinResponseBtn' type='button'>📤 Resposta Check-in</button>
+        </div>
+        <div class='student-action-row'>
+          <textarea id='communicationPreview' rows='7' placeholder='Preview da mensagem'></textarea>
+          <button id='copyCommunicationPreviewBtn' type='button'>Copiar</button>
+          <button id='openCommunicationWhatsappBtn' type='button'>Abrir WhatsApp</button>
+        </div>
+      </article>
+
+      <article class='card student-360-card'>
+        <h2>Status do onboarding</h2>
+        <div id='onboardingStatus'></div>
+      </article>
+
+      <article class='card student-360-card collapsible-card' data-collapse-key='timeline'>
+        <h2><button class='collapse-toggle' type='button' data-collapse-target='timeline'>Timeline</button></h2>
+        <div id='collapse-timeline'>
+          <div id='timelineLatestActivity' class='timeline-latest-activity'>Sem atividade recente.</div>
+          <div id='timelineFilters' class='timeline-filters'></div>
+          <ul id='timeline' class='student-timeline'></ul>
+        </div>
+      </article>
+      <article class='card student-360-card'>
+        <h2>Prioridade Clínica</h2>
+        <div id='clinicalPriority'></div>
+      </article>
+    </section>
+  </div>
+
+  <script src='assets/js/admin-auth.js'></script>
+  <script>window.LMAdminAuth.attachLogout('adminLogoutBtn');</script>
+  <script>
+    const tokenInput = document.getElementById('adminToken');
+    const tokenWrap = document.getElementById('adminTokenWrap');
+    const adminSessionStatus = document.getElementById('adminSessionStatus');
+    const adminSessionToken = window.LMAdminAuth.requireAdmin();
+    window.LMAdminAuth.hydrateAdminTokenInput('adminToken');
+    const emailInput = document.getElementById('studentEmailInput');
+    const studentSelect = document.getElementById('studentSelect');
+    const loadBtn = document.getElementById('loadBtn');
+    const replyBtn = document.getElementById('replyCheckinBtn');
+    const savePlanBtn = document.getElementById('saveWeeklyPlanBtn');
+    const activateAccessBtn = document.getElementById('activateAccessBtn');
+    const toggleStudentStatusBtn = document.getElementById('toggleStudentStatusBtn');
+    const sendAccessBtn = document.getElementById('sendAccessBtn');
+    const openWhatsappBtn = document.getElementById('openWhatsappBtn');
+    const openWeeklyPlanBtn = document.getElementById('openWeeklyPlanBtn');
+    const openNutritionPlanBtn = document.getElementById('openNutritionPlanBtn');
+    const quickReplyCheckinBtn = document.getElementById('quickReplyCheckinBtn');
+    const editWeeklyPlanBtn = document.getElementById('editWeeklyPlanBtn');
+    const copyAccessMessageBtn = document.getElementById('copyAccessMessageBtn');
+    const showCredentialBtn = document.getElementById('showCredentialBtn');
+    const copyAccessBtn = document.getElementById('copyAccessBtn');
+    const rotateTokenBtn = document.getElementById('rotateTokenBtn');
+    const activateAccessCardBtn = document.getElementById('activateAccessCardBtn');
+    const toggleStudentStatusCardBtn = document.getElementById('toggleStudentStatusCardBtn');
+    const openAccessWhatsappBtn = document.getElementById('openAccessWhatsappBtn');
+    const copyWhatsappBtn = document.getElementById('copyWhatsappBtn');
+    const copyEmailBtn = document.getElementById('copyEmailBtn');
+    const copyStrategicSummaryBtn = document.getElementById('copyStrategicSummaryBtn');
+    const generateWeeklyGuidanceBtn = document.getElementById('generateWeeklyGuidanceBtn');
+    const generateCheckinResponseBtn = document.getElementById('generateCheckinResponseBtn');
+    const copyCommunicationPreviewBtn = document.getElementById('copyCommunicationPreviewBtn');
+    const openCommunicationWhatsappBtn = document.getElementById('openCommunicationWhatsappBtn');
+    const statusBox = document.getElementById('statusBox');
+    let latestCheckinId = null;
+    let currentStudent = {};
+    let studentCredentialVisible = false;
+
+    function byId(id) { return document.getElementById(id); }
+    function setText(id, value) { byId(id).textContent = value || '-'; }
+    function showToast(message) {
+      const el = document.createElement('div');
+      el.className = 'lm-toast';
+      el.textContent = message;
+      document.body.appendChild(el);
+      requestAnimationFrame(() => el.classList.add('is-visible'));
+      setTimeout(() => {
+        el.classList.remove('is-visible');
+        setTimeout(() => el.remove(), 220);
+      }, 1800);
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatDate(value) {
+      if (!value) return 'Não informado';
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString('pt-BR');
+    }
+
+    function pickFirstDeep(obj, paths) {
+      if (!obj || !Array.isArray(paths)) return null;
+      for (const path of paths) {
+        const keys = String(path || '').split('.').filter(Boolean);
+        let cur = obj;
+        for (const key of keys) {
+          if (cur == null || typeof cur !== 'object') {
+            cur = null;
+            break;
+          }
+          cur = cur[key];
+        }
+        if (cur == null) continue;
+        if (Array.isArray(cur)) {
+          if (cur.length) return cur.join(', ');
+          continue;
+        }
+        if (typeof cur === 'object') {
+          if (Object.keys(cur).length) return Object.values(cur).filter((value) => value != null && String(value).trim() !== '').join(' • ');
+          continue;
+        }
+        if (String(cur).trim() !== '') return cur;
+      }
+      return null;
+    }
+
+    const SUMMARY_PATHS = {
+      mainObjective: ['objetivo_principal', 'objetivoPrincipal', 'goals.main_goal', 'goals.objective', 'objectives.main_goal', 'objectives.primary_goal', 'objetivo', 'objective', 'main_goal'],
+      mainLimiter: ['principal_limitador', 'principalLimitador', 'limiting_factor', 'main_limit', 'difficulty', 'maior_dificuldade', 'goals.difficulty', 'adherence.consistency_barrier', 'adherence.biggest_difficulty', 'nutrition.biggest_difficulty', 'routine.organization_barrier'],
+      foodOrganization: ['organizacao_alimentar', 'organizacaoAlimentar', 'nutrition.organization', 'nutrition.organizacao', 'nutrition.self_evaluation', 'nutrition.meals_per_day', 'nutrition.defined_schedule', 'rotina_alimentar', 'meals.organization', 'meals_per_day'],
+      trainingFrequency: ['frequencia_treino', 'frequenciaTreino', 'training.frequency', 'training.days', 'training.days_per_week', 'training.weekly_frequency', 'treino_frequencia', 'days', 'workout_days'],
+      sleepQuality: ['qualidade_sono', 'qualidadeSono', 'sleep.quality', 'sleep.sleep_quality', 'sleep_quality', 'sono', 'recovery.sleep', 'recovery.sleep_quality'],
+      dropoutRisk: ['risco_abandono', 'riscoAbandono', 'dropout_risk', 'adherence.risk', 'risk.dropout', 'abandono_risco', 'adherence.change_readiness', 'adherence.consistency_barrier']
+    };
+
+    function pickFirst(obj, paths) {
+      return pickFirstDeep(obj, paths);
+    }
+
+
+    function formatStudentProduct(student) {
+      const plan = String(student?.plan || '').toLowerCase();
+      if (plan === 'premium') return 'Consultoria Premium';
+      if (plan === 'projeto_lm') return 'Projeto LM';
+      return student?.plan_type || 'Não informado';
+    }
+
+    function field(label, value, highlight) {
+      const safeLabel = escapeHtml(label);
+      const safeValue = escapeHtml(value == null || value === '' ? 'Não informado' : value);
+      const valueClass = highlight ? 'student-highlight' : '';
+      return `<li class='student-info-item'><span>${safeLabel}</span><strong class='${valueClass}'>${safeValue}</strong></li>`;
+    }
+
+    function renderFields(items) {
+      return `<ul class='student-info-list'>${items.join('')}</ul>`;
+    }
+
+    function renderEmpty(message) {
+      return `<div class='student-empty'>${escapeHtml(message || 'Sem dados.')}</div>`;
+    }
+
+    function parseAnamnesisAnswers(anamnesis) {
+      if (!anamnesis?.answers_json) return {};
+      try { return JSON.parse(anamnesis.answers_json) || {}; } catch (_) { return {}; }
+    }
+
+    function formatStudentOption(student) {
+      const name = student?.name || 'Aluno sem nome';
+      const email = student?.email || 'email não informado';
+      const status = student?.status || 'SEM_STATUS';
+      return `${name} • ${email} • ${status}`;
+    }
+
+    function populateStudentSelect(students) {
+      const currentEmail = emailInput.value.trim().toLowerCase();
+      studentSelect.innerHTML = `<option value=''>Selecionar aluno cadastrado...</option>`;
+      (students || []).forEach((student) => {
+        const email = String(student?.email || '').trim().toLowerCase();
+        if (!email) return;
+        const option = document.createElement('option');
+        option.value = email;
+        option.textContent = formatStudentOption(student);
+        if (email === currentEmail) option.selected = true;
+        studentSelect.appendChild(option);
+      });
+    }
+
+    async function loadStudentSelect() {
+      const token = tokenInput.value.trim();
+      if (!token || !studentSelect) return;
+      studentSelect.disabled = true;
+      try {
+        const res = await fetch('/api/admin/students', { headers: window.LMAdminAuth.getAdminAuthHeaders() });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload?.error || 'Falha ao listar alunos.');
+        const students = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : []);
+        populateStudentSelect(students);
+      } catch (error) {
+        statusBox.textContent = error.message || 'Erro ao listar alunos cadastrados.';
+      } finally {
+        studentSelect.disabled = false;
+      }
+    }
+
+    function getCurrentStudentEmail() {
+      return String(currentStudent?.email || emailInput.value || '').trim().toLowerCase();
+    }
+
+    function getNutritionPlanUrl(email) {
+      const query = encodeURIComponent(email || '');
+      return `/admin-nutrition-plan.html?email=${query}`;
+    }
+
+    function hydrateLinks(email) {
+      const query = encodeURIComponent(email || '');
+      byId('openAnamnesis').href = `/admin-anamneses.html?email=${query}`;
+      byId('openCheckins').href = `/admin-checkins.html?email=${query}`;
+      byId('openWeeklyPlan').href = `/admin-weekly-plan.html?email=${query}`;
+      byId('editNutritionPlan').href = getNutritionPlanUrl(email);
+    }
+    function getWhatsappLink(raw) {
+      const digits = String(raw || '').replace(/\D/g, '');
+      return digits ? `https://wa.me/${digits}` : '';
+    }
+    function getAccessMessage() {
+      const name = currentStudent?.name || 'Aluno(a)';
+      const email = currentStudent?.email || emailInput.value.trim().toLowerCase();
+      const temporaryPassword = getStudentTemporaryCredential();
+      const portalLink = 'https://portal.lucasmorenopersonal.com.br/portal-login.html';
+      return `Olá, ${name}! 👋\n\nSeu acesso à Consultoria LM foi liberado.\n\n• Email: ${email}\n• Senha temporária: ${temporaryPassword}\n• Portal: ${portalLink}\n\nNo primeiro acesso, recomendamos que você altere sua senha para uma de sua preferência.\n\nQualquer dúvida, me chama por aqui. 👊`;
+    }
+    function syncAccessMessageActions() {
+      copyAccessMessageBtn.disabled = false;
+      openAccessWhatsappBtn.disabled = false;
+      copyAccessMessageBtn.title = '';
+      openAccessWhatsappBtn.title = '';
+    }
+    function getStrategicSummaryMessage() {
+      const answers = parseAnamnesisAnswers(currentStudent?.latest_anamnesis || null);
+      const checkin = currentStudent?.latest_checkin || {};
+      const nextAction = currentStudent?.next_recommended_action?.label || currentStudent?.next_recommended_action?.reason || 'Sem próxima ação definida';
+      return [
+        `Resumo Estratégico — ${currentStudent?.name || 'Aluno(a)'}`,
+        `• Objetivo: ${pickFirstDeep(answers, SUMMARY_PATHS.mainObjective) || 'Não informado'}`,
+        `• Frequência treino: ${pickFirstDeep(answers, SUMMARY_PATHS.trainingFrequency) || 'Não informado'}`,
+        `• Sono: ${pickFirstDeep(answers, SUMMARY_PATHS.sleepQuality) || checkin.sleep_quality || 'Não informado'}`,
+        `• Principal dificuldade: ${checkin.main_difficulty || pickFirst(answers, ['maior_dificuldade_alimentar', 'nutrition.main_difficulty', 'dificuldade_alimentar']) || 'Não informado'}`,
+        `• Próxima ação: ${nextAction}`
+      ].join('\n');
+    }
+    function getWeeklyGuidanceMessage() {
+      const plan = currentStudent?.active_weekly_plan || {};
+      return [
+        `Orientação Semanal — ${currentStudent?.name || 'Aluno(a)'}`,
+        `• Foco de treino: ${plan.training_focus || 'Não informado'}`,
+        `• Meta de cardio: ${plan.cardio_target || 'Não informado'}`,
+        `• Foco nutricional: ${plan.nutrition_focus || 'Não informado'}`,
+        `• Principal risco: ${plan.main_risk || 'Não informado'}`,
+        `• Mensagem do coach: ${plan.coach_message || 'Não informado'}`
+      ].join('\n');
+    }
+    function getCheckinResponseMessage() {
+      const reply = currentStudent?.latest_checkin?.coach_reply || '';
+      const name = currentStudent?.name || 'Aluno(a)';
+      return `Check-in respondido para ${name}:\n\n${reply || 'Sem resposta do coach registrada.'}`;
+    }
+
+    function renderSummary(student, answers) {
+      const html = renderFields([
+        field('Nome', student?.name, true),
+        field('Email', student?.email),
+        field('WhatsApp', student?.whatsapp),
+        field('Produto', formatStudentProduct(student), true),
+        field('Status', student?.status, true),
+        field('Objetivo principal', pickFirstDeep(answers, SUMMARY_PATHS.mainObjective)),
+        field('Principal limitador', pickFirstDeep(answers, SUMMARY_PATHS.mainLimiter)),
+        field('Organização alimentar', pickFirstDeep(answers, SUMMARY_PATHS.foodOrganization)),
+        field('Frequência de treino', pickFirstDeep(answers, SUMMARY_PATHS.trainingFrequency)),
+        field('Qualidade do sono', pickFirstDeep(answers, SUMMARY_PATHS.sleepQuality)),
+        field('Risco de abandono', pickFirstDeep(answers, SUMMARY_PATHS.dropoutRisk))
+      ]);
+      byId('studentSummary').innerHTML = html;
+    }
+    function getStudentTemporaryCredential(student = currentStudent) {
+      const credential = String(student?.token || '').trim();
+      if (!credential) return '';
+      const hashPatterns = [/^\$2[aby]\$/i, /^\$argon2/i, /^[a-f0-9]{64,}$/i];
+      return hashPatterns.some((pattern) => pattern.test(credential)) ? '' : credential;
+    }
+    function maskCredential(credential) {
+      return credential ? '•'.repeat(Math.min(Math.max(credential.length, 8), 16)) : '';
+    }
+    function isPremiumStudentRecordEnabled() { return window.PREMIUM_STUDENT_RECORD_ENABLED === true || localStorage.getItem('PREMIUM_STUDENT_RECORD_ENABLED') === 'true'; }
+
+    function renderPremiumRecordNavigation(student) {
+      const link = byId('openPremiumRecordBtn');
+      if (!link) return;
+      const studentId = student?.student_id || student?.studentId || null;
+      const enabled = isPremiumStudentRecordEnabled() && studentId;
+      link.hidden = !enabled;
+      if (enabled) link.href = `/admin-premium-student-record.html?student_id=${encodeURIComponent(studentId)}`;
+    }
+
+    function renderStudentAccess(student) {
+      const credential = getStudentTemporaryCredential(student);
+      const credentialLabel = credential
+        ? (studentCredentialVisible ? credential : maskCredential(credential))
+        : 'Senha já alterada pelo aluno.';
+      byId('studentAccessDetails').innerHTML = renderFields([
+        field('Email', student?.email),
+        field('Senha temporária', credentialLabel, Boolean(credential)),
+        field('Status', student?.status, true),
+        field('Produto', formatStudentProduct(student)),
+        field('WhatsApp', student?.whatsapp)
+      ]);
+      showCredentialBtn.disabled = !credential;
+      showCredentialBtn.textContent = studentCredentialVisible ? '🙈 Ocultar' : '👁️ Mostrar';
+      copyAccessBtn.disabled = !credential;
+      copyAccessBtn.title = credential ? '' : 'Senha já alterada pelo aluno.';
+      rotateTokenBtn.textContent = credential ? '🔐 Trocar senha' : '🔐 Gerar nova senha';
+    }
+
+    function formatWeight(value) {
+      if (value == null || value === '') return 'Não informado';
+      const parsed = Number(String(value).replace(',', '.'));
+      if (!Number.isNaN(parsed)) return `${String(value).replace('.', ',')} kg`;
+      return value;
+    }
+
+    function normalizePercent(value) {
+      if (value == null || value === '') return null;
+      const parsed = Number(String(value).replace('%', '').replace(',', '.'));
+      if (Number.isNaN(parsed)) return null;
+      return parsed <= 1 ? parsed * 100 : parsed;
+    }
+
+    function formatPercent(value) {
+      const parsed = normalizePercent(value);
+      if (parsed == null) return null;
+      return `${Math.round(parsed)}%`;
+    }
+
+    function resolveAdherence(checkin) {
+      const weeklyScore = formatPercent(checkin?.weekly_score);
+      if (weeklyScore) return weeklyScore;
+      const values = [checkin?.training_adherence, checkin?.nutrition_adherence, checkin?.cardio_adherence]
+        .map(normalizePercent)
+        .filter((value) => value != null);
+      if (!values.length) return 'Não calculada';
+      const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+      return `${Math.round(average)}%`;
+    }
+
+    function resolveExecutiveSummary(data) {
+      const anamnesisAnswers = parseAnamnesisAnswers(data?.latest_anamnesis || null);
+      const nutritionPlan = data?.active_nutrition_plan || {};
+      const weeklyPlan = data?.active_weekly_plan || {};
+      const checkin = data?.latest_checkin || null;
+      const clinicalPriority = data?.clinical_priority || {};
+      const objective = pickFirstDeep(nutritionPlan, ['goal', 'objective', 'objetivo', 'plan_json.goal', 'plan_json.objective'])
+        || pickFirstDeep(anamnesisAnswers, SUMMARY_PATHS.mainObjective)
+        || 'Não informado';
+      const lastCheckinParts = [checkin?.week_ref, formatDate(checkin?.created_at), checkin?.created_at ? formatRelativeDate(checkin.created_at) : null]
+        .filter((value) => value && value !== 'Não informado');
+      const currentStrategy = nutritionPlan.strategy
+        || weeklyPlan.nutrition_focus
+        || weeklyPlan.training_focus
+        || 'Não definida';
+
+      return {
+        objective,
+        currentWeight: formatWeight(checkin?.weekly_weight),
+        lastCheckin: lastCheckinParts.length ? lastCheckinParts.join(' — ') : 'Sem check-in',
+        adherence: resolveAdherence(checkin),
+        mainDifficulty: checkin?.main_difficulty || 'Não informada',
+        mainRisk: weeklyPlan.main_risk || clinicalPriority.message || 'Não identificado',
+        currentStrategy
+      };
+    }
+
+    function renderExecutiveSummary(data) {
+      const summary = resolveExecutiveSummary(data);
+      byId('executiveSummary').innerHTML = renderFields([
+        field('Objetivo', summary.objective, true),
+        field('Peso atual', summary.currentWeight),
+        field('Último check-in', summary.lastCheckin),
+        field('Aderência geral', summary.adherence, true),
+        field('Maior dificuldade', summary.mainDifficulty),
+        field('Risco principal', summary.mainRisk),
+        field('Estratégia atual', summary.currentStrategy)
+      ]);
+    }
+
+    function getSmartPendingIcon(level) {
+      if (level === 'critical') return '🔴';
+      if (level === 'attention') return '🟡';
+      return '🟢';
+    }
+
+    function pushUniquePending(items, item) {
+      if (!item?.label || items.some((existing) => existing.label === item.label)) return;
+      items.push(item);
+    }
+
+    function hasWeeklyPlanContent(weeklyPlan) {
+      if (!weeklyPlan) return false;
+      return Boolean(
+        weeklyPlan.training_focus ||
+        weeklyPlan.nutrition_focus ||
+        weeklyPlan.main_risk ||
+        weeklyPlan.coach_message
+      );
+    }
+
+    function resolveSmartPendingItems(data) {
+      const items = [];
+      const student = data?.student || {};
+      const checkin = data?.latest_checkin || null;
+      const weeklyPlan = data?.active_weekly_plan || null;
+      const nutritionPlan = data?.active_nutrition_plan || null;
+      const clinicalPriority = data?.clinical_priority || {};
+      const nextAction = data?.next_recommended_action || {};
+      const studentStatus = String(student.status || '').toUpperCase();
+      const currentWeekRef = getCurrentWeekRef();
+
+      if (studentStatus === 'INACTIVE') {
+        pushUniquePending(items, { level: 'critical', label: 'Acesso inativo', detail: 'Reativar aluno antes de executar acompanhamento.' });
+      } else if (studentStatus === 'PENDING_ONBOARDING') {
+        pushUniquePending(items, { level: 'attention', label: 'Acesso pendente', detail: 'Liberar acesso do aluno.' });
+      } else if (studentStatus === 'ACTIVE') {
+        pushUniquePending(items, { level: 'ok', label: 'Acesso ativo' });
+      }
+
+      if (!checkin) {
+        pushUniquePending(items, { level: 'critical', label: 'Sem check-in registrado', detail: 'Solicitar primeiro check-in.' });
+      } else if (String(checkin.week_ref || '') !== currentWeekRef) {
+        pushUniquePending(items, { level: 'critical', label: 'Sem check-in esta semana', detail: `Último check-in: ${checkin.week_ref || formatDate(checkin.created_at)}` });
+      } else {
+        pushUniquePending(items, { level: 'ok', label: 'Check-in da semana recebido' });
+      }
+
+      if (checkin?.coach_reply) {
+        pushUniquePending(items, { level: 'ok', label: 'Check-in respondido' });
+      } else if (checkin) {
+        pushUniquePending(items, { level: 'attention', label: 'Check-in sem resposta', detail: 'Responder o check-in com direcionamento.' });
+      }
+
+      if (hasWeeklyPlanContent(weeklyPlan)) {
+        pushUniquePending(items, { level: 'ok', label: 'Objetivo do planejamento ativo' });
+      } else {
+        pushUniquePending(items, { level: 'attention', label: 'Sem objetivo do planejamento', detail: 'Criar objetivo da semana.' });
+      }
+
+      if (nutritionPlan) {
+        pushUniquePending(items, { level: 'ok', label: 'Plano alimentar ativo' });
+      } else {
+        pushUniquePending(items, { level: 'attention', label: 'Sem plano alimentar ativo', detail: 'Criar ou ativar plano alimentar.' });
+      }
+
+      const clinicalLevel = String(clinicalPriority.level || '').toUpperCase();
+      const clinicalMessage = clinicalPriority.message || '';
+      const clinicalDuplicatesMissingCheckin = !checkin && /check-?in/i.test(clinicalMessage);
+      if (clinicalLevel === 'CRITICAL' && !clinicalDuplicatesMissingCheckin) {
+        pushUniquePending(items, { level: 'critical', label: 'Prioridade clínica crítica', detail: clinicalMessage });
+      } else if (clinicalLevel === 'HIGH' && !clinicalDuplicatesMissingCheckin) {
+        pushUniquePending(items, { level: 'attention', label: 'Prioridade clínica alta', detail: clinicalMessage });
+      }
+
+      if (String(nextAction.code || '').trim()) {
+        pushUniquePending(items, { level: 'attention', label: 'Ação recomendada pendente', detail: nextAction.label || nextAction.reason });
+      }
+
+      return items;
+    }
+
+    function renderSmartPendingItems(data) {
+      const items = resolveSmartPendingItems(data);
+      const actionableItems = items.filter((item) => item.level !== 'ok');
+      if (!actionableItems.length) {
+        byId('smartPendingList').innerHTML = renderFields([field('Status', '🟢 Nenhuma pendência crítica no momento.', true)]);
+        return;
+      }
+      const html = actionableItems.map((item) => {
+        const label = `${getSmartPendingIcon(item.level)} ${item.label}`;
+        const detailHtml = item.detail ? `<strong class='${item.level === 'critical' ? 'student-highlight' : ''}'>${escapeHtml(item.detail)}</strong>` : '';
+        return `<li class='student-info-item'><span>${escapeHtml(label)}</span>${detailHtml}</li>`;
+      });
+      byId('smartPendingList').innerHTML = renderFields(html);
+    }
+
+    function renderAnamnesis(anamnesis, answers) {
+      if (!anamnesis) {
+        byId('latestAnamnesis').innerHTML = renderEmpty('Sem anamnese registrada.');
+        return;
+      }
+      byId('latestAnamnesis').innerHTML = renderFields([
+        field('Existência', 'Anamnese registrada', true),
+        field('Data', formatDate(anamnesis.created_at), true),
+        field('Status', anamnesis.status || 'Recebida'),
+        field('Objetivo principal', pickFirstDeep(answers, SUMMARY_PATHS.mainObjective)),
+        field('O que mais incomoda', pickFirst(answers, ['o_que_mais_incomoda', 'incômodo_principal', 'pain_point'])),
+        field('Maior dificuldade alimentar', pickFirst(answers, ['maior_dificuldade_alimentar', 'nutrition.main_difficulty', 'dificuldade_alimentar'])),
+        field('Rotina', pickFirst(answers, ['rotina', 'routine', 'routine_context'])),
+        field('Sono/recuperação', pickFirst(answers, ['sono_recuperacao', 'sleep.recovery', 'recovery'])),
+        field('Saúde/medicações/hormônios', pickFirst(answers, ['saude_medicacoes_hormonios', 'health.medications_hormones', 'health_notes'])),
+        field('Adesão/expectativa', pickFirst(answers, ['adesao_expectativa', 'adherence.expectation', 'expectativa']))
+      ]);
+    }
+
+    function renderCheckin(checkin) {
+      if (!checkin) {
+        byId('latestCheckin').innerHTML = renderEmpty('Sem check-in registrado.');
+        return;
+      }
+      byId('latestCheckin').innerHTML = renderFields([
+        field('Data do check-in', formatDate(checkin.created_at), true),
+        field('Peso', formatWeight(checkin.weekly_weight)),
+        field('Percepção/adesão geral', resolveAdherence(checkin), true),
+        field('Adesão treino', checkin.training_adherence),
+        field('Adesão nutrição', checkin.nutrition_adherence),
+        field('Adesão cardio', checkin.cardio_adherence),
+        field('Fome', checkin.hunger_level),
+        field('Sono', checkin.sleep_quality),
+        field('Energia', checkin.energy_level),
+        field('Estresse', checkin.stress_level),
+        field('Principal dificuldade', checkin.main_difficulty),
+        field('Contexto da rotina', checkin.routine_context),
+        field('Suporte necessário', checkin.support_needed)
+      ]);
+    }
+
+    function renderCoachReply(checkin) {
+      if (!checkin?.coach_reply) {
+        byId('coachReply').innerHTML = renderEmpty('Sem resposta registrada para o último check-in.');
+        return;
+      }
+      byId('coachReply').innerHTML = renderFields([
+        field('Status', checkin.coach_status || 'pending', true),
+        field('Respondido em', formatDate(checkin.coach_reply_at)),
+        field('Resposta', checkin.coach_reply)
+      ]);
+    }
+
+    function renderWeeklyPlan(plan) {
+      if (!plan) {
+        byId('weeklyPlan').innerHTML = renderEmpty('Sem objetivo do planejamento ativo na semana atual.');
+        return;
+      }
+      byId('weeklyPlan').innerHTML = renderFields([
+        field('Semana', plan.week_ref, true),
+        field('Foco do treino', plan.training_focus),
+        field('Meta de cardio', plan.cardio_target),
+        field('Foco nutricional', plan.nutrition_focus),
+        field('Principal risco', plan.main_risk),
+        field('Próxima ação recomendada', plan.coach_message)
+      ]);
+    }
+
+    function renderNutritionPlan(plan) {
+      if (!plan) {
+        byId('nutritionPlan').innerHTML = renderEmpty('Sem plano alimentar ativo.');
+        return;
+      }
+      const meals = Array.isArray(plan.meals) ? plan.meals.length : (Array.isArray(plan.plan_json?.meals) ? plan.plan_json.meals.length : null);
+      byId('nutritionPlan').innerHTML = renderFields([
+        field('Título', plan.title, true),
+        field('Objetivo', pickFirstDeep(plan, ['objective', 'goal', 'objetivo', 'strategy_goal', 'plan_json.objective', 'plan_json.goal'])),
+        field('Estratégia', plan.strategy),
+        field('Status do plano alimentar', plan.status || 'ACTIVE', true),
+        field('Última atualização', formatDate(plan.updated_at || plan.created_at)),
+        field('Quantidade de refeições', meals)
+      ]);
+    }
+
+    function getTimelineEventDate(event) {
+      const candidates = [event?.at, event?.created_at];
+      for (const value of candidates) {
+        if (!value) continue;
+        const date = new Date(value);
+        if (!Number.isNaN(date.getTime())) return date;
+      }
+      return null;
+    }
+
+    function getTimelineDayDiff(date) {
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const startOfEventDay = new Date(date.getTime());
+      startOfEventDay.setHours(0, 0, 0, 0);
+      return Math.floor((startOfToday.getTime() - startOfEventDay.getTime()) / 86400000);
+    }
+
+    function groupTimelineByPeriod(timeline) {
+      const groups = [
+        { key: 'today', title: 'Hoje', events: [] },
+        { key: 'yesterday', title: 'Ontem', events: [] },
+        { key: 'last7', title: 'Últimos 7 dias', events: [] },
+        { key: 'last30', title: 'Últimos 30 dias', events: [] },
+        { key: 'older', title: 'Mais antigos', events: [] },
+        { key: 'undated', title: 'Sem data', events: [] }
+      ];
+      const byKey = groups.reduce((acc, group) => {
+        acc[group.key] = group;
+        return acc;
+      }, {});
+
+      (Array.isArray(timeline) ? timeline : []).forEach((event) => {
+        const date = getTimelineEventDate(event);
+        if (!date) {
+          byKey.undated.events.push(event);
+          return;
+        }
+        const dayDiff = getTimelineDayDiff(date);
+        if (dayDiff === 0) byKey.today.events.push(event);
+        else if (dayDiff === 1) byKey.yesterday.events.push(event);
+        else if (dayDiff >= 2 && dayDiff <= 7) byKey.last7.events.push(event);
+        else if (dayDiff >= 8 && dayDiff <= 30) byKey.last30.events.push(event);
+        else byKey.older.events.push(event);
+      });
+
+      return groups.filter((group) => group.events.length);
+    }
+
+    function renderTimelineGroup(title, events) {
+      const groupLi = document.createElement('li');
+      groupLi.className = 'timeline-group';
+      groupLi.style.display = 'block';
+      groupLi.style.padding = '0';
+      groupLi.style.border = '0';
+      groupLi.style.background = 'transparent';
+
+      const heading = document.createElement('h3');
+      heading.className = 'timeline-group-title';
+      heading.textContent = title;
+      heading.style.margin = '12px 0 8px';
+      heading.style.fontSize = '1rem';
+      groupLi.appendChild(heading);
+
+      const list = document.createElement('ul');
+      list.className = 'student-timeline';
+      events.forEach((event) => {
+        const view = getTimelineEventView(event);
+        const eventDate = getTimelineEventDate(event);
+        const metadataLines = formatTimelineMetadata(event.detail || event.metadata || event.metadata_json || null);
+        const metadataHtml = metadataLines.length ? `<p>${metadataLines.map((line) => escapeHtml(line)).join('<br>')}</p>` : '';
+        const li = document.createElement('li');
+        li.innerHTML = `<div><strong>${escapeHtml(`${view.icon} ${view.title}`)}</strong><p>${escapeHtml(view.description)}</p>${metadataHtml}</div><span>${escapeHtml(eventDate ? formatRelativeDate(eventDate) : 'Sem data')}</span>`;
+        list.appendChild(li);
+      });
+      groupLi.appendChild(list);
+      return groupLi;
+    }
+
+    function renderTimeline(timeline) {
+      const timelineEl = byId('timeline');
+      const filtersEl = byId('timelineFilters');
+      const latestEl = byId('timelineLatestActivity');
+      timelineEl.innerHTML = '';
+      const items = [...(Array.isArray(timeline) ? timeline : [])];
+      items.sort((a, b) => {
+        const dateA = getTimelineEventDate(a);
+        const dateB = getTimelineEventDate(b);
+        if (dateA && dateB) return dateB.getTime() - dateA.getTime();
+        if (dateA) return -1;
+        if (dateB) return 1;
+        return 0;
+      });
+      const FILTERS = [
+        { key: 'all', label: 'Todos' },
+        { key: 'checkins', label: 'Check-ins' },
+        { key: 'planos', label: 'Planos' },
+        { key: 'onboarding', label: 'Onboarding' },
+        { key: 'comunicação', label: 'Comunicação' },
+        { key: 'lifecycle', label: 'Lifecycle' },
+        { key: 'treino', label: 'Treino' }
+      ];
+      const currentFilter = window.__timelineFilterKey || 'all';
+
+      filtersEl.innerHTML = FILTERS.map((filter) => `<button type='button' data-timeline-filter='${filter.key}' class='${filter.key === currentFilter ? "is-active" : ""}'>${filter.label}</button>`).join('');
+      filtersEl.querySelectorAll('button[data-timeline-filter]').forEach((button) => {
+        button.addEventListener('click', () => {
+          window.__timelineFilterKey = button.getAttribute('data-timeline-filter') || 'all';
+          renderTimeline(window.__timelineItemsCache || []);
+        });
+      });
+
+      window.__timelineItemsCache = items;
+      const latest = items[0];
+      if (latest) {
+        const latestView = getTimelineEventView(latest);
+        const latestDate = getTimelineEventDate(latest);
+        latestEl.innerHTML = `<strong>Última atividade:</strong><p>${escapeHtml(`${latestView.icon} ${latestView.title}`)} — ${escapeHtml(latestDate ? formatRelativeDate(latestDate) : 'Sem data')}</p>`;
+      } else {
+        latestEl.innerHTML = `<strong>Última atividade:</strong><p>Sem atividade recente.</p>`;
+      }
+      const filteredItems = items.filter((event) => matchesTimelineFilter(event, currentFilter));
+      if (!filteredItems.length) {
+        timelineEl.innerHTML = `<li class='student-empty'>Sem eventos recentes.</li>`;
+        return;
+      }
+      groupTimelineByPeriod(filteredItems).forEach((group) => {
+        timelineEl.appendChild(renderTimelineGroup(group.title, group.events));
+      });
+    }
+    function getTimelineEventView(event) {
+      const type = String(event?.type || event?.event_type || '').toUpperCase();
+      const map = {
+        ANAMNESE_SUBMITTED: { icon: '📝', title: 'Anamnese enviada', description: 'O aluno enviou a Anamnese Premium LM.', category: 'onboarding' },
+        CHECKIN_SUBMITTED: { icon: '✅', title: 'Check-in enviado', description: 'O aluno enviou o check-in semanal.', category: 'checkins' },
+        COACH_REPLY_SENT: { icon: '📩', title: 'Check-in respondido', description: 'O coach respondeu o check-in do aluno.', category: 'checkins' },
+        PROGRESSION_LOG_SUBMITTED: { icon: '🏋️', title: 'Progressão registrada', description: 'O aluno registrou uma atualização de treino.', category: 'treino' },
+        FOLLOWUP_LOGGED: { icon: '💬', title: 'Follow-up registrado', description: 'Uma ação de acompanhamento foi registrada.', category: 'comunicação' },
+        WEEKLY_PLAN_UPDATED: { icon: '📋', title: 'Objetivo do planejamento atualizado', description: 'O planejamento estratégico da semana foi criado ou revisado.', category: 'planos' },
+        NUTRITION_PLAN_UPDATED: { icon: '🥗', title: 'Plano alimentar atualizado', description: 'O plano alimentar ativo foi criado ou revisado.', category: 'planos' },
+        STUDENT_INACTIVATED: { icon: '⚫', title: 'Aluno inativado', description: 'O aluno foi removido da operação ativa.', category: 'lifecycle' },
+        STUDENT_REACTIVATED: { icon: '🟢', title: 'Aluno reativado', description: 'O aluno voltou para a operação ativa.', category: 'lifecycle' },
+        STUDENT_TOKEN_UPDATED: { icon: '🔐', title: 'Token de acesso atualizado', description: 'O token/senha de acesso do aluno foi alterado.', category: 'lifecycle' },
+        REACTIVATION_CONTACT_SENT: { icon: '📲', title: 'Contato de reativação enviado', description: 'Uma tentativa de reativação foi registrada para o aluno.', category: 'comunicação' },
+        ANAMNESE_ENVIADA: { icon: '📝', title: 'Anamnese enviada', description: 'O aluno enviou a Anamnese Premium LM.', category: 'onboarding' },
+        CHECKIN_ENVIADO: { icon: '✅', title: 'Check-in enviado', description: 'O aluno enviou o check-in semanal.', category: 'checkins' },
+        RESPOSTA_COACH: { icon: '📩', title: 'Check-in respondido', description: 'O coach respondeu o check-in do aluno.', category: 'checkins' },
+        PLANO_SEMANAL_ATUALIZADO: { icon: '📋', title: 'Objetivo do planejamento atualizado', description: 'O planejamento estratégico da semana foi criado ou revisado.', category: 'planos' },
+        PLANO_ALIMENTAR_ATUALIZADO: { icon: '🥗', title: 'Plano alimentar atualizado', description: 'O plano alimentar ativo foi criado ou revisado.', category: 'planos' }
+      };
+      return map[type] || { icon: '🕒', title: 'Atividade registrada', description: 'Um evento operacional foi registrado no sistema.', category: 'outros' };
+    }
+    function formatTimelineMetadata(metadata) {
+      let obj = metadata;
+      if (typeof metadata === 'string') {
+        try { obj = JSON.parse(metadata); } catch (_) { return []; }
+      }
+      if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return [];
+      const out = [];
+      if (obj.week_ref) out.push(`Semana: ${obj.week_ref}`);
+      if (obj.coach_status) out.push(`Status: ${obj.coach_status}`);
+      if (obj.previous_status) out.push(`Status anterior: ${obj.previous_status}`);
+      if (obj.new_status) out.push(`Novo status: ${obj.new_status}`);
+      if (obj.reason) out.push(`Motivo: ${obj.reason}`);
+      return out;
+    }
+    function matchesTimelineFilter(event, filterKey) {
+      if (!filterKey || filterKey === 'all') return true;
+      const type = String(event?.type || event?.event_type || '').toUpperCase();
+      const filters = {
+        checkins: ['CHECKIN_SUBMITTED', 'COACH_REPLY_SENT', 'CHECKIN_ENVIADO', 'RESPOSTA_COACH'],
+        planos: ['WEEKLY_PLAN_UPDATED', 'NUTRITION_PLAN_UPDATED', 'PLANO_SEMANAL_ATUALIZADO', 'PLANO_ALIMENTAR_ATUALIZADO'],
+        onboarding: ['ANAMNESE_SUBMITTED', 'ANAMNESE_ENVIADA', 'ACCESS_CREATED', 'ACCESS_ACTIVATED', 'PENDING_ONBOARDING'],
+        comunicação: ['FOLLOWUP_LOGGED', 'COACH_REPLY_SENT', 'REACTIVATION_CONTACT_SENT', 'RESPOSTA_COACH'],
+        lifecycle: ['STUDENT_INACTIVATED', 'STUDENT_REACTIVATED', 'STUDENT_TOKEN_UPDATED'],
+        treino: ['PROGRESSION_LOG_SUBMITTED']
+      };
+      return (filters[filterKey] || []).includes(type);
+    }
+    function formatRelativeDate(value) {
+      if (!value) return 'Sem data';
+      const date = value instanceof Date ? value : new Date(value);
+      if (Number.isNaN(date.getTime())) return 'Sem data';
+      const diff = Date.now() - date.getTime();
+      const days = Math.floor(diff / 86400000);
+      if (days <= 0) return 'hoje';
+      if (days === 1) return 'há 1 dia';
+      return `há ${days} dias`;
+    }
+    function renderPriority(priority) {
+      byId('clinicalPriority').innerHTML = priority ? renderFields([field('Nível', priority.level, true), field('Resumo', priority.message)]) : renderEmpty('Sem prioridade calculada.');
+    }
+    function renderNextAction(action) {
+      byId('nextAction').innerHTML = action
+        ? renderFields([field('📌 Ação', action.label, true), field('Motivo', action.reason), field('Código', action.code)])
+        : renderEmpty('Nenhuma ação pendente.');
+    }
+    function renderOnboardingStatus(student) {
+      const status = String(student?.status || '').toUpperCase();
+      const label = status === 'ACTIVE'
+        ? '🟢 Ativo'
+        : status === 'INACTIVE'
+          ? '⚫ Inativo'
+          : '🟡 Aguardando liberação';
+      byId('onboardingStatus').innerHTML = renderFields([field('Status do onboarding', label, true)]);
+      activateAccessBtn.disabled = status === 'ACTIVE';
+      activateAccessCardBtn.disabled = status === 'ACTIVE';
+      const canInactivate = status === 'ACTIVE' || status === 'PENDING_ONBOARDING';
+      const canReactivate = status === 'INACTIVE';
+      toggleStudentStatusBtn.disabled = !canInactivate && !canReactivate;
+      toggleStudentStatusCardBtn.disabled = !canInactivate && !canReactivate;
+      toggleStudentStatusBtn.textContent = canReactivate ? '🔁 Reativar aluno' : '🚫 Inativar aluno';
+      toggleStudentStatusCardBtn.textContent = canReactivate ? '🔁 Reativar aluno' : '🚫 Inativar aluno';
+      rotateTokenBtn.disabled = !student?.email;
+      renderStudentAccess(student);
+    }
+    function getCurrentWeekRef() {
+      const date = new Date();
+      const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      const weekNum = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+      return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+    }
+
+    function resolveOperationalStatus(data) {
+      const student = data?.student || {};
+      const checkin = data?.latest_checkin || null;
+      const clinicalPriority = data?.clinical_priority || {};
+      const nextAction = data?.next_recommended_action || {};
+      const studentStatus = String(student.status || '').toUpperCase();
+      const clinicalLevel = String(clinicalPriority.level || '').toUpperCase();
+      const hasWeeklyPlan = !!data?.active_weekly_plan;
+      const hasNutritionPlan = !!data?.active_nutrition_plan;
+      const hasCoachReply = !!checkin?.coach_reply;
+      const hasCurrentWeekCheckin = !!checkin && String(checkin.week_ref || '') === getCurrentWeekRef();
+      const hasRecommendedAction = !!String(nextAction.code || '').trim();
+
+      if (studentStatus === 'INACTIVE') {
+        return { level: 'critical', label: '🔴 Crítico', reason: 'Aluno inativo.', nextStep: 'Reativar o aluno antes de executar o acompanhamento.' };
+      }
+      if (clinicalLevel === 'CRITICAL') {
+        return { level: 'critical', label: '🔴 Crítico', reason: clinicalPriority.message || 'Prioridade clínica crítica identificada.', nextStep: 'Responder o check-in hoje e ajustar o planejamento.' };
+      }
+      if (!hasCurrentWeekCheckin && !hasWeeklyPlan) {
+        return { level: 'critical', label: '🔴 Crítico', reason: 'Aluno sem check-in da semana e sem objetivo do planejamento atual.', nextStep: 'Cobrar check-in e criar objetivo do planejamento.' };
+      }
+      if (!hasWeeklyPlan) {
+        return { level: 'attention', label: '🟡 Atenção', reason: 'Falta objetivo do planejamento da semana.', nextStep: 'Atualizar objetivo do planejamento.' };
+      }
+      if (!hasNutritionPlan) {
+        return { level: 'attention', label: '🟡 Atenção', reason: 'Falta plano alimentar ativo.', nextStep: 'Criar ou ativar o plano alimentar.' };
+      }
+      if (!hasCoachReply) {
+        return { level: 'attention', label: '🟡 Atenção', reason: 'Último check-in não possui resposta do coach.', nextStep: 'Responder check-in com direcionamento objetivo.' };
+      }
+      if (clinicalLevel === 'HIGH') {
+        return { level: 'attention', label: '🟡 Atenção', reason: clinicalPriority.message || 'Prioridade clínica alta.', nextStep: 'Revisar sinais clínicos e ajustar a condução.' };
+      }
+      if (hasRecommendedAction) {
+        return { level: 'attention', label: '🟡 Atenção', reason: nextAction.reason || 'Há uma ação recomendada pendente.', nextStep: nextAction.label || 'Executar próxima ação recomendada.' };
+      }
+      if (studentStatus !== 'ACTIVE') {
+        return { level: 'attention', label: '🟡 Atenção', reason: 'Aluno ainda não está ativo.', nextStep: 'Liberar acesso antes de executar a rotina operacional.' };
+      }
+      return { level: 'ok', label: '🟢 Em dia', reason: 'Aluno ativo, check-in respondido, objetivo da semana e plano alimentar ativos.', nextStep: 'Manter acompanhamento de rotina.' };
+    }
+
+    function renderOperationalDiagnosis(data) {
+      const status = resolveOperationalStatus(data);
+      byId('operationalDiagnosis').innerHTML = renderFields([field('Status', status.label, true), field('Motivo', status.reason), field('Próximo passo', status.nextStep)]);
+    }
+
+    async function loadStudent360() {
+      const token = tokenInput.value.trim();
+      const email = emailInput.value.trim().toLowerCase();
+      if (!token || !email) {
+        statusBox.textContent = 'Informe token admin e email do aluno.';
+        return;
+      }
+      loadBtn.disabled = true;
+      document.querySelectorAll('#studentSummary,#studentAccessDetails,#latestAnamnesis,#latestCheckin,#weeklyPlan,#nutritionPlan,#timeline,#executiveSummary,#smartPendingList').forEach((el) => el.classList.add('skeleton'));
+      statusBox.textContent = 'Carregando dados do aluno...';
+      try {
+        const res = await fetch(`/api/admin/student-360?email=${encodeURIComponent(email)}`, { headers: window.LMAdminAuth.getAdminAuthHeaders() });
+        const payload = await res.json();
+        if (!res.ok || !payload?.ok) {
+          const fallback404 = 'Nenhum dado encontrado para este email. Verifique se há acesso, anamnese, check-in ou plano alimentar cadastrado.';
+          throw new Error(res.status === 404 ? (payload?.error || fallback404) : (payload?.error || 'Falha ao carregar dados.'));
+        }
+
+        const data = payload.data || {};
+        const student = data.student || {};
+        studentCredentialVisible = false;
+        const checkin = data.latest_checkin || null;
+        currentStudent = {
+          ...student,
+          active_weekly_plan: data.active_weekly_plan || null,
+          active_nutrition_plan: data.active_nutrition_plan || null,
+          latest_checkin: checkin || null,
+          latest_anamnesis: data.latest_anamnesis || null,
+          next_recommended_action: data.next_recommended_action || null
+        };
+        const anamnesis = data.latest_anamnesis || null;
+        const answers = parseAnamnesisAnswers(anamnesis);
+
+        setText('studentName', student.name || 'Aluno sem nome');
+        setText('studentEmail', `Email: ${student.email || '-'}`);
+        setText('studentWhatsapp', `WhatsApp: ${student.whatsapp || '-'}`);
+        setText('studentPlan', `Produto: ${formatStudentProduct(student)}`);
+        setText('studentStatus', `Status: ${student.status || '-'}`);
+
+        renderSummary(student, answers);
+        renderStudentAccess(student);
+        renderPremiumRecordNavigation(student);
+        renderAnamnesis(anamnesis, answers);
+        renderCheckin(checkin);
+        latestCheckinId = checkin?.id || null;
+        renderCoachReply(checkin);
+        renderWeeklyPlan(data.active_weekly_plan || null);
+        byId('planWeekRef').value = data.active_weekly_plan?.week_ref || '';
+        byId('planTrainingFocus').value = data.active_weekly_plan?.training_focus || '';
+        byId('planCardioTarget').value = data.active_weekly_plan?.cardio_target || '';
+        byId('planNutritionFocus').value = data.active_weekly_plan?.nutrition_focus || '';
+        byId('planMainRisk').value = data.active_weekly_plan?.main_risk || '';
+        byId('planCoachMessage').value = data.active_weekly_plan?.coach_message || '';
+        renderNutritionPlan(data.active_nutrition_plan || null);
+        renderPriority(data.clinical_priority || null);
+        renderNextAction(data.next_recommended_action || null);
+        currentStudent.clinical_priority = data.clinical_priority || null;
+        renderExecutiveSummary(data);
+        renderSmartPendingItems(data);
+        renderOnboardingStatus(student);
+        renderTimeline(data.timeline || []);
+        renderOperationalDiagnosis(data);
+        byId('accessMessageOutput').value = getAccessMessage();
+        syncAccessMessageActions();
+        byId('communicationPreview').value = '';
+
+        hydrateLinks(student.email || email);
+        statusBox.textContent = 'Student 360 carregado com sucesso.';
+        byId('actionsCenter').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (error) {
+        statusBox.textContent = error.message || 'Erro ao carregar Student 360.';
+      } finally {
+        loadBtn.disabled = false;
+        document.querySelectorAll('.skeleton').forEach((el) => el.classList.remove('skeleton'));
+      }
+    }
+
+    loadBtn.addEventListener('click', loadStudent360);
+    studentSelect.addEventListener('change', () => {
+      const email = studentSelect.value.trim().toLowerCase();
+      if (!email) return;
+      emailInput.value = email;
+      hydrateLinks(email);
+      if (tokenInput.value.trim()) loadStudent360();
+    });
+    emailInput.addEventListener('input', () => {
+      const email = emailInput.value.trim().toLowerCase();
+      hydrateLinks(email);
+      if (studentSelect.value && studentSelect.value !== email) studentSelect.value = '';
+    });
+    quickReplyCheckinBtn.addEventListener('click', () => byId('coachReplyInput').focus());
+    openWeeklyPlanBtn.addEventListener('click', () => byId('weeklyPlan').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    editWeeklyPlanBtn.addEventListener('click', () => byId('planWeekRef').focus());
+    openNutritionPlanBtn.addEventListener('click', () => {
+      const email = getCurrentStudentEmail();
+      if (!email) {
+        statusBox.textContent = 'Informe ou carregue um aluno antes de abrir o plano alimentar.';
+        statusBox.className = 'status error';
+        emailInput.focus();
+        return;
+      }
+
+      window.location.href = getNutritionPlanUrl(email);
+    });
+    openWhatsappBtn.addEventListener('click', () => {
+      const link = getWhatsappLink(currentStudent?.whatsapp || '');
+      if (link) window.open(link, '_blank', 'noopener');
+    });
+    sendAccessBtn.addEventListener('click', () => {
+      byId('accessMessageOutput').value = getAccessMessage();
+    });
+    copyAccessMessageBtn.addEventListener('click', async () => {
+      const text = byId('accessMessageOutput').value.trim();
+      if (!text) return;
+      await navigator.clipboard.writeText(text);
+      showToast('✅ Mensagem copiada');
+    });
+    openAccessWhatsappBtn.addEventListener('click', () => {
+      const link = getWhatsappLink(currentStudent?.whatsapp || '');
+      const text = encodeURIComponent(byId('accessMessageOutput').value.trim() || getAccessMessage());
+      if (link) window.open(`${link}?text=${text}`, '_blank', 'noopener');
+    });
+    copyWhatsappBtn.addEventListener('click', async () => {
+      const phone = String(currentStudent?.whatsapp || '').trim();
+      if (!phone) return;
+      await navigator.clipboard.writeText(phone);
+      showToast('✅ WhatsApp copiado');
+    });
+    copyEmailBtn.addEventListener('click', async () => {
+      const email = String(currentStudent?.email || '').trim();
+      if (!email) return;
+      await navigator.clipboard.writeText(email);
+      showToast('✅ Email copiado');
+    });
+    copyStrategicSummaryBtn.addEventListener('click', async () => {
+      const text = getStrategicSummaryMessage();
+      byId('communicationPreview').value = text;
+      await navigator.clipboard.writeText(text);
+      showToast('✅ Resumo copiado');
+    });
+    generateWeeklyGuidanceBtn.addEventListener('click', () => {
+      byId('communicationPreview').value = getWeeklyGuidanceMessage();
+    });
+    generateCheckinResponseBtn.addEventListener('click', () => {
+      byId('communicationPreview').value = getCheckinResponseMessage();
+    });
+    copyCommunicationPreviewBtn.addEventListener('click', async () => {
+      const text = byId('communicationPreview').value.trim();
+      if (!text) return;
+      await navigator.clipboard.writeText(text);
+      showToast('✅ Mensagem copiada');
+    });
+    openCommunicationWhatsappBtn.addEventListener('click', () => {
+      const link = getWhatsappLink(currentStudent?.whatsapp || '');
+      const text = encodeURIComponent(byId('communicationPreview').value.trim());
+      if (!link || !text) return;
+      window.open(`${link}?text=${text}`, '_blank', 'noopener');
+    });
+    replyBtn.addEventListener('click', async () => {
+      const token = tokenInput.value.trim();
+      const reply = byId('coachReplyInput').value.trim();
+      if (!token || !latestCheckinId || !reply) return;
+      replyBtn.disabled = true;
+      try {
+        const res = await fetch(`/api/admin/checkins/${encodeURIComponent(latestCheckinId)}/reply`, { method: 'PATCH', headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ coach_reply: reply, coach_status: 'replied' }) });
+        const payload = await res.json();
+        if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao responder check-in');
+        byId('coachReplyInput').value = '';
+        await loadStudent360();
+        showToast('✅ Check-in respondido');
+      } finally { replyBtn.disabled = false; }
+    });
+    showCredentialBtn.addEventListener('click', () => {
+      if (!getStudentTemporaryCredential()) return;
+      studentCredentialVisible = !studentCredentialVisible;
+      renderStudentAccess(currentStudent);
+    });
+    copyAccessBtn.addEventListener('click', async () => {
+      const credential = getStudentTemporaryCredential();
+      if (!credential) return;
+      await navigator.clipboard.writeText(credential);
+      showToast('✅ Senha temporária copiada');
+    });
+    rotateTokenBtn.addEventListener('click', async () => {
+      const token = tokenInput.value.trim();
+      const email = emailInput.value.trim().toLowerCase();
+      if (!token || !email) return;
+      if (!window.confirm('Trocar o token/senha de acesso deste aluno? O token anterior deixará de funcionar.')) return;
+      rotateTokenBtn.disabled = true;
+      try {
+        const res = await fetch('/api/admin/student-access/token', {
+          method: 'POST',
+          headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ email })
+        });
+        const payload = await res.json();
+        if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao trocar token');
+        await loadStudent360();
+        showToast('✅ Token atualizado');
+      } catch (error) {
+        statusBox.textContent = error.message || 'Erro ao trocar token.';
+      } finally {
+        rotateTokenBtn.disabled = false;
+      }
+    });
+
+    activateAccessBtn.addEventListener('click', async () => {
+      const token = tokenInput.value.trim();
+      const email = emailInput.value.trim().toLowerCase();
+      if (!token || !email) return;
+      activateAccessBtn.disabled = true;
+      try {
+        const res = await fetch('/api/admin/student-access/activate', {
+          method: 'POST',
+          headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ email })
+        });
+        const payload = await res.json();
+        if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao liberar acesso');
+        await loadStudent360();
+      } finally { activateAccessBtn.disabled = false; }
+    });
+    activateAccessCardBtn.addEventListener('click', () => activateAccessBtn.click());
+    toggleStudentStatusCardBtn.addEventListener('click', () => toggleStudentStatusBtn.click());
+    toggleStudentStatusBtn.addEventListener('click', async () => {
+      const token = tokenInput.value.trim();
+      const email = emailInput.value.trim().toLowerCase();
+      const currentStatus = String(currentStudent?.status || '').toUpperCase();
+      if (!token || !email) return;
+      if (!['ACTIVE', 'PENDING_ONBOARDING', 'INACTIVE'].includes(currentStatus)) return;
+      const targetStatus = currentStatus === 'INACTIVE' ? 'ACTIVE' : 'INACTIVE';
+      const reasonPrompt = targetStatus === 'INACTIVE'
+        ? 'Motivo da inativação (opcional):'
+        : 'Motivo da reativação (opcional):';
+      const reason = window.prompt(reasonPrompt, '') || '';
+      toggleStudentStatusBtn.disabled = true;
+      try {
+        const res = await fetch('/api/admin/student-access/status', {
+          method: 'POST',
+          headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ email, status: targetStatus, reason: reason.trim() || null })
+        });
+        const payload = await res.json();
+        if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao atualizar status do aluno');
+        await loadStudent360();
+        showToast(targetStatus === 'INACTIVE' ? '✅ Aluno inativado' : '✅ Aluno reativado');
+      } catch (error) {
+        statusBox.textContent = error.message || 'Erro ao atualizar status do aluno.';
+      } finally {
+        toggleStudentStatusBtn.disabled = false;
+      }
+    });
+    savePlanBtn.addEventListener('click', async () => {
+      const token = tokenInput.value.trim();
+      const email = emailInput.value.trim().toLowerCase();
+      if (!token || !email || !byId('planWeekRef').value.trim()) return;
+      savePlanBtn.disabled = true;
+      try {
+        const res = await fetch('/api/admin/weekly-plan', { method: 'POST', headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ student_email: email, week_ref: byId('planWeekRef').value.trim(), training_focus: byId('planTrainingFocus').value.trim(), cardio_target: byId('planCardioTarget').value.trim(), nutrition_focus: byId('planNutritionFocus').value.trim(), main_risk: byId('planMainRisk').value.trim(), coach_message: byId('planCoachMessage').value.trim() }) });
+        const payload = await res.json();
+        if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao salvar objetivo do planejamento');
+        await loadStudent360();
+        showToast('✅ Plano salvo');
+      } finally { savePlanBtn.disabled = false; }
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    const initialEmail = (params.get('email') || '').trim().toLowerCase();
+    if (initialEmail) {
+      emailInput.value = initialEmail;
+      hydrateLinks(initialEmail);
+      byId('editNutritionPlan').href = getNutritionPlanUrl(initialEmail);
+    }
+
+    const savedToken = adminSessionToken || window.LMAdminAuth?.getAdminToken?.() || '';
+    if (savedToken) {
+      tokenInput.value = savedToken;
+      tokenWrap.hidden = true;
+      adminSessionStatus.hidden = false;
+      loadStudentSelect();
+    }
+    const collapseKeys = ['anamnesis', 'weeklyPlan', 'nutritionPlan', 'timeline'];
+    const savedCollapse = JSON.parse(localStorage.getItem('student360Collapsible') || '{}');
+    function applyCollapseState(key, collapsed) {
+      const body = byId(`collapse-${key}`);
+      const btn = document.querySelector(`[data-collapse-target='${key}']`);
+      if (!body || !btn) return;
+      body.hidden = !!collapsed;
+      btn.setAttribute('aria-expanded', String(!collapsed));
+      btn.textContent = `${collapsed ? '▶' : '▼'} ${btn.textContent.replace(/^[▶▼]\s*/, '')}`;
+    }
+    collapseKeys.forEach((key) => applyCollapseState(key, !!savedCollapse[key]));
+    document.querySelectorAll('.collapse-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.collapseTarget;
+        savedCollapse[key] = !savedCollapse[key];
+        localStorage.setItem('student360Collapsible', JSON.stringify(savedCollapse));
+        applyCollapseState(key, savedCollapse[key]);
+      });
+    });
+    if (initialEmail && savedToken) {
+      loadStudent360();
+    }
+  </script>
+</body>
+</html>

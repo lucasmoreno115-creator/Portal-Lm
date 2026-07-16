@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Legacy Admin — rollback only</title>
+  <link rel='stylesheet' href='assets/css/portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <section class='card hero'>
+      <nav>
+        <a href='/admin.html'>Admin Hub</a>
+        <a href='/admin-command-center.html'>Command Center</a>
+        <a href='/admin-student.html'>Student 360</a>
+        <a href='/admin-students.html'>Cadastro de aluno</a>
+        <button id='adminLogoutBtn' type='button'>Sair</button>
+      </nav>
+      <p class='eyebrow'>Consultoria LM • Painel interno</p>
+      <h1>Legacy Admin — rollback only</h1>
+      <p class='hero-title'>O centro operacional da Consultoria LM. Comece pelo Command Center e resolva a maior parte das ações pelo Student 360.</p>
+    </section>
+
+    <section class='admin-primary-grid'>
+      <a class='card admin-card admin-card-featured' href='/admin-command-center.html'>
+        <span class='admin-card-icon'>🎯</span>
+        <strong class='admin-card-title'>Command Center</strong>
+        <span class='admin-card-description'>Pendências, alertas e prioridades da operação.</span>
+        <span class='admin-card-cta'>Abrir Command Center</span>
+      </a>
+
+      <a class='card admin-card' href='/admin-student.html'>
+        <span class='admin-card-icon'>🧭</span>
+        <strong class='admin-card-title'>Student 360</strong>
+        <span class='admin-card-description'>Visão completa do aluno e ações individuais.</span>
+        <span class='admin-card-cta'>Abrir</span>
+      </a>
+
+      <a class='card admin-card' href='/admin-students.html'>
+        <span class='admin-card-icon'>👤</span>
+        <strong class='admin-card-title'>Cadastro de aluno</strong>
+        <span class='admin-card-description'>Criar ou atualizar acesso do aluno.</span>
+        <span class='admin-card-cta'>Abrir</span>
+      </a>
+    </section>
+
+    <section class='card admin-guide'>
+      <h2>Como operar no dia a dia</h2>
+      <ol>
+        <li>Comece pelo Command Center.</li>
+        <li>Abra o Student 360 para executar as ações no aluno.</li>
+        <li>Use Cadastro de aluno para criar ou atualizar acessos.</li>
+      </ol>
+    </section>
+  </div>
+  <script src='assets/js/admin-auth.js'></script>
+  <script>window.LMAdminAuth.attachLogout('adminLogoutBtn');</script>
+</body>
+</html>
