@@ -207,7 +207,43 @@ function catalog() {
   writeAtomic(path.join(root, 'DATABASE_CATALOG.md'), `${lines.join('\n')}\n`);
 }
 
-function wrangler(args) { return run(process.env.WRANGLER_BIN || 'wrangler', args); }
+
+export const WRANGLER_BIN_TYPES = Object.freeze({
+  NPX_LAUNCHER: 'NPX_LAUNCHER',
+  WRANGLER_LAUNCHER: 'WRANGLER_LAUNCHER',
+  UNKNOWN_CUSTOM_EXECUTABLE: 'UNKNOWN_CUSTOM_EXECUTABLE',
+});
+
+function executableName(value) {
+  return String(value || '').trim().split(/[\\/]/).filter(Boolean).pop()?.toLowerCase() || '';
+}
+
+export function classifyWranglerBin(value) {
+  const name = executableName(value);
+  if (name === 'npx' || name === 'npx.cmd') return WRANGLER_BIN_TYPES.NPX_LAUNCHER;
+  if (name === 'wrangler' || name === 'wrangler.cmd') return WRANGLER_BIN_TYPES.WRANGLER_LAUNCHER;
+  return WRANGLER_BIN_TYPES.UNKNOWN_CUSTOM_EXECUTABLE;
+}
+
+function isCmdExecutable(value) {
+  return executableName(value).endsWith('.cmd');
+}
+
+export function buildWranglerInvocation({ wranglerBin = process.env.WRANGLER_BIN, platform = process.platform } = {}) {
+  const configuredBin = wranglerBin || (platform === 'win32' ? 'npx.cmd' : 'npx');
+  const binType = classifyWranglerBin(configuredBin);
+  const usesNpx = binType === WRANGLER_BIN_TYPES.NPX_LAUNCHER;
+  const prefixArgs = usesNpx ? [configuredBin, 'wrangler'] : [configuredBin];
+  if (platform === 'win32' && isCmdExecutable(configuredBin)) {
+    return { command: 'cmd.exe', prefixArgs: ['/d', '/s', '/c', ...prefixArgs], binType };
+  }
+  return { command: configuredBin, prefixArgs: usesNpx ? ['wrangler'] : [], binType };
+}
+
+function wrangler(args) {
+  const invocation = buildWranglerInvocation();
+  return run(invocation.command, [...invocation.prefixArgs, ...args]);
+}
 function sqlLiteral(value) { return `'${String(value ?? '').replaceAll("'", "''")}'`; }
 function requireSafeNonProduction(environment, database, databaseId) { if (environment === 'production' || database === PRODUCTION_DB || databaseId === PRODUCTION_DB_ID) { const err = new Error('Production database is blocked for this operation.'); err.exitCode = 2; throw err; } }
 function evidence(kind, data) { const version = readVersion(); const body = { command: process.argv.join(' '), startedAt: data.startedAt, completedAt: new Date().toISOString(), exitCode: data.exitCode ?? 0, source: 'scripts/db-tool.mjs', environment: data.environment, databaseName: data.databaseName, databaseId: data.databaseId, status: data.status, checks: data.checks || [], errors: data.errors || [], hashes: data.hashes || {} }; writeJsonAtomic(path.join(releaseRoot, version, `${kind}.json`), body); return body; }
