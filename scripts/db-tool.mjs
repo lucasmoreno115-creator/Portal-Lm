@@ -321,7 +321,34 @@ function captureBaseline(args) {
   return result;
 }
 
-function remoteQuery(database, command) { const out = JSON.parse(wrangler(['d1','execute',database,'--remote','--json','--command',command])); return out[0]?.results || out.results || []; }
+
+export const REMOTE_READ_ONLY_SQL_FORBIDDEN = /\b(INSERT|UPDATE|DELETE|REPLACE|UPSERT|DROP|ALTER|CREATE|TRUNCATE|VACUUM|ATTACH|DETACH|REINDEX)\b/i;
+
+function stripSqlComments(sql) {
+  return String(sql || '').replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
+}
+
+export function assertRemoteReadOnlySql(command) {
+  const sql = stripSqlComments(command);
+  if (!sql) throw new Error('Remote D1 audit SQL is empty.');
+  const semicolons = [...sql.matchAll(/;/g)];
+  if (semicolons.length > 1 || (semicolons.length === 1 && semicolons[0].index !== sql.length - 1)) {
+    throw new Error('Remote D1 audit SQL must contain exactly one read-only statement.');
+  }
+  const statement = sql.replace(/;\s*$/, '').trim();
+  if (REMOTE_READ_ONLY_SQL_FORBIDDEN.test(statement)) throw new Error('Remote D1 audit SQL rejected: write or schema mutation keyword detected.');
+  if (/^PRAGMA\s+/i.test(statement)) {
+    if (!/^PRAGMA\s+(table_info|table_xinfo|index_list|index_info|foreign_key_list)\s*\(/i.test(statement)) {
+      throw new Error('Remote D1 audit SQL rejected: only schema-read PRAGMA statements are allowed.');
+    }
+    return statement;
+  }
+  if (/^SELECT\b/i.test(statement)) return statement;
+  throw new Error('Remote D1 audit SQL rejected: only SELECT and schema-read PRAGMA statements are allowed.');
+}
+
+function remoteQuery(database, command) { const safeCommand = assertRemoteReadOnlySql(command); const out = JSON.parse(wrangler(['d1','execute',database,'--remote','--json','--command',safeCommand])); return out[0]?.results || out.results || []; }
+
 function quoteIdent(name) { return `\"${String(name).replaceAll('\"', '\"\"')}\"`; }
 function remoteIntrospect(database) { const objects = remoteQuery(database, "SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE type IN ('table','index','trigger','view') AND name NOT LIKE 'sqlite_%' ORDER BY type,name;"); const tables = objects.filter(o => o.type === 'table').map(o => o.name).sort(); const columns = {}; const indexes = {}; for (const table of tables) { columns[table] = remoteQuery(database, `PRAGMA table_info(${quoteIdent(table)});`); indexes[table] = remoteQuery(database, `PRAGMA index_list(${quoteIdent(table)});`).map(idx => ({ ...idx, columns: remoteQuery(database, `PRAGMA index_info(${quoteIdent(idx.name)});`) })); } return { objects, tables, columns, indexes, triggers: objects.filter(o=>o.type==='trigger'), views: objects.filter(o=>o.type==='view') }; }
 function remoteMigrations(database) { try { return remoteQuery(database, 'SELECT name FROM d1_migrations ORDER BY name;').map(r => r.name).filter(Boolean); } catch { return []; } }
