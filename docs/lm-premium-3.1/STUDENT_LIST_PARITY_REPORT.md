@@ -1,6 +1,6 @@
 # LM Premium 3.1 — Student List Parity Report
 
-**Status:** PREPARADA — EXECUÇÃO REMOTA PENDENTE. O comando `node scripts\db-tool.mjs identity-audit --environment <staging|production> ...` foi preparado para preencher as métricas abaixo com contagens agregadas quando executado em ambiente remoto autenticado/read-only.
+**Status:** PREPARADA — NOVA EXECUÇÃO REMOTA PENDENTE. O comando `node scripts\db-tool.mjs identity-audit --environment <staging|production> ...` foi preparado para preencher as métricas abaixo com contagens agregadas quando executado em ambiente remoto autenticado/read-only.
 
 | Métrica | Legado | Workspace | Diferença | Causa | Prioridade |
 | ------- | -----: | --------: | --------: | ----- | ---------- |

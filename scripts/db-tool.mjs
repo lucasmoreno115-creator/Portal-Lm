@@ -359,6 +359,7 @@ const notPresent = reason => ({ status:'NOT_PRESENT', reason });
 const q = quoteIdent;
 
 export const IDENTITY_AUDIT_DEPENDENT_TABLES = Object.freeze(['premium_anamnesis','student_checkins','premium_nutrition_plans','premium_pending_items','premium_followup_entries','followup_logs','activity_timeline','weekly_plans']);
+export const IDENTITY_AUDIT_TABLE_ALLOWLIST = Object.freeze(['student_access','premium_students',...IDENTITY_AUDIT_DEPENDENT_TABLES]);
 export const IDENTITY_AUDIT_EMAIL_COLUMNS = Object.freeze(['email','student_email','user_email']);
 export const IDENTITY_AUDIT_FORBIDDEN_ARGS = Object.freeze(['command','sql','file']);
 
@@ -373,7 +374,7 @@ export function assertIdentityAuditArgs(args = {}) {
 
 export function identityAuditQueryCatalog() {
   return [
-    { id:'schema.tables', sql:"SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name" },
+    { id:'schema.tables', sql:"SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name" },
     { id:'studentAccess.summary', sql:"SELECT COUNT(*) AS total, SUM(CASE WHEN UPPER(COALESCE(status,''))='ACTIVE' THEN 1 ELSE 0 END) AS active, SUM(CASE WHEN UPPER(COALESCE(status,''))<>'ACTIVE' THEN 1 ELSE 0 END) AS inactive, SUM(CASE WHEN COALESCE(TRIM(email),'')<>'' THEN 1 ELSE 0 END) AS with_email, SUM(CASE WHEN COALESCE(TRIM(email),'')='' THEN 1 ELSE 0 END) AS without_email, SUM(CASE WHEN COALESCE(student_id,'')<>'' THEN 1 ELSE 0 END) AS with_student_id, SUM(CASE WHEN COALESCE(student_id,'')='' THEN 1 ELSE 0 END) AS without_student_id FROM student_access" },
     { id:'studentAccess.duplicatedEmails', sql:"SELECT COUNT(*) AS total FROM (SELECT LOWER(TRIM(email)) AS email_norm FROM student_access WHERE COALESCE(TRIM(email),'')<>'' GROUP BY email_norm HAVING COUNT(*)>1)" },
     { id:'studentAccess.duplicatedStudentIds', sql:"SELECT COUNT(*) AS total FROM (SELECT student_id FROM student_access WHERE COALESCE(student_id,'')<>'' GROUP BY student_id HAVING COUNT(*)>1)" },
@@ -394,11 +395,13 @@ export function validateIdentityAuditInternalQueries() {
   return true;
 }
 
-function loadRemoteSchema(database) {
-  const tableRows = remoteQuery(database, "SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+export function loadRemoteSchema(database, query = remoteQuery) {
+  const tableRows = query(database, "SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name");
+  const discovered = new Set(tableRows.map(r => r.name));
+  const allowed = IDENTITY_AUDIT_TABLE_ALLOWLIST.filter(table => discovered.has(table));
   const columns = {};
-  for (const row of tableRows) columns[row.name] = remoteQuery(database, `PRAGMA table_info(${q(row.name)})`).map(c => c.name);
-  return { tables: tableRows.map(r => r.name), columns };
+  for (const table of allowed) columns[table] = query(database, `PRAGMA table_info(${q(table)})`).map(c => c.name);
+  return { tables: allowed, discoveredTables: tableRows.map(r => r.name), columns };
 }
 
 function studentAccessMetrics(database, schema) {
@@ -453,7 +456,7 @@ function identityAudit(args) {
   validateIdentityAuditInternalQueries();
   const result = { environment, database, capturedAt, readOnly:true, zeroWrites:true, status:'COMPLETED', studentAccess:{}, premiumStudents:{}, parity:{}, dependentTables:{}, errors:[] };
   const schema = loadRemoteSchema(database);
-  result.schema = { tableCount: schema.tables.length, auditedTablesPresent: Object.fromEntries(['student_access','premium_students',...IDENTITY_AUDIT_DEPENDENT_TABLES].map(t => [t, hasTable(schema, t)])) };
+  result.schema = { tableCount: schema.tables.length, auditedTablesPresent: Object.fromEntries(IDENTITY_AUDIT_TABLE_ALLOWLIST.map(t => [t, hasTable(schema, t)])) };
   result.studentAccess = studentAccessMetrics(database, schema);
   result.premiumStudents = premiumStudentsMetrics(database, schema);
   result.parity = parityMetrics(database, schema);

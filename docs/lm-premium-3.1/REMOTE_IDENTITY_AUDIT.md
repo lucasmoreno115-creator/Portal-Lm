@@ -4,7 +4,7 @@
 
 Sprint de auditoria somente leitura para comparar Admin legado, Workspace Premium, identidade por e-mail, identidade por `student_id` e vínculos entre `student_access` e `premium_students`.
 
-**Status em 2026-07-17:** PREPARADA — EXECUÇÃO REMOTA PENDENTE. A execução remota real não foi concluída neste ambiente porque o binário/local package do Wrangler não está disponível e o fallback `npx wrangler` foi bloqueado por `403 Forbidden` no registry. Portanto, nenhuma consulta D1 remota e nenhum GET autenticado remoto foram executados. O PR agora inclui o comando específico `identity-audit`, que calcula automaticamente métricas agregadas de identidade quando executado em um ambiente com Wrangler/autenticação disponíveis.
+**Status em 2026-07-17:** PREPARADA — NOVA EXECUÇÃO REMOTA PENDENTE. A execução remota real não foi concluída neste ambiente porque o binário/local package do Wrangler não está disponível e o fallback `npx wrangler` foi bloqueado por `403 Forbidden` no registry. Portanto, nenhuma consulta D1 remota e nenhum GET autenticado remoto foram executados. O PR agora inclui o comando específico `identity-audit`, que calcula automaticamente métricas agregadas de identidade quando executado em um ambiente com Wrangler/autenticação disponíveis.
 
 **Confirmações de segurança:**
 
@@ -21,6 +21,12 @@ Sprint de auditoria somente leitura para comparar Admin legado, Workspace Premiu
 | Local | `lm-system-api` em `wrangler.toml`; `main = workers/api.js` | `public/` presente no repositório, Pages remoto não consultado | Binding `DB`; database name `lmsystemv2-db`; database ID `1de90532-157b-473e-8e7a-655ca9e0953d` | `5f04c56fac6ea39fcaaa9633d9fea7c66d1e5029` | `PREMIUM_ADMIN_CUTOVER_ENABLED` e `PREMIUM_PROFESSIONAL_WORKSPACE_ENABLED` identificadas no código, valores locais/remotos não confirmados | CONFIRMADO parcialmente por leitura local; remoto NÃO CONFIRMADO |
 | Staging | NÃO CONFIRMADO | NÃO CONFIRMADO | Nome default do tooling: `lmsystemv2-staging-db`; database ID NÃO DISPONÍVEL | NÃO DISPONÍVEL | NÃO CONFIRMADO | NÃO CONFIRMADO |
 | Produção | Rota configurada `portal.lucasmorenopersonal.com.br/api/*` | NÃO CONFIRMADO | Binding `DB`; database name `lmsystemv2-db`; database ID `1de90532-157b-473e-8e7a-655ca9e0953d` | NÃO DISPONÍVEL | NÃO CONFIRMADO | NÃO CONFIRMADO remotamente |
+
+## Causa operacional confirmada da falha do primeiro executor
+
+Execução real no Windows/Cloudflare D1 confirmou que `SELECT` remoto funciona, leitura de `sqlite_schema` funciona e `PRAGMA table_info("student_access")` funciona com `changes=0`, `rows_written=0` e `changed_db=false`. A falha operacional do primeiro executor foi causada por `loadRemoteSchema()` introspectar todas as tabelas retornadas por `sqlite_schema`; como o D1 retorna a tabela interna protegida `_cf_KV`, o comando tentou `PRAGMA table_info("_cf_KV")` e recebeu `SQLITE_AUTH`.
+
+Correção aplicada: `identity-audit` agora usa allowlist fixa e só executa `PRAGMA table_info()` para tabelas da auditoria que existam em `sqlite_schema`, filtrando `sqlite_%` e `_cf_%` na descoberta e nunca introspectando `_cf_KV`, `d1_migrations`, `lm2_*`, `project_lm_*`, `diagnostic_results`, `leads`, `operational_logs`, `training_*` ou qualquer tabela fora da allowlist.
 
 ## Segurança operacional read-only
 
@@ -203,4 +209,4 @@ Auditoria remota não confirmou a composição real das listas. Evidência está
 
 ## Conclusão
 
-PREPARADA — EXECUÇÃO REMOTA PENDENTE. A causa da lista vazia **não pôde ser confirmada** nesta execução. A causa está delimitada como dependente de executar o comando `identity-audit` e os GETs autenticados em ambiente remoto read-only. A evidência estática continua apontando divergência estrutural entre Admin legado (`student_access`) e Workspace (`premium_students`), mas sem prova quantitativa remota neste ambiente.
+PREPARADA — NOVA EXECUÇÃO REMOTA PENDENTE. A causa da lista vazia **não pôde ser confirmada** nesta execução. A causa está delimitada como dependente de executar o comando `identity-audit` e os GETs autenticados em ambiente remoto read-only. A evidência estática continua apontando divergência estrutural entre Admin legado (`student_access`) e Workspace (`premium_students`), mas sem prova quantitativa remota neste ambiente.

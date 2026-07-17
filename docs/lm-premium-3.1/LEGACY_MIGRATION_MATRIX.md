@@ -9,8 +9,9 @@
 - nenhuma confirmação de flags e deploy remoto;
 - guard read-only de SQL remoto implementado/testado antes de qualquer tentativa remota;
 - executor `identity-audit` preparado para métricas agregadas de identidade;
-- tentativa remota bloqueada antes de D1 por indisponibilidade do Wrangler via `npx` (`403 Forbidden`);
-- status da auditoria de identidade: PREPARADA — EXECUÇÃO REMOTA PENDENTE.
+- causa operacional confirmada no primeiro executor: introspecção indevida de `_cf_KV` provocava `SQLITE_AUTH`;
+- correção aplicada: allowlist fixa de tabelas de auditoria e filtro `name NOT LIKE '_cf_%'`;
+- status da auditoria de identidade: PREPARADA — NOVA EXECUÇÃO REMOTA PENDENTE.
 
 | Domínio | Funcionalidade | Legado | Workspace | Paridade de dados | Paridade de ação | Backend compartilhado | Status | Evidência | Prioridade |
 |---|---|---|---|---|---|---|---|---|---|
