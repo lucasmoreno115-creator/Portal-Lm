@@ -321,8 +321,151 @@ function captureBaseline(args) {
   return result;
 }
 
-function remoteQuery(database, command) { const out = JSON.parse(wrangler(['d1','execute',database,'--remote','--json','--command',command])); return out[0]?.results || out.results || []; }
+
+export const REMOTE_READ_ONLY_SQL_FORBIDDEN = /\b(INSERT|UPDATE|DELETE|REPLACE|UPSERT|DROP|ALTER|CREATE|TRUNCATE|VACUUM|ATTACH|DETACH|REINDEX)\b/i;
+
+function stripSqlComments(sql) {
+  return String(sql || '').replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
+}
+
+export function assertRemoteReadOnlySql(command) {
+  const sql = stripSqlComments(command);
+  if (!sql) throw new Error('Remote D1 audit SQL is empty.');
+  const semicolons = [...sql.matchAll(/;/g)];
+  if (semicolons.length > 1 || (semicolons.length === 1 && semicolons[0].index !== sql.length - 1)) {
+    throw new Error('Remote D1 audit SQL must contain exactly one read-only statement.');
+  }
+  const statement = sql.replace(/;\s*$/, '').trim();
+  if (REMOTE_READ_ONLY_SQL_FORBIDDEN.test(statement)) throw new Error('Remote D1 audit SQL rejected: write or schema mutation keyword detected.');
+  if (/^PRAGMA\s+/i.test(statement)) {
+    if (!/^PRAGMA\s+(table_info|table_xinfo|index_list|index_info|foreign_key_list)\s*\(/i.test(statement)) {
+      throw new Error('Remote D1 audit SQL rejected: only schema-read PRAGMA statements are allowed.');
+    }
+    return statement;
+  }
+  if (/^SELECT\b/i.test(statement) || (/^WITH\b/i.test(statement) && /\bSELECT\b/i.test(statement))) return statement;
+  throw new Error('Remote D1 audit SQL rejected: only SELECT and schema-read PRAGMA statements are allowed.');
+}
+
+function remoteQuery(database, command) { const safeCommand = assertRemoteReadOnlySql(command); const out = JSON.parse(wrangler(['d1','execute',database,'--remote','--json','--command',safeCommand])); return out[0]?.results || out.results || []; }
+
 function quoteIdent(name) { return `\"${String(name).replaceAll('\"', '\"\"')}\"`; }
+const firstRow = rows => rows[0] || {};
+const countRow = rows => Number(firstRow(rows).total || 0);
+const hasTable = (schema, table) => Boolean(schema.columns[table]);
+const hasColumn = (schema, table, column) => Boolean(schema.columns[table]?.includes(column));
+const firstColumn = (schema, table, candidates) => candidates.find(c => hasColumn(schema, table, c));
+const notPresent = reason => ({ status:'NOT_PRESENT', reason });
+const q = quoteIdent;
+
+export const IDENTITY_AUDIT_DEPENDENT_TABLES = Object.freeze(['premium_anamnesis','student_checkins','premium_nutrition_plans','premium_pending_items','premium_followup_entries','followup_logs','activity_timeline','weekly_plans']);
+export const IDENTITY_AUDIT_TABLE_ALLOWLIST = Object.freeze(['student_access','premium_students',...IDENTITY_AUDIT_DEPENDENT_TABLES]);
+export const IDENTITY_AUDIT_EMAIL_COLUMNS = Object.freeze(['email','student_email','user_email']);
+export const IDENTITY_AUDIT_FORBIDDEN_ARGS = Object.freeze(['command','sql','file']);
+
+export function assertIdentityAuditArgs(args = {}) {
+  for (const arg of IDENTITY_AUDIT_FORBIDDEN_ARGS) if (args[arg] !== undefined) throw new Error('identity-audit does not accept custom SQL, --command, or --file input.');
+  const env = args.environment || 'staging';
+  if (env === 'production' && args['confirm-read-only-production'] !== true) throw new Error('identity-audit production requires --confirm-read-only-production.');
+  if (env === 'staging' && args['confirm-read-only-staging'] !== true) throw new Error('identity-audit staging requires --confirm-read-only-staging.');
+  if (!['production','staging'].includes(env)) throw new Error('identity-audit supports only staging or production.');
+  return env;
+}
+
+export function identityAuditQueryCatalog() {
+  return [
+    { id:'schema.tables', sql:"SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name" },
+    { id:'studentAccess.summary', sql:"SELECT COUNT(*) AS total, SUM(CASE WHEN UPPER(COALESCE(status,''))='ACTIVE' THEN 1 ELSE 0 END) AS active, SUM(CASE WHEN UPPER(COALESCE(status,''))<>'ACTIVE' THEN 1 ELSE 0 END) AS inactive, SUM(CASE WHEN COALESCE(TRIM(email),'')<>'' THEN 1 ELSE 0 END) AS with_email, SUM(CASE WHEN COALESCE(TRIM(email),'')='' THEN 1 ELSE 0 END) AS without_email, SUM(CASE WHEN COALESCE(student_id,'')<>'' THEN 1 ELSE 0 END) AS with_student_id, SUM(CASE WHEN COALESCE(student_id,'')='' THEN 1 ELSE 0 END) AS without_student_id FROM student_access" },
+    { id:'studentAccess.duplicatedEmails', sql:"SELECT COUNT(*) AS total FROM (SELECT LOWER(TRIM(email)) AS email_norm FROM student_access WHERE COALESCE(TRIM(email),'')<>'' GROUP BY email_norm HAVING COUNT(*)>1)" },
+    { id:'studentAccess.duplicatedStudentIds', sql:"SELECT COUNT(*) AS total FROM (SELECT student_id FROM student_access WHERE COALESCE(student_id,'')<>'' GROUP BY student_id HAVING COUNT(*)>1)" },
+    { id:'premiumStudents.summary', sql:"SELECT COUNT(*) AS total, SUM(CASE WHEN COALESCE(TRIM(email),'')<>'' THEN 1 ELSE 0 END) AS with_email, SUM(CASE WHEN COALESCE(TRIM(email),'')='' THEN 1 ELSE 0 END) AS without_email FROM premium_students" },
+    { id:'premiumStudents.duplicatedEmails', sql:"SELECT COUNT(*) AS total FROM (SELECT LOWER(TRIM(email)) AS email_norm FROM premium_students WHERE COALESCE(TRIM(email),'')<>'' GROUP BY email_norm HAVING COUNT(*)>1)" },
+    { id:'premiumStudents.duplicatedStudentIds', sql:"SELECT COUNT(*) AS total FROM (SELECT student_id FROM premium_students WHERE COALESCE(student_id,'')<>'' GROUP BY student_id HAVING COUNT(*)>1)" },
+    { id:'parity.byEmail', sql:"WITH sa AS (SELECT LOWER(TRIM(email)) email_norm FROM student_access WHERE COALESCE(TRIM(email),'')<>'' GROUP BY email_norm), ps AS (SELECT LOWER(TRIM(email)) email_norm FROM premium_students WHERE COALESCE(TRIM(email),'')<>'' GROUP BY email_norm), emails AS (SELECT email_norm FROM sa UNION SELECT email_norm FROM ps) SELECT SUM(CASE WHEN EXISTS (SELECT 1 FROM sa WHERE sa.email_norm=emails.email_norm) AND EXISTS (SELECT 1 FROM ps WHERE ps.email_norm=emails.email_norm) THEN 1 ELSE 0 END) AS in_both, SUM(CASE WHEN EXISTS (SELECT 1 FROM sa WHERE sa.email_norm=emails.email_norm) AND NOT EXISTS (SELECT 1 FROM ps WHERE ps.email_norm=emails.email_norm) THEN 1 ELSE 0 END) AS only_student_access, SUM(CASE WHEN NOT EXISTS (SELECT 1 FROM sa WHERE sa.email_norm=emails.email_norm) AND EXISTS (SELECT 1 FROM ps WHERE ps.email_norm=emails.email_norm) THEN 1 ELSE 0 END) AS only_premium_students FROM emails" },
+    { id:'parity.divergentStudentId', sql:"WITH pairs AS (SELECT LOWER(TRIM(sa.email)) email_norm, sa.student_id sa_student_id, ps.student_id ps_student_id FROM student_access sa JOIN premium_students ps ON LOWER(TRIM(sa.email))=LOWER(TRIM(ps.email)) WHERE COALESCE(TRIM(sa.email),'')<>'' AND COALESCE(sa.student_id,'')<>'' AND COALESCE(ps.student_id,'')<>'' AND sa.student_id<>ps.student_id) SELECT COUNT(DISTINCT email_norm) AS total FROM pairs" },
+  ];
+}
+
+function statusBreakdownQuery(table, column) { return `SELECT COALESCE(${q(column)},'__NULL__') AS status, COUNT(*) AS total FROM ${q(table)} GROUP BY COALESCE(${q(column)},'__NULL__') ORDER BY total DESC`; }
+function duplicateGroupsQuery(table, column) { return `SELECT COUNT(*) AS total FROM (SELECT ${q(column)} AS value FROM ${q(table)} WHERE COALESCE(${q(column)},'')<>'' GROUP BY value HAVING COUNT(*)>1)`; }
+function duplicateEmailGroupsQuery(table, column) { return `SELECT COUNT(*) AS total FROM (SELECT LOWER(TRIM(${q(column)})) AS email_norm FROM ${q(table)} WHERE COALESCE(TRIM(${q(column)}),'')<>'' GROUP BY email_norm HAVING COUNT(*)>1)`; }
+
+export function validateIdentityAuditInternalQueries() {
+  for (const spec of identityAuditQueryCatalog()) assertRemoteReadOnlySql(spec.sql);
+  return true;
+}
+
+export function loadRemoteSchema(database, query = remoteQuery) {
+  const tableRows = query(database, "SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name");
+  const discovered = new Set(tableRows.map(r => r.name));
+  const allowed = IDENTITY_AUDIT_TABLE_ALLOWLIST.filter(table => discovered.has(table));
+  const columns = {};
+  for (const table of allowed) columns[table] = query(database, `PRAGMA table_info(${q(table)})`).map(c => c.name);
+  return { tables: allowed, discoveredTables: tableRows.map(r => r.name), columns };
+}
+
+function studentAccessMetrics(database, schema) {
+  if (!hasTable(schema, 'student_access')) return notPresent('student_access table is absent');
+  const summary = firstRow(remoteQuery(database, identityAuditQueryCatalog().find(s => s.id === 'studentAccess.summary').sql));
+  return { status:'OK', ...summary, duplicated_email_groups: countRow(remoteQuery(database, identityAuditQueryCatalog().find(s => s.id === 'studentAccess.duplicatedEmails').sql)), duplicated_student_id_groups: countRow(remoteQuery(database, identityAuditQueryCatalog().find(s => s.id === 'studentAccess.duplicatedStudentIds').sql)) };
+}
+
+function premiumStudentsMetrics(database, schema) {
+  if (!hasTable(schema, 'premium_students')) return notPresent('premium_students table is absent');
+  const status = firstColumn(schema, 'premium_students', ['status','consultation_status']);
+  const accessStatus = firstColumn(schema, 'premium_students', ['access_status']);
+  const result = { status:'OK', ...firstRow(remoteQuery(database, identityAuditQueryCatalog().find(s => s.id === 'premiumStudents.summary').sql)), duplicated_email_groups: countRow(remoteQuery(database, identityAuditQueryCatalog().find(s => s.id === 'premiumStudents.duplicatedEmails').sql)), duplicated_student_id_groups: countRow(remoteQuery(database, identityAuditQueryCatalog().find(s => s.id === 'premiumStudents.duplicatedStudentIds').sql)) };
+  result.consultation_status = hasColumn(schema, 'premium_students', 'consultation_status') ? remoteQuery(database, statusBreakdownQuery('premium_students', 'consultation_status')) : notPresent('consultation_status column is absent');
+  result.access_status = accessStatus ? remoteQuery(database, statusBreakdownQuery('premium_students', accessStatus)) : notPresent('access_status column is absent');
+  result.status_breakdown = status ? remoteQuery(database, statusBreakdownQuery('premium_students', status)) : notPresent('status column is absent');
+  return result;
+}
+
+function parityMetrics(database, schema) {
+  const required = ['student_access','premium_students'].every(t => hasTable(schema, t) && hasColumn(schema, t, 'email'));
+  if (!required) return notPresent('student_access/premium_students email columns are required');
+  const base = firstRow(remoteQuery(database, identityAuditQueryCatalog().find(s => s.id === 'parity.byEmail').sql));
+  return {
+    status:'OK',
+    ...base,
+    divergent_student_id_by_email: countRow(remoteQuery(database, identityAuditQueryCatalog().find(s => s.id === 'parity.divergentStudentId').sql)),
+    email_with_multiple_student_ids: countRow(remoteQuery(database, "WITH ids AS (SELECT LOWER(TRIM(email)) email_norm, student_id FROM student_access WHERE COALESCE(TRIM(email),'')<>'' AND COALESCE(student_id,'')<>'' UNION SELECT LOWER(TRIM(email)) email_norm, student_id FROM premium_students WHERE COALESCE(TRIM(email),'')<>'' AND COALESCE(student_id,'')<>'') SELECT COUNT(*) AS total FROM (SELECT email_norm FROM ids GROUP BY email_norm HAVING COUNT(DISTINCT student_id)>1)")),
+    student_id_with_multiple_emails: countRow(remoteQuery(database, "WITH emails AS (SELECT student_id, LOWER(TRIM(email)) email_norm FROM student_access WHERE COALESCE(TRIM(email),'')<>'' AND COALESCE(student_id,'')<>'' UNION SELECT student_id, LOWER(TRIM(email)) email_norm FROM premium_students WHERE COALESCE(TRIM(email),'')<>'' AND COALESCE(student_id,'')<>'') SELECT COUNT(*) AS total FROM (SELECT student_id FROM emails GROUP BY student_id HAVING COUNT(DISTINCT email_norm)>1)")),
+  };
+}
+
+function dependentTableMetrics(database, schema, table) {
+  if (!hasTable(schema, table)) return notPresent(`${table} table is absent`);
+  const studentId = hasColumn(schema, table, 'student_id');
+  const email = firstColumn(schema, table, IDENTITY_AUDIT_EMAIL_COLUMNS);
+  const tq = q(table);
+  const sid = studentId ? q('student_id') : 'NULL';
+  const em = email ? q(email) : 'NULL';
+  const total = countRow(remoteQuery(database, `SELECT COUNT(*) AS total FROM ${tq}`));
+  const withSid = studentId ? countRow(remoteQuery(database, `SELECT COUNT(*) AS total FROM ${tq} WHERE COALESCE(${sid},'')<>''`)) : 0;
+  const withEmail = email ? countRow(remoteQuery(database, `SELECT COUNT(*) AS total FROM ${tq} WHERE COALESCE(TRIM(${em}),'')<>''`)) : 0;
+  const validSid = studentId && hasTable(schema, 'premium_students') && hasColumn(schema, 'premium_students', 'student_id') ? countRow(remoteQuery(database, `SELECT COUNT(*) AS total FROM ${tq} d WHERE COALESCE(d.${sid},'')<>'' AND EXISTS (SELECT 1 FROM premium_students ps WHERE ps.student_id=d.${sid})`)) : 0;
+  const emailMatch = email && hasTable(schema, 'student_access') && hasColumn(schema, 'student_access', 'email') ? countRow(remoteQuery(database, `SELECT COUNT(*) AS total FROM ${tq} d WHERE COALESCE(TRIM(d.${em}),'')<>'' AND EXISTS (SELECT 1 FROM student_access sa WHERE LOWER(TRIM(sa.email))=LOWER(TRIM(d.${em})))`)) : 0;
+  return { status:'OK', total, with_student_id:withSid, without_student_id: studentId ? total - withSid : total, with_email:withEmail, without_email: email ? total - withEmail : total, student_id_valid_in_premium_students: validSid, student_id_orphan: studentId ? withSid - validSid : 0, email_matching_student_access: emailMatch, email_without_match: email ? withEmail - emailMatch : 0, detected_columns:{ student_id: studentId, email: email || null } };
+}
+
+function identityAudit(args) {
+  const environment = assertIdentityAuditArgs(args);
+  const database = args.database || (environment === 'production' ? PRODUCTION_DB : 'lmsystemv2-staging-db');
+  const capturedAt = new Date().toISOString();
+  validateIdentityAuditInternalQueries();
+  const result = { environment, database, capturedAt, readOnly:true, zeroWrites:true, status:'COMPLETED', studentAccess:{}, premiumStudents:{}, parity:{}, dependentTables:{}, errors:[] };
+  const schema = loadRemoteSchema(database);
+  result.schema = { tableCount: schema.tables.length, auditedTablesPresent: Object.fromEntries(IDENTITY_AUDIT_TABLE_ALLOWLIST.map(t => [t, hasTable(schema, t)])) };
+  result.studentAccess = studentAccessMetrics(database, schema);
+  result.premiumStudents = premiumStudentsMetrics(database, schema);
+  result.parity = parityMetrics(database, schema);
+  for (const table of IDENTITY_AUDIT_DEPENDENT_TABLES) result.dependentTables[table] = dependentTableMetrics(database, schema, table);
+  const output = path.join(root, 'artifacts', 'lm-premium-3.1-identity-audit', `identity-audit-${environment}.json`);
+  writeJsonAtomic(output, result);
+  console.log(JSON.stringify({ status:'PASS', output:path.relative(root, output), environment, database, readOnly:true, zeroWrites:true }));
+  return result;
+}
 function remoteIntrospect(database) { const objects = remoteQuery(database, "SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE type IN ('table','index','trigger','view') AND name NOT LIKE 'sqlite_%' ORDER BY type,name;"); const tables = objects.filter(o => o.type === 'table').map(o => o.name).sort(); const columns = {}; const indexes = {}; for (const table of tables) { columns[table] = remoteQuery(database, `PRAGMA table_info(${quoteIdent(table)});`); indexes[table] = remoteQuery(database, `PRAGMA index_list(${quoteIdent(table)});`).map(idx => ({ ...idx, columns: remoteQuery(database, `PRAGMA index_info(${quoteIdent(idx.name)});`) })); } return { objects, tables, columns, indexes, triggers: objects.filter(o=>o.type==='trigger'), views: objects.filter(o=>o.type==='view') }; }
 function remoteMigrations(database) { try { return remoteQuery(database, 'SELECT name FROM d1_migrations ORDER BY name;').map(r => r.name).filter(Boolean); } catch { return []; } }
 function audit(args) { const env = args.environment || 'staging'; const dbName = args.database || (env === 'production' ? PRODUCTION_DB : 'lmsystemv2-staging-db'); const startedAt = new Date().toISOString(); const replay = replayMigrations(); if (!replay.ok) { const report = { schemaDrift:{status:'BLOCKING', error:replay.error}, migrationHistory:{status:'NOT_EVALUATED'}, status:'BLOCKING' }; writeJsonAtomic(path.join(root,'artifacts',`db-audit-${env}.json`), report); process.exitCode=2; return; } const expected = introspectSqliteDb(replay.database); const actual = remoteIntrospect(dbName); const drift = compareSchemas(expected, actual); const history = migrationHistory(migrationFiles(), remoteMigrations(dbName)); const status = drift.status === 'BLOCKING' || history.status === 'BLOCKING' ? 'BLOCKING' : history.status === 'WARNING' ? 'WARNING' : 'PASS'; writeJsonAtomic(path.join(root,'artifacts',`db-audit-${env}.json`), { schemaDrift: drift, migrationHistory: history, status }); evidence('audit', { startedAt, environment:env, databaseName:dbName, databaseId:args['database-id'], status, checks:['schemaDrift','migrationHistory'] }); if (status === 'BLOCKING') process.exitCode = 2; }
@@ -335,7 +478,7 @@ function smoke(args) { const startedAt=new Date().toISOString(); if(args['skip-s
 function productionPlan(args) { const gates = { allow:process.env.ALLOW_PRODUCTION_DEPLOY==='true', id:process.env.CONFIRM_PRODUCTION_DATABASE_ID===PRODUCTION_DB_ID, version:process.env.CONFIRM_RELEASE_VERSION===readVersion(), confirm:args['confirm-production']===true }; const status = Object.values(gates).every(Boolean) ? 'PASS' : 'BLOCKING'; writeJsonAtomic(path.join(root,'artifacts','production-deploy-plan.json'), { status, gates, writesExecuted:false }); if(status==='BLOCKING') process.exitCode=2; }
 
 
-export function main(argv = process.argv.slice(2)) { const args=parseArgs(argv); const cmd=args._[0]; try { if(cmd==='expected') emitExpected(); else if(cmd==='catalog') catalog(); else if(cmd==='capture-baseline') captureBaseline(args); else if(cmd==='audit') audit(args); else if(cmd==='backup') backup(args); else if(cmd==='restore') restore(args); else if(cmd==='provision-staging') provisionStaging(args); else if(cmd==='smoke') smoke(args); else if(cmd==='production-plan') productionPlan(args); else { console.error('Usage: db-tool expected|catalog|capture-baseline|audit|backup|restore|provision-staging|smoke|production-plan'); process.exitCode=2; } } catch (error) { console.error(error.message); process.exitCode = error.exitCode || 1; } }
+export function main(argv = process.argv.slice(2)) { const args=parseArgs(argv); const cmd=args._[0]; try { if(cmd==='expected') emitExpected(); else if(cmd==='catalog') catalog(); else if(cmd==='capture-baseline') captureBaseline(args); else if(cmd==='audit') audit(args); else if(cmd==='identity-audit') identityAudit(args); else if(cmd==='backup') backup(args); else if(cmd==='restore') restore(args); else if(cmd==='provision-staging') provisionStaging(args); else if(cmd==='smoke') smoke(args); else if(cmd==='production-plan') productionPlan(args); else { console.error('Usage: db-tool expected|catalog|capture-baseline|audit|identity-audit|backup|restore|provision-staging|smoke|production-plan'); process.exitCode=2; } } catch (error) { console.error(error.message); process.exitCode = error.exitCode || 1; } }
 
 export function isDirectExecution({ metaUrl = import.meta.url, argv1 = process.argv[1], platform = process.platform } = {}) {
   if (!argv1) return false;
