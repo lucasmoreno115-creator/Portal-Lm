@@ -2,16 +2,24 @@
 
 Sprint 0 documenta somente leitura: nenhuma correção, schema, migration, endpoint ou regra funcional foi criada.
 
+## Nível de validação
+
+- análise estática da main/branch;
+- testes automatizados locais;
+- nenhum request autenticado ao staging/produção;
+- nenhuma comparação de contagens reais;
+- nenhuma confirmação de flags e deploy remoto.
+
 ## Entradas administrativas auditadas
 
 | Rota / página | Arquivo servido | Status | Scripts | CSS | Auth | Flags | Parâmetros | Operacionalidade e navegação |
 |---|---|---|---|---|---|---|---|---|
-| `/admin` | redirect Worker para `/admin.html` | ponte/cutover | n/a | n/a | sessão admin no endpoint de flag | `PREMIUM_ADMIN_CUTOVER_ENABLED` | nenhum | Worker serve redirect; `/admin.html` consulta cutover e manda para Workspace ou legado. |
-| `/admin.html` | `public/admin.html` | ponte | inline + `assets/js/admin-auth.js` | inline | `LMAdminAuth` | `PREMIUM_ADMIN_CUTOVER_ENABLED` | nenhum | Entrada oficial; links: Workspace quando flag on, legado quando off. |
+| `/admin` | Worker ativo, sem servir HTML estático | ponte/cutover real Build 6.6 | n/a | n/a | consulta de flag no Worker; páginas alvo exigem admin nos endpoints | `PREMIUM_ADMIN_CUTOVER_ENABLED` | nenhum | `GET /admin` consulta a flag no Worker: `true` redireciona para `/admin-premium-workspace.html`; `false` redireciona para `/admin-legacy.html`. |
+| `/admin.html` | `public/admin.html` | bootstrap estático de compatibilidade/fallback | inline + `assets/js/admin-auth.js` | inline | `LMAdminAuth` no endpoint de cutover | `PREMIUM_ADMIN_CUTOVER_ENABLED` | nenhum | Não é a entrada normal quando o Worker está ativo; funciona como fallback estático/compatibilidade e também consulta `/api/admin/premium/cutover-route`. |
 | `/admin-legacy.html` | `public/admin-legacy.html` | legado/rollback | inline | inline | `x-admin-session`/`x-admin-token` via `admin-auth.js` | nenhuma Premium Workspace | e-mail nas ações contextuais | Command center legado: lista alunos, Student 360 por e-mail, acesso, follow-up, retention, weekly plan, nutrition. |
 | `/admin-premium-workspace.html` | `public/admin-premium-workspace.html` | novo | `public/admin-premium-workspace.js` e `public/assets/js/admin-premium-workspace.js` duplicado | `admin-premium-workspace.css` | `LMAdminAuth` com fallback `adminToken` | `PREMIUM_PROFESSIONAL_WORKSPACE_ENABLED` | `student_id` nas ações | Command Center novo: KPIs, lista, inbox, contexto do aluno. |
 | `/admin-student.html` | `public/admin-student.html` | legado/Student 360 | inline/fetch | inline | admin API | `STUDENT360` implícito por endpoint | `email` obrigatório | Student 360 legado por e-mail. |
-| `/admin-anamneses.html` | não encontrado em `public/` | compatibilidade ausente | n/a | n/a | endpoint legado existe via anamnese | n/a | provável e-mail/id | Página requerida não existe nesta árvore; há teste de auth e endpoint/anamnese Premium. |
+| `/admin-anamneses.html` | **não encontrado em `public/`** | **destino quebrado / BLOQUEADO** | n/a | n/a | n/a para página inexistente | n/a | n/a | Link/redirect declarado, mas arquivo não existe; risco direto de 404. Não há tela funcional de Anamnese a afirmar neste Sprint. |
 | `/admin-premium-weekly-feedbacks.html` | `public/admin-premium-weekly-feedbacks.html` | novo | `public/admin-premium-weekly-feedbacks.js` e cópia em assets | `admin-premium-weekly-feedbacks.css` | usa `credentials: include`; não injeta headers admin | nenhuma explícita no JS | feedback id | Lista feedbacks pendentes/ausentes e registra decisão. |
 | `/admin-premium-nutrition-plan.html` | `public/admin-premium-nutrition-plan.html` | novo | `public/admin-premium-nutrition-plan.js` e cópia em assets | `admin-premium-nutrition-plan.css` | não injeta headers admin no JS de raiz/assets | nenhuma explícita | `student_id` obrigatório | Plano alimentar Premium por `student_id`, draft, publish, history. |
 | `/admin-nutrition-plan.html` | não encontrado em `public/` | legado ausente/compatibilidade | n/a | n/a | endpoints legado existem | n/a | `email` | Endpoint legado `/api/admin/nutrition-plan` existe, mas página dedicada não aparece. |
@@ -97,13 +105,15 @@ Sprint 0 documenta somente leitura: nenhuma correção, schema, migration, endpo
 
 ## Causas para Workspace vazio — classificação
 
-1. **CONFIRMADA — fonte de alunos diferente**: legado lista `student_access`; Workspace lista `premium_students`. Alunos antigos apenas no legado não entram na lista Workspace.
-2. **CONFIRMADA — identificador diferente**: legado Student 360 exige `email`; Workspace exige `student_id` em contexto, prontuário, plano, pendência e follow-up.
-3. **CONFIRMADA — fallback legado não existe no Workspace**: plano legado usa fluxo por e-mail/identity fallback; plano Workspace valida `findByStudentId`.
-4. **CONFIRMADA — auth inconsistente em páginas novas auxiliares**: Workspace principal injeta `LMAdminAuth`; feedback e nutrition usam `credentials: include` ou sem headers explícitos, arriscando 401 silencioso.
-5. **PROVÁVEL — contratos/rotas de feedback divergentes**: JS chama `/api/admin/premium/weekly-feedbacks/...`, mas handler auditado expõe decisão em `/api/admin/premium/feedbacks/:id/decision`.
-6. **POSSÍVEL — flag desliga renderização**: summary retorna `featureFlag.enabled`; frontend oculta revisão semanal e loga flag disabled quando `PREMIUM_PROFESSIONAL_WORKSPACE_ENABLED` é falso.
-7. **POSSÍVEL — assets duplicados dessincronizam**: existem arquivos na raiz `public/admin-premium-*.js` e em `public/assets/js/admin-premium-*.js`.
+1. **CONFIRMADA NO CÓDIGO — divergência estrutural de fonte de alunos**: legado lista `student_access`; Workspace lista `premium_students`. A existência de alunos afetados no ambiente atual é **NÃO CONFIRMADA SEM DADOS REMOTOS**. Workspace vazio por essa causa em produção/staging também é **NÃO CONFIRMADO SEM CONTAGENS E REQUESTS REAIS**.
+2. **CONFIRMADA NO CÓDIGO — identificador diferente**: legado Student 360 exige `email`; Workspace exige `student_id` em contexto, prontuário, plano, pendência e follow-up. Impacto real em ambiente é **NÃO CONFIRMADO SEM DADOS REMOTOS**.
+3. **CONFIRMADA NO CÓDIGO — plano alimentar tem caminhos de identidade diferentes**: plano legado usa fluxo por e-mail/identity fallback; plano Workspace valida `findByStudentId`. Falha real em staging/produção é **NÃO CONFIRMADA SEM REQUESTS AUTENTICADOS**.
+4. **CONFIRMADA NO CÓDIGO — auth inconsistente em páginas novas auxiliares**: Workspace principal injeta `LMAdminAuth`; feedback e nutrition usam `credentials: include` ou sem headers explícitos. Bloqueio real por 401/403 remoto é **NÃO CONFIRMADO SEM REQUESTS AUTENTICADOS**.
+5. **CONFIRMADA NO CÓDIGO — `/admin-anamneses.html` ausente**: redirect/link declarado sem arquivo em `public/`; risco de 404.
+6. **PROVÁVEL NO AMBIENTE — contratos/rotas de feedback divergentes**: JS chama `/api/admin/premium/weekly-feedbacks/...`, mas handler auditado expõe decisão em `/api/admin/premium/feedbacks/:id/decision`; requer validação de deploy/requests para confirmar sintoma.
+7. **PROVÁVEL NO AMBIENTE — flags/desync de deploy podem explicar diferenças**: summary depende de `PREMIUM_PROFESSIONAL_WORKSPACE_ENABLED` e `/admin` depende de `PREMIUM_ADMIN_CUTOVER_ENABLED`; valores remotos não foram confirmados.
+8. **NÃO CONFIRMADA SEM DADOS REMOTOS — contagens e órfãos**: não foram apuradas quantidades de registros sem correspondência entre `student_access`, `premium_students`, `student_checkins`, `premium_anamnesis` e `premium_nutrition_plans`.
+9. **DESCARTADA — necessidade de criar tabela/migration neste Sprint**: a auditoria é documental e não exige schema novo.
 
 ## Módulos auditados
 
@@ -111,10 +121,13 @@ Sprint 0 documenta somente leitura: nenhuma correção, schema, migration, endpo
 - Lista de alunos: legado por `student_access`; Workspace por `premium_students` com cursor/filtro/busca.
 - Student 360/Workspace: legado por e-mail agrega várias tabelas; Workspace por `student_id` usa presenter contextual.
 - Cadastro/acesso: legado cria/atualiza `student_access`; Workspace não possui paridade plena.
-- Anamnese: legado aparece no 360 por e-mail; Workspace record/contexto por `student_id` e link para anamnese legada.
+- Anamnese: dados podem aparecer no 360/record por consultas existentes, mas `public/admin-anamneses.html` não existe; qualquer link direto para essa página é destino quebrado/BLOQUEADO com risco de 404.
 - Feedback semanal: legado checkins e reply; Workspace pendentes/decisão parcial.
 - Plano alimentar: legado GET/POST por e-mail; Workspace draft/publication/history por `student_id`.
 - Treinos: não há módulo Workspace equivalente completo; links/planos semanais legados cobrem parte.
 - Evolução: legado usa checkins/progression/timeline; Workspace mostra evolução recente resumida.
-- Pendências/Inbox: Workspace novo tem `premium_pending_items`; legado follow-up/retention ficam fora.
-- Follow-up/comunicação: legado `followup_logs` e retention; Workspace `premium_followup_entries` não consome histórico legado.
+- Inbox Premium: Workspace novo carrega `premium_pending_items`; isso não prova inbox vazia, apenas define a fonte nova.
+- Follow-up legado: usa `followup_logs`.
+- Follow-up Premium: usa `premium_followup_entries`.
+- Retenção: usa `retention_actions`.
+- Não há paridade consolidada entre inbox, follow-up legado, follow-up Premium e retenção.
