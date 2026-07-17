@@ -4,7 +4,7 @@
 
 Sprint de auditoria somente leitura para comparar Admin legado, Workspace Premium, identidade por e-mail, identidade por `student_id` e vínculos entre `student_access` e `premium_students`.
 
-**Resultado em 2026-07-17T16:14:20Z:** a execução remota real não foi concluída neste ambiente porque o binário/local package do Wrangler não está disponível e o fallback `npx wrangler` foi bloqueado por `403 Forbidden` no registry. Portanto, nenhuma consulta D1 remota e nenhum GET autenticado remoto foram executados. O relatório abaixo registra as evidências estáticas confirmadas, o guard read-only implementado antes de qualquer tentativa remota, as consultas agregadas aprovadas para execução futura e as limitações operacionais.
+**Status em 2026-07-17:** PREPARADA — EXECUÇÃO REMOTA PENDENTE. A execução remota real não foi concluída neste ambiente porque o binário/local package do Wrangler não está disponível e o fallback `npx wrangler` foi bloqueado por `403 Forbidden` no registry. Portanto, nenhuma consulta D1 remota e nenhum GET autenticado remoto foram executados. O PR agora inclui o comando específico `identity-audit`, que calcula automaticamente métricas agregadas de identidade quando executado em um ambiente com Wrangler/autenticação disponíveis.
 
 **Confirmações de segurança:**
 
@@ -33,6 +33,13 @@ Antes de qualquer tentativa remota, foi adicionado guard no tooling de D1 remoto
 - normaliza a remoção de `;` final;
 - mensagens de erro não incluem SQL completo, tokens, e-mails ou valores pessoais.
 
+### Comando específico preparado
+
+- Windows produção: `node scripts\db-tool.mjs identity-audit --environment production --confirm-read-only-production`
+- Windows staging: `node scripts\db-tool.mjs identity-audit --environment staging --database lmsystemv2-staging-db --confirm-read-only-staging`
+- Saída JSON esperada: `artifacts/lm-premium-3.1-identity-audit/identity-audit-<environment>.json`
+- Estrutura: `environment`, `database`, `capturedAt`, `readOnly`, `zeroWrites`, `studentAccess`, `premiumStudents`, `parity`, `dependentTables`, `errors`.
+
 ### Comandos executados
 
 | Timestamp UTC | Ambiente | Database | Comando | Resultado agregado | Zero writes |
@@ -40,9 +47,9 @@ Antes de qualquer tentativa remota, foi adicionado guard no tooling de D1 remoto
 | 2026-07-17T16:14:20Z | Local | N/A | `npx wrangler whoami && node scripts/db-tool.mjs audit --environment production --confirm-read-only-production` | Falhou antes de autenticar/consultar D1: `npm` retornou `403 Forbidden` ao buscar `wrangler`; nenhuma consulta remota foi executada | SIM |
 | 2026-07-17T16:14:00Z | Local | N/A | `node --test tests/lm-premium-3.1-remote-readonly-sql.test.mjs` | Guard read-only passou: aceita SELECT/schema e rejeita escrita/múltiplas statements | SIM |
 
-## Consultas agregadas aprovadas para execução remota futura
+## Consultas agregadas incluídas no executor `identity-audit`
 
-As consultas abaixo são exemplos agregados/sanitizados e devem ser executadas apenas com o guard ativo.
+As consultas abaixo são agregadas/sanitizadas, ficam versionadas no código e são executadas automaticamente pelo comando `identity-audit`; o operador não informa SQL arbitrário.
 
 ### `student_access`
 
@@ -196,4 +203,4 @@ Auditoria remota não confirmou a composição real das listas. Evidência está
 
 ## Conclusão
 
-A causa da lista vazia **não pôde ser confirmada** nesta execução. A causa está delimitada como dependente de acesso remoto read-only autenticado para medir contagens e respostas reais. A evidência estática continua apontando divergência estrutural entre Admin legado (`student_access`) e Workspace (`premium_students`), mas sem prova quantitativa remota neste ambiente.
+PREPARADA — EXECUÇÃO REMOTA PENDENTE. A causa da lista vazia **não pôde ser confirmada** nesta execução. A causa está delimitada como dependente de executar o comando `identity-audit` e os GETs autenticados em ambiente remoto read-only. A evidência estática continua apontando divergência estrutural entre Admin legado (`student_access`) e Workspace (`premium_students`), mas sem prova quantitativa remota neste ambiente.

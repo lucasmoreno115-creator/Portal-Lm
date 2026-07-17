@@ -8,7 +8,9 @@
 - nenhuma comparação de contagens reais, porque Wrangler remoto não estava disponível no ambiente;
 - nenhuma confirmação de flags e deploy remoto;
 - guard read-only de SQL remoto implementado/testado antes de qualquer tentativa remota;
-- tentativa remota bloqueada antes de D1 por indisponibilidade do Wrangler via `npx` (`403 Forbidden`).
+- executor `identity-audit` preparado para métricas agregadas de identidade;
+- tentativa remota bloqueada antes de D1 por indisponibilidade do Wrangler via `npx` (`403 Forbidden`);
+- status da auditoria de identidade: PREPARADA — EXECUÇÃO REMOTA PENDENTE.
 
 | Domínio | Funcionalidade | Legado | Workspace | Paridade de dados | Paridade de ação | Backend compartilhado | Status | Evidência | Prioridade |
 |---|---|---|---|---|---|---|---|---|---|
