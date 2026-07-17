@@ -47,5 +47,5 @@
 
 - Itens: 32
 - Status: MIGRADO 2; PARCIAL 20; NÃO MIGRADO 6; BLOQUEADO 4; NÃO APLICÁVEL 0
-- Prioridades: P0 7; P1 20; P2 3; P3 2
-- Gaps P0: listagem base por fonte divergente; Student 360/perfil por identidade divergente; página `/admin-anamneses.html` ausente/404; plano alimentar atual por identidade divergente; criação/acesso de aluno sem paridade; auth inconsistente em subpáginas; confirmação remota de dados/flags pendente para fechar causa de Workspace vazio.
+- Prioridades: P0 6; P1 21; P2 3; P3 2
+- Gaps P0: Listagem base; Student 360 — Perfil; Página `/admin-anamneses.html`; Student 360 — Plano alimentar; Cadastro — Criar aluno/acesso; Auth — Headers admin.
