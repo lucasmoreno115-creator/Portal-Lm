@@ -179,7 +179,7 @@ export async function validateStudent(request, db) {
   }
 
   const student = await db.prepare(
-    `SELECT id, name, email, plan_type, plan
+    `SELECT id, name, email, whatsapp, student_id, plan_type, plan
      FROM student_access
      WHERE lower(email)=?
        AND access_token=?
@@ -196,6 +196,8 @@ export async function validateStudent(request, db) {
       id: student.id,
       name: student.name,
       email: student.email,
+      whatsapp: student.whatsapp || null,
+      studentId: student.student_id || null,
       planType: student.plan_type || 'PREMIUM',
       plan: normalizeStudentPlan(student.plan)
     }
