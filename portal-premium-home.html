@@ -10,12 +10,16 @@
   <script src='portal-shared.js'></script>
   <script>
     requireAuth();
-    if (getUserPlan() === 'projeto_lm') window.location.replace('/projeto-lm/#home');
-    window.lmPremiumAccessReady = api('/portal/premium/access-state').then((response) => {
-      if (response.data.experience !== 'PREMIUM_PORTAL') { window.location.replace('portal-premium-onboarding.html'); return false; }
-      document.body.style.visibility = 'visible';
-      return true;
-    }).catch(() => { window.location.replace('portal-login.html'); return false; });
+    if (getUserPlan() === 'projeto_lm') {
+      window.location.replace('/projeto-lm/#home');
+      window.lmPremiumAccessReady = Promise.resolve(false);
+    } else {
+      window.lmPremiumAccessReady = api('/portal/premium/access-state').then((response) => {
+        if (response.data.experience !== 'PREMIUM_PORTAL') { window.location.replace('portal-premium-onboarding.html'); return false; }
+        document.body.style.visibility = 'visible';
+        return true;
+      }).catch(() => { window.location.replace('portal-login.html'); return false; });
+    }
   </script>
 </head>
 <body class="portal-home-v7">
