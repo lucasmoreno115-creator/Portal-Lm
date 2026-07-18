@@ -38,6 +38,6 @@
   window.LMWorkspaceDiagnostics = { diagnoseWorkspaceEndpoints };
   const sessionId = window.LMAdminAuth?.requireAdmin?.();
   if (!sessionId) return;
-  window.LMAdminAuth.attachLogout('adminLogoutBtn');
+  window.LMAdminAuth.attachLogout('adminLogoutBtn', '/admin-premium-workspace.html');
   loadAll();
 })();

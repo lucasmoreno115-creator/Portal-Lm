@@ -145,12 +145,12 @@
     input.value = '';
   }
 
-  function attachLogout(buttonId){
+  function attachLogout(buttonId, returnTo){
     const button = document.getElementById(buttonId);
     if (!button) return;
     button.addEventListener('click', async () => {
       await logoutAdmin();
-      window.location.href = '/admin-login.html';
+      window.location.href = returnTo ? getAdminLoginUrl(returnTo) : '/admin-login.html';
     });
   }
 
