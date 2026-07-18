@@ -88,7 +88,7 @@ test('Student 360 route remains functional and protected instead of redirecting 
 
 test('workspace minimal load avoids incomplete operational modules and keeps cutover controlled elsewhere', () => {
   const source = js();
-  assert.match(source, /await api\('\/api\/admin\/premium\/workspace\/summary'\)/);
+  assert.doesNotMatch(source.match(/async function loadAll\(\)[^{]*\{([^]*?)\n  async function loadStudents/)?.[1] || '', /summary/);
   assert.match(source, /await loadStudents\(true\)/);
   assert.doesNotMatch(source, /Promise\.all\(\[loadSummary\(\), loadStudents/);
   assert.doesNotMatch(source, /loadSaturdayReview|loadPending\(/);
