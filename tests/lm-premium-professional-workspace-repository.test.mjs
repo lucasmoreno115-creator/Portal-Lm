@@ -11,7 +11,7 @@ class SqliteD1 { constructor(file){this.file=file;this.calls=[];} prepare(sql){t
 class Stmt { constructor(file,sql,params=[]){this.file=file;this.sql=sql;this.params=params;} bind(...params){return new Stmt(this.file,this.sql,params);} sqlWithParams(){let i=0;return this.sql.replace(/\?/g,()=>sqlValue(this.params[i++]));} async run(){execFileSync('sqlite3',[this.file],{input:this.sqlWithParams()+';'});return{meta:{changes:1}};} async all(){const out=execFileSync('sqlite3',['-json',this.file,this.sqlWithParams()],{encoding:'utf8'}).trim();return{results:out?JSON.parse(out):[]};} async first(){return (await this.all()).results[0]??null;} }
 function sqlValue(v){ if(v==null)return'NULL'; if(typeof v==='number')return String(v); return `'${String(v).replaceAll("'","''")}'`; }
 async function withDb(fn){const dir=await mkdtemp(join(tmpdir(),'workspace-repo-'));const db=new SqliteD1(join(dir,'test.db'));try{await schema(db);await seed(db);await fn(db,createD1ProfessionalWorkspaceRepository(db,{scheduleService:createWeeklyFeedbackScheduleService()}));}finally{await rm(dir,{recursive:true,force:true});}}
-async function schema(db){for(const sql of [`CREATE TABLE premium_students(student_id TEXT PRIMARY KEY,email TEXT,normalized_email TEXT,display_name TEXT,consultation_status TEXT,access_status TEXT,source TEXT,created_at TEXT,updated_at TEXT)`,`CREATE TABLE student_access(id TEXT PRIMARY KEY,name TEXT,email TEXT,whatsapp TEXT,status TEXT,plan_type TEXT,plan TEXT,student_id TEXT,created_at TEXT)`,`CREATE TABLE premium_pending_items(id TEXT PRIMARY KEY,student_id TEXT,type TEXT,title TEXT,description TEXT,status TEXT,priority TEXT,source TEXT,related_entity_type TEXT,related_entity_id TEXT,due_at TEXT,resolved_at TEXT,created_by TEXT,created_at TEXT,updated_at TEXT)`,`CREATE TABLE student_checkins(id TEXT PRIMARY KEY,student_id TEXT,student_email TEXT,week_ref TEXT,coach_status TEXT,decision_type TEXT,coach_reply TEXT,reviewed_at TEXT,created_at TEXT)`,`CREATE TABLE nutrition_plans(id TEXT PRIMARY KEY,student_id TEXT,student_email TEXT,title TEXT,goal TEXT,status TEXT,is_active INTEGER,version_number INTEGER,published_at TEXT,source_feedback_id TEXT,updated_at TEXT)`,`CREATE TABLE premium_anamnesis(id TEXT PRIMARY KEY,student_id TEXT,status TEXT,created_at TEXT,updated_at TEXT)`,`CREATE TABLE premium_followup_entries(id TEXT PRIMARY KEY,student_id TEXT,entry_type TEXT,title TEXT,content TEXT,source TEXT,related_entity_type TEXT,related_entity_id TEXT,created_by TEXT,created_at TEXT,updated_at TEXT)`]) await db.prepare(sql).run();}
+async function schema(db){for(const sql of [`CREATE TABLE premium_students(student_id TEXT PRIMARY KEY,email TEXT,normalized_email TEXT,display_name TEXT,consultation_status TEXT,access_status TEXT,source TEXT,created_at TEXT,updated_at TEXT)`,`CREATE TABLE student_access(id TEXT PRIMARY KEY,name TEXT,email TEXT,whatsapp TEXT,status TEXT,plan_type TEXT,plan TEXT,student_id TEXT,created_at TEXT)`,`CREATE TABLE premium_pending_items(id TEXT PRIMARY KEY,student_id TEXT,type TEXT,title TEXT,description TEXT,status TEXT,priority TEXT,source TEXT,related_entity_type TEXT,related_entity_id TEXT,due_at TEXT,resolved_at TEXT,created_by TEXT,created_at TEXT,updated_at TEXT)`,`CREATE TABLE student_checkins(id TEXT PRIMARY KEY,student_id TEXT,student_email TEXT,week_ref TEXT,coach_status TEXT,decision_type TEXT,coach_reply TEXT,reviewed_at TEXT,created_at TEXT)`,`CREATE TABLE nutrition_plans(id TEXT PRIMARY KEY,student_id TEXT,student_email TEXT,title TEXT,goal TEXT,status TEXT,is_active INTEGER,version_number INTEGER,published_at TEXT,source_feedback_id TEXT,updated_at TEXT)`,`CREATE TABLE premium_anamnesis(id TEXT PRIMARY KEY,student_id TEXT,student_email TEXT,status TEXT,created_at TEXT,updated_at TEXT)`,`CREATE TABLE premium_followup_entries(id TEXT PRIMARY KEY,student_id TEXT,entry_type TEXT,title TEXT,content TEXT,source TEXT,related_entity_type TEXT,related_entity_id TEXT,created_by TEXT,created_at TEXT,updated_at TEXT)`]) await db.prepare(sql).run();}
 async function seed(db){
   const students=[['s1','ana@example.com','Ana Maria','ACTIVE','5511999988888'],['s2','bruno_pipe@example.com','Bruno | Pipe','ACTIVE','5511888877777'],['s3','carla@example.com','Carla Percent % _','UNDER_REVIEW','5511777766666'],['s4','old@example.com','Histórico Antigo','ACTIVE','5511666655555'],['p1','projeto@example.com','Projeto LM','ACTIVE','5511555544444']];
   for(const [id,email,name,status,phone] of students){await db.prepare(`INSERT INTO premium_students(student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES(?,?,?,?,?,'ACTIVE','TEST','2026-07-01','2026-07-01')`).bind(id,email,email,name,status).run();await db.prepare(`INSERT INTO student_access(id,name,email,whatsapp,status,plan_type,plan,student_id,created_at) VALUES(?,?,?,?,?,?,?,?,?)`).bind(`a-${id}`,name,email,phone,'ACTIVE',id==='p1'?'PROJECT_LM':'PREMIUM',id==='p1'?'projeto_lm':'premium',id,'2026-07-01').run();}
@@ -129,4 +129,47 @@ test('Student 360 context opens all 18 active legacy email-bridge students', asy
     assert.equal(context.summary.source,'legacy');
     assert.equal(context.summary.identity_mode,'email_bridge');
   }
+}));
+
+
+test('legacy email-bridge resolves premium_anamnesis by normalized student_email without writes', async()=>withDb(async(db,repo)=>{
+  await db.prepare(`DELETE FROM premium_students`).run();
+  await db.prepare(`DELETE FROM student_access`).run();
+  await db.prepare(`DELETE FROM premium_anamnesis`).run();
+  await db.prepare(`INSERT INTO student_access(id,name,email,whatsapp,status,plan_type,plan,student_id,created_at) VALUES('legacy-anam','Legacy Anam','legacy-anam@example.com',NULL,'ACTIVE','PREMIUM','premium',NULL,'2026-07-01')`).run();
+  await db.prepare(`INSERT INTO premium_anamnesis(id,student_id,student_email,status,created_at,updated_at) VALUES('anam-email',NULL,'  LEGACY-ANAM@EXAMPLE.COM  ','RECEBIDA','2026-07-18','2026-07-18')`).run();
+  db.calls=[];
+  const students=await repo.listStudents({student_id:'legacy-anam@example.com'});
+  assert.equal(students.items.length,1);
+  assert.equal(students.items[0].anamnesis_status,'RESPONDED');
+  assert.equal(students.items[0].last_activity_at,'2026-07-18');
+  const filtered=await repo.listStudents({anamnesis_status:'AWAITING_ANALYSIS'});
+  assert.equal(filtered.items.some((student)=>student.student_id==='legacy-anam@example.com'),true);
+  const context=await repo.getStudentContext(' LEGACY-ANAM@EXAMPLE.COM ');
+  assert.equal(context.anamnesis.id,'anam-email');
+  const summary=await repo.getSummary({now:new Date('2026-07-18T15:00:00Z')});
+  assert.equal(summary.anamnesesAwaitingAnalysis,1);
+  const sql=db.calls.join('\n').toUpperCase();
+  assert.doesNotMatch(sql,/\bINSERT\b/);
+  assert.doesNotMatch(sql,/\bUPDATE\b/);
+  assert.doesNotMatch(sql,/\bDELETE\b/);
+}));
+
+test('student context pending items are explicitly scoped to requested Premium identity', async()=>withDb(async(db,repo)=>{
+  await db.prepare(`INSERT INTO premium_pending_items(id,student_id,type,title,description,status,priority,source,created_at,updated_at) VALUES('pend-a-extra','s1','MANUAL','Pendência A','A','OPEN','NORMAL','manual','2026-07-18','2026-07-18')`).run();
+  await db.prepare(`INSERT INTO premium_pending_items(id,student_id,type,title,description,status,priority,source,created_at,updated_at) VALUES('pend-b-extra','s2','MANUAL','Pendência B','B','OPEN','NORMAL','manual','2026-07-18','2026-07-18')`).run();
+  const context=await repo.getStudentContext('s1');
+  const ids=context.pendingItems.map((item)=>item.id);
+  assert.equal(ids.includes('pend-a-extra'),true);
+  assert.equal(ids.includes('pend-b-extra'),false);
+  assert.equal(context.pendingItems.every((item)=>item.student_id==='s1'),true);
+}));
+
+test('legacy email-bridge context returns no pending items and does not leak Premium pending items', async()=>withDb(async(db,repo)=>{
+  await db.prepare(`INSERT INTO student_access(id,name,email,whatsapp,status,plan_type,plan,student_id,created_at) VALUES('legacy-pending','Legacy Pending','legacy-pending@example.com',NULL,'ACTIVE','PREMIUM','premium',NULL,'2026-07-01')`).run();
+  await db.prepare(`INSERT INTO premium_pending_items(id,student_id,type,title,description,status,priority,source,created_at,updated_at) VALUES('premium-only-pending','s1','MANUAL','Premium only','Premium','OPEN','NORMAL','manual','2026-07-18','2026-07-18')`).run();
+  const context=await repo.getStudentContext('legacy-pending@example.com');
+  assert.equal(context.summary.source,'legacy');
+  assert.equal(context.summary.identity_mode,'email_bridge');
+  assert.deepEqual(context.pendingItems,[]);
 }));
