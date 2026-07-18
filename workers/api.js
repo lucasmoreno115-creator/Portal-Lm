@@ -135,6 +135,31 @@ function premiumLockedResponse() {
   return { ok: false, error: 'Seu planejamento está em preparação. Assim que o acompanhamento for liberado, os módulos publicados aparecerão aqui.' };
 }
 
+const PREMIUM_CONSULTATION_STATUS_LABELS = {
+  NEW: 'Boas-vindas',
+  AWAITING_ANAMNESIS: 'Aguardando anamnese',
+  UNDER_REVIEW: 'Em análise',
+  READY_TO_RELEASE: 'Em liberação',
+  ACTIVE: 'Acompanhamento ativo',
+  PAUSED: 'Acompanhamento pausado',
+  ENDED: 'Acompanhamento encerrado',
+};
+
+function premiumAccessState(student, gate) {
+  const consultationStatus = gate.legacyCompatible ? 'ACTIVE' : (PREMIUM_CONSULTATION_STATUS_LABELS[gate.status] ? gate.status : 'NEW');
+  return {
+    experience: consultationStatus === 'ACTIVE' ? 'PREMIUM_PORTAL' : 'ONBOARDING',
+    consultationStatus,
+    consultationStatusLabel: PREMIUM_CONSULTATION_STATUS_LABELS[consultationStatus],
+    name: String(student.name || 'Aluno').trim().split(/\s+/)[0] || 'Aluno',
+    anamnesisCompleted: ['UNDER_REVIEW', 'READY_TO_RELEASE', 'ACTIVE', 'PAUSED', 'ENDED'].includes(consultationStatus),
+    primaryAction: ['NEW', 'AWAITING_ANAMNESIS'].includes(consultationStatus)
+      ? { type: 'OPEN_ANAMNESIS', href: '/anamnese-premium.html' }
+      : null,
+    supportLink: null,
+  };
+}
+
 function publicNutritionPlan(plan) {
   if (!plan) return null;
   return {
@@ -217,7 +242,12 @@ export default {
         const studentName = nullableTrimmed(body?.student_name);
         const providedEmail = nullableTrimmed(body?.student_email)?.toLowerCase() || null;
         const studentPhone = nullableTrimmed(body?.student_phone);
-        const studentEmail = providedEmail;
+        const submittedAuth = await validateStudent(request, env.DB);
+        const hasStudentCredentials = !!(request.headers.get('x-student-email') || request.headers.get('x-student-token'));
+        if (hasStudentCredentials && !submittedAuth.ok) return json({ ok: false, error: submittedAuth.error }, 401);
+        if (submittedAuth.ok && normalizeStudentPlan(submittedAuth.student.plan) !== 'premium') return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
+        const studentEmail = submittedAuth.ok ? submittedAuth.student.email : providedEmail;
+        if (submittedAuth.ok && providedEmail && providedEmail !== studentEmail) return json({ ok: false, error: 'A identidade da anamnese não confere com a sessão.' }, 403);
         const status = nullableTrimmed(body?.status) || 'RECEBIDA';
         const answers = body?.answers && typeof body.answers === 'object' ? body.answers : {};
         const internalScores = calculateAnamnesisInternalScores(answers);
@@ -416,6 +446,12 @@ export default {
         }
 
         const studentEmail = auth.student.email;
+        if (url.pathname === '/api/portal/premium/access-state' && method === 'GET') {
+          if (!isPremiumPortalStudent(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
+          const gate = await getPremiumGate(env.DB, studentEmail);
+          return json({ ok: true, data: premiumAccessState(auth.student, gate) }, 200, '/api/portal/premium/access-state');
+        }
+
         const blockProjectLmOnPremiumCore = () => {
           if (!isPremiumPortalStudent(auth.student)) {
             return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);

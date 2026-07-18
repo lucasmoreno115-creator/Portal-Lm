@@ -215,3 +215,28 @@ test('LM Premium 3.1 gate bloqueia módulos completos antes de ACTIVE e pause vo
   assert.equal(paused.status, 200);
   assert.equal((await api(db, 'GET', '/api/portal/weekly-plan')).status, 403);
 }));
+
+test('LM Premium 3.1 access-state roteia estados Premium, preserva legado e isola Projeto LM', async () => withDb(async (db) => {
+  const statuses = ['NEW', 'AWAITING_ANAMNESIS', 'UNDER_REVIEW', 'READY_TO_RELEASE', 'PAUSED', 'ENDED'];
+  for (const [index, status] of statuses.entries()) {
+    const email = `${status.toLowerCase()}@example.com`;
+    await seedAccess(db, { id: `access-${index}`, email, token: `token-${index}` });
+    await seedPremiumStudent(db, { studentId: `student-${index}`, email, status });
+    const response = await api(db, 'GET', '/api/portal/premium/access-state', { email, token: `token-${index}` });
+    assert.equal(response.status, 200, status);
+    assert.equal(response.body.data.experience, 'ONBOARDING', status);
+    assert.equal(response.body.data.consultationStatus, status);
+    assert.equal(response.body.data.primaryAction?.type, ['NEW', 'AWAITING_ANAMNESIS'].includes(status) ? 'OPEN_ANAMNESIS' : undefined);
+    assert.equal(JSON.stringify(response.body).includes('token'), false);
+  }
+  await seedAccess(db, { id: 'active-access', email: 'active@example.com', token: 'active-token' });
+  await seedPremiumStudent(db, { studentId: 'active-student', email: 'active@example.com', status: 'ACTIVE' });
+  assert.equal((await api(db, 'GET', '/api/portal/premium/access-state', { email: 'active@example.com', token: 'active-token' })).body.data.experience, 'PREMIUM_PORTAL');
+  await seedAccess(db, { id: 'legacy-access', email: 'legacy@example.com', token: 'legacy-token' });
+  const legacy = await api(db, 'GET', '/api/portal/premium/access-state', { email: 'legacy@example.com', token: 'legacy-token' });
+  assert.equal(legacy.body.data.experience, 'PREMIUM_PORTAL');
+  await seedAccess(db, { id: 'lm-access', email: 'lm@example.com', token: 'lm-token', plan: 'projeto_lm', planType: 'projeto_lm' });
+  assert.equal((await api(db, 'GET', '/api/portal/premium/access-state', { email: 'lm@example.com', token: 'lm-token' })).status, 403);
+  const unauthorized = await worker.fetch(new Request('https://portal.test/api/portal/premium/access-state'), { DB: db, ADMIN_TOKEN: 'admin-token' });
+  assert.equal(unauthorized.status, 401);
+}));
