@@ -107,7 +107,7 @@ test('workspace keeps session on 500, 403 and network errors', async () => {
 });
 
 test('workspace clears session only on explicit invalid or expired session 401', async () => {
-  const invalid = await runWorkspace({ fetchImpl: async () => new Response(JSON.stringify({ ok: false, error: 'SESSION_EXPIRED' }), { status: 401 }) });
+  const invalid = await runWorkspace({ fetchImpl: async () => new Response(JSON.stringify({ ok: false, code: 'ADMIN_SESSION_EXPIRED' }), { status: 401 }) });
   assert.equal(invalid.clearCalls.length, 1);
   assert.match(invalid.location.assigned, /admin-login\.html/);
 
