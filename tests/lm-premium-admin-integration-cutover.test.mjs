@@ -48,10 +48,10 @@ test('legacy rollback page is the real operational Admin Hub', () => {
   assert.doesNotMatch(legacy, /http-equiv="refresh"/i);
 });
 
-test('workspace shell exposes unified navigation without dead hashes or unavailable settings link', () => {
+test('workspace shell exposes minimal operational header without incomplete modules', () => {
   const source = html();
-  for (const label of ['Visão Geral', 'Alunos', 'Pendências', 'Feedback Semanal', 'Prontuário LM', 'Plano Alimentar', 'Anamnese', 'Student 360', 'Evolução', 'Sair']) assert.match(source, new RegExp(label));
-  assert.doesNotMatch(source, /Configurações/);
+  for (const label of ['Workspace Premium', 'Buscar aluno', 'Atualizar', 'Sair', 'Alunos Premium', 'Contexto básico']) assert.match(source, new RegExp(label));
+  for (const hidden of ['Visão Geral', 'Inbox operacional', 'Pendências', 'Feedback Semanal', 'Prontuário LM', 'Plano Alimentar', 'Anamnese', 'Student 360', 'Evolução', 'Configurações']) assert.doesNotMatch(source, new RegExp(hidden));
   assert.match(source, /data-admin-shell="premium-workspace"/);
   const ids = htmlIds(source);
   for (const [, hash] of source.matchAll(/href=["']#([^"']+)["']/g)) assert.ok(ids.has(hash), `Missing internal target #${hash}`);
@@ -86,22 +86,22 @@ test('Student 360 route remains functional and protected instead of redirecting 
   assert.doesNotMatch(student360, /http-equiv="refresh"/i);
 });
 
-test('workspace flag disabled stops operational loads and exposes real rollback CTA', () => {
+test('workspace minimal load avoids incomplete operational modules and keeps cutover controlled elsewhere', () => {
   const source = js();
-  assert.match(source, /const enabled = await loadSummary\(\)/);
-  assert.match(source, /if \(!enabled\)[\s\S]*return/);
+  assert.doesNotMatch(source.match(/async function loadAll\(\)[^{]*\{([^]*?)\n  async function loadStudents/)?.[1] || '', /summary/);
+  assert.match(source, /await loadStudents\(true\)/);
   assert.doesNotMatch(source, /Promise\.all\(\[loadSummary\(\), loadStudents/);
-  assert.match(html(), /href="\/admin-legacy\.html"/);
+  assert.doesNotMatch(source, /loadSaturdayReview|loadPending\(/);
+  assert.match(html(), /Workspace desligado por feature flag/);
 });
 
-test('selected student behavior opens modules, handles expired sessions and resolves pending with scroll preservation', () => {
+test('selected student behavior opens only basic context and handles expired sessions safely', () => {
   const source = js();
-  for (const action of ['Abrir Prontuário', 'Ver Feedbacks', 'Editar Plano Alimentar', 'Abrir Anamnese legada', 'Abrir Student 360', 'Ver Evolução']) assert.match(source, new RegExp(action));
-  assert.match(source, /state\.actions = c\.actions/);
-  assert.match(source, /window\.location\.assign\(url\)/);
-  assert.match(source, /admin_session_expired/);
-  assert.match(source, /admin-login\.html\?returnTo=\/admin/);
-  assert.match(source, /state\.lastPendingScroll/);
-  assert.match(source, /loadSummary\(\), loadPending\(\), loadStudents\(true\)/);
-  assert.match(source, /Pendência resolvida\. Inbox atualizada\./);
+  for (const action of ['Abrir Prontuário', 'Ver Feedbacks', 'Editar Plano Alimentar', 'Abrir Anamnese legada', 'Abrir Student 360', 'Ver Evolução', 'Pendência resolvida']) assert.doesNotMatch(source, new RegExp(action));
+  assert.match(source, /loadContext\(id\)/);
+  assert.match(source, /renderContext\(c\)/);
+  assert.match(source, /window\.location\.assign/);
+  assert.match(source, /Sessão expirada/);
+  assert.match(source, /clearAdminSession/);
+  assert.match(source, /Resumo disponível/);
 });
