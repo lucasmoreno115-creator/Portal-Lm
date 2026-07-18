@@ -61,7 +61,7 @@ import { presentSaturdayReview } from './premium/presenters/professional-workspa
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
 import { buildD1HealthCheck, tableExists } from './services/health-check-service.js';
 import { jsonWithUsage } from './services/endpoint-usage-service.js';
-import { createAdminSession, invalidateAdminSession, isAdminAuthorized, validateAdminLoginToken, validateStudent, normalizeStudentPlan } from './services/auth-service.js';
+import { createAdminSession, invalidateAdminSession, validateAdminAuthorization, validateAdminLoginToken, validateStudent, normalizeStudentPlan } from './services/auth-service.js';
 export { normalizeEmail, normalizeStudentPlan } from './services/auth-service.js';
 
 const ensuredSchemaByDb = new WeakMap();
@@ -338,7 +338,7 @@ export default {
           return json({ ok: false, error: 'Unauthorized' }, 401);
         }
 
-        const session = createAdminSession();
+        const session = await createAdminSession(env);
         await logOperationalEvent(env.DB, {
           level: 'info',
           area: 'admin',
@@ -920,7 +920,9 @@ export default {
       }
 
       if (url.pathname.startsWith('/api/admin/')) {
-        if (!isAdminAuthorized(request, env)) {
+        // validateAdminAuthorization supersedes the legacy boolean guard: if (!isAdminAuthorized(request, env))
+        const adminAuth = await validateAdminAuthorization(request, env);
+        if (!adminAuth.ok) {
           await logOperationalEvent(env.DB, {
             level: 'warn',
             area: 'admin',
@@ -930,7 +932,7 @@ export default {
             admin_context: request.headers.get('x-admin-user') || null,
             message: 'Tentativa admin não autorizada.'
           });
-          return json({ ok: false, error: 'Unauthorized' }, 401);
+          return json({ ok: false, error: 'Unauthorized', code: adminAuth.code || 'ADMIN_SESSION_INVALID' }, 401);
         }
 
 

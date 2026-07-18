@@ -7,21 +7,21 @@ const requestWithToken = (token) => new Request('https://portal.test/api/admin/h
   headers: token === undefined ? {} : { 'x-admin-token': token }
 });
 
-test('admin routes reject requests without token', () => {
-  assert.equal(isAdminAuthorized(requestWithToken(), { ADMIN_TOKEN: 'secret-admin-token' }), false);
+test('admin routes reject requests without token', async () => {
+  assert.equal(await isAdminAuthorized(requestWithToken(), { ADMIN_TOKEN: 'secret-admin-token' }), false);
 });
 
-test('admin routes reject requests with invalid token', () => {
-  assert.equal(isAdminAuthorized(requestWithToken('invalid-token'), { ADMIN_TOKEN: 'secret-admin-token' }), false);
+test('admin routes reject requests with invalid token', async () => {
+  assert.equal(await isAdminAuthorized(requestWithToken('invalid-token'), { ADMIN_TOKEN: 'secret-admin-token' }), false);
 });
 
-test('admin routes accept requests with valid ADMIN_TOKEN only from environment', () => {
-  assert.equal(isAdminAuthorized(requestWithToken('secret-admin-token'), { ADMIN_TOKEN: 'secret-admin-token' }), true);
+test('admin routes accept requests with valid ADMIN_TOKEN only from environment', async () => {
+  assert.equal(await isAdminAuthorized(requestWithToken('secret-admin-token'), { ADMIN_TOKEN: 'secret-admin-token' }), true);
 });
 
-test('production admin authorization fails closed when ADMIN_TOKEN is absent', () => {
-  assert.equal(isAdminAuthorized(requestWithToken('secret-admin-token'), {}), false);
-  assert.equal(isAdminAuthorized(requestWithToken('secret-admin-token'), { ADMIN_TOKEN: '' }), false);
+test('production admin authorization fails closed when ADMIN_TOKEN is absent', async () => {
+  assert.equal(await isAdminAuthorized(requestWithToken('secret-admin-token'), {}), false);
+  assert.equal(await isAdminAuthorized(requestWithToken('secret-admin-token'), { ADMIN_TOKEN: '' }), false);
 });
 
 test('wrangler config does not hardcode admin secrets', async () => {
