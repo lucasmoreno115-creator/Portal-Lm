@@ -1,73 +1,117 @@
 # LM Premium 3.1 — Identity Remediation Plan
 
-Este plano propõe correções futuras. Nenhuma correção, backfill, alteração de schema, alteração de flag, deploy ou mutação de dados foi implementada neste Sprint.
+## Status
+
+**AUDITORIA REMOTA CONCLUÍDA — CORREÇÃO PENDENTE**
+
+Este plano descreve a correção recomendada para uma PR futura. Nenhuma correção, backfill, cópia de dados, alteração de schema, alteração de flag, deploy, migration ou mutação de dados foi implementada nesta atualização documental.
+
+## Evidência final confirmada
+
+| Campo | Valor |
+| --- | --- |
+| `environment` | `production` |
+| `database` | `lmsystemv2-db` |
+| `readOnly` | `true` |
+| `zeroWrites` | `true` |
+| `status` | `COMPLETED` |
+| `errors` | `[]` |
+| `capturedAt` | `2026-07-17T17:30:15.939Z` |
+
+## Diagnóstico oficial
+
+O Admin legado lista alunos a partir de `student_access`, que contém 18 alunos ativos.
+
+O Workspace lista alunos a partir de `premium_students`, que contém 0 registros.
+
+Todos os 18 alunos legados estão sem `student_id`.
+
+Os dados históricos permanecem nas tabelas legadas e possuem correspondência determinística por e-mail normalizado com `student_access`:
+
+- `premium_anamnesis`: 6 registros, 0 com `student_id`, 6 com e-mail, 6 correspondentes em `student_access`;
+- `student_checkins`: 3 registros, 0 com `student_id`, 3 com e-mail, 3 correspondentes;
+- `followup_logs`: 6 registros, 0 com `student_id`, 6 com e-mail, 6 correspondentes;
+- `activity_timeline`: 45 registros, 0 com `student_id`, 45 com e-mail, 45 correspondentes;
+- `weekly_plans`: 16 registros, 0 com `student_id`, 16 com e-mail, 16 correspondentes;
+- `premium_pending_items`: tabela presente, 0 registros;
+- `premium_followup_entries`: tabela presente, 0 registros;
+- `premium_nutrition_plans`: tabela ausente.
+
+Não foi identificada perda de dados.
+
+A causa confirmada do Workspace vazio é a ausência de registros em `premium_students`, combinada com a ausência de `student_id` nos registros de `student_access`.
+
+## Próxima PR recomendada
+
+**LM Premium 3.1 — Identity Bridge & Student List Parity**
+
+Escopo recomendado:
+
+- `premium_students` como fonte preferencial;
+- `student_access` como fallback read-only;
+- resolução por `student_id` quando existir;
+- fallback temporário por e-mail normalizado;
+- sem backfill na primeira PR;
+- sem cópia de dados;
+- sem alteração das regras de negócio;
+- preservação da separação entre Premium e Projeto LM.
 
 ## 1. Correção de código futura
 
-- Unificar o contrato de listagem entre Admin legado e Workspace com um adapter explícito que documente fonte, filtros e identidade preferencial.
-- Padronizar tratamento de e-mail normalizado apenas em memória/consulta (`LOWER(TRIM(email))`) até existir decisão formal de persistência.
-- Garantir que endpoints de Workspace retornem metadados de paginação e filtros aplicados de forma rastreável.
-- Garantir que o summary e a listagem usem a mesma regra de habilitação/feature flag ou documentem divergências intencionais.
-- Manter namespaces do Projeto LM isolados das fontes principais do Workspace Premium.
+- Implementar uma ponte de identidade explícita para listagem de alunos Premium.
+- Manter `premium_students` como fonte preferencial do Workspace.
+- Usar `student_access` apenas como fallback read-only enquanto `premium_students` estiver vazio ou incompleto.
+- Resolver por `student_id` quando existir em ambas as fontes.
+- Usar e-mail normalizado (`LOWER(TRIM(email))`) como fallback temporário e determinístico quando `student_id` estiver ausente.
+- Não copiar dados de `student_access` para `premium_students` nesta primeira PR.
+- Não alterar regras de negócio, status, permissões, endpoints públicos ou separação entre Premium e Projeto LM.
 
-## 2. Adapter read-only
+## 2. Regras de identidade
 
-- Criar um adapter de auditoria read-only que consiga comparar `student_access` e `premium_students` sem expor PII.
-- Todas as saídas devem ser agregadas ou hasheadas.
-- O adapter deve recusar qualquer SQL fora de `SELECT` e PRAGMA de schema.
-- O adapter deve recusar múltiplas statements.
-- O adapter deve emitir resumo com `writesExecuted: false`.
+- `student_id` é a identidade canônica quando existir.
+- E-mail normalizado é chave auxiliar temporária, não identidade canônica permanente.
+- Nome, telefone, WhatsApp, status e conteúdo clínico não devem ser usados como vínculo automático isolado.
+- Qualquer ambiguidade futura deve bloquear resolução automática e exigir revisão manual.
+- Casos a bloquear: e-mail com múltiplos `student_id`, `student_id` com múltiplos e-mails ou divergência de `student_id` por e-mail.
 
-## 3. Vinculação de identidade
+## 3. Restrições para a primeira PR
 
-- Definir hierarquia de identidade: `student_id` canônico; e-mail normalizado como chave auxiliar de reconciliação; telefone/nome apenas como sinais fracos, nunca como vínculo automático isolado.
-- Separar casos determinísticos de casos ambíguos.
-- Não sobrescrever `student_id` divergente automaticamente.
-- Exigir revisão manual quando um e-mail aparece com múltiplos `student_id` ou um `student_id` aparece com múltiplos e-mails.
+- Sem backfill.
+- Sem cópia de dados.
+- Sem writes.
+- Sem migration.
+- Sem alteração de schema.
+- Sem alteração de flags.
+- Sem alteração das regras de negócio.
+- Sem misturar dados Premium com Projeto LM.
 
-## 4. Eventual backfill futuro
+## 4. Validações obrigatórias da correção futura
 
-Qualquer backfill futuro deve ser tratado como Sprint separado e exigir aprovação explícita. Requisitos mínimos:
+- A lista do Workspace deve incluir os 18 alunos legados como fallback read-only quando `premium_students` estiver vazia.
+- A listagem deve continuar preferindo `premium_students` quando registros Premium existirem.
+- Os dados históricos devem ser resolvíveis por e-mail normalizado enquanto `student_id` estiver ausente.
+- Nenhum aluno exclusivo do Projeto LM deve entrar no Workspace Premium.
+- Alunos que sejam Premium e Projeto LM devem continuar preservados no contexto Premium quando elegíveis.
+- Relatórios e logs não devem imprimir e-mail, telefone, nome, token, conteúdo clínico, plano, feedback ou resposta de anamnese.
 
-- idempotente;
+## 5. Eventual backfill futuro
+
+Qualquer backfill futuro deve ser uma PR separada, posterior à ponte read-only, e exigir aprovação explícita. Requisitos mínimos:
+
 - dry-run obrigatório;
 - backup antes de escrita;
-- saída agregada e sanitizada;
+- execução idempotente;
+- lote pequeno inicial em staging;
+- validação read-only antes/depois;
 - detecção de ambiguidade;
 - zero sobrescrita automática de vínculo divergente;
-- lote pequeno inicial em staging;
-- validação pós-backfill read-only;
+- saída agregada e sanitizada;
 - rollback documentado;
 - aprovação explícita antes de produção.
 
-## 5. Validações
+## 6. Operação
 
-- Validar contagens antes/depois em staging.
-- Validar que alunos exclusivos do Projeto LM não entram no Workspace Premium.
-- Validar que alunos com Premium + Projeto LM continuam aparecendo no Premium.
-- Validar endpoints com autenticação admin real.
-- Validar que nenhum relatório imprime e-mail, telefone, nome, token, conteúdo clínico, plano, feedback ou resposta de anamnese.
-
-## 6. Rollback
-
-- Para qualquer mutação futura, gerar backup versionado.
-- Guardar mapping de alterações planejadas e executadas.
-- Permitir reversão por lote.
-- Interromper rollback automaticamente se o estado atual divergir do esperado.
-
-## 7. Testes
-
-- Testes unitários do guard read-only.
-- Testes de contrato dos endpoints Admin legado e Workspace.
-- Testes de presenter para garantir ausência de PII em relatórios.
-- Testes de exclusão Projeto LM.
-- Testes de casos ambíguos de identidade.
-- Testes de Student 360 com `student_id` ausente/órfão.
-
-## 8. Operação
-
-- Rodar primeiro em staging.
-- Exigir confirmação explícita read-only para qualquer consulta em produção.
-- Armazenar artefatos sanitizados fora de logs públicos.
+- Não misturar auditoria, correção de código e backfill no mesmo release operacional.
 - Não fazer deploy junto com auditoria de dados.
-- Não misturar auditoria, backfill e correção de código no mesmo release operacional.
+- Armazenar artefatos sanitizados fora de logs públicos.
+- Exigir confirmação explícita read-only para qualquer nova consulta em produção.
