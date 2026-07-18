@@ -94,10 +94,46 @@
     clearAdminSession();
   }
 
+  function isSafeAdminReturnTo(value){
+    const raw = String(value || '').trim();
+    if (!raw || raw.startsWith('//') || raw.startsWith('\\')) return false;
+    if (!raw.startsWith('/')) return false;
+    if (/[\u0000-\u001f\u007f]/.test(raw)) return false;
+    let target;
+    try {
+      target = new URL(raw, window.location.origin);
+    } catch (_) {
+      return false;
+    }
+    if (target.origin !== window.location.origin) return false;
+    if (target.protocol !== window.location.protocol) return false;
+    const pathname = target.pathname;
+    if (pathname === '/admin') return true;
+    if (pathname === '/admin-login.html') return false;
+    return /^\/admin-[a-z0-9-]+\.html$/i.test(pathname);
+  }
+
+  function resolveAdminReturnTo(value, fallback = '/admin'){
+    const raw = String(value || '').trim();
+    if (!isSafeAdminReturnTo(raw)) return fallback;
+    const target = new URL(raw, window.location.origin);
+    return `${target.pathname}${target.search}${target.hash}`;
+  }
+
+  function getCurrentAdminReturnTo(){
+    return resolveAdminReturnTo(`${window.location.pathname}${window.location.search}${window.location.hash}`);
+  }
+
+  function getAdminLoginUrl(returnTo){
+    const login = new URL('/admin-login.html', window.location.origin);
+    login.searchParams.set('returnTo', resolveAdminReturnTo(returnTo));
+    return `${login.pathname}${login.search}`;
+  }
+
   function requireAdmin(){
     const sessionId = getAdminSession();
     if (!sessionId) {
-      window.location.href = '/admin-login.html';
+      window.location.href = getAdminLoginUrl(getCurrentAdminReturnTo());
       return '';
     }
     return sessionId;
@@ -138,6 +174,10 @@
     setAdminSession,
     clearAdminSession,
     requireAdmin,
+    isSafeAdminReturnTo,
+    resolveAdminReturnTo,
+    getCurrentAdminReturnTo,
+    getAdminLoginUrl,
     attachLogout,
     hydrateAdminTokenInput,
     init

@@ -46,7 +46,8 @@
         input.value = '';
         statusBox.textContent = 'Login realizado com sucesso. Redirecionando...';
         statusBox.className = 'status ok';
-        window.location.href = '/admin-command-center.html';
+        const params = new URLSearchParams(window.location.search);
+        window.location.href = window.LMAdminAuth.resolveAdminReturnTo(params.get('returnTo'), '/admin');
       } catch (error) {
         window.LMAdminAuth.clearAdminToken();
         statusBox.textContent = error.message || 'Falha ao validar token.';
