@@ -1,0 +1,263 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>LM Portal</title>
+  <link rel='stylesheet' href='portal.css'>
+  <style>body{visibility:hidden}</style>
+  <script src='public/assets/js/lm-access.js?v=20260623-1'></script>
+  <script src='portal-shared.js'></script>
+  <script>
+    requireAuth();
+    if (getUserPlan() === 'projeto_lm') window.location.replace('/projeto-lm/#home');
+    window.lmPremiumAccessReady = api('/portal/premium/access-state').then((response) => {
+      if (response.data.experience !== 'PREMIUM_PORTAL') { window.location.replace('portal-premium-onboarding.html'); return false; }
+      document.body.style.visibility = 'visible';
+      return true;
+    }).catch(() => { window.location.replace('portal-login.html'); return false; });
+  </script>
+</head>
+<body class="portal-home-v7">
+  <section class='hero hero-premium hero-app'>
+      <img class='hero-bg-image' src='./assets/hero-lm.jpg' alt='' aria-hidden='true'>
+      <div class='hero-overlay' aria-hidden='true'></div>
+      <div class='hero-glow' aria-hidden='true'></div>
+      <div class='hero-gold-curve' aria-hidden='true'></div>
+      <div class='hero-logo-wrap'>
+        <img class='hero-logo' src='assets/logo-lm-gold.png' alt='LM' onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+        <span class='hero-logo-fallback' aria-label='LM'>LM</span>
+      </div>
+      <div class='hero-content'>
+        <h1 id='hello'>Olá, Aluno</h1>
+        <p id='heroTitle' class='hero-title'>Seu próximo passo está aqui.</p>
+        <p id='heroSubtext' class='hero-subtext'>Consistência antes da intensidade. Use esta área para acompanhar sua semana, enviar seu check-in e manter clareza sobre o próximo passo.</p>
+        <p id='planBadge' class='hero-badge'>Seu acompanhamento está ativo</p>
+      </div>
+  </section>
+
+  <main class='container home-main'>
+    <div id='nav' class='mobile-nav'></div>
+
+    <section class='top-cards-grid'>
+      <article class='card dashboard-card action-card-v6 next-action-section'>
+        <h2 id='nextTitle'>⚡ Próxima ação</h2>
+        <p id='nextMsg'>Quando puder, envie seu check-in para que eu consiga acompanhar sua evolução com mais precisão.</p>
+        <a id='nextBtn' class='primary-cta' href='portal-checkin.html' data-feature='checkin'>Enviar check-in</a>
+        <p class='action-helper'>Leva cerca de 2 minutos.</p>
+      </article>
+
+      <article class='card dashboard-card status-card-v6 status-week-section'>
+        <div>
+          <h2>📊 Status da semana</h2>
+          <ul class='status-lines'>
+            <li><span id='statusLabel1'>Check-in semanal</span><span id='checkStatus' class='badge badge-warning'>Pendente</span></li>
+            <li><span id='statusLabel2'>Plano alimentar</span><span id='statusValue2' class='status-pill neutral'>Em andamento</span></li>
+            <li><span id='statusLabel3'>Treinos</span><span id='statusValue3' class='status-pill neutral'>Em acompanhamento</span></li>
+            <li><span id='statusLabel4'>Cardio</span><span id='statusValue4' class='status-pill neutral'>Em acompanhamento</span></li>
+            <li><span id='statusLabel5'>Foco da semana</span><strong id='weeklyFocus'>Constância antes de novos ajustes</strong></li>
+          </ul>
+        </div>
+        <div class='status-summary' aria-live='polite'>
+          <p id='weeklyStatusText'>Sua semana já está em andamento.</p>
+          <p id='weeklyInsight' class='muted'>Seu próximo passo está aqui: envie seu check-in quando puder para que os ajustes sejam mais precisos.</p>
+        </div>
+      </article>
+    </section>
+
+    <section class='second-row-grid'>
+      <section class='card dashboard-card mission-card-v6 weekly-plan-editorial' id='weekly-plan-section'>
+        <h2>🎯 Missão da semana</h2>
+        <div class='weekly-plan-grid'>
+          <article>
+            <h2>TREINO</h2>
+            <p id='weeklyPlanTraining'>Use o treino no MFIT como base da semana, priorizando técnica, controle e regularidade.</p>
+          </article>
+          <article>
+            <h2>CARDIO</h2>
+            <p id='weeklyPlanCardio'>Busque realizar o cardio combinado da forma mais sustentável possível dentro da sua rotina.</p>
+          </article>
+          <article>
+            <h2>NUTRIÇÃO</h2>
+            <p id='weeklyPlanNutrition'>Procure manter a alimentação alinhada ao plano, sem transformar pequenos desvios em culpa ou compensações exageradas.</p>
+          </article>
+          <article>
+            <h2>MISSÃO PRINCIPAL</h2>
+            <p class='weekly-insight-copy'>Manter pequenas decisões bem feitas ao longo da semana.</p>
+          </article>
+          <article class='weekly-observation'>
+            <h2>OBSERVAÇÃO</h2>
+            <p id='weeklyPlanObservation'>Sua orientação estratégica aparecerá aqui sempre que houver uma atualização.</p>
+          </article>
+        </div>
+      </section>
+
+      <aside class='card dashboard-card consultant-card-v6 consultant-note'>
+        <h2>💬 Mensagem do seu consultor</h2>
+        <p>Não precisa ser uma semana perfeita. O mais importante é manter direção, ajustar o que for necessário e seguir com constância.</p>
+      </aside>
+    </section>
+
+    <section class='card dashboard-card journey-card-v6'>
+      <h2>🗺 Jornada LM</h2>
+      <ul id='journeyList' class='journey-list'>
+        <li><span>Diagnóstico</span><span class='journey-done'>concluído</span></li>
+        <li><span>Planejamento</span><span class='journey-done'>concluído</span></li>
+        <li><span>Execução</span><span class='journey-done'>concluído</span></li>
+        <li><span>Check-in semanal</span><span class='journey-current'>etapa atual</span></li>
+        <li><span>Próximo ajuste</span><span class='journey-next'>próxima etapa</span></li>
+      </ul>
+    </section>
+
+    <section class='card dashboard-card quick-access-v6 quick-access'>
+      <h2>🚀 Acesso rápido</h2>
+      <div id='quickLinks' class='quick-links'>
+        <a class='secondary-link' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'><span class='quick-icon'>🏋</span><span>MFIT</span></a>
+        <a class='secondary-link' href='portal-checkin.html' data-feature='checkin'><span class='quick-icon'>✅</span><span>Check-in semanal</span></a>
+        <a class='secondary-link' href='portal-progressao.html' data-feature='progressao'><span class='quick-icon'>📈</span><span>Progressão de carga</span></a>
+        <a class='secondary-link' href='portal-plano-alimentar.html' data-feature='plano-alimentar'><span class='quick-icon'>🥗</span><span>Plano Alimentar</span></a>
+        <a class='secondary-link' href='portal-biblioteca.html' data-feature='biblioteca'><span class='quick-icon'>📚</span><span>Biblioteca LM</span></a>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    window.lmPremiumAccessReady.then((allowed) => { if (!allowed) return;
+    redirectIfNoAccess('dashboard');
+    const accessMessage = sessionStorage.getItem('lm_access_message');
+    if (accessMessage) {
+      sessionStorage.removeItem('lm_access_message');
+      const notice = document.createElement('div');
+      notice.className = 'card status error';
+      notice.textContent = accessMessage;
+      document.querySelector('.home-main')?.prepend(notice);
+    }
+    document.getElementById('nav').innerHTML = nav();
+    document.getElementById('hello').textContent = `Olá, ${localStorage.getItem('lm_student_name') || 'Aluno'}`;
+
+    const currentPlan = getUserPlan();
+    const quickLinksEl = document.getElementById('quickLinks');
+
+    function renderQuickLinksForPlan() {
+      if (currentPlan === 'projeto_lm') {
+        quickLinksEl.innerHTML = `
+          <a class='secondary-link' href='/projeto-lm/#home'><span class='quick-icon'>🗺</span><span>Minha Jornada</span></a>
+          <a class='secondary-link' href='/projeto-lm/#home'><span class='quick-icon'>📈</span><span>Consistência</span></a>
+          <a class='secondary-link' href='/projeto-lm/#daily-checkin'><span class='quick-icon'>🧭</span><span>Modo Dia Difícil</span></a>
+          <a class='secondary-link' href='portal-biblioteca.html'><span class='quick-icon'>📚</span><span>Biblioteca</span></a>
+        `;
+        return;
+      }
+
+      quickLinksEl.innerHTML = `
+        <a class='secondary-link' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'><span class='quick-icon'>🏋</span><span>MFIT</span></a>
+        <a class='secondary-link' href='portal-checkin.html'><span class='quick-icon'>✅</span><span>Check-in semanal</span></a>
+        <a class='secondary-link' href='portal-progressao.html'><span class='quick-icon'>📈</span><span>Progressão de carga</span></a>
+        <a class='secondary-link' href='portal-plano-alimentar.html'><span class='quick-icon'>🥗</span><span>Plano Alimentar</span></a>
+        <a class='secondary-link' href='portal-biblioteca.html'><span class='quick-icon'>📚</span><span>Biblioteca LM</span></a>
+      `;
+    }
+
+    function applyProjectDashboard() {
+      document.getElementById('planBadge').textContent = 'PROJETO LM';
+      document.getElementById('heroTitle').textContent = 'Como começar e continuar mesmo nos dias difíceis.';
+      document.getElementById('heroSubtext').textContent = 'Seu próximo passo é manter o básico bem feito hoje.';
+      document.getElementById('nextTitle').textContent = 'Modo Dia Difícil';
+      document.getElementById('nextMsg').textContent = 'Quando o dia ficar difícil, use o mínimo viável para continuar em movimento.';
+      document.getElementById('nextBtn').textContent = 'Abrir Modo Dia Difícil';
+      document.getElementById('nextBtn').href = '/projeto-lm/#daily-checkin';
+      document.getElementById('nextBtn').dataset.feature = 'modo-dia-dificil';
+      document.getElementById('statusLabel1').textContent = 'Foco do dia';
+      document.getElementById('checkStatus').textContent = 'Manter o básico';
+      document.getElementById('checkStatus').className = 'status-pill neutral';
+      document.getElementById('statusLabel2').textContent = 'Vitória mínima';
+      document.getElementById('statusValue2').textContent = 'Uma ação concluída';
+      document.getElementById('statusLabel3').textContent = 'Sequência de consistência';
+      document.getElementById('statusValue3').textContent = 'Em construção';
+      document.getElementById('statusLabel4').textContent = 'Próxima ação';
+      document.getElementById('statusValue4').textContent = 'Abrir Modo Dia Difícil';
+      document.getElementById('statusLabel5').textContent = 'Foco atual';
+      document.getElementById('weeklyFocus').textContent = 'Manter o básico';
+      document.getElementById('weeklyStatusText').textContent = 'Projeto LM ativo.';
+      document.getElementById('weeklyInsight').textContent = 'Não busque um dia perfeito. Busque uma ação concluída.';
+      document.getElementById('journeyList').innerHTML = `
+        <li><span>Começo</span><span class='journey-done'>ativo</span></li>
+        <li><span>Primeira vitória</span><span class='journey-current'>etapa atual</span></li>
+        <li><span>Consistência</span><span class='journey-next'>em construção</span></li>
+        <li><span>Dia difícil</span><span class='journey-next'>ferramenta disponível</span></li>
+        <li><span>Próximo passo</span><span class='journey-next'>próxima etapa</span></li>
+      `;
+    }
+
+    function applyPremiumDashboard() {
+      document.getElementById('planBadge').textContent = 'CONSULTORIA PREMIUM LM · Acompanhamento completo.';
+    }
+
+    renderQuickLinksForPlan();
+    if (currentPlan === 'projeto_lm') {
+      applyProjectDashboard();
+    } else {
+      applyPremiumDashboard();
+    }
+
+    (async () => {
+      if (currentPlan === 'projeto_lm') return;
+      const checkStatusEl = document.querySelector('#checkStatus');
+      const nextMsgEl = document.querySelector('#nextMsg');
+      const nextBtnEl = document.querySelector('#nextBtn');
+      const weeklyFocusEl = document.querySelector('#weeklyFocus');
+      const weeklyInsightEl = document.querySelector('#weeklyInsight');
+      const weeklyStatusTextEl = document.querySelector('#weeklyStatusText');
+      const weeklyPlanTrainingEl = document.querySelector('#weeklyPlanTraining');
+      const weeklyPlanCardioEl = document.querySelector('#weeklyPlanCardio');
+      const weeklyPlanNutritionEl = document.querySelector('#weeklyPlanNutrition');
+      const weeklyPlanObservationEl = document.querySelector('#weeklyPlanObservation');
+      const weeklyInsightCopies = document.querySelectorAll('.weekly-insight-copy');
+
+      try {
+        const [checkinResponse, weeklyPlanResponse] = await Promise.all([
+          api('/portal/checkins'),
+          api('/portal/weekly-plan')
+        ]);
+
+        const hasCheckin = Array.isArray(checkinResponse?.data) && checkinResponse.data.length > 0;
+        const weeklyPlan = weeklyPlanResponse?.data || null;
+
+        if (weeklyPlan) {
+          const trainingFocus = weeklyPlan.training_focus || 'Use o treino no MFIT como base da semana, priorizando técnica, controle e regularidade.';
+          const cardioTarget = weeklyPlan.cardio_target || 'Busque realizar o cardio combinado da forma mais sustentável possível dentro da sua rotina.';
+          const nutritionFocus = weeklyPlan.nutrition_focus || 'Procure manter a alimentação alinhada ao plano, sem culpa ou compensações exageradas.';
+          const mainRisk = weeklyPlan.main_risk || 'Manter pequenas decisões bem feitas ao longo da semana.';
+          const coachMessage = weeklyPlan.coach_message || 'Sua orientação estratégica aparecerá aqui sempre que houver uma atualização.';
+
+          weeklyFocusEl.textContent = nutritionFocus || trainingFocus;
+          weeklyPlanTrainingEl.textContent = trainingFocus;
+          weeklyPlanCardioEl.textContent = cardioTarget;
+          weeklyPlanNutritionEl.textContent = nutritionFocus;
+          weeklyPlanObservationEl.textContent = coachMessage;
+
+          weeklyInsightEl.textContent = coachMessage;
+          weeklyInsightCopies.forEach((el) => {
+            el.textContent = mainRisk;
+          });
+        }
+
+        if (hasCheckin) {
+          checkStatusEl.textContent = 'Enviado';
+          checkStatusEl.classList.remove('badge-warning');
+          checkStatusEl.classList.add('badge-ok');
+          weeklyStatusTextEl.textContent = 'Check-in enviado.';
+
+          nextMsgEl.textContent = 'Check-in recebido. A partir dele, consigo acompanhar melhor sua semana e ajustar o que for necessário.';
+          nextBtnEl.textContent = 'Check-in enviado';
+          nextBtnEl.href = 'portal-checkin.html';
+          weeklyInsightEl.textContent = 'Seu check-in já foi recebido. Seguimos acompanhando sua semana com base nele.';
+        }
+      } catch (error) {
+        // Erro silencioso para não quebrar a experiência da home.
+      }
+    })();
+    });
+  </script>
+</body>
+</html>

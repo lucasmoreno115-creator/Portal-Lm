@@ -32,6 +32,8 @@ const legacyRootFiles = [
   'portal-shared.js',
   'portal.css',
   'portal.html',
+  'portal-premium-home.html',
+  'portal-premium-onboarding.html',
   'project-lm-planning.js',
   'project-lm-profile.html',
   'project-lm-profile.js',
@@ -61,6 +63,8 @@ const requiredArtifactFiles = [
   'index.html',
   'portal-login.html',
   'portal.html',
+  'portal-premium-home.html',
+  'portal-premium-onboarding.html',
   'assets/exercise-library/rosca-direta-barra.gif',
 ];
 const requiredArtifactDirectories = ['assets', 'css', 'js', 'projeto-lm'];
