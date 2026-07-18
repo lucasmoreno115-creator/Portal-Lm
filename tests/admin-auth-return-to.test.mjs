@@ -3,9 +3,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 
-async function loadAuth(pathname = '/admin-premium-workspace.html', search = '') {
+async function loadAuth(pathname = '/admin-premium-workspace.html', search = '', options = {}) {
   const source = await readFile('admin-auth.js', 'utf8');
-  const store = new Map();
+  const store = options.store || new Map();
   const current = new URL(`https://portal.test${pathname}${search}`);
   const location = {
     origin: current.origin,
@@ -17,7 +17,7 @@ async function loadAuth(pathname = '/admin-premium-workspace.html', search = '')
   };
   const sandbox = {
     window: { location },
-    document: { readyState: 'loading', addEventListener(){}, getElementById(){ return null; } },
+    document: { readyState: 'loading', addEventListener(){}, getElementById(id){ return options.elements?.[id] || null; } },
     localStorage: {
       getItem: (key) => store.get(key) || null,
       setItem: (key, value) => store.set(key, String(value)),
@@ -26,13 +26,14 @@ async function loadAuth(pathname = '/admin-premium-workspace.html', search = '')
     URL,
     Date,
     String,
-    RegExp
+    RegExp,
+    fetch: options.fetchImpl || (async () => new Response('{}'))
   };
   sandbox.window.window = sandbox.window;
   sandbox.window.document = sandbox.document;
   sandbox.window.localStorage = sandbox.localStorage;
   vm.runInNewContext(source, sandbox);
-  return sandbox;
+  return { ...sandbox, store };
 }
 
 test('direct workspace access without session redirects to login with returnTo', async () => {
@@ -69,7 +70,37 @@ test('premium admin pages are allowed while login is not a return target', async
   assert.equal(window.LMAdminAuth.resolveAdminReturnTo('/admin-login.html', '/admin'), '/admin');
 });
 
-test('logout keeps returning to the login page', async () => {
-  const source = await readFile('admin-auth.js', 'utf8');
-  assert.match(source, /window\.location\.href = '\/admin-login\.html'/);
+test('workspace logout clears session data and redirects to login with workspace returnTo', async () => {
+  let clickHandler;
+  const button = { addEventListener(event, handler) { if (event === 'click') clickHandler = handler; } };
+  const store = new Map([
+    ['lm_admin_session_id', 'session-123'],
+    ['lm_admin_session_expires_at', '2099-01-01T00:00:00.000Z']
+  ]);
+  const { window } = await loadAuth('/admin-premium-workspace.html', '', { store, elements: { adminLogoutBtn: button }, fetchImpl: async () => new Response('{\"ok\":true}', { status: 200 }) });
+
+  window.LMAdminAuth.attachLogout('adminLogoutBtn', '/admin-premium-workspace.html');
+  assert.equal(typeof clickHandler, 'function');
+  await clickHandler();
+
+  assert.equal(store.has('lm_admin_session_id'), false);
+  assert.equal(store.has('lm_admin_session_expires_at'), false);
+  assert.equal(window.location.href, '/admin-login.html?returnTo=%2Fadmin-premium-workspace.html');
+});
+
+test('default logout without explicit returnTo keeps returning to the login page', async () => {
+  let clickHandler;
+  const button = { addEventListener(event, handler) { if (event === 'click') clickHandler = handler; } };
+  const store = new Map([['lm_admin_session_id', 'session-123']]);
+  const { window } = await loadAuth('/admin-alerts.html', '', { store, elements: { adminLogoutBtn: button }, fetchImpl: async () => new Response('{\"ok\":true}', { status: 200 }) });
+
+  window.LMAdminAuth.attachLogout('adminLogoutBtn');
+  await clickHandler();
+
+  assert.equal(window.location.href, '/admin-login.html');
+});
+
+test('external returnTo cannot be used for logout login URL', async () => {
+  const { window } = await loadAuth('/admin-login.html');
+  assert.equal(window.LMAdminAuth.getAdminLoginUrl('https://evil.example/admin-premium-workspace.html'), '/admin-login.html?returnTo=%2Fadmin');
 });
