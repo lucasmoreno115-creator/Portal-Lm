@@ -49,7 +49,7 @@ export function createD1ProfessionalWorkspaceRepository(db, { scheduleService } 
         db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(DISTINCT ib.id) total FROM identity_bridge ib WHERE EXISTS (SELECT 1 FROM premium_pending_items pi WHERE pi.student_id=${sid} AND pi.status='OPEN' AND pi.type='CREATE_NUTRITION_PLAN')`).first(),
         db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(DISTINCT pa.id) total FROM premium_anamnesis pa JOIN identity_bridge ib ON ${ANAMNESIS_MATCH.replaceAll('__SID__', sid)} WHERE upper(coalesce(pa.status,'')) NOT IN ('ANALYZED','ANALISADA')`).first(),
       ]);
-      return { weekRef, openPendingItems: pending?.total || 0, feedbacksAwaitingAnalysis: awaiting?.total || 0, studentsWithoutResponse: missing?.total || 0, plansPendingUpdate: plan?.total || 0, anamnesesAwaitingAnalysis: anamnesis?.total || 0, isSaturday: isSaturdayInSaoPaulo(now), date: now.toISOString() };
+      return { weekRef, openPendingItems: pending?.total || 0, feedbacksAwaitingAnalysis: awaiting?.total || 0, studentsWithoutResponse: missing?.total || 0, anamnesesAwaitingFill: await (async()=>{const r=await db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(*) total FROM identity_bridge ib WHERE ib.consultation_status='AWAITING_ANAMNESIS'`).first(); return r?.total||0;})(), plansPendingUpdate: plan?.total || 0, anamnesesAwaitingAnalysis: anamnesis?.total || 0, isSaturday: isSaturdayInSaoPaulo(now), date: now.toISOString() };
     },
     async listStudents(filters = {}) {
       const limit = clampLimit(filters.limit, 25); const offsetValue = offset(filters.cursor); const { where, params } = mapFilters(filters); const weekRef = weekRefFor(filters.now ? new Date(filters.now) : new Date());

@@ -124,6 +124,17 @@ function createPremiumApplication(env, request) {
 }
 
 
+
+async function getPremiumGate(db, email) {
+  const normalized = String(email || '').trim().toLowerCase();
+  const row = await db.prepare(`SELECT consultation_status FROM premium_students WHERE normalized_email=? OR lower(trim(email))=? ORDER BY updated_at DESC LIMIT 1`).bind(normalized, normalized).first();
+  const status = String(row?.consultation_status || '').toUpperCase();
+  return { status, released: !row || !['AWAITING_ANAMNESIS','UNDER_REVIEW','PAUSED','ENDED'].includes(status) || status === 'ACTIVE' };
+}
+function premiumLockedResponse() {
+  return { ok: false, error: 'Seu planejamento está em preparação. Assim que o acompanhamento for liberado, os módulos publicados aparecerão aqui.' };
+}
+
 function publicNutritionPlan(plan) {
   if (!plan) return null;
   return {
@@ -264,6 +275,7 @@ export default {
           updated_at: now,
         });
         await premiumApp.eventRepository.append({ id: crypto.randomUUID(), student_id: studentId, student_email: studentEmail, event_type: 'ANAMNESIS_SENT', source: 'portal', title: 'Anamnese enviada', metadata: { anamnesis_id: id, status }, created_at: now });
+        if (studentId) await env.DB.prepare(`UPDATE premium_students SET consultation_status='UNDER_REVIEW', updated_at=? WHERE student_id=? AND consultation_status<>'ACTIVE'`).bind(now, studentId).run();
 
         const normalizedWhatsapp = normalizeWhatsapp(studentPhone);
         const existingAccess = await env.DB.prepare(
@@ -748,6 +760,8 @@ export default {
         if ((url.pathname === '/api/portal/nutrition-plan' || url.pathname === '/api/portal/premium/nutrition-plan/current') && method === 'GET') {
           const premiumOnlyResponse = blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
+          const gate = await getPremiumGate(env.DB, studentEmail);
+          if (!gate.released) return json(premiumLockedResponse(), 403);
           const premiumApp = createPremiumApplication(env, request);
           const result = await premiumApp.getNutritionPlan.execute({ email: studentEmail, route: url.pathname, method });
           if (result.blocked) return json({ ok: false, error: 'Não foi possível acessar dados Premium com segurança.' }, 403);
@@ -765,6 +779,8 @@ export default {
         if (url.pathname === '/api/portal/checkin' && method === 'POST') {
           const premiumOnlyResponse = blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
+          const gate = await getPremiumGate(env.DB, studentEmail);
+          if (!gate.released) return json(premiumLockedResponse(), 403);
           const body = await safeJson(request);
           const now = new Date().toISOString();
           const weekRef = getWeekRef(new Date());
@@ -806,6 +822,8 @@ export default {
         if (url.pathname === '/api/portal/checkins' && method === 'GET') {
           const premiumOnlyResponse = blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
+          const gate = await getPremiumGate(env.DB, studentEmail);
+          if (!gate.released) return json(premiumLockedResponse(), 403);
           const premiumApp = createPremiumApplication(env, request);
           const result = await premiumApp.listWeeklyFeedbacks.execute({ email: studentEmail, limit: 20, route: url.pathname, method });
           if (result.blocked) return json({ ok: false, error: 'Não foi possível acessar dados Premium com segurança.' }, 403);
@@ -816,6 +834,8 @@ export default {
         if (url.pathname === '/api/portal/premium/weekly-feedback/current' && method === 'GET') {
           const premiumOnlyResponse = blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
+          const gate = await getPremiumGate(env.DB, studentEmail);
+          if (!gate.released) return json(premiumLockedResponse(), 403);
           const premiumApp = createPremiumApplication(env, request);
           const result = await premiumApp.getCurrentWeeklyFeedback({ email: studentEmail });
           if (result.blocked) return json({ ok: false, error: 'Não foi possível acessar dados Premium com segurança.' }, 403);
@@ -826,6 +846,8 @@ export default {
         if (url.pathname === '/api/portal/premium/weekly-feedback/current' && method === 'POST') {
           const premiumOnlyResponse = blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
+          const gate = await getPremiumGate(env.DB, studentEmail);
+          if (!gate.released) return json(premiumLockedResponse(), 403);
           const body = await safeJson(request);
           const now = new Date().toISOString();
           const premiumApp = createPremiumApplication(env, request);
@@ -843,6 +865,8 @@ export default {
         if (url.pathname === '/api/portal/premium/weekly-feedback/history' && method === 'GET') {
           const premiumOnlyResponse = blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
+          const gate = await getPremiumGate(env.DB, studentEmail);
+          if (!gate.released) return json(premiumLockedResponse(), 403);
           const premiumApp = createPremiumApplication(env, request);
           const result = await premiumApp.listWeeklyFeedbacks.execute({ email: studentEmail, limit: 12, route: url.pathname, method });
           if (result.blocked) return json({ ok: false, error: 'Não foi possível acessar dados Premium com segurança.' }, 403);
@@ -919,6 +943,39 @@ export default {
           const premiumApp = createPremiumApplication(env, request);
           const result = await premiumApp.getProfessionalWorkspaceStudent(decodeURIComponent(workspaceStudentMatch[1]));
           return json(result.ok && result.data ? { ok: true, data: presentWorkspaceStudentContext(result.data) } : { ok: false, error: 'Aluno não encontrado' }, result.data ? 200 : 404);
+        }
+
+        if (url.pathname === '/api/admin/premium/workspace/students' && method === 'POST') {
+          const body = await safeJson(request);
+          const name = nullableTrimmed(body?.name);
+          const email = nullableTrimmed(body?.email)?.toLowerCase();
+          if (!name || !email) return json({ ok: false, error: 'Nome e e-mail são obrigatórios.' }, 400);
+          const now = new Date().toISOString();
+          const existing = await env.DB.prepare(`SELECT id, student_id, access_token FROM student_access WHERE lower(email)=? LIMIT 1`).bind(email).first();
+          const project = await env.DB.prepare(`SELECT id FROM student_access WHERE lower(email)=? AND (lower(coalesce(plan,''))='projeto_lm' OR lower(coalesce(plan_type,''))='project_lm') LIMIT 1`).bind(email).first();
+          if (project) return json({ ok: false, error: 'Este e-mail pertence ao Projeto LM e não pode ser cadastrado no Workspace Premium.' }, 409);
+          const ps = await env.DB.prepare(`SELECT student_id FROM premium_students WHERE normalized_email=? LIMIT 1`).bind(email).first();
+          if (existing && ps) return json({ ok: false, error: 'Aluno Premium já cadastrado.' }, 409);
+          const studentId = existing?.student_id || ps?.student_id || crypto.randomUUID();
+          const token = existing?.access_token || generateAccessToken();
+          if (existing) await env.DB.prepare(`UPDATE student_access SET name=?, whatsapp=coalesce(?, whatsapp), plan='premium', plan_type='PREMIUM', status='ACTIVE', student_id=? WHERE id=?`).bind(name, normalizeWhatsapp(body?.whatsapp), studentId, existing.id).run();
+          else await env.DB.prepare(`INSERT INTO student_access (id,name,email,access_token,status,plan_type,plan,whatsapp,student_id,created_at) VALUES (?,?,?,?, 'ACTIVE','PREMIUM','premium',?,?,?)`).bind(crypto.randomUUID(), name, email, token, normalizeWhatsapp(body?.whatsapp), studentId, now).run();
+          await env.DB.prepare(`INSERT INTO premium_students (student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES (?,?,?,?, 'AWAITING_ANAMNESIS','ACTIVE','WORKSPACE',?,?) ON CONFLICT(student_id) DO UPDATE SET display_name=excluded.display_name,email=excluded.email,normalized_email=excluded.normalized_email,updated_at=excluded.updated_at`).bind(studentId, email, email, name, now, now).run();
+          return json({ ok: true, data: { studentId, name, email, status: 'AWAITING_ANAMNESIS', statusLabel: 'Aguardando anamnese', accessLink: `${url.origin}/portal-login.html`, token } }, existing ? 200 : 201);
+        }
+        const workspaceActionMatch = url.pathname.match(/^\/api\/admin\/premium\/workspace\/students\/([^/]+)\/(mark-ready|release|pause)$/);
+        if (workspaceActionMatch && method === 'POST') {
+          const studentId = decodeURIComponent(workspaceActionMatch[1]); const action = workspaceActionMatch[2]; const now = new Date().toISOString();
+          const current = await env.DB.prepare(`SELECT student_id, consultation_status FROM premium_students WHERE student_id=? OR normalized_email=? LIMIT 1`).bind(studentId, studentId.toLowerCase()).first();
+          if (!current) return json({ ok: false, error: 'Aluno não encontrado.' }, 404);
+          if (action === 'mark-ready') await env.DB.prepare(`UPDATE premium_students SET consultation_status='UNDER_REVIEW', updated_at=? WHERE student_id=?`).bind(now, current.student_id).run();
+          if (action === 'pause') await env.DB.prepare(`UPDATE premium_students SET consultation_status='PAUSED', updated_at=? WHERE student_id=?`).bind(now, current.student_id).run();
+          if (action === 'release') {
+            const plan = await env.DB.prepare(`SELECT id FROM nutrition_plans WHERE student_id=? AND status='PUBLISHED' AND is_active=1 LIMIT 1`).bind(current.student_id).first();
+            if (!plan) return json({ ok: false, error: 'O acompanhamento ainda não pode ser liberado porque não existe um treino publicado para este aluno.' }, 409);
+            if (current.consultation_status !== 'ACTIVE') await env.DB.prepare(`UPDATE premium_students SET consultation_status='ACTIVE', updated_at=? WHERE student_id=?`).bind(now, current.student_id).run();
+          }
+          return json({ ok: true, data: { studentId: current.student_id, action, updatedAt: now } });
         }
         if (url.pathname === '/api/admin/premium/workspace/pending-items' && method === 'GET') {
           const premiumApp = createPremiumApplication(env, request);
