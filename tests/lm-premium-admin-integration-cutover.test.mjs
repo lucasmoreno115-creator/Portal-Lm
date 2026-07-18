@@ -51,7 +51,7 @@ test('legacy rollback page is the real operational Admin Hub', () => {
 test('workspace shell exposes minimal operational header without incomplete modules', () => {
   const source = html();
   for (const label of ['Workspace Premium', 'Buscar aluno', 'Atualizar', 'Sair', 'Alunos Premium', 'Contexto básico']) assert.match(source, new RegExp(label));
-  for (const hidden of ['Visão Geral', 'Inbox operacional', 'Pendências', 'Feedback Semanal', 'Prontuário LM', 'Plano Alimentar', 'Anamnese', 'Student 360', 'Evolução', 'Configurações']) assert.doesNotMatch(source, new RegExp(hidden));
+  for (const hidden of ['Visão Geral', 'Inbox operacional', 'Pendências', 'Feedback Semanal', 'Plano Alimentar', 'Student 360', 'Evolução', 'Configurações']) assert.doesNotMatch(source, new RegExp(hidden));
   assert.match(source, /data-admin-shell="premium-workspace"/);
   const ids = htmlIds(source);
   for (const [, hash] of source.matchAll(/href=["']#([^"']+)["']/g)) assert.ok(ids.has(hash), `Missing internal target #${hash}`);
@@ -88,7 +88,7 @@ test('Student 360 route remains functional and protected instead of redirecting 
 
 test('workspace minimal load avoids incomplete operational modules and keeps cutover controlled elsewhere', () => {
   const source = js();
-  assert.doesNotMatch(source.match(/async function loadAll\(\)[^{]*\{([^]*?)\n  async function loadStudents/)?.[1] || '', /summary/);
+  assert.match(source.match(/async function loadAll\(\)[^{]*\{([^]*?)\n  function renderDashboardError/)?.[1] || '', /loadDashboard\(\)\.catch/);
   assert.match(source, /await loadStudents\(true\)/);
   assert.doesNotMatch(source, /Promise\.all\(\[loadSummary\(\), loadStudents/);
   assert.doesNotMatch(source, /loadSaturdayReview|loadPending\(/);
@@ -97,11 +97,11 @@ test('workspace minimal load avoids incomplete operational modules and keeps cut
 
 test('selected student behavior opens only basic context and handles expired sessions safely', () => {
   const source = js();
-  for (const action of ['Abrir Prontuário', 'Ver Feedbacks', 'Editar Plano Alimentar', 'Abrir Anamnese legada', 'Abrir Student 360', 'Ver Evolução', 'Pendência resolvida']) assert.doesNotMatch(source, new RegExp(action));
+  for (const action of ['Ver Feedbacks', 'Editar Plano Alimentar', 'Abrir Anamnese legada', 'Abrir Student 360', 'Ver Evolução', 'Pendência resolvida']) assert.doesNotMatch(source, new RegExp(action));
   assert.match(source, /loadContext\(id\)/);
   assert.match(source, /renderContext\(c\)/);
   assert.match(source, /window\.location\.assign/);
   assert.match(source, /Sessão expirada/);
   assert.match(source, /clearAdminSession/);
-  assert.match(source, /Resumo disponível/);
+  assert.match(source, /Prontuário LM mínimo/);
 });

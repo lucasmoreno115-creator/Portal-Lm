@@ -45,7 +45,7 @@ export function createD1ProfessionalWorkspaceRepository(db, { scheduleService } 
       const [pending, awaiting, missing, plan, anamnesis] = await Promise.all([
         db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(*) total FROM premium_pending_items pi JOIN identity_bridge ib ON pi.student_id=${sid} WHERE pi.status='OPEN'`).first(),
         db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(DISTINCT sc.id) total FROM student_checkins sc JOIN identity_bridge ib ON (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) WHERE NOT (${ANALYZED}) ${feedbackWeekFilter}`).bind(...feedbackParams).first(),
-        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(*) total FROM identity_bridge ib WHERE ib.consultation_status IN ('ACTIVE','UNDER_REVIEW') AND NOT EXISTS (SELECT 1 FROM student_checkins sc WHERE (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) ${missingWeekFilter})`).bind(...missingParams).first(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(*) total FROM identity_bridge ib WHERE ib.consultation_status IN ('ACTIVE','UNDER_REVIEW','READY_TO_RELEASE') AND NOT EXISTS (SELECT 1 FROM student_checkins sc WHERE (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) ${missingWeekFilter})`).bind(...missingParams).first(),
         db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(DISTINCT ib.id) total FROM identity_bridge ib WHERE EXISTS (SELECT 1 FROM premium_pending_items pi WHERE pi.student_id=${sid} AND pi.status='OPEN' AND pi.type='CREATE_NUTRITION_PLAN')`).first(),
         db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(DISTINCT pa.id) total FROM premium_anamnesis pa JOIN identity_bridge ib ON ${ANAMNESIS_MATCH.replaceAll('__SID__', sid)} WHERE upper(coalesce(pa.status,'')) NOT IN ('ANALYZED','ANALISADA')`).first(),
       ]);
@@ -83,20 +83,23 @@ export function createD1ProfessionalWorkspaceRepository(db, { scheduleService } 
       const identityId = isEmailBridge ? '__email_bridge__' : summary.student_id;
       const email = normalizeEmail(summary.email);
       const pendingPromise = isEmailBridge ? Promise.resolve({ items: [] }) : this.listPendingItems({ student_id: identityId, limit: 10 });
-      const [pending, feedback, plan, anamnesis, evolution] = await Promise.all([
+      const accessColumns = rows(await db.prepare(`PRAGMA table_info(student_access)`).all()).map((column)=>column.name);
+      const accessPromise = accessColumns.includes('access_token') ? db.prepare(`SELECT access_token FROM student_access WHERE student_id=? OR lower(trim(email))=? ORDER BY created_at DESC LIMIT 1`).bind(identityId, email).first() : Promise.resolve(null);
+      const [pending, feedback, plan, anamnesis, evolution, access] = await Promise.all([
         pendingPromise,
         db.prepare(`SELECT id,week_ref,created_at submittedAt,reviewed_at reviewedAt,coach_status coachStatus,decision_type decisionType,coach_reply coachReply FROM student_checkins WHERE student_id=? OR lower(trim(student_email))=? ORDER BY datetime(created_at) DESC LIMIT 5`).bind(identityId, email).all(),
         db.prepare(`SELECT id,title,goal,status,version_number,published_at,source_feedback_id,updated_at FROM nutrition_plans WHERE student_id=? OR lower(trim(student_email))=? ORDER BY CASE status WHEN 'PUBLISHED' THEN 0 WHEN 'DRAFT' THEN 1 ELSE 2 END, datetime(updated_at) DESC LIMIT 5`).bind(identityId, email).all(),
         db.prepare(`SELECT id,status,created_at respondedAt,updated_at analyzedAt FROM premium_anamnesis WHERE student_id=? OR lower(trim(student_email))=? ORDER BY datetime(created_at) DESC LIMIT 1`).bind(identityId, email).first(),
         db.prepare(`SELECT id,entry_type,title,content,created_by,created_at FROM premium_followup_entries WHERE student_id=? ORDER BY datetime(created_at) DESC LIMIT 10`).bind(identityId).all(),
+        accessPromise,
       ]);
-      return { summary, pendingItems: pending.items, weeklyFeedback: rows(feedback), nutritionPlan: rows(plan), anamnesis, evolution: rows(evolution) };
+      return { summary, pendingItems: pending.items, weeklyFeedback: rows(feedback), nutritionPlan: rows(plan), anamnesis, evolution: rows(evolution), access };
     },
     async getSaturdayReview({ now = new Date(), limit = 25 } = {}) {
       const weekRef = weekRefFor(now); const lim = clampLimit(limit, 25); const sid = "coalesce(ib.student_id,'__email_bridge__')";
       const [awaiting, missing, analyzedRows, pendingByDecision, plans] = await Promise.all([
         db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT sc.id,sc.student_id,ib.name student_name,ib.email,sc.week_ref,sc.created_at submitted_at FROM student_checkins sc JOIN identity_bridge ib ON (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) WHERE sc.week_ref=? AND NOT (${ANALYZED}) ORDER BY datetime(sc.created_at) ASC LIMIT ?`).bind(weekRef, lim).all(),
-        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT ib.id student_id,ib.name student_name,ib.email FROM identity_bridge ib WHERE ib.consultation_status IN ('ACTIVE','UNDER_REVIEW') AND NOT EXISTS (SELECT 1 FROM student_checkins sc WHERE (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) AND sc.week_ref=?) ORDER BY lower(coalesce(ib.name,ib.email)) LIMIT ?`).bind(weekRef, lim).all(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT ib.id student_id,ib.name student_name,ib.email FROM identity_bridge ib WHERE ib.consultation_status IN ('ACTIVE','UNDER_REVIEW','READY_TO_RELEASE') AND NOT EXISTS (SELECT 1 FROM student_checkins sc WHERE (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) AND sc.week_ref=?) ORDER BY lower(coalesce(ib.name,ib.email)) LIMIT ?`).bind(weekRef, lim).all(),
         db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT sc.id,sc.student_id,ib.name student_name,ib.email,sc.week_ref,sc.reviewed_at FROM student_checkins sc JOIN identity_bridge ib ON (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) WHERE sc.week_ref=? AND ${ANALYZED} ORDER BY datetime(coalesce(sc.reviewed_at,sc.created_at)) DESC LIMIT ?`).bind(weekRef, lim).all(),
         db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT pi.id,pi.student_id,ib.name student_name,pi.type,pi.title,pi.description,pi.status,pi.priority,pi.source,pi.related_entity_type,pi.related_entity_id,pi.created_at,pi.updated_at FROM premium_pending_items pi JOIN identity_bridge ib ON pi.student_id=${sid} JOIN student_checkins sc ON sc.id=pi.related_entity_id AND (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) AND sc.week_ref=? WHERE pi.status='OPEN' AND pi.source='professional_decision' AND pi.related_entity_type='student_checkins' ORDER BY datetime(pi.created_at) DESC LIMIT ?`).bind(weekRef, lim).all(),
         db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT pi.id,pi.student_id,ib.name student_name,pi.title,pi.created_at FROM premium_pending_items pi JOIN identity_bridge ib ON pi.student_id=${sid} WHERE pi.status='OPEN' AND pi.type='CREATE_NUTRITION_PLAN' ORDER BY datetime(pi.created_at) ASC LIMIT ?`).bind(lim).all(),

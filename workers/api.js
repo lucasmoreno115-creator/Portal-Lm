@@ -129,7 +129,12 @@ async function getPremiumGate(db, email) {
   const normalized = String(email || '').trim().toLowerCase();
   const row = await db.prepare(`SELECT consultation_status FROM premium_students WHERE normalized_email=? OR lower(trim(email))=? ORDER BY updated_at DESC LIMIT 1`).bind(normalized, normalized).first();
   const status = String(row?.consultation_status || '').toUpperCase();
-  return { status, released: !row || !['AWAITING_ANAMNESIS','UNDER_REVIEW','PAUSED','ENDED'].includes(status) || status === 'ACTIVE' };
+  return { status: row ? status : 'LEGACY_COMPATIBLE', released: row ? status === 'ACTIVE' : true, legacyCompatible: !row };
+}
+async function hasPublishedPremiumTraining(db, { studentId, email } = {}) {
+  const normalized = String(email || '').trim().toLowerCase();
+  const row = await db.prepare(`SELECT id FROM weekly_plans WHERE (student_id=? OR lower(trim(student_email))=?) AND status='ACTIVE' AND coalesce(trim(training_focus),'')<>'' LIMIT 1`).bind(studentId || '__missing__', normalized).first();
+  return Boolean(row);
 }
 function premiumLockedResponse() {
   return { ok: false, error: 'Seu planejamento está em preparação. Assim que o acompanhamento for liberado, os módulos publicados aparecerão aqui.' };
@@ -745,6 +750,10 @@ export default {
         }
 
         if (url.pathname === '/api/portal/weekly-plan' && method === 'GET') {
+          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          if (premiumOnlyResponse) return premiumOnlyResponse;
+          const gate = await getPremiumGate(env.DB, studentEmail);
+          if (!gate.released) return json(premiumLockedResponse(), 403);
           const weeklyPlan = await env.DB.prepare(
             `SELECT training_focus, cardio_target, nutrition_focus, main_risk, coach_message
              FROM weekly_plans
@@ -874,6 +883,10 @@ export default {
         }
 
         if (url.pathname === '/api/portal/progression' && method === 'POST') {
+          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          if (premiumOnlyResponse) return premiumOnlyResponse;
+          const gate = await getPremiumGate(env.DB, studentEmail);
+          if (!gate.released) return json(premiumLockedResponse(), 403);
           const body = await safeJson(request);
           const id = crypto.randomUUID();
           const now = new Date().toISOString();
@@ -899,6 +912,10 @@ export default {
         }
 
         if (url.pathname === '/api/portal/progression' && method === 'GET') {
+          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          if (premiumOnlyResponse) return premiumOnlyResponse;
+          const gate = await getPremiumGate(env.DB, studentEmail);
+          if (!gate.released) return json(premiumLockedResponse(), 403);
           const { results } = await env.DB.prepare(
             `SELECT * FROM progression_logs WHERE student_email=? ORDER BY created_at DESC LIMIT 30`
           ).bind(studentEmail).all();
@@ -966,13 +983,13 @@ export default {
         const workspaceActionMatch = url.pathname.match(/^\/api\/admin\/premium\/workspace\/students\/([^/]+)\/(mark-ready|release|pause)$/);
         if (workspaceActionMatch && method === 'POST') {
           const studentId = decodeURIComponent(workspaceActionMatch[1]); const action = workspaceActionMatch[2]; const now = new Date().toISOString();
-          const current = await env.DB.prepare(`SELECT student_id, consultation_status FROM premium_students WHERE student_id=? OR normalized_email=? LIMIT 1`).bind(studentId, studentId.toLowerCase()).first();
+          const current = await env.DB.prepare(`SELECT student_id, email, normalized_email, consultation_status FROM premium_students WHERE student_id=? OR normalized_email=? LIMIT 1`).bind(studentId, studentId.toLowerCase()).first();
           if (!current) return json({ ok: false, error: 'Aluno não encontrado.' }, 404);
-          if (action === 'mark-ready') await env.DB.prepare(`UPDATE premium_students SET consultation_status='UNDER_REVIEW', updated_at=? WHERE student_id=?`).bind(now, current.student_id).run();
+          if (action === 'mark-ready') await env.DB.prepare(`UPDATE premium_students SET consultation_status='READY_TO_RELEASE', updated_at=? WHERE student_id=?`).bind(now, current.student_id).run();
           if (action === 'pause') await env.DB.prepare(`UPDATE premium_students SET consultation_status='PAUSED', updated_at=? WHERE student_id=?`).bind(now, current.student_id).run();
           if (action === 'release') {
-            const plan = await env.DB.prepare(`SELECT id FROM nutrition_plans WHERE student_id=? AND status='PUBLISHED' AND is_active=1 LIMIT 1`).bind(current.student_id).first();
-            if (!plan) return json({ ok: false, error: 'O acompanhamento ainda não pode ser liberado porque não existe um treino publicado para este aluno.' }, 409);
+            const hasTraining = await hasPublishedPremiumTraining(env.DB, { studentId: current.student_id, email: current.normalized_email || current.email });
+            if (!hasTraining) return json({ ok: false, error: 'O acompanhamento ainda não pode ser liberado porque não existe um treino publicado para este aluno.' }, 409);
             if (current.consultation_status !== 'ACTIVE') await env.DB.prepare(`UPDATE premium_students SET consultation_status='ACTIVE', updated_at=? WHERE student_id=?`).bind(now, current.student_id).run();
           }
           return json({ ok: true, data: { studentId: current.student_id, action, updatedAt: now } });
