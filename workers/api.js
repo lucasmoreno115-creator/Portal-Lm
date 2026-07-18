@@ -127,9 +127,9 @@ function createPremiumApplication(env, request) {
 
 async function getPremiumGate(db, email) {
   const normalized = String(email || '').trim().toLowerCase();
-  const row = await db.prepare(`SELECT consultation_status FROM premium_students WHERE normalized_email=? OR lower(trim(email))=? ORDER BY updated_at DESC LIMIT 1`).bind(normalized, normalized).first();
+  const row = await db.prepare(`SELECT student_id, consultation_status FROM premium_students WHERE normalized_email=? OR lower(trim(email))=? ORDER BY updated_at DESC LIMIT 1`).bind(normalized, normalized).first();
   const status = String(row?.consultation_status || '').toUpperCase();
-  return { status: row ? status : 'LEGACY_COMPATIBLE', released: row ? status === 'ACTIVE' : true, legacyCompatible: !row };
+  return { studentId: row?.student_id || null, status: row ? status : 'LEGACY_COMPATIBLE', released: row ? status === 'ACTIVE' : true, legacyCompatible: !row };
 }
 function premiumLockedResponse() {
   return { ok: false, error: 'Seu planejamento está em preparação. Assim que o acompanhamento for liberado, os módulos publicados aparecerão aqui.' };
@@ -252,13 +252,12 @@ export default {
         if (JSON.stringify(body || {}).length > 100_000) return json({ ok: false, error: 'Respostas excedem o tamanho permitido.' }, 413);
         if (!body?.answers || Array.isArray(answers)) return json({ ok: false, error: 'answers é obrigatório.' }, 400);
         const internalScores = calculateAnamnesisInternalScores(answers);
-        const premium = await env.DB.prepare(`SELECT student_id, consultation_status FROM premium_students WHERE normalized_email=? OR lower(trim(email))=? ORDER BY updated_at DESC LIMIT 1`).bind(studentEmail, studentEmail).first();
-        const studentId = premium?.student_id || submittedAuth.student.studentId || null;
+        const gate = await getPremiumGate(env.DB, studentEmail);
+        const studentId = gate.studentId || submittedAuth.student.studentId || null;
         const premiumApp = createPremiumApplication(env, request);
         const existing = studentId ? await premiumApp.anamnesisRepository.findLatestByStudentId(studentId) : await premiumApp.anamnesisRepository.findLatestByEmail(studentEmail);
         if (existing) return json({ ok: true, data: { id: existing.id, alreadySubmitted: true } });
-        const consultationStatus = String(premium?.consultation_status || 'NEW').toUpperCase();
-        if (!['NEW', 'AWAITING_ANAMNESIS'].includes(consultationStatus)) return json({ ok: false, code: 'ANAMNESIS_ALREADY_SUBMITTED', error: 'Sua anamnese já foi enviada.' }, 409);
+        if (gate.legacyCompatible || !['NEW', 'AWAITING_ANAMNESIS'].includes(gate.status)) return json({ ok: false, code: 'ANAMNESIS_NOT_AVAILABLE', error: 'A anamnese não está disponível para este acesso.' }, 409);
         const id = crypto.randomUUID(); const now = new Date().toISOString();
         const created = await premiumApp.anamnesisRepository.createInitialIfAbsent({
           id,
@@ -275,6 +274,7 @@ export default {
         if (!created.created) return json({ ok: true, data: { id: created.record.id, alreadySubmitted: true } });
         await premiumApp.eventRepository.append({ id: crypto.randomUUID(), student_id: studentId, student_email: studentEmail, event_type: 'ANAMNESIS_SENT', source: 'portal', title: 'Anamnese enviada', metadata: { anamnesis_id: id, status: 'RECEBIDA' }, created_at: now });
         if (studentId) await env.DB.prepare(`UPDATE premium_students SET consultation_status='UNDER_REVIEW', updated_at=? WHERE student_id=? AND consultation_status IN ('NEW','AWAITING_ANAMNESIS')`).bind(now, studentId).run();
+        else await env.DB.prepare(`UPDATE premium_students SET consultation_status='UNDER_REVIEW', updated_at=? WHERE normalized_email=? AND consultation_status IN ('NEW','AWAITING_ANAMNESIS')`).bind(now, studentEmail).run();
         return json({ ok: true, data: { id, alreadySubmitted: false } });
       }
 
