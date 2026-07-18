@@ -131,11 +131,6 @@ async function getPremiumGate(db, email) {
   const status = String(row?.consultation_status || '').toUpperCase();
   return { status: row ? status : 'LEGACY_COMPATIBLE', released: row ? status === 'ACTIVE' : true, legacyCompatible: !row };
 }
-async function hasPublishedPremiumTraining(db, { studentId, email } = {}) {
-  const normalized = String(email || '').trim().toLowerCase();
-  const row = await db.prepare(`SELECT id FROM weekly_plans WHERE (student_id=? OR lower(trim(student_email))=?) AND status='ACTIVE' AND coalesce(trim(training_focus),'')<>'' LIMIT 1`).bind(studentId || '__missing__', normalized).first();
-  return Boolean(row);
-}
 function premiumLockedResponse() {
   return { ok: false, error: 'Seu planejamento está em preparação. Assim que o acompanhamento for liberado, os módulos publicados aparecerão aqui.' };
 }
@@ -280,7 +275,7 @@ export default {
           updated_at: now,
         });
         await premiumApp.eventRepository.append({ id: crypto.randomUUID(), student_id: studentId, student_email: studentEmail, event_type: 'ANAMNESIS_SENT', source: 'portal', title: 'Anamnese enviada', metadata: { anamnesis_id: id, status }, created_at: now });
-        if (studentId) await env.DB.prepare(`UPDATE premium_students SET consultation_status='UNDER_REVIEW', updated_at=? WHERE student_id=? AND consultation_status<>'ACTIVE'`).bind(now, studentId).run();
+        if (studentId) await env.DB.prepare(`UPDATE premium_students SET consultation_status='UNDER_REVIEW', updated_at=? WHERE student_id=? AND consultation_status IN ('NEW','AWAITING_ANAMNESIS')`).bind(now, studentId).run();
 
         const normalizedWhatsapp = normalizeWhatsapp(studentPhone);
         const existingAccess = await env.DB.prepare(
@@ -985,12 +980,18 @@ export default {
           const studentId = decodeURIComponent(workspaceActionMatch[1]); const action = workspaceActionMatch[2]; const now = new Date().toISOString();
           const current = await env.DB.prepare(`SELECT student_id, email, normalized_email, consultation_status FROM premium_students WHERE student_id=? OR normalized_email=? LIMIT 1`).bind(studentId, studentId.toLowerCase()).first();
           if (!current) return json({ ok: false, error: 'Aluno não encontrado.' }, 404);
-          if (action === 'mark-ready') await env.DB.prepare(`UPDATE premium_students SET consultation_status='READY_TO_RELEASE', updated_at=? WHERE student_id=?`).bind(now, current.student_id).run();
-          if (action === 'pause') await env.DB.prepare(`UPDATE premium_students SET consultation_status='PAUSED', updated_at=? WHERE student_id=?`).bind(now, current.student_id).run();
+          if (action === 'mark-ready') {
+            if (current.consultation_status !== 'UNDER_REVIEW') return json({ ok: false, error: 'Só é possível marcar como pronto quando o planejamento está em preparação.' }, 409);
+            await env.DB.prepare(`UPDATE premium_students SET consultation_status='READY_TO_RELEASE', updated_at=? WHERE student_id=?`).bind(now, current.student_id).run();
+          }
+          if (action === 'pause') {
+            if (current.consultation_status !== 'ACTIVE') return json({ ok: false, error: 'Só é possível pausar um acompanhamento ativo.' }, 409);
+            await env.DB.prepare(`UPDATE premium_students SET consultation_status='PAUSED', updated_at=? WHERE student_id=?`).bind(now, current.student_id).run();
+          }
           if (action === 'release') {
-            const hasTraining = await hasPublishedPremiumTraining(env.DB, { studentId: current.student_id, email: current.normalized_email || current.email });
-            if (!hasTraining) return json({ ok: false, error: 'O acompanhamento ainda não pode ser liberado porque não existe um treino publicado para este aluno.' }, 409);
-            if (current.consultation_status !== 'ACTIVE') await env.DB.prepare(`UPDATE premium_students SET consultation_status='ACTIVE', updated_at=? WHERE student_id=?`).bind(now, current.student_id).run();
+            if (current.consultation_status === 'ACTIVE') return json({ ok: true, data: { studentId: current.student_id, action, updatedAt: now, idempotent: true } });
+            if (current.consultation_status !== 'READY_TO_RELEASE') return json({ ok: false, error: 'O acompanhamento só pode ser liberado depois que o planejamento for marcado como pronto.' }, 409);
+            await env.DB.prepare(`UPDATE premium_students SET consultation_status='ACTIVE', updated_at=? WHERE student_id=?`).bind(now, current.student_id).run();
           }
           return json({ ok: true, data: { studentId: current.student_id, action, updatedAt: now } });
         }

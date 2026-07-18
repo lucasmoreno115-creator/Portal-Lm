@@ -154,28 +154,49 @@ test('LM Premium 3.1 cadastro Workspace cria acesso inicial aguardando anamnese 
   assert.equal(project.status, 409);
 }));
 
-test('LM Premium 3.1 sequência anamnese, pronto e liberação exige treino publicado real', async () => withDb(async (db) => {
+test('LM Premium 3.1 máquina de estados restringe mark-ready, release e pause', async () => withDb(async (db) => {
   await seedAccess(db);
   await seedPremiumStudent(db, { status: 'AWAITING_ANAMNESIS' });
+  assert.equal((await api(db, 'POST', '/api/admin/premium/workspace/students/student-1/mark-ready', { admin: true, body: {} })).status, 409);
+  assert.equal((await api(db, 'POST', '/api/admin/premium/workspace/students/student-1/release', { admin: true, body: {} })).status, 409);
+  assert.equal((await api(db, 'POST', '/api/admin/premium/workspace/students/student-1/pause', { admin: true, body: {} })).status, 409);
+
   const anamnesis = await worker.fetch(new Request('https://portal.test/api/anamnese-premium', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ student_name: 'Student', student_email: 'student@example.com', student_phone: '5511999999999', answers: {} }) }), { DB: db, ADMIN_TOKEN: 'admin-token' });
   assert.equal(anamnesis.status, 200);
   let status = await db.prepare(`SELECT consultation_status FROM premium_students WHERE student_id='student-1'`).first();
   assert.equal(status.consultation_status, 'UNDER_REVIEW');
+  assert.equal((await api(db, 'POST', '/api/admin/premium/workspace/students/student-1/release', { admin: true, body: {} })).status, 409);
+
   const ready = await api(db, 'POST', '/api/admin/premium/workspace/students/student-1/mark-ready', { admin: true, body: {} });
   assert.equal(ready.status, 200);
   status = await db.prepare(`SELECT consultation_status FROM premium_students WHERE student_id='student-1'`).first();
   assert.equal(status.consultation_status, 'READY_TO_RELEASE');
+  assert.equal((await api(db, 'POST', '/api/admin/premium/workspace/students/student-1/pause', { admin: true, body: {} })).status, 409);
+
   await db.prepare(`INSERT INTO nutrition_plans (id, student_id, student_email, title, meals_json, substitutions_json, adherence_rules_json, status, is_active, created_at, updated_at) VALUES ('diet-only', 'student-1', 'student@example.com', 'Dieta', '[]', '[]', '[]', 'PUBLISHED', 1, '2026-07-14T00:00:00.000Z', '2026-07-14T00:00:00.000Z')`).run();
-  const noTraining = await api(db, 'POST', '/api/admin/premium/workspace/students/student-1/release', { admin: true, body: {} });
-  assert.equal(noTraining.status, 409);
-  assert.match(noTraining.body.error, /treino publicado/);
-  await db.prepare(`INSERT INTO weekly_plans (id, student_id, student_email, week_ref, training_focus, status, created_at, updated_at) VALUES ('training-1', 'student-1', 'student@example.com', '2026-W29', 'Treino publicado no MFIT', 'ACTIVE', '2026-07-14T00:00:00.000Z', '2026-07-14T00:00:00.000Z')`).run();
   const released = await api(db, 'POST', '/api/admin/premium/workspace/students/student-1/release', { admin: true, body: {} });
   assert.equal(released.status, 200);
   status = await db.prepare(`SELECT consultation_status FROM premium_students WHERE student_id='student-1'`).first();
   assert.equal(status.consultation_status, 'ACTIVE');
   const again = await api(db, 'POST', '/api/admin/premium/workspace/students/student-1/release', { admin: true, body: {} });
   assert.equal(again.status, 200);
+  assert.equal(again.body.data.idempotent, true);
+  const paused = await api(db, 'POST', '/api/admin/premium/workspace/students/student-1/pause', { admin: true, body: {} });
+  assert.equal(paused.status, 200);
+  status = await db.prepare(`SELECT consultation_status FROM premium_students WHERE student_id='student-1'`).first();
+  assert.equal(status.consultation_status, 'PAUSED');
+}));
+
+test('LM Premium 3.1 reenvio de anamnese só promove estados de onboarding', async () => withDb(async (db) => {
+  for (const [index, initial, expected] of [['a','AWAITING_ANAMNESIS','UNDER_REVIEW'], ['p','PAUSED','PAUSED'], ['e','ENDED','ENDED'], ['r','READY_TO_RELEASE','READY_TO_RELEASE'], ['ac','ACTIVE','ACTIVE']]) {
+    const email = `${index}@example.com`;
+    await seedAccess(db, { id: `access-${index}`, email, token: `token-${index}` });
+    await seedPremiumStudent(db, { studentId: `student-${index}`, email, status: initial });
+    const res = await worker.fetch(new Request('https://portal.test/api/anamnese-premium', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ student_name: `Student ${index}`, student_email: email, student_phone: '5511999999999', answers: {} }) }), { DB: db, ADMIN_TOKEN: 'admin-token' });
+    assert.equal(res.status, 200);
+    const row = await db.prepare(`SELECT consultation_status FROM premium_students WHERE student_id=?`).bind(`student-${index}`).first();
+    assert.equal(row.consultation_status, expected, initial);
+  }
 }));
 
 test('LM Premium 3.1 gate bloqueia módulos completos antes de ACTIVE e pause volta a bloquear', async () => withDb(async (db) => {
