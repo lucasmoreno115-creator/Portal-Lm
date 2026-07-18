@@ -1,24 +1,57 @@
 # LM Premium 3.1 — Student List Parity Report
 
-**Status:** PREPARADA — NOVA EXECUÇÃO REMOTA PENDENTE. O comando `node scripts\db-tool.mjs identity-audit --environment <staging|production> ...` foi preparado para preencher as métricas abaixo com contagens agregadas quando executado em ambiente remoto autenticado/read-only.
+## Status
 
-| Métrica | Legado | Workspace | Diferença | Causa | Prioridade |
-| ------- | -----: | --------: | --------: | ----- | ---------- |
-| Total de alunos retornados pelo endpoint | NÃO DISPONÍVEL | NÃO DISPONÍVEL | NÃO DISPONÍVEL | GET remoto autenticado não executado; Wrangler indisponível (`npx wrangler` bloqueado por 403) | P0 |
-| Total em tabela-fonte | NÃO DISPONÍVEL (`student_access`) | NÃO DISPONÍVEL (`premium_students`) | NÃO DISPONÍVEL | Consultas D1 remotas não executadas | P0 |
-| Presentes apenas no legado | NÃO DISPONÍVEL | N/A | NÃO DISPONÍVEL | Requer comparação por `LOWER(TRIM(email))` no D1 remoto | P0 |
-| Presentes apenas no Workspace | N/A | NÃO DISPONÍVEL | NÃO DISPONÍVEL | Requer comparação por `LOWER(TRIM(email))` no D1 remoto | P0 |
-| Presentes nas duas fontes | NÃO DISPONÍVEL | NÃO DISPONÍVEL | NÃO DISPONÍVEL | Requer join agregado remoto | P0 |
-| Registros sem `student_id` | NÃO DISPONÍVEL | NÃO DISPONÍVEL | NÃO DISPONÍVEL | Requer contagem agregada remota | P0 |
-| Registros com `student_id` órfão | NÃO DISPONÍVEL | NÃO DISPONÍVEL | NÃO DISPONÍVEL | Requer anti-join agregado remoto | P0 |
-| E-mails duplicados | NÃO DISPONÍVEL | NÃO DISPONÍVEL | NÃO DISPONÍVEL | Requer agrupamento agregado remoto | P1 |
-| `student_id` duplicados | NÃO DISPONÍVEL | NÃO DISPONÍVEL | NÃO DISPONÍVEL | Requer agrupamento agregado remoto | P1 |
-| Status divergente | NÃO DISPONÍVEL | NÃO DISPONÍVEL | NÃO DISPONÍVEL | Sem dados remotos; mapeamento de status deve ser definido antes da conclusão | P1 |
-| Nome divergente | NÃO DISPONÍVEL | NÃO DISPONÍVEL | NÃO DISPONÍVEL | Comparação deve retornar apenas contagem/hash, nunca nome real | P2 |
-| Telefone divergente | NÃO DISPONÍVEL | NÃO DISPONÍVEL | NÃO DISPONÍVEL | Comparação deve retornar apenas contagem/hash, nunca telefone real | P2 |
-| Exclusão de alunos exclusivos Projeto LM | NÃO DISPONÍVEL | NÃO DISPONÍVEL | NÃO DISPONÍVEL | Evidência local existe, mas endpoint remoto não foi validado | P0 |
-| Alunos com Premium + Projeto LM preservados no Premium | NÃO DISPONÍVEL | NÃO DISPONÍVEL | NÃO DISPONÍVEL | Requer métricas remotas por produto/plan_type sem expor PII | P0 |
+**AUDITORIA REMOTA CONCLUÍDA — CORREÇÃO PENDENTE**
+
+## Ambiente
+
+| Campo | Valor |
+| --- | --- |
+| `environment` | `production` |
+| `database` | `lmsystemv2-db` |
+| `readOnly` | `true` |
+| `zeroWrites` | `true` |
+| `status` | `COMPLETED` |
+| `errors` | `[]` |
+| `capturedAt` | `2026-07-17T17:30:15.939Z` |
+
+## Paridade confirmada
+
+| Métrica | Admin legado (`student_access`) | Workspace (`premium_students`) | Diferença | Diagnóstico |
+| --- | ---: | ---: | ---: | --- |
+| Total em tabela-fonte | 18 | 0 | 18 | Workspace vazio porque `premium_students` não possui registros |
+| Total de ativos | 18 | 0 | 18 | Admin legado possui 18 alunos ativos em `student_access` |
+| Presentes nas duas fontes | 0 | 0 | 0 | Não há interseção porque `premium_students` está vazia |
+| Presentes apenas no legado | 18 | N/A | 18 | Todos os alunos identificados estão somente em `student_access` |
+| Presentes apenas no Workspace | N/A | 0 | 0 | Nenhum registro exclusivo em `premium_students` |
+| Registros sem `student_id` | 18 | 0 | 18 | Todos os alunos legados estão sem `student_id` |
+| Registros com e-mail | 18 | 0 | 18 | Todos os alunos legados possuem e-mail |
+| E-mails duplicados | 0 | 0 | 0 | Sem duplicidade de e-mail nas fontes auditadas |
+| `student_id` duplicados | 0 | 0 | 0 | Sem duplicidade de `student_id`; `student_access` não possui `student_id` preenchido |
+| `student_id` divergente por e-mail | 0 | 0 | 0 | Sem divergência detectada |
+| E-mail com múltiplos `student_id` | 0 | 0 | 0 | Sem ambiguidade detectada |
+| `student_id` com múltiplos e-mails | 0 | 0 | 0 | Sem ambiguidade detectada |
+
+## Dados históricos dependentes
+
+| Tabela | Total | Com `student_id` | Com e-mail | Correspondência em `student_access` |
+| --- | ---: | ---: | ---: | ---: |
+| `premium_anamnesis` | 6 | 0 | 6 | 6 |
+| `student_checkins` | 3 | 0 | 3 | 3 |
+| `followup_logs` | 6 | 0 | 6 | 6 |
+| `activity_timeline` | 45 | 0 | 45 | 45 |
+| `weekly_plans` | 16 | 0 | 16 | 16 |
+| `premium_pending_items` | 0 | 0 | 0 | 0 |
+| `premium_followup_entries` | 0 | 0 | 0 | 0 |
+| `premium_nutrition_plans` | ausente | ausente | ausente | ausente |
 
 ## Interpretação
 
-A diferença de contagem entre legado e Workspace permanece **não conhecida** nesta execução porque o ambiente não permitiu autenticação/execução remota read-only. A prioridade imediata é repetir a auditoria em um runner com Wrangler disponível, token Cloudflare read-only e credenciais admin de staging para GETs sanitizados.
+A diferença de listagem está confirmada: o Admin legado usa `student_access` e encontra 18 alunos ativos, enquanto o Workspace usa `premium_students` e encontra 0 registros. Como todos os 18 alunos legados estão sem `student_id`, o Workspace não consegue formar a lista a partir da fonte Premium atual nem resolver identidade canônica por `student_id`.
+
+Os dados históricos não foram perdidos. As tabelas legadas auditadas possuem e-mail e correspondência determinística por e-mail normalizado com `student_access`.
+
+## Recomendação
+
+A próxima PR deve implementar **LM Premium 3.1 — Identity Bridge & Student List Parity**, mantendo `premium_students` como fonte preferencial, usando `student_access` como fallback read-only, resolvendo por `student_id` quando existir e usando fallback temporário por e-mail normalizado sem backfill, sem cópia de dados e sem alteração de regras de negócio.
