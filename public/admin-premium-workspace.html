@@ -17,7 +17,7 @@
       <label class="search">Buscar aluno
         <input id="search" placeholder="Nome ou e-mail" autocomplete="off">
       </label>
-      <nav aria-label="Ações do Workspace">
+      <nav aria-label="Ações do Workspace"><button id="openCreate" type="button">Cadastrar aluno</button>
         <button id="refresh" type="button">Atualizar</button>
         <button id="adminLogoutBtn" type="button">Sair</button>
       </nav>
@@ -27,7 +27,7 @@
     <section id="flag" class="panel" hidden>Workspace desligado por feature flag.</section>
     <section id="error" class="panel error" hidden><span id="errorText"></span><button id="retry" type="button">Tentar novamente</button></section>
 
-    <div class="layout minimal-layout">
+    <section class="panel dashboard"><h2>Operação</h2><div id="dashboardBlocks" class="dashboard-blocks"><article><h3>Anamneses</h3><p>Carregando...</p></article><article><h3>Check-ins</h3><p>Carregando...</p></article></div></section><section id="createPanel" class="panel" hidden><h2>Cadastrar aluno</h2><form id="createForm"><label>Nome<input name="name" required></label><label>E-mail<input name="email" type="email" required></label><label>WhatsApp<input name="whatsapp"></label><label>Tipo de plano<input name="planType" value="PREMIUM"></label><label>Observação<textarea name="note"></textarea></label><button type="submit">Confirmar cadastro</button></form><div id="createResult"></div></section><div class="layout minimal-layout">
       <section id="students" class="panel"><h2>Alunos Premium</h2><div id="studentList" class="list skeleton">Carregando alunos... Nenhum aluno Premium encontrado.</div><button id="loadMore" type="button" hidden>Carregar mais</button></section>
       <section id="context" class="panel context"><h2>Contexto básico</h2><div id="contextBody">Selecione um aluno para visualizar o contexto básico.</div></section>
     </div>
