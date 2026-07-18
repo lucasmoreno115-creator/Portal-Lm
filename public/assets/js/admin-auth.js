@@ -75,7 +75,6 @@
     return {
       'Content-Type': 'application/json',
       'x-admin-session': credential,
-      'x-admin-token': credential,
       ...headers
     };
   }
@@ -143,8 +142,7 @@
     const input = document.getElementById(inputId);
     if (!input) return;
     clearLegacyAdminToken();
-    const sessionId = getAdminSession();
-    if (sessionId && !input.value) input.value = sessionId;
+    input.value = '';
   }
 
   function attachLogout(buttonId){

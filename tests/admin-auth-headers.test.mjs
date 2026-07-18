@@ -27,7 +27,7 @@ test('admin-auth exposes the only shared admin auth header helper', async () => 
   assert.match(source, /function getAdminAuthHeaders\(extraHeaders, credentialOverride\)/);
   assert.match(source, /'Content-Type': 'application\/json'/);
   assert.match(source, /'x-admin-session': credential/);
-  assert.match(source, /'x-admin-token': credential/);
+  assert.doesNotMatch(source, /'x-admin-token': credential/);
   assert.match(source, /const getAdminHeaders = getAdminAuthHeaders/);
 });
 
