@@ -80,6 +80,7 @@ Nenhuma migration nova foi criada neste Build. O cutover depende das tabelas Pre
 ## Riscos e dependências
 
 - A produção só deve manter `PREMIUM_ADMIN_CUTOVER_ENABLED=true` após validação de staging.
+- Nesta PR, a flag não é ativada automaticamente: `PREMIUM_ADMIN_CUTOVER_ENABLED=true` deve ser uma ação operacional separada somente após smoke test em produção validar login, retorno ao Workspace e rollback.
 - A Anamnese permanece no destino legado funcional `/admin-anamneses.html?student_id=...`; não há página placeholder.
 - Student 360 permanece funcional em `/admin-student.html?student_id=...` e não redireciona para o Workspace.
 - Rollback simples: desligar `PREMIUM_ADMIN_CUTOVER_ENABLED` para `/admin` abrir `/admin-legacy.html`; desligar `PREMIUM_PROFESSIONAL_WORKSPACE_ENABLED` para bloquear as listas do Workspace e exibir CTA para o legado real.

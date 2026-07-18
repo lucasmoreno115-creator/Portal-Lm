@@ -100,7 +100,7 @@ test('selected student behavior opens modules, handles expired sessions and reso
   assert.match(source, /state\.actions = c\.actions/);
   assert.match(source, /window\.location\.assign\(url\)/);
   assert.match(source, /admin_session_expired/);
-  assert.match(source, /admin-login\.html\?next=\/admin/);
+  assert.match(source, /admin-login\.html\?returnTo=\/admin/);
   assert.match(source, /state\.lastPendingScroll/);
   assert.match(source, /loadSummary\(\), loadPending\(\), loadStudents\(true\)/);
   assert.match(source, /Pendência resolvida\. Inbox atualizada\./);
