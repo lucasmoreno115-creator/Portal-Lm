@@ -40,12 +40,13 @@ export function createD1ProfessionalWorkspaceRepository(db, { scheduleService } 
       const feedbackParams = weekRef ? [weekRef] : [];
       const missingWeekFilter = weekRef ? 'AND sc.week_ref=?' : '';
       const missingParams = weekRef ? [weekRef] : [];
+      const sid = "coalesce(ib.student_id,'__email_bridge__')";
       const [pending, awaiting, missing, plan, anamnesis] = await Promise.all([
-        db.prepare("SELECT COUNT(*) total FROM premium_pending_items pi JOIN premium_students ps ON ps.student_id=pi.student_id WHERE pi.status='OPEN'").first(),
-        db.prepare(`SELECT COUNT(DISTINCT sc.id) total FROM student_checkins sc JOIN premium_students ps ON ps.student_id=sc.student_id WHERE NOT (${ANALYZED}) ${feedbackWeekFilter}`).bind(...feedbackParams).first(),
-        db.prepare(`SELECT COUNT(*) total FROM premium_students ps WHERE ps.consultation_status IN ('ACTIVE','UNDER_REVIEW') AND NOT EXISTS (SELECT 1 FROM student_checkins sc WHERE sc.student_id=ps.student_id ${missingWeekFilter})`).bind(...missingParams).first(),
-        db.prepare("SELECT COUNT(DISTINCT ps.student_id) total FROM premium_students ps WHERE EXISTS (SELECT 1 FROM premium_pending_items pi WHERE pi.student_id=ps.student_id AND pi.status='OPEN' AND pi.type='CREATE_NUTRITION_PLAN')").first(),
-        db.prepare("SELECT COUNT(DISTINCT pa.student_id) total FROM premium_anamnesis pa JOIN premium_students ps ON ps.student_id=pa.student_id WHERE upper(coalesce(pa.status,'')) NOT IN ('ANALYZED','ANALISADA')").first(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(*) total FROM premium_pending_items pi JOIN identity_bridge ib ON pi.student_id=${sid} WHERE pi.status='OPEN'`).first(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(DISTINCT sc.id) total FROM student_checkins sc JOIN identity_bridge ib ON (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) WHERE NOT (${ANALYZED}) ${feedbackWeekFilter}`).bind(...feedbackParams).first(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(*) total FROM identity_bridge ib WHERE ib.consultation_status IN ('ACTIVE','UNDER_REVIEW') AND NOT EXISTS (SELECT 1 FROM student_checkins sc WHERE (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) ${missingWeekFilter})`).bind(...missingParams).first(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(DISTINCT ib.id) total FROM identity_bridge ib WHERE EXISTS (SELECT 1 FROM premium_pending_items pi WHERE pi.student_id=${sid} AND pi.status='OPEN' AND pi.type='CREATE_NUTRITION_PLAN')`).first(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(DISTINCT pa.student_id) total FROM premium_anamnesis pa JOIN identity_bridge ib ON pa.student_id=${sid} WHERE upper(coalesce(pa.status,'')) NOT IN ('ANALYZED','ANALISADA')`).first(),
       ]);
       return { weekRef, openPendingItems: pending?.total || 0, feedbacksAwaitingAnalysis: awaiting?.total || 0, studentsWithoutResponse: missing?.total || 0, plansPendingUpdate: plan?.total || 0, anamnesesAwaitingAnalysis: anamnesis?.total || 0, isSaturday: isSaturdayInSaoPaulo(now), date: now.toISOString() };
     },
@@ -69,10 +70,10 @@ export function createD1ProfessionalWorkspaceRepository(db, { scheduleService } 
       const items = rows(result); items.forEach(logIdentity); return { items, nextCursor: null, limit: lim };
     },
     async listPendingItems(filters = {}) {
-      const limit = clampLimit(filters.limit, 25); const offsetValue = offset(filters.cursor); const where = ['1=1']; const params = [];
+      const limit = clampLimit(filters.limit, 25); const offsetValue = offset(filters.cursor); const where = ['1=1']; const params = []; const sid = "coalesce(ib.student_id,'__email_bridge__')";
       if (filters.status !== 'RESOLVED') where.push("pi.status='OPEN'"); else where.push("pi.status='RESOLVED'");
-      if (filters.type) { where.push('pi.type=?'); params.push(filters.type); } if (filters.priority) { where.push('pi.priority=?'); params.push(filters.priority); } if (filters.student_id) { where.push('pi.student_id=?'); params.push(filters.student_id); }
-      const result = await db.prepare(`SELECT pi.*,ps.display_name student_name,ps.email FROM premium_pending_items pi JOIN premium_students ps ON ps.student_id=pi.student_id WHERE ${where.join(' AND ')} ORDER BY CASE pi.priority WHEN 'HIGH' THEN 0 WHEN 'NORMAL' THEN 1 ELSE 2 END, datetime(pi.created_at) ASC LIMIT ? OFFSET ?`).bind(...params, limit + 1, offsetValue).all();
+      if (filters.type) { where.push('pi.type=?'); params.push(filters.type); } if (filters.priority) { where.push('pi.priority=?'); params.push(filters.priority); } if (filters.student_id) { where.push(`pi.student_id=${sid}`); }
+      const result = await db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT pi.*,ib.name student_name,ib.email FROM premium_pending_items pi JOIN identity_bridge ib ON pi.student_id=${sid} WHERE ${where.join(' AND ')} ORDER BY CASE pi.priority WHEN 'HIGH' THEN 0 WHEN 'NORMAL' THEN 1 ELSE 2 END, datetime(pi.created_at) ASC LIMIT ? OFFSET ?`).bind(...params, limit + 1, offsetValue).all();
       const resultRows = rows(result); return { items: resultRows.slice(0, limit), nextCursor: resultRows.length > limit ? String(offsetValue + limit) : null, limit };
     },
     async getStudentContext(studentId) {
@@ -89,13 +90,13 @@ export function createD1ProfessionalWorkspaceRepository(db, { scheduleService } 
       return { summary, pendingItems: pending.items, weeklyFeedback: rows(feedback), nutritionPlan: rows(plan), anamnesis, evolution: rows(evolution) };
     },
     async getSaturdayReview({ now = new Date(), limit = 25 } = {}) {
-      const weekRef = weekRefFor(now); const lim = clampLimit(limit, 25);
+      const weekRef = weekRefFor(now); const lim = clampLimit(limit, 25); const sid = "coalesce(ib.student_id,'__email_bridge__')";
       const [awaiting, missing, analyzedRows, pendingByDecision, plans] = await Promise.all([
-        db.prepare(`SELECT sc.id,sc.student_id,ps.display_name student_name,ps.email,sc.week_ref,sc.created_at submitted_at FROM student_checkins sc JOIN premium_students ps ON ps.student_id=sc.student_id WHERE sc.week_ref=? AND NOT (${ANALYZED}) ORDER BY datetime(sc.created_at) ASC LIMIT ?`).bind(weekRef, lim).all(),
-        db.prepare(`SELECT ps.student_id,ps.display_name student_name,ps.email FROM premium_students ps WHERE ps.consultation_status IN ('ACTIVE','UNDER_REVIEW') AND NOT EXISTS (SELECT 1 FROM student_checkins sc WHERE sc.student_id=ps.student_id AND sc.week_ref=?) ORDER BY lower(coalesce(ps.display_name,ps.email)) LIMIT ?`).bind(weekRef, lim).all(),
-        db.prepare(`SELECT sc.id,sc.student_id,ps.display_name student_name,ps.email,sc.week_ref,sc.reviewed_at FROM student_checkins sc JOIN premium_students ps ON ps.student_id=sc.student_id WHERE sc.week_ref=? AND ${ANALYZED} ORDER BY datetime(coalesce(sc.reviewed_at,sc.created_at)) DESC LIMIT ?`).bind(weekRef, lim).all(),
-        db.prepare("SELECT pi.id,pi.student_id,ps.display_name student_name,pi.type,pi.title,pi.description,pi.status,pi.priority,pi.source,pi.related_entity_type,pi.related_entity_id,pi.created_at,pi.updated_at FROM premium_pending_items pi JOIN premium_students ps ON ps.student_id=pi.student_id JOIN student_checkins sc ON sc.id=pi.related_entity_id AND sc.student_id=pi.student_id AND sc.week_ref=? WHERE pi.status='OPEN' AND pi.source='professional_decision' AND pi.related_entity_type='student_checkins' ORDER BY datetime(pi.created_at) DESC LIMIT ?").bind(weekRef, lim).all(),
-        db.prepare("SELECT pi.id,pi.student_id,ps.display_name student_name,pi.title,pi.created_at FROM premium_pending_items pi JOIN premium_students ps ON ps.student_id=pi.student_id WHERE pi.status='OPEN' AND pi.type='CREATE_NUTRITION_PLAN' ORDER BY datetime(pi.created_at) ASC LIMIT ?").bind(lim).all(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT sc.id,sc.student_id,ib.name student_name,ib.email,sc.week_ref,sc.created_at submitted_at FROM student_checkins sc JOIN identity_bridge ib ON (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) WHERE sc.week_ref=? AND NOT (${ANALYZED}) ORDER BY datetime(sc.created_at) ASC LIMIT ?`).bind(weekRef, lim).all(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT ib.id student_id,ib.name student_name,ib.email FROM identity_bridge ib WHERE ib.consultation_status IN ('ACTIVE','UNDER_REVIEW') AND NOT EXISTS (SELECT 1 FROM student_checkins sc WHERE (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) AND sc.week_ref=?) ORDER BY lower(coalesce(ib.name,ib.email)) LIMIT ?`).bind(weekRef, lim).all(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT sc.id,sc.student_id,ib.name student_name,ib.email,sc.week_ref,sc.reviewed_at FROM student_checkins sc JOIN identity_bridge ib ON (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) WHERE sc.week_ref=? AND ${ANALYZED} ORDER BY datetime(coalesce(sc.reviewed_at,sc.created_at)) DESC LIMIT ?`).bind(weekRef, lim).all(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT pi.id,pi.student_id,ib.name student_name,pi.type,pi.title,pi.description,pi.status,pi.priority,pi.source,pi.related_entity_type,pi.related_entity_id,pi.created_at,pi.updated_at FROM premium_pending_items pi JOIN identity_bridge ib ON pi.student_id=${sid} JOIN student_checkins sc ON sc.id=pi.related_entity_id AND (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) AND sc.week_ref=? WHERE pi.status='OPEN' AND pi.source='professional_decision' AND pi.related_entity_type='student_checkins' ORDER BY datetime(pi.created_at) DESC LIMIT ?`).bind(weekRef, lim).all(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT pi.id,pi.student_id,ib.name student_name,pi.title,pi.created_at FROM premium_pending_items pi JOIN identity_bridge ib ON pi.student_id=${sid} WHERE pi.status='OPEN' AND pi.type='CREATE_NUTRITION_PLAN' ORDER BY datetime(pi.created_at) ASC LIMIT ?`).bind(lim).all(),
       ]);
       return { weekRef, isSaturday: isSaturdayInSaoPaulo(now), feedbacksAwaitingAnalysis: rows(awaiting), studentsWithoutResponse: rows(missing), feedbacksAnalyzed: rows(analyzedRows), pendingItemsCreatedByDecisions: rows(pendingByDecision), plansPendingUpdate: rows(plans) };
     },

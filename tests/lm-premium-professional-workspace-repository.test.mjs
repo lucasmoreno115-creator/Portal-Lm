@@ -116,3 +116,17 @@ test('workspace lists the same 18 active legacy students and performs no write S
   assert.doesNotMatch(sql,/\bUPDATE\b/);
   assert.doesNotMatch(sql,/\bDELETE\b/);
 }));
+
+test('Student 360 context opens all 18 active legacy email-bridge students', async()=>withDb(async(db,repo)=>{
+  await db.prepare(`DELETE FROM premium_students`).run();
+  await db.prepare(`DELETE FROM student_access`).run();
+  for(let i=1;i<=18;i++) await db.prepare(`INSERT INTO student_access(id,name,email,whatsapp,status,plan_type,plan,student_id,created_at) VALUES(?,?,?,?,?,?,?,?,?)`).bind(`legacy-open-${i}`,`Legacy Open ${i}`,`legacy-open-${i}@example.com`,null,'ACTIVE','PREMIUM','premium',null,'2026-07-01').run();
+  const list=await repo.listStudents({limit:25});
+  assert.equal(list.items.length,18);
+  for (const student of list.items) {
+    const context=await repo.getStudentContext(student.student_id);
+    assert.ok(context, `context should open for ${student.student_id}`);
+    assert.equal(context.summary.source,'legacy');
+    assert.equal(context.summary.identity_mode,'email_bridge');
+  }
+}));
