@@ -20,9 +20,9 @@ class SqliteD1Statement {
     return this.sql.replace(/\?/g, () => sqlValue(this.params[index++]));
   }
   async run() {
-    execFileSync('sqlite3', [this.file], { input: this.sqlWithParams() + ';' });
-    const readonly = /^\s*(CREATE|ALTER|DROP|PRAGMA|INSERT OR IGNORE)/i.test(this.sql);
-    return { meta: { changes: readonly ? 0 : 1 } };
+    const out = execFileSync('sqlite3', ['-json', this.file], { input: this.sqlWithParams() + '; SELECT changes() AS changes;' , encoding: 'utf8' }).trim();
+    const result = out ? JSON.parse(out).at(-1) : { changes: 0 };
+    return { meta: { changes: Number(result.changes || 0) } };
   }
   async all() {
     const out = execFileSync('sqlite3', ['-json', this.file, this.sqlWithParams()], { encoding: 'utf8' }).trim();
@@ -211,6 +211,37 @@ test('LM Premium 3.1 anamnese exige sessão Premium e rejeita identidade no payl
   assert.equal(accepted.status, 200);
   assert.deepEqual(await db.prepare(`SELECT COUNT(*) AS total FROM student_access`).first(), accessBefore);
   assert.deepEqual(await db.prepare(`SELECT COUNT(*) AS total FROM premium_students`).first(), studentBefore);
+}));
+
+test('LM Premium 3.1 submissões concorrentes são atomicamente idempotentes', async () => withDb(async (db) => {
+  await seedAccess(db); await seedPremiumStudent(db, { status: 'AWAITING_ANAMNESIS' });
+  const accessBefore = await db.prepare(`SELECT id,name,email,access_token,status,plan_type,plan,student_id FROM student_access WHERE email='student@example.com'`).first();
+  const studentsBefore = await db.prepare(`SELECT COUNT(*) AS total FROM premium_students`).first();
+  const [first, second] = await Promise.all([
+    api(db, 'POST', '/api/anamnese-premium', { body: { answers: { personal: { weight: '70' } } } }),
+    api(db, 'POST', '/api/anamnese-premium', { body: { answers: { personal: { weight: '70' } } } })
+  ]);
+  assert.equal(first.status, 200); assert.equal(second.status, 200);
+  assert.equal(new Set([first.body.data.id, second.body.data.id]).size, 1);
+  assert.deepEqual([first.body.data.alreadySubmitted, second.body.data.alreadySubmitted].sort(), [false, true]);
+  assert.equal((await db.prepare(`SELECT COUNT(*) AS total FROM premium_anamnesis WHERE student_email='student@example.com'`).first()).total, 1);
+  assert.equal((await db.prepare(`SELECT COUNT(*) AS total FROM activity_timeline WHERE student_email='student@example.com' AND event_type='ANAMNESIS_SENT'`).first()).total, 1);
+  assert.equal((await db.prepare(`SELECT consultation_status FROM premium_students WHERE student_id='student-1'`).first()).consultation_status, 'UNDER_REVIEW');
+  assert.deepEqual(await db.prepare(`SELECT id,name,email,access_token,status,plan_type,plan,student_id FROM student_access WHERE email='student@example.com'`).first(), accessBefore);
+  assert.deepEqual(await db.prepare(`SELECT COUNT(*) AS total FROM premium_students`).first(), studentsBefore);
+  const retry = await api(db, 'POST', '/api/anamnese-premium', { body: { answers: {} } });
+  assert.equal(retry.status, 200); assert.equal(retry.body.data.id, first.body.data.id); assert.equal(retry.body.data.alreadySubmitted, true);
+}));
+
+test('LM Premium 3.1 anamnese inicial permite alunos distintos e protege legado por e-mail', async () => withDb(async (db) => {
+  await seedAccess(db); await seedPremiumStudent(db, { status: 'AWAITING_ANAMNESIS' });
+  await seedAccess(db, { id: 'access-b', email: 'b@example.com', token: 'token-b' }); await seedPremiumStudent(db, { studentId: 'student-b', email: 'b@example.com', status: 'AWAITING_ANAMNESIS' });
+  const [a, b] = await Promise.all([api(db, 'POST', '/api/anamnese-premium', { body: { answers: {} } }), api(db, 'POST', '/api/anamnese-premium', { email: 'b@example.com', token: 'token-b', body: { answers: {} } })]);
+  assert.equal(a.body.data.alreadySubmitted, false); assert.equal(b.body.data.alreadySubmitted, false); assert.notEqual(a.body.data.id, b.body.data.id);
+  await seedAccess(db, { id: 'legacy', email: 'legacy@example.com', token: 'legacy-token' });
+  const [legacyFirst, legacySecond] = await Promise.all([api(db, 'POST', '/api/anamnese-premium', { email: 'legacy@example.com', token: 'legacy-token', body: { answers: {} } }), api(db, 'POST', '/api/anamnese-premium', { email: 'legacy@example.com', token: 'legacy-token', body: { answers: {} } })]);
+  assert.equal(legacyFirst.body.data.id, legacySecond.body.data.id);
+  assert.equal((await db.prepare(`SELECT COUNT(*) AS total FROM premium_anamnesis WHERE student_id IS NULL AND student_email='legacy@example.com'`).first()).total, 1);
 }));
 
 test('LM Premium 3.1 gate bloqueia módulos completos antes de ACTIVE e pause volta a bloquear', async () => withDb(async (db) => {

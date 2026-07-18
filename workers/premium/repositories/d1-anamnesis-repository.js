@@ -23,6 +23,27 @@ export function createD1AnamnesisRepository(db) {
       ).run();
       return this.findById(record.id);
     },
+    async createInitialIfAbsent(record) {
+      const identityPredicate = record.student_id
+        ? 'student_id = ?'
+        : 'student_id IS NULL AND lower(student_email) = lower(?)';
+      const identityValue = record.student_id ?? record.student_email;
+      const result = await db.prepare(`INSERT INTO premium_anamnesis (
+        id, student_id, student_name, student_email, student_phone, status,
+        answers_json, internal_scores_json, created_at, updated_at
+      ) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      WHERE NOT EXISTS (SELECT 1 FROM premium_anamnesis WHERE ${identityPredicate})`).bind(
+        record.id, record.student_id ?? null, record.student_name, record.student_email,
+        record.student_phone ?? null, record.status ?? 'RECEBIDA', record.answers_json,
+        record.internal_scores_json ?? null, record.created_at, record.updated_at ?? record.created_at,
+        identityValue
+      ).run();
+      if (changes(result) > 0) return { created: true, record: await this.findById(record.id) };
+      const existing = record.student_id
+        ? await this.findLatestByStudentId(record.student_id)
+        : await this.findLatestByEmail(record.student_email);
+      return { created: false, record: existing };
+    },
     async markAnalyzed(id, { status = 'ANALISADA', updated_at } = {}) {
       const result = await db.prepare('UPDATE premium_anamnesis SET status = ?, updated_at = ? WHERE id = ?').bind(status, updated_at ?? new Date().toISOString(), id).run();
       return changes(result);

@@ -253,14 +253,14 @@ export default {
         if (!body?.answers || Array.isArray(answers)) return json({ ok: false, error: 'answers é obrigatório.' }, 400);
         const internalScores = calculateAnamnesisInternalScores(answers);
         const premium = await env.DB.prepare(`SELECT student_id, consultation_status FROM premium_students WHERE normalized_email=? OR lower(trim(email))=? ORDER BY updated_at DESC LIMIT 1`).bind(studentEmail, studentEmail).first();
-        const consultationStatus = String(premium?.consultation_status || 'NEW').toUpperCase();
         const studentId = premium?.student_id || submittedAuth.student.studentId || null;
-        if (!['NEW', 'AWAITING_ANAMNESIS'].includes(consultationStatus)) return json({ ok: false, code: 'ANAMNESIS_ALREADY_SUBMITTED', error: 'Sua anamnese já foi enviada.' }, 409);
         const premiumApp = createPremiumApplication(env, request);
         const existing = studentId ? await premiumApp.anamnesisRepository.findLatestByStudentId(studentId) : await premiumApp.anamnesisRepository.findLatestByEmail(studentEmail);
         if (existing) return json({ ok: true, data: { id: existing.id, alreadySubmitted: true } });
+        const consultationStatus = String(premium?.consultation_status || 'NEW').toUpperCase();
+        if (!['NEW', 'AWAITING_ANAMNESIS'].includes(consultationStatus)) return json({ ok: false, code: 'ANAMNESIS_ALREADY_SUBMITTED', error: 'Sua anamnese já foi enviada.' }, 409);
         const id = crypto.randomUUID(); const now = new Date().toISOString();
-        await premiumApp.anamnesisRepository.create({
+        const created = await premiumApp.anamnesisRepository.createInitialIfAbsent({
           id,
           student_id: studentId,
           student_name: submittedAuth.student.name,
@@ -272,9 +272,10 @@ export default {
           created_at: now,
           updated_at: now,
         });
+        if (!created.created) return json({ ok: true, data: { id: created.record.id, alreadySubmitted: true } });
         await premiumApp.eventRepository.append({ id: crypto.randomUUID(), student_id: studentId, student_email: studentEmail, event_type: 'ANAMNESIS_SENT', source: 'portal', title: 'Anamnese enviada', metadata: { anamnesis_id: id, status: 'RECEBIDA' }, created_at: now });
         if (studentId) await env.DB.prepare(`UPDATE premium_students SET consultation_status='UNDER_REVIEW', updated_at=? WHERE student_id=? AND consultation_status IN ('NEW','AWAITING_ANAMNESIS')`).bind(now, studentId).run();
-        return json({ ok: true, data: { id, created_at: now } });
+        return json({ ok: true, data: { id, alreadySubmitted: false } });
       }
 
       if (url.pathname === '/api/admin/session/login' && method === 'POST') {
