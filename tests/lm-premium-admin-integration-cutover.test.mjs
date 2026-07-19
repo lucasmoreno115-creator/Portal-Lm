@@ -48,13 +48,13 @@ test('legacy rollback page is the real operational Admin Hub', () => {
   assert.doesNotMatch(legacy, /http-equiv="refresh"/i);
 });
 
-test('workspace shell exposes minimal operational header without incomplete modules', () => {
+test('workspace shell exposes only the approved operational navigation and independent dashboards', () => {
   const source = html();
-  for (const label of ['Workspace Premium', 'Buscar aluno', 'Atualizar', 'Sair', 'Alunos Premium', 'Contexto básico']) assert.match(source, new RegExp(label));
-  for (const hidden of ['Visão Geral', 'Inbox operacional', 'Pendências', 'Feedback Semanal', 'Plano Alimentar', 'Student 360', 'Evolução', 'Configurações']) assert.doesNotMatch(source, new RegExp(hidden));
-  assert.match(source, /data-admin-shell="premium-workspace"/);
-  const ids = htmlIds(source);
-  for (const [, hash] of source.matchAll(/href=["']#([^"']+)["']/g)) assert.ok(ids.has(hash), `Missing internal target #${hash}`);
+  for (const label of ['Visão geral', 'Alunos', 'Cadastrar aluno', 'Anamneses', 'Check-ins', 'Alunos Premium']) assert.match(source, new RegExp(label));
+  for (const hidden of ['Inbox operacional', 'Pendências', 'Feedback Semanal', 'Plano Alimentar', 'Student 360', 'Evolução', 'Configurações']) assert.doesNotMatch(source, new RegExp(hidden));
+  assert.match(source, /assets\/js\/admin-premium-workspace\.js/);
+  assert.match(source, /anamnesisDashboard/);
+  assert.match(source, /checkinDashboard/);
 });
 
 test('student action contract uses student_id routes that point to real non-placeholder pages', () => {
@@ -86,22 +86,22 @@ test('Student 360 route remains functional and protected instead of redirecting 
   assert.doesNotMatch(student360, /http-equiv="refresh"/i);
 });
 
-test('workspace minimal load avoids incomplete operational modules and keeps cutover controlled elsewhere', () => {
+test('workspace loads dashboard blocks and student list independently', () => {
   const source = js();
-  assert.match(source.match(/async function loadAll\(\)[^{]*\{([^]*?)\n  function renderDashboardError/)?.[1] || '', /loadDashboard\(\)\.catch/);
-  assert.match(source, /await loadStudents\(true\)/);
-  assert.doesNotMatch(source, /Promise\.all\(\[loadSummary\(\), loadStudents/);
+  for (const loader of ['loadAnamnesisDashboard', 'loadCheckinDashboard', 'loadStudents']) assert.match(source, new RegExp(`${loader}\\(\\)\\.catch`));
   assert.doesNotMatch(source, /loadSaturdayReview|loadPending\(/);
-  assert.match(html(), /Workspace desligado por feature flag/);
+  assert.match(source, /retryBlock\(\$\('anamnesisDashboard'\)/);
+  assert.match(source, /retryBlock\(\$\('checkinDashboard'\)/);
+  assert.match(source, /retryBlock\(\$\('studentList'\)/);
 });
 
-test('selected student behavior opens only basic context and handles expired sessions safely', () => {
+test('selected student uses openRecord/loadRecord and only explicit session failures log out', () => {
   const source = js();
   for (const action of ['Ver Feedbacks', 'Editar Plano Alimentar', 'Abrir Anamnese legada', 'Abrir Student 360', 'Ver Evolução', 'Pendência resolvida']) assert.doesNotMatch(source, new RegExp(action));
-  assert.match(source, /loadContext\(id\)/);
-  assert.match(source, /renderContext\(c\)/);
-  assert.match(source, /window\.location\.assign/);
-  assert.match(source, /Sessão expirada/);
+  assert.match(source, /openRecord\(id\)/);
+  assert.match(source, /loadRecord\(id\)/);
+  assert.match(source, /ADMIN_SESSION_INVALID/);
+  assert.match(source, /ADMIN_SESSION_EXPIRED/);
   assert.match(source, /clearAdminSession/);
-  assert.match(source, /Prontuário LM mínimo/);
+  assert.match(source, /operationalError/);
 });
