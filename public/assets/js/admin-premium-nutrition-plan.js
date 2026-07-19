@@ -1,4 +1,7 @@
 const qs = new URLSearchParams(location.search); const studentId = qs.get('student_id'); const state = { draft:null, current:null };
+function safeReturnTo(value){ if(!value || !value.startsWith('/') || value.startsWith('//')) return null; try { const url=new URL(value, location.origin); const allowed=['/admin-premium-workspace.html','/admin-premium-student-record.html']; return url.origin===location.origin&&allowed.includes(url.pathname) ? `${url.pathname}${url.search}${url.hash}` : null; } catch { return null; } }
+const fallbackReturn = studentId ? `/admin-premium-student-record.html?student_id=${encodeURIComponent(studentId)}` : '/admin-premium-workspace.html';
+const returnTo = safeReturnTo(qs.get('return_to')) || fallbackReturn;
 const $ = (id) => document.getElementById(id); function text(el, value){ el.textContent = value == null || value === '' ? '—' : String(value); }
 function mealCard(meal){ const div=document.createElement('div'); div.className='meal'; const h=document.createElement('h3'); text(h, meal.name); div.append(h); (meal.items||[]).forEach((item)=>{ const p=document.createElement('p'); text(p, `${item.food || ''} ${item.quantity || ''} ${item.unit || ''}`.trim()); div.append(p); }); return div; }
 function renderPlan(root, plan){ root.replaceChildren(); if(!plan){ const p=document.createElement('p'); text(p,'Nenhum plano publicado.'); root.append(p); return; } ['title','goal','strategy','published_at','published_by'].forEach(k=>{ const p=document.createElement('p'); const b=document.createElement('strong'); text(b, `${k}: `); p.append(b, document.createTextNode(plan[k] || '—')); root.append(p); }); (plan.meals||[]).forEach(m=>root.append(mealCard(m))); }
@@ -10,4 +13,5 @@ $('createDraft').onclick=async()=>{ fillDraft(await api(`/api/admin/premium/stud
 $('duplicateDraft').onclick=async()=>{ if(!state.current) return; fillDraft(await api(`/api/admin/premium/nutrition-plans/${encodeURIComponent(state.current.id)}/duplicate-as-draft`,{method:'POST',body:'{}'})); };
 $('saveDraft').onclick=async()=>{ if(!state.draft) return; try{ fillDraft(await api(`/api/admin/premium/nutrition-plans/${encodeURIComponent(state.draft.id)}/draft`,{method:'PATCH',body:JSON.stringify(payload())})); text($('status'),'Rascunho salvo.'); }catch(e){ text($('status'), e.conflict ? `${e.message} Use recarregar antes de salvar novamente.` : e.message); } };
 $('publishDraft').onclick=async()=>{ if(!state.draft) return; await api(`/api/admin/premium/nutrition-plans/${encodeURIComponent(state.draft.id)}/publish`,{method:'POST',body:'{}'}); await load(); };
+$('backToRecord').setAttribute('href', returnTo);
 load().catch(e=>text($('status'), e.message));

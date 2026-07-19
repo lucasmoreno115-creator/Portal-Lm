@@ -4,7 +4,7 @@ export function presentStudentRecord(record) {
     student: strip(record.student),
     summary: strip(record.summary),
     anamnesis: strip(record.anamnesis),
-    nutrition_plan: strip(record.nutrition_plan),
+    nutrition_plan: record.nutrition_plan ? { current: strip(record.nutrition_plan.current), draft: strip(record.nutrition_plan.draft) } : { current: null, draft: null },
     feedbacks: (record.feedbacks || []).map(strip),
     followup_entries: (record.followup_entries || []).map(strip),
     pending_items: (record.pending_items || []).map(strip),
