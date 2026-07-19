@@ -28,7 +28,7 @@ export function createD1AnamnesisRepository(db) {
         ? 'student_id = ?'
         : 'student_id IS NULL AND lower(student_email) = lower(?)';
       const identityValue = record.student_id ?? record.student_email;
-      const result = await db.prepare(`INSERT INTO premium_anamnesis (
+      await db.prepare(`INSERT INTO premium_anamnesis (
         id, student_id, student_name, student_email, student_phone, status,
         answers_json, internal_scores_json, created_at, updated_at
       ) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
@@ -38,7 +38,8 @@ export function createD1AnamnesisRepository(db) {
         record.internal_scores_json ?? null, record.created_at, record.updated_at ?? record.created_at,
         identityValue
       ).run();
-      if (changes(result) > 0) return { created: true, record: await this.findById(record.id) };
+      const inserted = await this.findById(record.id);
+      if (inserted) return { created: true, record: inserted };
       const existing = record.student_id
         ? await this.findLatestByStudentId(record.student_id)
         : await this.findLatestByEmail(record.student_email);

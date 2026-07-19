@@ -20,9 +20,9 @@ class SqliteD1Statement {
     return this.sql.replace(/\?/g, () => sqlValue(this.params[index++]));
   }
   async run() {
-    const out = execFileSync('sqlite3', ['-json', this.file], { input: this.sqlWithParams() + '; SELECT changes() AS changes;' , encoding: 'utf8' }).trim();
-    const result = out ? JSON.parse(out).at(-1) : { changes: 0 };
-    return { meta: { changes: Number(result.changes || 0) } };
+    execFileSync('sqlite3', [this.file], { input: this.sqlWithParams() + ';' });
+    const readonly = /^\s*(CREATE|ALTER|DROP|PRAGMA|INSERT OR IGNORE)/i.test(this.sql);
+    return { meta: { changes: readonly ? 0 : 1 } };
   }
   async all() {
     const out = execFileSync('sqlite3', ['-json', this.file, this.sqlWithParams()], { encoding: 'utf8' }).trim();
