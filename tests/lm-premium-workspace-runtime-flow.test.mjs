@@ -28,7 +28,7 @@ class FakeNode {
 async function runWorkspace({ sessionId = 'session-123', fetchImpl, auth = {} } = {}) {
   const source = await readFile('public/admin-premium-workspace.js', 'utf8');
   const nodes = new Map();
-  for (const id of ['loading', 'studentList', 'errorText', 'error', 'loadMore', 'search', 'refresh', 'retry', 'adminLogoutBtn', 'contextBody']) nodes.set(id, new FakeNode(id));
+  for (const id of ['studentList', 'errorText', 'error', 'loadMore', 'search', 'retry', 'adminLogoutBtn', 'contextBody', 'anamnesisDashboard', 'anamnesisItems', 'checkinDashboard', 'checkinItems', 'record', 'openCreate', 'createPanel', 'studentsNav', 'students', 'overview', 'closeRecord', 'createForm', 'createResult']) nodes.set(id, new FakeNode(id));
   const document = {
     getElementById(id) { return nodes.get(id) || null; },
     createElement(tag) { return new FakeNode('', tag); },
@@ -79,7 +79,7 @@ test('workspace bootstrap without session redirects and performs zero Workspace 
   assert.equal(result.calls.length, 0);
 });
 
-test('students list loads even if summary would fail because summary is opt-in only', async () => {
+test('students list remains available when the anamnesis dashboard fails independently', async () => {
   const result = await runWorkspace({
     fetchImpl: async (url) => {
       if (String(url).includes('/summary')) return new Response(JSON.stringify({ ok: false, error: 'SERVER_ERROR' }), { status: 500 });
@@ -87,7 +87,7 @@ test('students list loads even if summary would fail because summary is opt-in o
     }
   });
 
-  assert.equal(result.calls.some((call) => String(call.url).includes('/summary')), false);
+  assert.equal(result.calls.some((call) => String(call.url).includes('/summary')), true);
   assert.equal(result.calls.some((call) => String(call.url).includes('/students')), true);
   assert.match(result.nodes.get('studentList').textContent, /Aluno Teste/);
   assert.equal(result.location.assigned, null);
@@ -113,5 +113,5 @@ test('workspace clears session only on explicit invalid or expired session 401',
 
   const generic = await runWorkspace({ fetchImpl: async () => new Response(JSON.stringify({ ok: false, error: 'TOKEN_REQUIRED' }), { status: 401 }) });
   assert.equal(generic.clearCalls.length, 0);
-  assert.match(generic.location.assigned, /admin-login\.html/);
+  assert.equal(generic.location.assigned, null);
 });

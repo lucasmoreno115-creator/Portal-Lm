@@ -64,7 +64,7 @@ export function createD1ProfessionalWorkspaceRepository(db, { scheduleService } 
       ]);
       const priority = (s) => ({ READY_TO_RELEASE: 0, UNDER_REVIEW: 1, AWAITING_ANAMNESIS: 2, NEW: 2, ACTIVE: 3 }[s.consultation_status] ?? 4);
       const items = result.items.sort((a, b) => priority(a) - priority(b) || String(b.last_activity_at || '').localeCompare(String(a.last_activity_at || '')));
-      return { anamnesis: { awaiting: awaiting?.total || 0, received: received?.total || 0, planning: received?.total || 0, readyToRelease: ready?.total || 0, items }, checkins: { awaitingReview: awaitingCheckins?.total || 0, withoutRecentResponse: null, items: items.filter((s) => s.weekly_feedback_status === 'AWAITING_ANALYSIS') } };
+      return { anamnesis: { awaiting: awaiting?.total || 0, underReview: received?.total || 0, readyToRelease: ready?.total || 0, items }, checkins: { awaitingReview: awaitingCheckins?.total || 0, withoutRecentResponse: null, items: items.filter((s) => s.weekly_feedback_status === 'AWAITING_ANALYSIS') } };
     },
     async listStudents(filters = {}) {
       const limit = clampLimit(filters.limit, 25); const offsetValue = offset(filters.cursor); const { where, params } = mapFilters(filters); const weekRef = weekRefFor(filters.now ? new Date(filters.now) : new Date());
