@@ -1,5 +1,5 @@
 const qs = new URLSearchParams(location.search); const studentId = qs.get('student_id'); const state = { draft:null, current:null };
-function safeReturnTo(value){ if(!value || !value.startsWith('/') || value.startsWith('//')) return null; try { const url=new URL(value, location.origin); return url.origin===location.origin ? `${url.pathname}${url.search}${url.hash}` : null; } catch { return null; } }
+function safeReturnTo(value){ if(!value || !value.startsWith('/') || value.startsWith('//')) return null; try { const url=new URL(value, location.origin); const allowed=['/admin-premium-workspace.html','/admin-premium-student-record.html']; return url.origin===location.origin&&allowed.includes(url.pathname) ? `${url.pathname}${url.search}${url.hash}` : null; } catch { return null; } }
 const fallbackReturn = studentId ? `/admin-premium-student-record.html?student_id=${encodeURIComponent(studentId)}` : '/admin-premium-workspace.html';
 const returnTo = safeReturnTo(qs.get('return_to')) || fallbackReturn;
 const $ = (id) => document.getElementById(id); function text(el, value){ el.textContent = value == null || value === '' ? '—' : String(value); }

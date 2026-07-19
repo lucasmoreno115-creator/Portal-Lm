@@ -21,6 +21,7 @@ test('Prontuário LM renderiza estrutura, empty states e não expõe token', () 
   assert.match(js, /admin-premium-nutrition-plan\.html\?student_id=/);
   assert.doesNotMatch(js, /admin-nutrition-plan\.html\?email=/);
   assert.match(js, /return_to=/);
+  assert.match(js, /admin-premium-student-record\.html\?student_id=/);
 });
 
 test('HTML seguro: Prontuário não usa innerHTML nem interpolação HTML dinâmica', () => {
