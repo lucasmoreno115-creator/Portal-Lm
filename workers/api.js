@@ -1715,6 +1715,7 @@ export default {
           const premiumApp = createPremiumApplication(env, request);
           const plan = await premiumApp.nutritionPlanRepository.findById(id);
           if (!plan) return json({ ok:false, error:'NOT_FOUND' }, 404);
+          if (!body?.student_id || String(body.student_id) !== String(plan.student_id)) return json({ ok:false, error:'NOT_FOUND' }, 404);
           let result;
           if (action === 'draft' && method === 'PATCH') result = await premiumApp.updateNutritionPlanDraft.execute({ id, student_id: plan.student_id, updates: body || {} });
           else if (action === 'publish' && method === 'POST') result = await premiumApp.publishNutritionPlan.execute({ id, student_id: plan.student_id, published_by: 'admin', professional_note: body?.professional_note || null });
