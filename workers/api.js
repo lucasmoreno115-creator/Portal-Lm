@@ -61,7 +61,7 @@ import { presentSaturdayReview } from './premium/presenters/professional-workspa
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
 import { buildD1HealthCheck, tableExists } from './services/health-check-service.js';
 import { jsonWithUsage } from './services/endpoint-usage-service.js';
-import { createAdminSession, invalidateAdminSession, validateAdminAuthorization, validateAdminLoginToken, validateStudent, normalizeStudentPlan } from './services/auth-service.js';
+import { createAdminSession, getOptionalPremiumStudentAccessFields, invalidateAdminSession, validateAdminAuthorization, validateAdminLoginToken, validateStudent, normalizeStudentPlan } from './services/auth-service.js';
 export { normalizeEmail, normalizeStudentPlan } from './services/auth-service.js';
 
 const ensuredSchemaByDb = new WeakMap();
@@ -127,9 +127,9 @@ function createPremiumApplication(env, request) {
 
 async function getPremiumGate(db, email) {
   const normalized = String(email || '').trim().toLowerCase();
-  const row = await db.prepare(`SELECT consultation_status FROM premium_students WHERE normalized_email=? OR lower(trim(email))=? ORDER BY updated_at DESC LIMIT 1`).bind(normalized, normalized).first();
+  const row = await db.prepare(`SELECT student_id, consultation_status FROM premium_students WHERE normalized_email=? OR lower(trim(email))=? ORDER BY updated_at DESC LIMIT 1`).bind(normalized, normalized).first();
   const status = String(row?.consultation_status || '').toUpperCase();
-  return { status: row ? status : 'LEGACY_COMPATIBLE', released: row ? status === 'ACTIVE' : true, legacyCompatible: !row };
+  return { studentId: row?.student_id || null, status: row ? status : 'LEGACY_COMPATIBLE', released: row ? status === 'ACTIVE' : true, legacyCompatible: !row };
 }
 function premiumLockedResponse() {
   return { ok: false, error: 'Seu planejamento está em preparação. Assim que o acompanhamento for liberado, os módulos publicados aparecerão aqui.' };
@@ -151,7 +151,8 @@ function premiumAccessState(student, gate) {
     experience: consultationStatus === 'ACTIVE' ? 'PREMIUM_PORTAL' : 'ONBOARDING',
     consultationStatus,
     consultationStatusLabel: PREMIUM_CONSULTATION_STATUS_LABELS[consultationStatus],
-    name: String(student.name || 'Aluno').trim().split(/\s+/)[0] || 'Aluno',
+    name: String(student.name || 'Aluno').trim() || 'Aluno',
+    phone: student.whatsapp || null,
     anamnesisCompleted: ['UNDER_REVIEW', 'READY_TO_RELEASE', 'ACTIVE', 'PAUSED', 'ENDED'].includes(consultationStatus),
     primaryAction: ['NEW', 'AWAITING_ANAMNESIS'].includes(consultationStatus)
       ? { type: 'OPEN_ANAMNESIS', href: '/anamnese-premium.html' }
@@ -239,117 +240,43 @@ export default {
 
       if (url.pathname === '/api/anamnese-premium' && method === 'POST') {
         const body = await safeJson(request);
-        const studentName = nullableTrimmed(body?.student_name);
-        const providedEmail = nullableTrimmed(body?.student_email)?.toLowerCase() || null;
-        const studentPhone = nullableTrimmed(body?.student_phone);
         const submittedAuth = await validateStudent(request, env.DB);
-        const hasStudentCredentials = !!(request.headers.get('x-student-email') || request.headers.get('x-student-token'));
-        if (hasStudentCredentials && !submittedAuth.ok) return json({ ok: false, error: submittedAuth.error }, 401);
+        if (!submittedAuth.ok) return json({ ok: false, error: submittedAuth.error, code: 'UNAUTHORIZED' }, 401);
         if (submittedAuth.ok && normalizeStudentPlan(submittedAuth.student.plan) !== 'premium') return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
-        const studentEmail = submittedAuth.ok ? submittedAuth.student.email : providedEmail;
-        if (submittedAuth.ok && providedEmail && providedEmail !== studentEmail) return json({ ok: false, error: 'A identidade da anamnese não confere com a sessão.' }, 403);
-        const status = nullableTrimmed(body?.status) || 'RECEBIDA';
+        const studentEmail = submittedAuth.student.email.trim().toLowerCase();
+        const optionalAccess = await getOptionalPremiumStudentAccessFields(env.DB, submittedAuth.student.id);
+        const identityFields = ['student_name', 'student_email', 'student_phone', 'student_id', 'consultation_status'];
+        if (identityFields.some((field) => body?.[field] != null && String(body[field]).trim() !== '')) {
+          return json({ ok: false, code: 'IDENTITY_MISMATCH', error: 'Não foi possível confirmar sua identidade. Entre novamente pelo link de acesso recebido.' }, 403);
+        }
         const answers = body?.answers && typeof body.answers === 'object' ? body.answers : {};
+        if (JSON.stringify(body || {}).length > 100_000) return json({ ok: false, error: 'Respostas excedem o tamanho permitido.' }, 413);
+        if (!body?.answers || Array.isArray(answers)) return json({ ok: false, error: 'answers é obrigatório.' }, 400);
         const internalScores = calculateAnamnesisInternalScores(answers);
-
-        if (!studentName) {
-          return json({ ok: false, error: 'student_name é obrigatório.' }, 400);
-        }
-        if (!studentEmail) {
-          return json({ ok: false, error: 'student_email é obrigatório.' }, 400);
-        }
-        if (!studentPhone) {
-          return json({ ok: false, error: 'student_phone é obrigatório.' }, 400);
-        }
-
-        const id = crypto.randomUUID();
-        const now = new Date().toISOString();
-
+        const gate = await getPremiumGate(env.DB, studentEmail);
+        const studentId = gate.studentId || optionalAccess.studentId || null;
         const premiumApp = createPremiumApplication(env, request);
-        const identityResult = await premiumApp.identityService.resolve({ email: studentEmail });
-        if (identityResult.error === 'AMBIGUOUS_STUDENT_IDENTITY' || identityResult.error === 'NON_PREMIUM_STUDENT') {
-          await logOperationalEvent(env.DB, {
-            level: 'warn',
-            area: 'premium_anamnesis',
-            event: 'PREMIUM_IDENTITY_ASSOCIATION_CONFLICT',
-            route: url.pathname,
-            method,
-            student_email: studentEmail,
-            metadata: { reason: identityResult.error }
-          });
-          return json({ ok: false, error: 'Não foi possível gravar dados Premium com segurança.' }, 403);
-        }
-        if (identityResult.error === 'EMAIL_REQUIRED') {
-          return json({ ok: false, error: 'student_email é obrigatório.' }, 400);
-        }
-        const studentId = identityResult.ok ? identityResult.student.student_id : null;
-        await logOperationalEvent(env.DB, {
-          level: identityResult.ok ? 'info' : 'warn',
-          area: 'premium_anamnesis',
-          event: identityResult.ok ? 'PREMIUM_IDENTITY_DUAL_WRITE_SUCCESS' : 'PREMIUM_IDENTITY_EMAIL_FALLBACK_USED',
-          route: url.pathname,
-          method,
-          student_email: studentEmail,
-          metadata: { student_id: studentId, reason: identityResult.error || null }
-        });
-        await premiumApp.anamnesisRepository.create({
+        const existing = studentId ? await premiumApp.anamnesisRepository.findLatestByStudentId(studentId) : await premiumApp.anamnesisRepository.findLatestByEmail(studentEmail);
+        if (existing) return json({ ok: true, data: { id: existing.id, alreadySubmitted: true } });
+        if (gate.legacyCompatible || !['NEW', 'AWAITING_ANAMNESIS'].includes(gate.status)) return json({ ok: false, code: 'ANAMNESIS_NOT_AVAILABLE', error: 'A anamnese não está disponível para este acesso.' }, 409);
+        const id = crypto.randomUUID(); const now = new Date().toISOString();
+        const created = await premiumApp.anamnesisRepository.createInitialIfAbsent({
           id,
           student_id: studentId,
-          student_name: studentName,
+          student_name: submittedAuth.student.name,
           student_email: studentEmail,
-          student_phone: studentPhone,
-          status,
+          student_phone: optionalAccess.whatsapp,
+          status: 'RECEBIDA',
           answers_json: JSON.stringify(answers),
           internal_scores_json: JSON.stringify(internalScores),
           created_at: now,
           updated_at: now,
         });
-        await premiumApp.eventRepository.append({ id: crypto.randomUUID(), student_id: studentId, student_email: studentEmail, event_type: 'ANAMNESIS_SENT', source: 'portal', title: 'Anamnese enviada', metadata: { anamnesis_id: id, status }, created_at: now });
+        if (!created.created) return json({ ok: true, data: { id: created.record.id, alreadySubmitted: true } });
+        await premiumApp.eventRepository.append({ id: crypto.randomUUID(), student_id: studentId, student_email: studentEmail, event_type: 'ANAMNESIS_SENT', source: 'portal', title: 'Anamnese enviada', metadata: { anamnesis_id: id, status: 'RECEBIDA' }, created_at: now });
         if (studentId) await env.DB.prepare(`UPDATE premium_students SET consultation_status='UNDER_REVIEW', updated_at=? WHERE student_id=? AND consultation_status IN ('NEW','AWAITING_ANAMNESIS')`).bind(now, studentId).run();
-
-        const normalizedWhatsapp = normalizeWhatsapp(studentPhone);
-        const existingAccess = await env.DB.prepare(
-          `SELECT id, name, email, access_token, status, plan_type, whatsapp
-           FROM student_access
-           WHERE lower(email)=?
-           LIMIT 1`
-        ).bind(studentEmail).first();
-
-        let accessCreated = false;
-        let accessStatus = 'PENDING_ONBOARDING';
-
-        if (!existingAccess) {
-          await env.DB.prepare(
-            `INSERT INTO student_access (
-              id, name, email, access_token, status, plan_type, whatsapp, created_at
-            ) VALUES (?, ?, ?, ?, 'PENDING_ONBOARDING', 'PREMIUM', ?, ?)`
-          ).bind(
-            crypto.randomUUID(),
-            studentName,
-            studentEmail,
-            generateAccessToken(),
-            normalizedWhatsapp,
-            now
-          ).run();
-          accessCreated = true;
-        } else {
-          const ensuredToken = nullableTrimmed(existingAccess.access_token) || generateAccessToken();
-          accessStatus = nullableTrimmed(existingAccess.status) || 'PENDING_ONBOARDING';
-          await env.DB.prepare(
-            `UPDATE student_access
-             SET name=?, access_token=?, status=?, plan_type=?, whatsapp=?
-             WHERE id=?`
-          ).bind(
-            nullableTrimmed(existingAccess.name) || studentName,
-            ensuredToken,
-            accessStatus,
-            nullableTrimmed(existingAccess.plan_type) || 'PREMIUM',
-            nullableTrimmed(existingAccess.whatsapp) || normalizedWhatsapp,
-            existingAccess.id
-          ).run();
-        }
-
-        return json({ ok: true, data: { id, created_at: now, access_created: accessCreated, access_status: accessStatus } });
+        else await env.DB.prepare(`UPDATE premium_students SET consultation_status='UNDER_REVIEW', updated_at=? WHERE normalized_email=? AND consultation_status IN ('NEW','AWAITING_ANAMNESIS')`).bind(now, studentEmail).run();
+        return json({ ok: true, data: { id, alreadySubmitted: false } });
       }
 
       if (url.pathname === '/api/admin/session/login' && method === 'POST') {
