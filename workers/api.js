@@ -940,6 +940,13 @@ export default {
           await env.DB.prepare(`INSERT INTO premium_students (student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES (?,?,?,?, 'AWAITING_ANAMNESIS','ACTIVE','WORKSPACE',?,?) ON CONFLICT(student_id) DO UPDATE SET display_name=excluded.display_name,email=excluded.email,normalized_email=excluded.normalized_email,updated_at=excluded.updated_at`).bind(studentId, email, email, name, now, now).run();
           return json({ ok: true, data: { studentId, name, email, status: 'AWAITING_ANAMNESIS', statusLabel: 'Aguardando anamnese', accessLink: `${url.origin}/portal-login.html`, token } }, existing ? 200 : 201);
         }
+        const workspaceAccessMatch = url.pathname.match(/^\/api\/admin\/premium\/workspace\/students\/([^/]+)\/access-message$/);
+        if (workspaceAccessMatch && method === 'POST') {
+          const identity = decodeURIComponent(workspaceAccessMatch[1]);
+          const access = await env.DB.prepare(`SELECT sa.name,sa.access_token FROM student_access sa LEFT JOIN premium_students ps ON ps.student_id=sa.student_id WHERE (sa.student_id=? OR lower(trim(sa.email))=lower(trim(?))) AND (ps.student_id IS NOT NULL OR lower(coalesce(sa.plan,''))='premium' OR lower(coalesce(sa.plan_type,''))='premium') LIMIT 1`).bind(identity, identity).first();
+          if (!access?.access_token) return json({ ok:false, error:'Acesso oficial indisponível.' },404);
+          return json({ ok:true, data:{ name:access.name||'Aluno', accessLink:`${url.origin}/portal-login.html`, token:access.access_token } });
+        }
         const workspaceActionMatch = url.pathname.match(/^\/api\/admin\/premium\/workspace\/students\/([^/]+)\/(mark-ready|release|pause)$/);
         if (workspaceActionMatch && method === 'POST') {
           const studentId = decodeURIComponent(workspaceActionMatch[1]); const action = workspaceActionMatch[2]; const now = new Date().toISOString();
