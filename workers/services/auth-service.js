@@ -68,6 +68,11 @@ async function verifyAdminSessionSignature(encodedPayload, encodedSignature, env
   const secret = getAdminSessionSecret(env);
   if (!secret || !encodedPayload || !encodedSignature) return false;
   try {
+    // WebCrypto verifies bytes, while non-canonical base64url spellings can
+    // decode to the same bytes (notably the unused bits in the last symbol).
+    // Reject those spellings before verification so every textual token has a
+    // single authenticated representation.
+    if (bytesToBase64Url(base64UrlToBytes(encodedSignature)) !== encodedSignature) return false;
     const key = await importHmacKey(secret);
     return await crypto.subtle.verify(
       'HMAC',

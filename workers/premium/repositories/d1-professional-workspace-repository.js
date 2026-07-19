@@ -51,6 +51,21 @@ export function createD1ProfessionalWorkspaceRepository(db, { scheduleService } 
       ]);
       return { weekRef, openPendingItems: pending?.total || 0, feedbacksAwaitingAnalysis: awaiting?.total || 0, studentsWithoutResponse: missing?.total || 0, anamnesesAwaitingFill: await (async()=>{const r=await db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(*) total FROM identity_bridge ib WHERE ib.consultation_status='AWAITING_ANAMNESIS'`).first(); return r?.total||0;})(), plansPendingUpdate: plan?.total || 0, anamnesesAwaitingAnalysis: anamnesis?.total || 0, isSaturday: isSaturdayInSaoPaulo(now), date: now.toISOString() };
     },
+    // Read model for the small operational dashboard. The seven-day check-in
+    // policy is not established in the domain, so it intentionally remains null.
+    async getOperationalDashboard() {
+      const sid = "coalesce(ib.student_id,'__email_bridge__')";
+      const [awaiting, received, ready, awaitingCheckins, result] = await Promise.all([
+        db.prepare(IDENTITY_BRIDGE_CTE + " SELECT COUNT(DISTINCT ib.id) total FROM identity_bridge ib WHERE ib.consultation_status IN ('NEW','AWAITING_ANAMNESIS')").first(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(DISTINCT ib.id) total FROM identity_bridge ib WHERE ib.consultation_status='UNDER_REVIEW' AND EXISTS (SELECT 1 FROM premium_anamnesis pa WHERE ${ANAMNESIS_MATCH.replaceAll('__SID__', sid)})`).first(),
+        db.prepare(IDENTITY_BRIDGE_CTE + " SELECT COUNT(DISTINCT ib.id) total FROM identity_bridge ib WHERE ib.consultation_status='READY_TO_RELEASE'").first(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(DISTINCT sc.id) total FROM student_checkins sc JOIN identity_bridge ib ON (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) WHERE ib.consultation_status NOT IN ('PAUSED','ENDED') AND NOT (${ANALYZED})`).first(),
+        this.listStudents({ limit: 12 }),
+      ]);
+      const priority = (s) => ({ READY_TO_RELEASE: 0, UNDER_REVIEW: 1, AWAITING_ANAMNESIS: 2, NEW: 2, ACTIVE: 3 }[s.consultation_status] ?? 4);
+      const items = result.items.sort((a, b) => priority(a) - priority(b) || String(b.last_activity_at || '').localeCompare(String(a.last_activity_at || '')));
+      return { anamnesis: { awaiting: awaiting?.total || 0, underReview: received?.total || 0, readyToRelease: ready?.total || 0, items }, checkins: { awaitingReview: awaitingCheckins?.total || 0, withoutRecentResponse: null, items: items.filter((s) => s.weekly_feedback_status === 'AWAITING_ANALYSIS') } };
+    },
     async listStudents(filters = {}) {
       const limit = clampLimit(filters.limit, 25); const offsetValue = offset(filters.cursor); const { where, params } = mapFilters(filters); const weekRef = weekRefFor(filters.now ? new Date(filters.now) : new Date());
       const sid = 'coalesce(ib.student_id,\'__email_bridge__\')';
@@ -85,11 +100,15 @@ export function createD1ProfessionalWorkspaceRepository(db, { scheduleService } 
       const pendingPromise = isEmailBridge ? Promise.resolve({ items: [] }) : this.listPendingItems({ student_id: identityId, limit: 10 });
       const accessColumns = rows(await db.prepare(`PRAGMA table_info(student_access)`).all()).map((column)=>column.name);
       const accessPromise = accessColumns.includes('access_token') ? db.prepare(`SELECT access_token FROM student_access WHERE student_id=? OR lower(trim(email))=? ORDER BY created_at DESC LIMIT 1`).bind(identityId, email).first() : Promise.resolve(null);
+      const checkinColumns = rows(await db.prepare(`PRAGMA table_info(student_checkins)`).all()).map((column) => column.name);
+      const anamnesisColumns = rows(await db.prepare(`PRAGMA table_info(premium_anamnesis)`).all()).map((column) => column.name);
+      const checkinDetail = ['training_adherence','nutrition_adherence','main_difficulty'].filter((name) => checkinColumns.includes(name)).join(',');
+      const anamnesisDetail = anamnesisColumns.includes('answers_json') ? ',answers_json' : '';
       const [pending, feedback, plan, anamnesis, evolution, access] = await Promise.all([
         pendingPromise,
-        db.prepare(`SELECT id,week_ref,created_at submittedAt,reviewed_at reviewedAt,coach_status coachStatus,decision_type decisionType,coach_reply coachReply FROM student_checkins WHERE student_id=? OR lower(trim(student_email))=? ORDER BY datetime(created_at) DESC LIMIT 5`).bind(identityId, email).all(),
+        db.prepare(`SELECT id,week_ref,created_at submittedAt,reviewed_at reviewedAt,coach_status coachStatus,decision_type decisionType,coach_reply coachReply${checkinDetail ? ',' + checkinDetail : ''} FROM student_checkins WHERE student_id=? OR lower(trim(student_email))=? ORDER BY datetime(created_at) DESC LIMIT 5`).bind(identityId, email).all(),
         db.prepare(`SELECT id,title,goal,status,version_number,published_at,source_feedback_id,updated_at FROM nutrition_plans WHERE student_id=? OR lower(trim(student_email))=? ORDER BY CASE status WHEN 'PUBLISHED' THEN 0 WHEN 'DRAFT' THEN 1 ELSE 2 END, datetime(updated_at) DESC LIMIT 5`).bind(identityId, email).all(),
-        db.prepare(`SELECT id,status,created_at respondedAt,updated_at analyzedAt FROM premium_anamnesis WHERE student_id=? OR lower(trim(student_email))=? ORDER BY datetime(created_at) DESC LIMIT 1`).bind(identityId, email).first(),
+        db.prepare(`SELECT id,status${anamnesisDetail},created_at respondedAt,updated_at analyzedAt FROM premium_anamnesis WHERE student_id=? OR lower(trim(student_email))=? ORDER BY datetime(created_at) DESC LIMIT 1`).bind(identityId, email).first(),
         db.prepare(`SELECT id,entry_type,title,content,created_by,created_at FROM premium_followup_entries WHERE student_id=? ORDER BY datetime(created_at) DESC LIMIT 10`).bind(identityId).all(),
         accessPromise,
       ]);
