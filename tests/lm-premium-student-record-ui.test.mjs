@@ -15,10 +15,12 @@ test('Prontuário LM renderiza estrutura, empty states e não expõe token', () 
   const html = readFileSync(new URL('../public/admin-premium-student-record.html', import.meta.url), 'utf8');
   const js = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
   assert.match(html, /Prontuário LM/);
-  for (const text of ['Pendências', 'Anamnese', 'Plano alimentar atual', 'Feedbacks semanais', 'Evolução do acompanhamento']) assert.match(html, new RegExp(text));
-  for (const text of ['Anamnese ainda não respondida', 'Plano alimentar ainda não criado', 'Nenhum feedback enviado', 'Nenhuma pendência aberta', 'Nenhum registro de evolução']) assert.match(js, new RegExp(text));
+  for (const text of ['Pendências', 'Anamnese', 'Planejamento alimentar', 'Feedbacks semanais', 'Evolução do acompanhamento']) assert.match(html, new RegExp(text));
+  for (const text of ['Anamnese ainda não respondida', 'Planejamento ainda não iniciado', 'Planejamento em edição', 'Planejamento publicado', 'Existem alterações ainda não publicadas', 'Nenhum feedback enviado', 'Nenhuma pendência aberta', 'Nenhum registro de evolução']) assert.match(js, new RegExp(text));
   assert.doesNotMatch(html + js, /access_token|x-admin-token'\s*:/);
-  assert.match(js, /admin-nutrition-plan\.html\?email=/);
+  assert.match(js, /admin-premium-nutrition-plan\.html\?student_id=/);
+  assert.doesNotMatch(js, /admin-nutrition-plan\.html\?email=/);
+  assert.match(js, /return_to=/);
 });
 
 test('HTML seguro: Prontuário não usa innerHTML nem interpolação HTML dinâmica', () => {

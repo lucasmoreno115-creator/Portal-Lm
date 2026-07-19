@@ -79,20 +79,20 @@
     );
   }
 
-  function renderPlan(plan, student) {
+  function nutritionPlanLink(studentId) {
+    const returnTo = `/admin-premium-student-record.html?student_id=${encodeURIComponent(studentId)}`;
+    return `/admin-premium-nutrition-plan.html?student_id=${encodeURIComponent(studentId)}&return_to=${encodeURIComponent(returnTo)}`;
+  }
+
+  function renderPlan(workflow, student) {
     const target = byId('plan');
-    if (!plan) {
-      target.replaceChildren(emptyState('Plano alimentar ainda não criado', 'Use o editor legado para criar o plano atual.'));
-      return;
-    }
-    const link = el('a', { className: 'button', textContent: 'Editar plano alimentar' });
-    link.setAttribute('href', `/admin-nutrition-plan.html?email=${encodeURIComponent(student.email || '')}`);
-    target.replaceChildren(
-      el('p', {}, el('strong', { textContent: text(plan.title, 'Plano atual') })),
-      el('p', { textContent: `${text(plan.goal)} • ${text(plan.strategy)}` }),
-      el('p', { className: 'muted', textContent: `Atualizado em ${fmt(plan.updated_at)}` }),
-      link
-    );
+    const current = workflow?.current || null;
+    const draft = workflow?.draft || null;
+    const action = (label) => el('a', { className: 'button', textContent: label, href: nutritionPlanLink(student.student_id) });
+    if (!current && !draft) return target.replaceChildren(emptyState('Planejamento ainda não iniciado.', 'Prepare o planejamento alimentar deste aluno.'), action('Criar planejamento'));
+    if (!current && draft) return target.replaceChildren(emptyState('Planejamento em edição.', `Atualizado em ${fmt(draft.updated_at)}`), action('Continuar planejamento'));
+    if (current && draft) return target.replaceChildren(emptyState('Existem alterações ainda não publicadas.', `Plano publicado em ${fmt(current.published_at)}.`), action('Revisar alterações'));
+    target.replaceChildren(emptyState('Planejamento publicado.', current.published_at ? `Publicado em ${fmt(current.published_at)}.` : 'Plano disponível para consulta.'), action('Visualizar planejamento'), action('Editar planejamento'));
   }
 
   function renderFeedbacks(feedbacks) {
