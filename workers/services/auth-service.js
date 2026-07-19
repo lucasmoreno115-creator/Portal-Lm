@@ -179,7 +179,7 @@ export async function validateStudent(request, db) {
   }
 
   const student = await db.prepare(
-    `SELECT id, name, email, whatsapp, student_id, plan_type, plan
+    `SELECT id, name, email, plan_type, plan
      FROM student_access
      WHERE lower(email)=?
        AND access_token=?
@@ -196,10 +196,21 @@ export async function validateStudent(request, db) {
       id: student.id,
       name: student.name,
       email: student.email,
-      whatsapp: student.whatsapp || null,
-      studentId: student.student_id || null,
       planType: student.plan_type || 'PREMIUM',
       plan: normalizeStudentPlan(student.plan)
     }
   };
+}
+
+// Premium-only enrichment must never make the shared Portal authentication query
+// incompatible with legacy Projeto LM/V5 schemas.
+export async function getOptionalPremiumStudentAccessFields(db, accessId) {
+  try {
+    const access = await db.prepare(
+      'SELECT whatsapp, student_id FROM student_access WHERE id = ? LIMIT 1'
+    ).bind(accessId).first();
+    return { whatsapp: access?.whatsapp || null, studentId: access?.student_id || null };
+  } catch (_) {
+    return { whatsapp: null, studentId: null };
+  }
 }

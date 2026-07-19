@@ -61,7 +61,7 @@ import { presentSaturdayReview } from './premium/presenters/professional-workspa
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
 import { buildD1HealthCheck, tableExists } from './services/health-check-service.js';
 import { jsonWithUsage } from './services/endpoint-usage-service.js';
-import { createAdminSession, invalidateAdminSession, validateAdminAuthorization, validateAdminLoginToken, validateStudent, normalizeStudentPlan } from './services/auth-service.js';
+import { createAdminSession, getOptionalPremiumStudentAccessFields, invalidateAdminSession, validateAdminAuthorization, validateAdminLoginToken, validateStudent, normalizeStudentPlan } from './services/auth-service.js';
 export { normalizeEmail, normalizeStudentPlan } from './services/auth-service.js';
 
 const ensuredSchemaByDb = new WeakMap();
@@ -244,6 +244,7 @@ export default {
         if (!submittedAuth.ok) return json({ ok: false, error: submittedAuth.error, code: 'UNAUTHORIZED' }, 401);
         if (submittedAuth.ok && normalizeStudentPlan(submittedAuth.student.plan) !== 'premium') return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
         const studentEmail = submittedAuth.student.email.trim().toLowerCase();
+        const optionalAccess = await getOptionalPremiumStudentAccessFields(env.DB, submittedAuth.student.id);
         const identityFields = ['student_name', 'student_email', 'student_phone', 'student_id', 'consultation_status'];
         if (identityFields.some((field) => body?.[field] != null && String(body[field]).trim() !== '')) {
           return json({ ok: false, code: 'IDENTITY_MISMATCH', error: 'Não foi possível confirmar sua identidade. Entre novamente pelo link de acesso recebido.' }, 403);
@@ -253,7 +254,7 @@ export default {
         if (!body?.answers || Array.isArray(answers)) return json({ ok: false, error: 'answers é obrigatório.' }, 400);
         const internalScores = calculateAnamnesisInternalScores(answers);
         const gate = await getPremiumGate(env.DB, studentEmail);
-        const studentId = gate.studentId || submittedAuth.student.studentId || null;
+        const studentId = gate.studentId || optionalAccess.studentId || null;
         const premiumApp = createPremiumApplication(env, request);
         const existing = studentId ? await premiumApp.anamnesisRepository.findLatestByStudentId(studentId) : await premiumApp.anamnesisRepository.findLatestByEmail(studentEmail);
         if (existing) return json({ ok: true, data: { id: existing.id, alreadySubmitted: true } });
@@ -264,7 +265,7 @@ export default {
           student_id: studentId,
           student_name: submittedAuth.student.name,
           student_email: studentEmail,
-          student_phone: submittedAuth.student.whatsapp,
+          student_phone: optionalAccess.whatsapp,
           status: 'RECEBIDA',
           answers_json: JSON.stringify(answers),
           internal_scores_json: JSON.stringify(internalScores),
