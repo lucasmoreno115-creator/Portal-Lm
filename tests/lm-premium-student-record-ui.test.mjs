@@ -15,6 +15,7 @@ test('Prontuário LM renderiza estrutura, empty states e não expõe token', () 
   const html = readFileSync(new URL('../public/admin-premium-student-record.html', import.meta.url), 'utf8');
   const js = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
   assert.match(html, /Prontuário LM/);
+  assert.match(html, /href="\/admin-premium-workspace\.html">← Voltar ao Workspace/);
   for (const text of ['Pendências', 'Anamnese', 'Planejamento alimentar', 'Feedbacks semanais', 'Evolução do acompanhamento']) assert.match(html, new RegExp(text));
   for (const text of ['Anamnese ainda não respondida', 'Nenhum plano criado', 'Rascunho em edição', 'Plano publicado', 'Alterações em revisão', 'Nenhum feedback enviado', 'Nenhuma pendência aberta', 'Nenhum registro de evolução']) assert.match(js, new RegExp(text));
   assert.doesNotMatch(html + js, /access_token|x-admin-token'\s*:/);
