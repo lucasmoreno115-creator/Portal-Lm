@@ -114,4 +114,4 @@ jobs:
           redirect /admin-premium-student-record.html /admin-premium-student-record
           redirect /admin-premium-nutrition-plan.html /admin-premium-nutrition-plan
           request /api/rota-inexistente 404 'application/json' 'Not found' true
-          request "/arquivo-inexistente-${GITHUB_SHA}.html" 404 'text/html' '' true
+          request "/arquivo-inexistente-${GITHUB_SHA}.html" 404 'text/html' 'Página não encontrada' true

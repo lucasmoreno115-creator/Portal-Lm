@@ -9,6 +9,7 @@ const worker = await readFile('workers/api.js', 'utf8');
 const publicEntrypoints = [
   'index.html', 'portal.html', 'admin-login.html', 'admin-premium-workspace.html',
   'admin-premium-student-record.html', 'admin-premium-nutrition-plan.html', 'projeto-lm/index.html',
+  '404.html',
   'assets/js/admin-premium-student-record.js', 'assets/css/admin-premium-student-record.css',
 ];
 
@@ -18,12 +19,14 @@ test('Cloudflare route covers the complete portal hostname exactly once', () => 
   assert.match(wrangler, /zone_name\s*=\s*"lucasmorenopersonal\.com\.br"/);
 });
 
-test('native static assets stay asset-first and API/admin redirect paths are Worker-first', () => {
+test('native static assets stay asset-first with an HTML 404 page and API/admin redirect paths Worker-first', () => {
   assert.match(wrangler, /directory\s*=\s*"\.\/public"/);
   assert.match(wrangler, /binding\s*=\s*"ASSETS"/);
+  assert.match(wrangler, /not_found_handling\s*=\s*"404-page"/);
   assert.match(wrangler, /run_worker_first\s*=\s*\[[^\]]*"\/api\/\*"[^\]]*"\/admin"[^\]]*"\/admin\/"[^\]]*\]/);
   assert.doesNotMatch(wrangler, /run_worker_first\s*=\s*true/);
   assert.doesNotMatch(wrangler, /single-page-application/);
+  assert.doesNotMatch(wrangler, /not_found_handling\s*=\s*"single-page-application"/);
   assert.doesNotMatch(worker, /env\??\.ASSETS\??\.fetch\(/);
   assert.match(worker, /url\.pathname === '\/admin' \|\| url\.pathname === '\/admin\//);
 });
@@ -34,6 +37,15 @@ test('public is the production frontend source for critical entrypoints and runt
   const js = await readFile('public/assets/js/admin-premium-student-record.js', 'utf8');
   assert.match(html, /Planejamento alimentar/);
   assert.match(js, /Editar planejamento alimentar/);
+});
+
+test('static 404 page is dependency-free and has a stable not-found marker', async () => {
+  const page404 = await readFile('public/404.html', 'utf8');
+
+  assert.match(page404, /<html[^>]*lang="pt-BR"/i);
+  assert.match(page404, /Página não encontrada/);
+  assert.match(page404, /href="\/"/);
+  assert.doesNotMatch(page404, /<script\b/i);
 });
 
 test('public HTML imports resolve inside the canonical static directory', async () => {
@@ -60,4 +72,5 @@ test('Pages deployment remains absent and Cloudflare smoke verifies canonical pa
   assert.match(workflow, /new URL\(location, origin\)\.pathname/);
   assert.match(workflow, /cf-cache-status=/);
   assert.match(worker, /return json\(\{ ok: false, error: 'Not found' \}, 404\);/);
+  assert.match(workflow, /request "\/arquivo-inexistente-\$\{GITHUB_SHA\}\.html" 404 'text\/html' 'Página não encontrada' true/);
 });
