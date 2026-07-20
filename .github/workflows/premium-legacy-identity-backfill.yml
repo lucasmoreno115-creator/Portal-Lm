@@ -34,6 +34,8 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_D1_DATABASE_ID: ${{ vars.CLOUDFLARE_D1_DATABASE_ID }}
+      BACKFILL_MODE: ${{ inputs.mode }}
+      BACKFILL_BATCH_ID: ${{ inputs.batch_id }}
       CONFIRM_APPLY: ${{ inputs.confirm_apply }}
       CONFIRM_ROLLBACK: ${{ inputs.confirm_rollback }}
     steps:
@@ -44,10 +46,9 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Validate inputs before database access
-        run: |
-          node --input-type=module -e "import { validateOperation } from './scripts/run-premium-student-identity-backfill-remote.mjs'; validateOperation({ mode: process.argv[1], batchId: process.argv[2], confirmApply: process.env.CONFIRM_APPLY, confirmRollback: process.env.CONFIRM_ROLLBACK });" "${{ inputs.mode }}" "${{ inputs.batch_id }}"
+        run: node --input-type=module -e "import { validateOperationFromEnv } from './scripts/run-premium-student-identity-backfill-remote.mjs'; validateOperationFromEnv();"
       - name: Run remote administrative backfill
-        run: node scripts/run-premium-student-identity-backfill-remote.mjs --${{ inputs.mode }} ${{ inputs.batch_id && format('--batch-id {0}', inputs.batch_id) }} > backfill-summary.json
+        run: node scripts/run-premium-student-identity-backfill-remote.mjs > backfill-summary.json
       - name: Publish sanitized summary
         run: |
           node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync('backfill-summary.json')); const d=r.dry_run||r; const c=d.classifications||{}; const rows=[['Mode',r.mode],['Batch ID',r.batch_id],['Scanned',d.scanned],['Eligible',c.eligible],['Already migrated',r.already_migrated??c.already_migrated],['Ambiguous',c.ambiguous],['Invalid email',c.invalid_email],['Project only',c.project_only],['Inactive',c.inactive],['Conflicting student ID',c.conflicting_student_id],['Created',r.created],['Associated',r.associated],['Ignored',r.ignored],['Audited',r.audited],['Restored',r.restored],['Deleted',r.deleted],['Errors',r.errors??c.error]].filter(([,v])=>v!==undefined); fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '## Premium Legacy Identity Backfill\\n\\n'+rows.map(([k,v])=>k+': '+v).join('\\n')+'\\n');"
