@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import worker from '../workers/api.js';
+import worker, { initializeSchemaForTests } from '../workers/api.js';
 
 class SqliteD1 {
   constructor(file) { this.file = file; }
@@ -34,7 +34,7 @@ async function withDb(fn) {
   const dir = await mkdtemp(join(tmpdir(), 'portal-lm-durable-admin-'));
   const db = new SqliteD1(join(dir, 'test.db'));
   try {
-    await worker.fetch(new Request('https://portal.test/api/health'), { DB: db, ADMIN_TOKEN: 'admin-token', ADMIN_SESSION_SECRET: 'admin-session-secret' });
+    await initializeSchemaForTests(db);
     await fn(db);
   } finally {
     await rm(dir, { recursive: true, force: true });

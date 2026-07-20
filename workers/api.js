@@ -2711,6 +2711,10 @@ async function ensureSchema(db) {
   return ensureSchemaUncached(db);
 }
 
+export async function initializeSchemaForTests(db) {
+  return ensureSchema(db);
+}
+
 async function ensureSchemaUncached(db) {
   await db.prepare(`CREATE TABLE IF NOT EXISTS leads (
     id TEXT PRIMARY KEY,

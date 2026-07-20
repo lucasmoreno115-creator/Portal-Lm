@@ -51,3 +51,17 @@ test('post-deploy smoke retries invalid health payloads in the same conditional 
   assert.match(workflow, /sleep 5/);
   assert.match(workflow, /exit 1/);
 });
+
+test('database fixtures initialize their schemas explicitly instead of calling the public health endpoint', async () => {
+  const fixturePaths = [
+    '../tests/admin-workspace-durable-session-integration.test.mjs',
+    '../tests/lm-premium-legacy-contracts.test.mjs',
+    '../tests/lm-premium-student-record-endpoints.test.mjs'
+  ];
+
+  for (const fixturePath of fixturePaths) {
+    const fixture = await readFile(new URL(fixturePath, import.meta.url), 'utf8');
+    assert.match(fixture, /initializeSchemaForTests/);
+    assert.doesNotMatch(fixture, /portal\.test\/api\/health/);
+  }
+});
