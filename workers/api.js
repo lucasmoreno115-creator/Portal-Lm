@@ -95,7 +95,7 @@ function createPremiumApplication(env, request) {
     listWeeklyFeedbacks: createListWeeklyFeedbacksUseCase({ identityService, weeklyFeedbackRepository, log }),
     analyzeWeeklyFeedback: createAnalyzeWeeklyFeedbackUseCase({ weeklyFeedbackRepository }),
     analyzeAnamnesis: createAnalyzeAnamnesisUseCase({ anamnesisRepository: createD1AnamnesisRepository(env.DB) }),
-    getStudentRecord: createGetStudentRecordUseCase({ studentRepository, studentRecordRepository, identityService }),
+    getStudentRecord: createGetStudentRecordUseCase({ studentRepository, studentRecordRepository, pendingItemRepository, identityService, randomUUID: () => crypto.randomUUID() }),
     addFollowupEntry: createAddFollowupEntryUseCase({ studentRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
     createPendingItem: createCreatePendingItemUseCase({ studentRepository, pendingItemRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
     resolvePendingItem: createResolvePendingItemUseCase({ pendingItemRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
