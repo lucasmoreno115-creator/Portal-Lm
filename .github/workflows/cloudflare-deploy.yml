@@ -62,3 +62,28 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: 4.65.0
           command: deploy
+
+      - name: Verify production health
+        env:
+          PORTAL_HEALTH_URL: https://portal.lucasmorenopersonal.com.br/api/health
+        run: |
+          set -euo pipefail
+
+          for attempt in 1 2 3 4 5; do
+            echo "Production health check attempt ${attempt}/5: $PORTAL_HEALTH_URL"
+            if response="$(curl --fail --silent --show-error --max-time 10 "$PORTAL_HEALTH_URL")"; then
+              node -e '
+                const payload = JSON.parse(process.argv[1]);
+                if (payload.ok !== true || payload.service !== "lm-system-api") process.exit(1);
+              ' "$response"
+              echo "Production health check passed."
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 5 ]; then
+              sleep 5
+            fi
+          done
+
+          echo "Production health check failed."
+          exit 1

@@ -215,6 +215,11 @@ export default {
 
     if (method === 'OPTIONS') return corsResponse();
 
+    if (url.pathname === '/api/health') {
+      if (method !== 'GET') return healthResponse({ ok: false, error: 'METHOD_NOT_ALLOWED' }, 405);
+      return healthResponse({ ok: true, service: 'lm-system-api', environment: 'production' });
+    }
+
     if (method === 'GET' && (url.pathname === '/admin' || url.pathname === '/admin/')) {
       const target = env.PREMIUM_ADMIN_CUTOVER_ENABLED === 'true' ? '/admin-premium-workspace.html' : '/admin-legacy.html';
       return Response.redirect(new URL(target, url.origin).toString(), 302);
@@ -226,10 +231,6 @@ export default {
       if (url.pathname === '/api/admin/premium/cutover-route' && method === 'GET') {
         const cutoverEnabled = env.PREMIUM_ADMIN_CUTOVER_ENABLED === 'true';
         return json({ ok: true, data: { flag: 'PREMIUM_ADMIN_CUTOVER_ENABLED', cutoverEnabled, target: cutoverEnabled ? '/admin-premium-workspace.html' : '/admin-legacy.html' } }, 200, '/api/admin/premium/cutover-route');
-      }
-
-      if (url.pathname === '/api/health' && method === 'GET') {
-        return json({ ok: true, status: 'healthy' });
       }
 
       if (url.pathname === '/api/diagnostic/evaluate' && method === 'POST') {
@@ -5155,6 +5156,17 @@ function rawJson(payload, status = 200) {
     headers: {
       'Content-Type': 'application/json',
       ...corsHeaders()
+    }
+  });
+}
+
+function healthResponse(payload, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+      ...(status === 405 ? { Allow: 'GET' } : {})
     }
   });
 }
