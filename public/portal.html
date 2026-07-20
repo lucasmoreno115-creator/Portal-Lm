@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Portal Premium LM</title>
+  <link rel="stylesheet" href="portal.css">
+  <script src="/assets/js/lm-access.js?v=20260623-1"></script>
+</head>
+<body>
+  <main class="container" aria-live="polite"><section class="card"><p class="muted">Validando seu acesso…</p></section></main>
+  <script src="portal-shared.js"></script>
+  <script>
+    (async function routePremiumAccess() {
+      if (!getAuth().email || !getAuth().token) return window.location.replace('portal-login.html');
+      if (getUserPlan() === 'projeto_lm') {
+        window.location.replace('/projeto-lm/#home');
+        return;
+      }
+      try {
+        const response = await api('/portal/premium/access-state');
+        const target = response.data.experience === 'PREMIUM_PORTAL' ? 'portal-premium-home.html' : 'portal-premium-onboarding.html';
+        window.location.replace(target);
+      } catch (_) {
+        window.location.replace('portal-login.html');
+      }
+    }());
+  </script>
+</body>
+</html>

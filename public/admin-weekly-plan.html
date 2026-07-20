@@ -1,0 +1,146 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Plano da Semana LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <div class='student-action-row'><button id='adminLogoutBtn' type='button'>Sair</button></div>
+    <section class='card hero'>
+      <p class='eyebrow'>Consultoria LM • Painel interno</p>
+      <h1>Plano da Semana LM</h1>
+      <p class='hero-title'>Defina a direção estratégica que o aluno verá no Portal LM.</p>
+      <p class='muted'>O treino completo permanece no MFIT. Este painel controla apenas foco, adesão, risco e mensagem estratégica da semana.</p>
+    </section>
+
+    <section class='card mfit-card'>
+      <h2>Direção semanal personalizada</h2>
+      <p>Use esta tela para definir a direção estratégica da semana. O treino completo continua no MFIT.</p>
+    </section>
+
+    <section class='card'>
+      <form id='weeklyPlanForm'>
+        <div class='grid'>
+          <label>
+            Token admin
+            <input id='adminToken' type='password' autocomplete='off' required>
+          </label>
+          <label>
+            Email do aluno
+            <input id='studentEmail' type='email' autocomplete='off' required>
+          </label>
+        </div>
+
+        <label>
+          Semana de referência
+          <input id='weekRef' type='text' placeholder='2026-W20' required>
+        </label>
+
+        <label>
+          Foco do treino no MFIT
+          <textarea id='trainingFocus' rows='2'></textarea>
+        </label>
+
+        <label>
+          Meta de cardio
+          <textarea id='cardioTarget' rows='2'></textarea>
+        </label>
+
+        <label>
+          Foco nutricional
+          <textarea id='nutritionFocus' rows='2'></textarea>
+        </label>
+
+        <label>
+          Principal risco da semana
+          <textarea id='mainRisk' rows='2'></textarea>
+        </label>
+
+        <label>
+          Mensagem estratégica
+          <textarea id='coachMessage' rows='3'></textarea>
+        </label>
+
+        <button id='submitBtn' type='submit'>Salvar objetivo do planejamento</button>
+      </form>
+    </section>
+
+    <section class='card'>
+      <p id='statusBox' class='status muted'>Preencha os campos obrigatórios e salve para atualizar o Portal LM do aluno.</p>
+      <a class='secondary-link' href='index.html'>Voltar</a>
+    </section>
+  </div>
+
+  <script src='/admin-auth.js'></script>
+  <script>
+window.LMAdminAuth.requireAdmin();
+window.LMAdminAuth.hydrateAdminTokenInput('adminToken');
+window.LMAdminAuth.attachLogout('adminLogoutBtn');
+</script>
+<script>
+    const form = document.getElementById('weeklyPlanForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const statusBox = document.getElementById('statusBox');
+
+    function setStatus(message, type) {
+      statusBox.textContent = message;
+      statusBox.className = 'status';
+      if (type) statusBox.classList.add(type);
+      else statusBox.classList.add('muted');
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const adminToken = document.getElementById('adminToken').value.trim();
+      const studentEmail = document.getElementById('studentEmail').value.trim().toLowerCase();
+      const weekRef = document.getElementById('weekRef').value.trim();
+      const trainingFocus = document.getElementById('trainingFocus').value.trim();
+      const cardioTarget = document.getElementById('cardioTarget').value.trim();
+      const nutritionFocus = document.getElementById('nutritionFocus').value.trim();
+      const mainRisk = document.getElementById('mainRisk').value.trim();
+      const coachMessage = document.getElementById('coachMessage').value.trim();
+
+      if (!adminToken || !studentEmail || !weekRef) {
+        setStatus('Preencha token admin, email do aluno e semana de referência.', 'error');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Salvando...';
+      setStatus('Salvando objetivo do planejamento...', 'muted');
+
+      try {
+        const response = await fetch('/api/admin/weekly-plan', {
+          method: 'POST',
+          headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            student_email: studentEmail,
+            week_ref: weekRef,
+            training_focus: trainingFocus,
+            cardio_target: cardioTarget,
+            nutrition_focus: nutritionFocus,
+            main_risk: mainRisk,
+            coach_message: coachMessage
+          })
+        });
+
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) {
+          throw new Error(payload?.error || 'Falha ao salvar');
+        }
+
+        setStatus('Objetivo do planejamento salvo com sucesso.', 'ok');
+      } catch (error) {
+        setStatus('Não foi possível salvar o plano. Verifique o token e os campos obrigatórios.', 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Salvar objetivo do planejamento';
+      }
+    });
+  </script>
+</body>
+</html>

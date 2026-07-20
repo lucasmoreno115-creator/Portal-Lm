@@ -31,9 +31,9 @@ test('legacy V5 entrypoint remains included in the configured static assets dire
   assert.match(wrangler, /run_worker_first\s*=\s*\[[^\]]*"\/api\/\*"[^\]]*\]/);
 });
 
-test('static assets preparation preserves API routing without hostname cutover', () => {
-  assert.match(wrangler, /pattern\s*=\s*"portal\.lucasmorenopersonal\.com\.br\/api\/\*"/);
-  assert.doesNotMatch(wrangler, /pattern\s*=\s*"portal\.lucasmorenopersonal\.com\.br\/\*"/);
+test('static assets preparation cuts over the hostname while preserving API Worker-first routing', () => {
+  assert.match(wrangler, /pattern\s*=\s*"portal\.lucasmorenopersonal\.com\.br\/\*"/);
+  assert.doesNotMatch(wrangler, /pattern\s*=\s*"portal\.lucasmorenopersonal\.com\.br\/api\/\*"/);
   assert.doesNotMatch(worker, /!url\.pathname\.startsWith\('\/api\/'\)[\s\S]*serveStaticAsset\(request, env\)/);
   assert.doesNotMatch(worker, /env\?\.ASSETS\?\.fetch[\s\S]*env\.ASSETS\.fetch\(request\)/);
   assert.ok(v5Entrypoint.endsWith(historicalPath));

@@ -68,13 +68,15 @@ async function inventoryFiles() {
   ].sort();
   const jsFiles = [
     ...rootFiles.filter((file) => file.endsWith('.js')),
+    ...(await listFilesInDir('public', /\.js$/)),
     ...(await listFilesInDir('public/assets/js', /\.(js|json)$/))
   ].sort();
   const cssFiles = [
     ...rootFiles.filter((file) => file.endsWith('.css')),
+    ...(await listFilesInDir('public', /\.css$/)),
     ...(await listFilesInDir('public/assets/css', /\.css$/))
   ].sort();
-  const assetFiles = (await listFilesInDir('public/assets/images', /.+/)).sort();
+  const assetFiles = (await listFilesInDir('public/assets', /.+/)).sort();
 
   return { htmlFiles, jsFiles, cssFiles, assetFiles };
 }
@@ -91,7 +93,10 @@ function resolveReference(reference, fromFile) {
   const cleaned = cleanReference(reference);
   if (!cleaned) return null;
   const baseDir = path.posix.dirname(fromFile);
-  const base = cleaned.endsWith('.html') && !cleaned.includes('/') ? '' : (baseDir === '.' ? '' : baseDir);
+  const deploymentRoot = fromFile.startsWith('public/') ? 'public' : '';
+  const base = cleaned.endsWith('.html') && !cleaned.includes('/')
+    ? deploymentRoot
+    : (baseDir === '.' ? '' : baseDir);
   const resolved = path.posix.normalize(path.posix.join(base, cleaned));
   if (resolved.startsWith('..')) return null;
   return resolved;

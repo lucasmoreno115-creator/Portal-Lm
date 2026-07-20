@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Login Admin LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <section class='card hero'>
+      <p class='eyebrow'>Consultoria LM • Admin Hub</p>
+      <h1>Login Admin LM</h1>
+      <p class='hero-title'>Faça login com seu Admin Token para iniciar a sessão administrativa contínua.</p>
+    </section>
+
+    <section class='card'>
+      <label>Token admin
+        <input id='adminToken' type='password' autocomplete='off' required>
+      </label>
+      <div class='grid'>
+        <button id='saveBtn' type='button'>Entrar</button>
+        <a class='secondary-link' href='/admin.html'>Voltar ao Admin Hub</a>
+      </div>
+      <p id='statusBox' class='status muted'>Informe seu token para autenticar a sessão admin.</p>
+    </section>
+  </div>
+
+  <script src='/assets/js/admin-auth.js'></script>
+  <script>
+    const input = document.getElementById('adminToken');
+    const saveBtn = document.getElementById('saveBtn');
+    const statusBox = document.getElementById('statusBox');
+
+    saveBtn.addEventListener('click', async () => {
+      const token = input.value.trim();
+      if (!token) {
+        statusBox.textContent = 'Preencha o token admin.';
+        statusBox.className = 'status error';
+        return;
+      }
+      statusBox.textContent = 'Validando token...';
+      statusBox.className = 'status muted';
+      try {
+        await window.LMAdminAuth.loginAdmin(token);
+        input.value = '';
+        statusBox.textContent = 'Login realizado com sucesso. Redirecionando...';
+        statusBox.className = 'status ok';
+        const params = new URLSearchParams(window.location.search);
+        window.location.href = window.LMAdminAuth.resolveAdminReturnTo(params.get('returnTo'), '/admin');
+      } catch (error) {
+        window.LMAdminAuth.clearAdminToken();
+        statusBox.textContent = error.message || 'Falha ao validar token.';
+        statusBox.className = 'status error';
+      }
+    });
+  </script>
+</body>
+</html>

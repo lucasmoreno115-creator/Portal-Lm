@@ -63,31 +63,41 @@ jobs:
           wranglerVersion: 4.65.0
           command: deploy
 
-      - name: Verify production health
+      - name: Smoke production API and static assets
         env:
-          PORTAL_HEALTH_URL: https://portal.lucasmorenopersonal.com.br/api/health
+          PORTAL_ORIGIN: https://portal.lucasmorenopersonal.com.br
         run: |
           set -euo pipefail
-          response_file="$(mktemp)"
-          trap 'rm -f "$response_file"' EXIT
+          body="$(mktemp)"
+          headers="$(mktemp)"
+          trap 'rm -f "$body" "$headers"' EXIT
 
-          for attempt in 1 2 3 4 5; do
-            echo "Production health check attempt ${attempt}/5: $PORTAL_HEALTH_URL"
-            if status="$(curl --fail --silent --show-error --max-time 10 --output "$response_file" --write-out '%{http_code}' "$PORTAL_HEALTH_URL")" \
-              && [ "$status" -eq 200 ] \
-              && node -e '
-                const { readFileSync } = require("node:fs");
-                const payload = JSON.parse(readFileSync(process.argv[1], "utf8"));
-                if (payload.ok !== true || payload.service !== "lm-system-api") process.exit(1);
-              ' "$response_file"; then
-              echo "Production health check passed."
-              exit 0
-            fi
+          request() {
+            local path="$1" expected_status="$2" expected_type="$3" marker="${4:-}" allow_failure="${5:-false}"
+            for attempt in 1 2 3 4 5; do
+              : > "$body"; : > "$headers"
+              echo "Smoke ${path} attempt ${attempt}/5"
+              if [ "$allow_failure" = true ]; then
+                status="$(curl --silent --show-error --max-time 10 --dump-header "$headers" --output "$body" --write-out '%{http_code}' "$PORTAL_ORIGIN$path")" || status=000
+              else
+                status="$(curl --fail --silent --show-error --max-time 10 --dump-header "$headers" --output "$body" --write-out '%{http_code}' "$PORTAL_ORIGIN$path")" || status=000
+              fi
+              content_type="$(awk 'BEGIN{IGNORECASE=1} /^content-type:/ {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers")"
+              echo "status=${status} content-type=${content_type:-missing} cache-control=$(awk 'BEGIN{IGNORECASE=1} /^cache-control:/ {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers") etag=$(awk 'BEGIN{IGNORECASE=1} /^etag:/ {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers") last-modified=$(awk 'BEGIN{IGNORECASE=1} /^last-modified:/ {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers") cf-cache-status=$(awk 'BEGIN{IGNORECASE=1} /^cf-cache-status:/ {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers")"
+              if [ "$status" = "$expected_status" ] && printf '%s' "$content_type" | grep -qi "$expected_type" && { [ -z "$marker" ] || grep -Fq "$marker" "$body"; }; then return 0; fi
+              [ "$attempt" -lt 5 ] && sleep 5
+            done
+            echo "Smoke failed for ${path}." >&2
+            exit 1
+          }
 
-            if [ "$attempt" -lt 5 ]; then
-              sleep 5
-            fi
-          done
-
-          echo "Production health check failed."
-          exit 1
+          request /api/health 200 'application/json' '"service":"lm-system-api"'
+          node -e 'const fs=require("node:fs"); const body=JSON.parse(fs.readFileSync(process.argv[1], "utf8")); if(body.ok!==true||body.service!=="lm-system-api") process.exit(1)' "$body"
+          request / 200 'text/html' 'LM Portal'
+          request /portal.html 200 'text/html' 'Portal Premium LM'
+          request /admin-premium-student-record.html 200 'text/html' 'Planejamento alimentar'
+          request /assets/js/admin-premium-student-record.js 200 'javascript' 'Editar planejamento alimentar'
+          request /assets/css/admin-premium-student-record.css 200 'text/css'
+          request /admin-premium-nutrition-plan.html 200 'text/html' 'Planejamento alimentar'
+          request /api/rota-inexistente 404 'application/json' 'Not found' true
+          request "/arquivo-inexistente-${GITHUB_SHA}.html" 404 'text/html' '' true
