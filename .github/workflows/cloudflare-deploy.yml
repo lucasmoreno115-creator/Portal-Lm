@@ -1,13 +1,15 @@
-name: Project LM Quality Gate
+name: Deploy Cloudflare Worker
 
 on:
-  pull_request:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
 
 concurrency:
-  group: project-lm-quality-${{ github.workflow }}-${{ github.ref }}
+  group: cloudflare-production-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -40,3 +42,19 @@ jobs:
 
       - name: Ensure clean working tree
         run: git diff --exit-code
+
+  deploy:
+    name: Deploy production Worker and assets
+    needs: quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy with pinned Wrangler
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          wranglerVersion: 4.65.0
+          command: deploy
