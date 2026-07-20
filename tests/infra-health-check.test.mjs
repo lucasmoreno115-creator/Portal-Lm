@@ -55,6 +55,7 @@ test('post-deploy smoke checks canonical HTML routes and validates legacy redire
   assert.match(workflow, /redirect \/portal\.html \/portal/);
   assert.match(workflow, /redirect \/admin-premium-student-record\.html \/admin-premium-student-record/);
   assert.match(workflow, /redirect \/admin-premium-nutrition-plan\.html \/admin-premium-nutrition-plan/);
+  assert.match(workflow, /request "\/arquivo-inexistente-\$\{GITHUB_SHA\}\.html" 404 'text\/html' 'Página não encontrada' true/);
   assert.match(workflow, /new URL\(location, origin\)\.pathname/);
   assert.match(workflow, /sleep 5/);
   assert.match(workflow, /exit 1/);
