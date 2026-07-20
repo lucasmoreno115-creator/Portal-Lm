@@ -7,7 +7,7 @@ const wrangler = await readFile('wrangler.toml', 'utf8');
 const workflow = await readFile('.github/workflows/cloudflare-deploy.yml', 'utf8');
 const worker = await readFile('workers/api.js', 'utf8');
 const publicEntrypoints = [
-  'index.html', 'portal.html', 'admin-command-center.html', 'admin-premium-workspace.html',
+  'index.html', 'portal.html', 'admin-login.html', 'admin-premium-workspace.html',
   'admin-premium-student-record.html', 'admin-premium-nutrition-plan.html', 'projeto-lm/index.html',
   'assets/js/admin-premium-student-record.js', 'assets/css/admin-premium-student-record.css',
 ];
