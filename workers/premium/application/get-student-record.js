@@ -1,5 +1,5 @@
 import { isAnalyzedCoachStatus } from '../domain/feedback-status.js';
-export function createGetStudentRecordUseCase({ studentRepository, studentRecordRepository, pendingItemRepository, randomUUID = crypto.randomUUID }) {
+export function createGetStudentRecordUseCase({ studentRepository, studentRecordRepository, pendingItemRepository, identityService, randomUUID = crypto.randomUUID }) {
   async function createAutomaticPendingItems(student_id, record) {
     const tasks = [];
     const anamnesisStatus = String(record.anamnesis?.status || '').toUpperCase();
@@ -12,11 +12,14 @@ export function createGetStudentRecordUseCase({ studentRepository, studentRecord
   }
   return async function getStudentRecord({ student_id }) {
     if (!student_id) return { ok: false, error: 'student_id é obrigatório.', status: 400 };
-    const premium = await studentRepository.findByStudentId(student_id); if (!premium) return { ok: false, error: 'Aluno Premium não encontrado.', status: 404 };
-    const [student, anamnesis, nutrition_plan, feedbacks, followup_entries] = await Promise.all([studentRecordRepository.getStudentHeader(student_id), studentRecordRepository.getAnamnesis(student_id), studentRecordRepository.getNutritionPlanWorkflow(student_id), studentRecordRepository.listRecentFeedbacks(student_id, { limit: 12 }), studentRecordRepository.listFollowupEntries(student_id, { limit: 50 })]);
+    const fallbackStudent = identityService ? null : await studentRepository.findByStudentId(student_id);
+    const identity = identityService ? await identityService.resolveIdentifier(student_id) : { ok: Boolean(fallbackStudent), student: fallbackStudent };
+    if (!identity.ok) return { ok: false, error: 'Aluno Premium não encontrado.', status: 404 };
+    const canonicalStudentId = identity.student.student_id;
+    const [student, anamnesis, nutrition_plan, feedbacks, followup_entries] = await Promise.all([studentRecordRepository.getStudentHeader(canonicalStudentId), studentRecordRepository.getAnamnesis(canonicalStudentId), studentRecordRepository.getNutritionPlanWorkflow(canonicalStudentId), studentRecordRepository.listRecentFeedbacks(canonicalStudentId, { limit: 12 }), studentRecordRepository.listFollowupEntries(canonicalStudentId, { limit: 50 })]);
     const initial = { student, anamnesis, nutrition_plan: nutrition_plan.current, feedbacks, followup_entries };
-    await createAutomaticPendingItems(student_id, initial);
-    const [summary, pending_items] = await Promise.all([studentRecordRepository.getCurrentSummary(student_id), studentRecordRepository.listPendingItems(student_id)]);
+    await createAutomaticPendingItems(canonicalStudentId, initial);
+    const [summary, pending_items] = await Promise.all([studentRecordRepository.getCurrentSummary(canonicalStudentId), studentRecordRepository.listPendingItems(canonicalStudentId)]);
     return { ok: true, data: { student, summary, anamnesis, nutrition_plan, feedbacks, followup_entries, pending_items } };
   };
 }

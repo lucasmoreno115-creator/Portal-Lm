@@ -95,7 +95,7 @@ function createPremiumApplication(env, request) {
     listWeeklyFeedbacks: createListWeeklyFeedbacksUseCase({ identityService, weeklyFeedbackRepository, log }),
     analyzeWeeklyFeedback: createAnalyzeWeeklyFeedbackUseCase({ weeklyFeedbackRepository }),
     analyzeAnamnesis: createAnalyzeAnamnesisUseCase({ anamnesisRepository: createD1AnamnesisRepository(env.DB) }),
-    getStudentRecord: createGetStudentRecordUseCase({ studentRepository, studentRecordRepository, pendingItemRepository, randomUUID: () => crypto.randomUUID() }),
+    getStudentRecord: createGetStudentRecordUseCase({ studentRepository, studentRecordRepository, pendingItemRepository, identityService, randomUUID: () => crypto.randomUUID() }),
     addFollowupEntry: createAddFollowupEntryUseCase({ studentRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
     createPendingItem: createCreatePendingItemUseCase({ studentRepository, pendingItemRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
     resolvePendingItem: createResolvePendingItemUseCase({ pendingItemRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
@@ -1683,9 +1683,12 @@ export default {
 
         const adminNutritionStudentMatch = url.pathname.match(/^\/api\/admin\/premium\/students\/([^/]+)\/nutrition-plan(?:\/(history|draft))?$/);
         if (adminNutritionStudentMatch && method === 'GET') {
-          const student_id = decodeURIComponent(adminNutritionStudentMatch[1]);
+          const identifier = decodeURIComponent(adminNutritionStudentMatch[1]);
           const segment = adminNutritionStudentMatch[2] || null;
           const premiumApp = createPremiumApplication(env, request);
+          const identity = await premiumApp.identityService.resolveIdentifier(identifier);
+          if (!identity.ok) return json({ ok: false, error: 'Aluno Premium não encontrado.' }, 404);
+          const student_id = identity.student.student_id;
           if (segment === 'history') {
             const result = await premiumApp.getNutritionPlanHistory.execute({ student_id });
             if (!result.ok) return json(result, 404);
@@ -1702,9 +1705,12 @@ export default {
           return json({ ok: true, data: { current: presentAdminNutritionPlan(current.data), draft: presentAdminNutritionPlan(draft.data), history: (history.data || []).map(presentAdminNutritionPlanSummary), relatedPendingItem: null, sourceFeedback: null } });
         }
         if (adminNutritionStudentMatch && method === 'POST' && adminNutritionStudentMatch[2] === 'draft') {
-          const student_id = decodeURIComponent(adminNutritionStudentMatch[1]);
+          const identifier = decodeURIComponent(adminNutritionStudentMatch[1]);
           const body = await safeJson(request);
           const premiumApp = createPremiumApplication(env, request);
+          const identity = await premiumApp.identityService.resolveIdentifier(identifier);
+          if (!identity.ok) return json({ ok: false, error: 'Aluno Premium não encontrado.' }, 404);
+          const student_id = identity.student.student_id;
           const result = await premiumApp.createNutritionPlanDraft.execute({ student_id, plan: body?.plan || body || {}, source_feedback_id: body?.source_feedback_id || null });
           return json({ ok: result.ok, data: presentAdminNutritionPlan(result.data), error: result.error }, result.ok ? 200 : (result.conflict ? 409 : 404));
         }
