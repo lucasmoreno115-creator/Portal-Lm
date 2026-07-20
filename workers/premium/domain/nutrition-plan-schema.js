@@ -6,20 +6,45 @@ export function safeJsonArray(value, fallback = []) {
 function text(value) { return typeof value === 'string' ? value.trim() : ''; }
 function isObject(value) { return value !== null && typeof value === 'object' && !Array.isArray(value); }
 function arrayField(value, path, errors) { if (value != null && !Array.isArray(value)) errors.push(`${path}_MUST_BE_ARRAY`); return Array.isArray(value) ? value : []; }
+function scalarField(value, path, type, errors) { if (value != null && typeof value !== type) errors.push(`${path}_MUST_BE_${type.toUpperCase()}`); }
+function stringOrNumberField(value, path, errors) { if (value != null && typeof value !== 'string' && typeof value !== 'number') errors.push(`${path}_MUST_BE_STRING_OR_NUMBER`); }
+function idField(value, path, errors) { stringOrNumberField(value, `${path}_ID`, errors); }
+function substitutionFields(substitution, path, errors) {
+  if (!isObject(substitution)) { errors.push(`${path}_MUST_BE_OBJECT`); return; }
+  idField(substitution.id, path, errors);
+  scalarField(substitution.food, `${path}_FOOD`, 'string', errors);
+  scalarField(substitution.name, `${path}_NAME`, 'string', errors);
+  stringOrNumberField(substitution.quantity, `${path}_QUANTITY`, errors);
+  scalarField(substitution.unit, `${path}_UNIT`, 'string', errors);
+  scalarField(substitution.notes, `${path}_NOTES`, 'string', errors);
+  scalarField(substitution.note, `${path}_NOTE`, 'string', errors);
+  scalarField(substitution.observation, `${path}_OBSERVATION`, 'string', errors);
+}
 // Drafts may be clinically incomplete, but must still be safe to serialize and persist.
 export function validateNutritionPlanDraftStructure(input = {}) {
   const errors = [];
   if (!isObject(input)) return { ok:false, errors:['PLAN_MUST_BE_OBJECT'] };
+  for (const field of ['title','goal','strategy','notes','whatsapp_message','expected_updated_at']) scalarField(input[field], field.toUpperCase(), 'string', errors);
   const meals = arrayField(input.meals ?? input.meals_json, 'MEALS', errors);
-  arrayField(input.substitutions ?? input.substitutions_json, 'SUBSTITUTIONS', errors);
+  const substitutions = arrayField(input.substitutions ?? input.substitutions_json, 'SUBSTITUTIONS', errors);
   arrayField(input.adherenceRules ?? input.adherence_rules ?? input.adherence_rules_json, 'ADHERENCE_RULES', errors);
+  substitutions.forEach((substitution, index) => substitutionFields(substitution, `SUBSTITUTION_${index + 1}`, errors));
   meals.forEach((meal, mealIndex) => {
     if (!isObject(meal)) { errors.push(`MEAL_${mealIndex + 1}_MUST_BE_OBJECT`); return; }
-    const items = arrayField(meal.items, `MEAL_${mealIndex + 1}_ITEMS`, errors);
-    arrayField(meal.substitutions, `MEAL_${mealIndex + 1}_SUBSTITUTIONS`, errors);
+    const mealPath = `MEAL_${mealIndex + 1}`;
+    idField(meal.id, mealPath, errors);
+    for (const field of ['name','title','time','notes','guidance','orientation']) scalarField(meal[field], `${mealPath}_${field.toUpperCase()}`, 'string', errors);
+    const items = arrayField(meal.items, `${mealPath}_ITEMS`, errors);
+    const mealSubstitutions = arrayField(meal.substitutions, `${mealPath}_SUBSTITUTIONS`, errors);
+    mealSubstitutions.forEach((substitution, index) => substitutionFields(substitution, `${mealPath}_SUBSTITUTION_${index + 1}`, errors));
     items.forEach((item, itemIndex) => {
-      if (!isObject(item)) { errors.push(`MEAL_${mealIndex + 1}_ITEM_${itemIndex + 1}_MUST_BE_OBJECT`); return; }
-      arrayField(item.substitutions, `MEAL_${mealIndex + 1}_ITEM_${itemIndex + 1}_SUBSTITUTIONS`, errors);
+      const itemPath = `${mealPath}_ITEM_${itemIndex + 1}`;
+      if (!isObject(item)) { errors.push(`${itemPath}_MUST_BE_OBJECT`); return; }
+      idField(item.id, itemPath, errors);
+      for (const field of ['food','name','unit','notes','note','observation']) scalarField(item[field], `${itemPath}_${field.toUpperCase()}`, 'string', errors);
+      stringOrNumberField(item.quantity, `${itemPath}_QUANTITY`, errors);
+      const itemSubstitutions = arrayField(item.substitutions, `${itemPath}_SUBSTITUTIONS`, errors);
+      itemSubstitutions.forEach((substitution, index) => substitutionFields(substitution, `${itemPath}_SUBSTITUTION_${index + 1}`, errors));
     });
   });
   return { ok:errors.length === 0, errors };
