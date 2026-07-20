@@ -67,16 +67,19 @@
       target.replaceChildren(emptyState('Anamnese ainda não respondida', 'Sem dados de anamnese para este aluno.'));
       return;
     }
-    const details = el('details', {}, el('summary', { textContent: 'Respostas completas' }));
-    const pre = el('pre');
-    pre.textContent = JSON.stringify(anamnesis.answers || {}, null, 2);
-    details.append(pre);
-    target.replaceChildren(
-      field('Status', anamnesis.status),
-      field('Enviada', fmt(anamnesis.created_at)),
-      field('Atualizada/analisada', fmt(anamnesis.updated_at)),
-      details
-    );
+    const report = anamnesis.report;
+    if (!report || report.invalid) {
+      const technical = el('details', { className: 'anamnesis-technical' }, el('summary', { textContent: 'Ver informações técnicas' }));
+      technical.append(el('p', { className: 'muted', textContent: 'A resposta original foi preservada.' }));
+      target.replaceChildren(el('p', { textContent: 'Não foi possível interpretar esta anamnese.' }), technical);
+      return;
+    }
+    const reportNodes = [el('p', { className: 'muted', textContent: `Enviada em ${fmt(report.submittedAt)}` })];
+    if (report.executiveSummary.length) { const summary = el('div', { className: 'anamnesis-summary', dataset: { report: 'executive-summary' } }); report.executiveSummary.forEach((item) => summary.append(el('div', { className: 'anamnesis-summary-card' }, el('span', { textContent: item.label }), el('strong', { textContent: item.value })))); reportNodes.push(el('h3', { textContent: 'Resumo executivo' }), summary); }
+    if (report.highlights.length) { const highlights = el('section', { className: 'anamnesis-highlights', dataset: { report: 'highlights' } }, el('h3', { textContent: 'Destaques automáticos' }), el('p', { className: 'muted', textContent: 'Estes destaques apenas organizam respostas informadas pelo aluno e não substituem avaliação profissional.' })); const list = el('ul'); report.highlights.forEach((item) => { const detail = el('details', { className: `anamnesis-highlight ${item.level}`, dataset: { highlight: item.code } }, el('summary', { textContent: `${item.title} — ${item.description}` })); detail.append(el('p', { textContent: `Origem: “${item.source.label}” — “${item.source.value}”` })); list.append(el('li', { 'aria-label': `Destaque: ${item.title}` }, detail)); }); highlights.append(list); reportNodes.push(highlights); }
+    report.sections.forEach((section) => { const detail = el('details', { className: 'anamnesis-section', dataset: { section: section.key } }, el('summary', { textContent: section.title })); const list = el('dl', { className: 'anamnesis-answers' }); section.items.forEach((item) => { const row = el('div', { className: item.longText ? 'anamnesis-answer long-text' : 'anamnesis-answer' }); row.append(el('dt', { textContent: item.label }), el('dd', { textContent: Array.isArray(item.value) ? item.value.join('\n') : item.value })); list.append(row); }); detail.append(list); reportNodes.push(detail); });
+    const technical = el('details', { className: 'anamnesis-technical' }, el('summary', { textContent: 'Informações técnicas' })); const technicalList = el('dl', { className: 'anamnesis-answers' }); report.technical.metadata.forEach((item) => technicalList.append(el('div', { className: 'anamnesis-answer' }, el('dt', { textContent: item.label }), el('dd', { textContent: item.value })))); technical.append(technicalList); reportNodes.push(technical);
+    target.replaceChildren(...reportNodes);
   }
 
   function nutritionPlanLink(studentId) {
