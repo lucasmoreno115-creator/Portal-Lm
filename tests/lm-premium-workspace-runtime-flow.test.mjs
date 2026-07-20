@@ -94,6 +94,35 @@ test('students list remains available when the anamnesis dashboard fails indepen
   assert.equal(result.clearCalls.length, 0);
 });
 
+test('Abrir Prontuário navega para o record Premium com o student_id oficial codificado', async () => {
+  const result = await runWorkspace({
+    fetchImpl: async (url) => {
+      if (String(url).includes('/summary')) return new Response(JSON.stringify({ ok: false, error: 'SERVER_ERROR' }), { status: 500 });
+      return new Response(JSON.stringify({ ok: true, data: { items: [{ studentId: 'aluno / seguro', name: 'Ana', email: 'ana@example.test', operationalStatusLabel: 'Ativo', anamnesisStatusLabel: 'Respondida', weeklyFeedbackStatusLabel: 'Em dia' }], nextCursor: null } }), { status: 200 });
+    }
+  });
+  const student = result.nodes.get('studentList').children[0];
+  const openRecord = student.children.flatMap((child) => child.children || [child]).find((child) => child.textContent === 'Abrir Prontuário');
+  assert.ok(openRecord);
+  openRecord.onclick();
+  assert.equal(result.location.assigned, '/admin-premium-student-record.html?student_id=aluno+%2F+seguro');
+});
+
+test('aluno sem student_id mantém Abrir Prontuário desabilitado sem URL quebrada', async () => {
+  const result = await runWorkspace({
+    fetchImpl: async (url) => {
+      if (String(url).includes('/summary')) return new Response(JSON.stringify({ ok: false, error: 'SERVER_ERROR' }), { status: 500 });
+      return new Response(JSON.stringify({ ok: true, data: { items: [{ name: 'Sem ID', email: 'sem-id@example.test', operationalStatusLabel: 'Ativo', anamnesisStatusLabel: '—', weeklyFeedbackStatusLabel: '—' }], nextCursor: null } }), { status: 200 });
+    }
+  });
+  const student = result.nodes.get('studentList').children[0];
+  const openRecord = student.children.flatMap((child) => child.children || [child]).find((child) => child.textContent === 'Abrir Prontuário');
+  assert.ok(openRecord);
+  assert.equal(openRecord.disabled, true);
+  assert.equal(openRecord.onclick, undefined);
+  assert.equal(result.location.assigned, null);
+});
+
 test('workspace keeps session on 500, 403 and network errors', async () => {
   for (const response of [
     () => new Response(JSON.stringify({ ok: false, error: 'SERVER_ERROR' }), { status: 500 }),
