@@ -4,6 +4,26 @@ export function safeJsonArray(value, fallback = []) {
   try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : fallback; } catch { return fallback; }
 }
 function text(value) { return typeof value === 'string' ? value.trim() : ''; }
+function isObject(value) { return value !== null && typeof value === 'object' && !Array.isArray(value); }
+function arrayField(value, path, errors) { if (value != null && !Array.isArray(value)) errors.push(`${path}_MUST_BE_ARRAY`); return Array.isArray(value) ? value : []; }
+// Drafts may be clinically incomplete, but must still be safe to serialize and persist.
+export function validateNutritionPlanDraftStructure(input = {}) {
+  const errors = [];
+  if (!isObject(input)) return { ok:false, errors:['PLAN_MUST_BE_OBJECT'] };
+  const meals = arrayField(input.meals ?? input.meals_json, 'MEALS', errors);
+  arrayField(input.substitutions ?? input.substitutions_json, 'SUBSTITUTIONS', errors);
+  arrayField(input.adherenceRules ?? input.adherence_rules ?? input.adherence_rules_json, 'ADHERENCE_RULES', errors);
+  meals.forEach((meal, mealIndex) => {
+    if (!isObject(meal)) { errors.push(`MEAL_${mealIndex + 1}_MUST_BE_OBJECT`); return; }
+    const items = arrayField(meal.items, `MEAL_${mealIndex + 1}_ITEMS`, errors);
+    arrayField(meal.substitutions, `MEAL_${mealIndex + 1}_SUBSTITUTIONS`, errors);
+    items.forEach((item, itemIndex) => {
+      if (!isObject(item)) { errors.push(`MEAL_${mealIndex + 1}_ITEM_${itemIndex + 1}_MUST_BE_OBJECT`); return; }
+      arrayField(item.substitutions, `MEAL_${mealIndex + 1}_ITEM_${itemIndex + 1}_SUBSTITUTIONS`, errors);
+    });
+  });
+  return { ok:errors.length === 0, errors };
+}
 export function toCanonicalNutritionPlan(input = {}) {
   return {
     title: text(input.title) || 'Plano alimentar',
