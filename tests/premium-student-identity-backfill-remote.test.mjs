@@ -45,7 +45,9 @@ test('remote batch sends ordered statements in one parameterized request and rej
   const db = createRemoteD1Binding(client);
   const results = await db.batch([db.prepare('UPDATE student_access SET student_id = ? WHERE id = ?').bind('student-1', 'access-1'), db.prepare('INSERT INTO premium_legacy_identity_backfill_audit (id) VALUES (?)').bind('audit-1')]);
   assert.equal(requests.length, 1);
-  assert.deepEqual(requests[0], [{ sql: 'UPDATE student_access SET student_id = ? WHERE id = ?', params: ['student-1', 'access-1'] }, { sql: 'INSERT INTO premium_legacy_identity_backfill_audit (id) VALUES (?)', params: ['audit-1'] }]);
+  assert.equal(Array.isArray(requests[0]), false);
+  assert.ok(Array.isArray(requests[0].batch));
+  assert.deepEqual(requests[0], { batch: [{ sql: 'UPDATE student_access SET student_id = ? WHERE id = ?', params: ['student-1', 'access-1'] }, { sql: 'INSERT INTO premium_legacy_identity_backfill_audit (id) VALUES (?)', params: ['audit-1'] }] });
   assert.equal(results.length, 2);
   await assert.rejects(() => createRemoteD1Client({ token: 'private-token', accountId: 'account-secret', databaseId: 'database-secret', fetchImpl: async () => response([{ success: true }, { success: false }]) }).batch([db.prepare('SELECT 1').bind(), db.prepare('SELECT 2').bind()]), /CLOUDFLARE_D1_BATCH_FAILED/);
 });

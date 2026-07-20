@@ -81,7 +81,7 @@ export function createRemoteD1Client({ token, accountId, databaseId, fetchImpl =
     if (!Array.isArray(statements) || statements.length === 0) return [];
     const payload = statements.map((statement) => statement?.remoteStatement);
     if (payload.some((statement) => !statement || typeof statement.sql !== 'string' || !Array.isArray(statement.params))) throw safeError('CLOUDFLARE_D1_INVALID_BATCH');
-    const results = await request(payload);
+    const results = await request({ batch: payload });
     if (!Array.isArray(results) || results.length !== payload.length || results.some((result) => !result || result.success === false)) throw safeError('CLOUDFLARE_D1_BATCH_FAILED');
     return results;
   }
