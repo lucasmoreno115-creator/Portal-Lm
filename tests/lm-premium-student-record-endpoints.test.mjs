@@ -15,7 +15,7 @@ async function api(db,method,path,body,admin=true){ const headers={'content-type
 test('endpoints administrativos do Prontuário exigem admin e preservam contrato seguro', async()=>withDb(async(db)=>{
   assert.equal((await api(db,'GET','/api/admin/premium/students/student-1/record',null,false)).status,401);
   const record=await api(db,'GET','/api/admin/premium/students/student-1/record');
-  assert.equal(record.status,200); assert.equal(record.body.ok,true); assert.equal(record.body.data.student.student_id,'student-1'); assert.equal(record.body.data.feedbacks.length,2); assert.equal(JSON.stringify(record.body).includes('access_token'),false); assert.ok(record.body.data.pending_items.length>=2);
+  assert.equal(record.status,200); assert.equal(record.body.ok,true); assert.equal(record.body.data.student.student_id,'student-1'); assert.equal(record.body.data.feedbacks.length,2); assert.equal(JSON.stringify(record.body).includes('access_token'),false); assert.equal(record.body.data.pending_items.length,0);
   assert.deepEqual(record.body.data.nutrition_plan, { current: null, draft: null, hasPublished: false, hasDraft: false, status: 'EMPTY', label: 'Nenhum plano criado', description: 'Crie o primeiro planejamento alimentar deste aluno.', actionLabel: 'Criar planejamento alimentar', action: 'open-nutrition-plan' });
   const entry=await api(db,'POST','/api/admin/premium/students/student-1/followup-entries',{entry_type:'PROFESSIONAL_NOTE',title:'Nota',content:'Ok'}); assert.equal(entry.status,201);
   const pending=await api(db,'POST','/api/admin/premium/students/student-1/pending-items',{type:'CUSTOM',title:'Contato'}); assert.equal(pending.status,201);
@@ -47,17 +47,33 @@ test('pendências abertas são realmente idempotentes e permitem recriação ap�
   assert.equal(count.total, 1);
 }));
 
-test('GET record concorrente não duplica pendências automáticas e normaliza coach_status', async()=>withDb(async(db)=>{
-  await Promise.all([
-    api(db,'GET','/api/admin/premium/students/student-1/record'),
-    api(db,'GET','/api/admin/premium/students/student-1/record')
-  ]);
-  const anamnesis = await db.prepare(`SELECT COUNT(*) AS total FROM premium_pending_items WHERE student_id='student-1' AND type='ANALYZE_ANAMNESIS' AND status='OPEN'`).first();
-  assert.equal(anamnesis.total, 1);
-  const pendingFeedback = await db.prepare(`SELECT COUNT(*) AS total FROM premium_pending_items WHERE student_id='student-1' AND type='ANALYZE_WEEKLY_FEEDBACK' AND related_entity_id='fb-1' AND status='OPEN'`).first();
-  assert.equal(pendingFeedback.total, 1);
-  const reviewedFeedback = await db.prepare(`SELECT COUNT(*) AS total FROM premium_pending_items WHERE student_id='student-1' AND type='ANALYZE_WEEKLY_FEEDBACK' AND related_entity_id='fb-reviewed' AND status='OPEN'`).first();
-  assert.equal(reviewedFeedback.total, 0);
+test('GET record legado resolve e-mail exato para student_id canônico sem escrita', async()=>withDb(async(db)=>{
+  await db.prepare(`INSERT INTO student_access (id, name, email, access_token, status, plan_type, plan, student_id, created_at) VALUES ('legacy-access','Legacy','legacy@email.com','tok-legacy','ACTIVE','PREMIUM','premium','stu_legacy123','2026-07-14T00:00:00.000Z')`).run();
+  await db.prepare(`INSERT INTO premium_students (student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES ('stu_legacy123','legacy@email.com','legacy@email.com','Legacy','ACTIVE','ACTIVE','TEST','2026-07-14T00:00:00.000Z','2026-07-14T00:00:00.000Z')`).run();
+  const before = await db.prepare(`SELECT COUNT(*) AS total FROM premium_pending_items`).first();
+  for (const identifier of ['legacy@email.com', ' LEGACY@EMAIL.COM ']) {
+    const response = await api(db,'GET',`/api/admin/premium/students/${encodeURIComponent(identifier)}/record`);
+    assert.equal(response.status, 200);
+    assert.equal(response.body.data.student.student_id, 'stu_legacy123');
+  }
+  const nutrition = await api(db,'GET','/api/admin/premium/students/LEGACY%40EMAIL.COM/nutrition-plan');
+  assert.equal(nutrition.status, 200);
+  const draft = await api(db,'POST','/api/admin/premium/students/legacy%40email.com/nutrition-plan/draft',{plan:{title:'Legacy plan',meals:[]}});
+  assert.equal(draft.status, 200);
+  assert.equal(draft.body.data.student_id, 'stu_legacy123');
+  const persisted = await db.prepare(`SELECT student_id FROM nutrition_plans WHERE id=?`).bind(draft.body.data.id).first();
+  assert.equal(persisted.student_id, 'stu_legacy123');
+  const after = await db.prepare(`SELECT COUNT(*) AS total FROM premium_pending_items`).first();
+  assert.equal(after.total, before.total);
+  assert.equal((await api(db,'GET','/api/admin/premium/students/naoexiste%40email.com/record')).status,404);
+}));
+
+test('student_id direct match has precedence over an e-mail fallback', async()=>withDb(async(db)=>{
+  await db.prepare(`INSERT INTO premium_students (student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES ('collision@email.com','direct@example.com','direct@example.com','Direct','ACTIVE','ACTIVE','TEST','2026-07-14T00:00:00.000Z','2026-07-14T00:00:00.000Z')`).run();
+  await db.prepare(`INSERT INTO premium_students (student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES ('other','collision@email.com','collision@email.com','Other','ACTIVE','ACTIVE','TEST','2026-07-14T00:00:00.000Z','2026-07-14T00:00:00.000Z')`).run();
+  const response = await api(db,'GET','/api/admin/premium/students/collision%40email.com/record');
+  assert.equal(response.status,200);
+  assert.equal(response.body.data.student.student_id,'collision@email.com');
 }));
 
 test('status e decisão profissional usam batch e não duplicam evolução em retry', async()=>withDb(async(db)=>{

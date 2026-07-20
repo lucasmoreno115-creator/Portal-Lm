@@ -13,6 +13,12 @@ export function normalizePremiumStudentEmail(email, { required = false } = {}) {
   return normalizedEmail;
 }
 
+function isValidEmailIdentifier(value) {
+  // This intentionally accepts only a conventional, complete e-mail address;
+  // identifiers are never searched with partial or fuzzy matching.
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 export function generatePremiumStudentId(randomUUID = globalThis.crypto?.randomUUID?.bind(globalThis.crypto)) {
   if (typeof randomUUID !== 'function') {
     throw new Error('STUDENT_ID_GENERATOR_UNAVAILABLE');
@@ -64,6 +70,14 @@ export function createStudentIdentityService({ repository, events } = {}) {
       }
       events?.emit?.('PREMIUM_STUDENT_IDENTITY_RESOLVED_BY_EMAIL_FALLBACK');
       return ok('normalized_email', premiumStudents[0]);
+    },
+    async resolveIdentifier(identifier) {
+      const value = String(identifier ?? '').trim();
+      if (!value) return fail(STUDENT_IDENTITY_ERRORS.STUDENT_NOT_FOUND);
+      const direct = await repository.findByStudentId(value);
+      if (direct && !isProjectOnly(direct)) return ok('student_id', direct);
+      if (!isValidEmailIdentifier(value)) return fail(STUDENT_IDENTITY_ERRORS.STUDENT_NOT_FOUND);
+      return this.resolve({ email: normalizePremiumStudentEmail(value, { required: true }) });
     },
   });
 }
