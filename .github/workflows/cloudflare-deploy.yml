@@ -91,13 +91,27 @@ jobs:
             exit 1
           }
 
+          redirect() {
+            local path="$1" expected_path="$2" status location location_path
+            : > "$headers"
+            status="$(curl --silent --show-error --max-time 10 --dump-header "$headers" --output /dev/null --write-out '%{http_code}' "$PORTAL_ORIGIN$path")"
+            location="$(awk 'BEGIN{IGNORECASE=1} /^location:/ {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers")"
+            location_path="$(node -e 'const location=process.argv[1]; const origin=process.argv[2]; process.stdout.write(new URL(location, origin).pathname)' "$location" "$PORTAL_ORIGIN")"
+            if [ "$status" = 307 ] && [ "$location_path" = "$expected_path" ]; then return 0; fi
+            echo "Redirect failed for ${path}: status=${status} location=${location:-missing}" >&2
+            exit 1
+          }
+
           request /api/health 200 'application/json' '"service":"lm-system-api"'
           node -e 'const fs=require("node:fs"); const body=JSON.parse(fs.readFileSync(process.argv[1], "utf8")); if(body.ok!==true||body.service!=="lm-system-api") process.exit(1)' "$body"
           request / 200 'text/html' 'LM Portal'
-          request /portal.html 200 'text/html' 'Portal Premium LM'
-          request /admin-premium-student-record.html 200 'text/html' 'Planejamento alimentar'
+          request /portal 200 'text/html' 'Portal Premium LM'
+          request /admin-premium-student-record 200 'text/html' 'Planejamento alimentar'
           request /assets/js/admin-premium-student-record.js 200 'javascript' 'Editar planejamento alimentar'
           request /assets/css/admin-premium-student-record.css 200 'text/css'
-          request /admin-premium-nutrition-plan.html 200 'text/html' 'Planejamento alimentar'
+          request /admin-premium-nutrition-plan 200 'text/html' 'Planejamento alimentar'
+          redirect /portal.html /portal
+          redirect /admin-premium-student-record.html /admin-premium-student-record
+          redirect /admin-premium-nutrition-plan.html /admin-premium-nutrition-plan
           request /api/rota-inexistente 404 'application/json' 'Not found' true
           request "/arquivo-inexistente-${GITHUB_SHA}.html" 404 'text/html' '' true

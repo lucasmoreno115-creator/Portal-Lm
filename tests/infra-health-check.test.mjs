@@ -42,14 +42,20 @@ test('unknown API routes retain the existing JSON 404 response', async () => {
   assert.match(source, /return json\(\{ ok: false, error: 'Not found' \}, 404\);/);
 });
 
-test('post-deploy smoke retries API and asset checks while retaining health payload validation', async () => {
+test('post-deploy smoke checks canonical HTML routes and validates legacy redirects', async () => {
   const workflow = await readFile(new URL('../.github/workflows/cloudflare-deploy.yml', import.meta.url), 'utf8');
 
   assert.match(workflow, /for attempt in 1 2 3 4 5; do/);
   assert.match(workflow, /--max-time 10/);
   assert.match(workflow, /request \/api\/health 200 'application\/json'/);
   assert.match(workflow, /node -e 'const fs=require/);
-  assert.match(workflow, /request \/admin-premium-student-record\.html 200 'text\/html' 'Planejamento alimentar'/);
+  assert.match(workflow, /request \/portal 200 'text\/html' 'Portal Premium LM'/);
+  assert.match(workflow, /request \/admin-premium-student-record 200 'text\/html' 'Planejamento alimentar'/);
+  assert.match(workflow, /request \/admin-premium-nutrition-plan 200 'text\/html' 'Planejamento alimentar'/);
+  assert.match(workflow, /redirect \/portal\.html \/portal/);
+  assert.match(workflow, /redirect \/admin-premium-student-record\.html \/admin-premium-student-record/);
+  assert.match(workflow, /redirect \/admin-premium-nutrition-plan\.html \/admin-premium-nutrition-plan/);
+  assert.match(workflow, /new URL\(location, origin\)\.pathname/);
   assert.match(workflow, /sleep 5/);
   assert.match(workflow, /exit 1/);
 });
