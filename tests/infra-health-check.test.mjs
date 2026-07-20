@@ -41,3 +41,13 @@ test('unknown API routes retain the existing JSON 404 response', async () => {
 
   assert.match(source, /return json\(\{ ok: false, error: 'Not found' \}, 404\);/);
 });
+
+test('post-deploy smoke retries invalid health payloads in the same conditional as curl', async () => {
+  const workflow = await readFile(new URL('../.github/workflows/cloudflare-deploy.yml', import.meta.url), 'utf8');
+
+  assert.match(workflow, /for attempt in 1 2 3 4 5; do/);
+  assert.match(workflow, /--max-time 10/);
+  assert.match(workflow, /&& \[ "\$status" -eq 200 \] \\\n\s+&& node -e/);
+  assert.match(workflow, /sleep 5/);
+  assert.match(workflow, /exit 1/);
+});
