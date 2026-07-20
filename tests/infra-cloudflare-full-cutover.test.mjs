@@ -48,11 +48,16 @@ test('public HTML imports resolve inside the canonical static directory', async 
   }
 });
 
-test('Pages deployment remains absent and Cloudflare smoke verifies API, assets, and isolated 404s', async () => {
+test('Pages deployment remains absent and Cloudflare smoke verifies canonical pages, redirects, API, assets, and isolated 404s', async () => {
   await assert.rejects(access('.github/workflows/pages-deploy.yml', constants.F_OK));
-  for (const path of ['/api/health', '/', '/portal.html', '/admin-premium-student-record.html', '/assets/js/admin-premium-student-record.js', '/assets/css/admin-premium-student-record.css', '/admin-premium-nutrition-plan.html', '/api/rota-inexistente', '/arquivo-inexistente-${GITHUB_SHA}.html']) assert.match(workflow, new RegExp(path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  for (const path of ['/api/health', '/', '/portal', '/admin-premium-student-record', '/assets/js/admin-premium-student-record.js', '/assets/css/admin-premium-student-record.css', '/admin-premium-nutrition-plan', '/api/rota-inexistente', '/arquivo-inexistente-${GITHUB_SHA}.html']) assert.match(workflow, new RegExp(path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  for (const [legacyPath, canonicalPath] of [['/portal.html', '/portal'], ['/admin-premium-student-record.html', '/admin-premium-student-record'], ['/admin-premium-nutrition-plan.html', '/admin-premium-nutrition-plan']]) {
+    assert.match(workflow, new RegExp(`redirect ${legacyPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} ${canonicalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+  }
   assert.match(workflow, /for attempt in 1 2 3 4 5; do/);
   assert.match(workflow, /curl --fail --silent --show-error --max-time 10/);
+  assert.match(workflow, /\[ "\$status" = 307 \]/);
+  assert.match(workflow, /new URL\(location, origin\)\.pathname/);
   assert.match(workflow, /cf-cache-status=/);
   assert.match(worker, /return json\(\{ ok: false, error: 'Not found' \}, 404\);/);
 });
