@@ -16,12 +16,13 @@ test('Prontuário LM renderiza estrutura, empty states e não expõe token', () 
   const js = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
   assert.match(html, /Prontuário LM/);
   for (const text of ['Pendências', 'Anamnese', 'Planejamento alimentar', 'Feedbacks semanais', 'Evolução do acompanhamento']) assert.match(html, new RegExp(text));
-  for (const text of ['Anamnese ainda não respondida', 'Planejamento ainda não iniciado', 'Planejamento em edição', 'Planejamento publicado', 'Existem alterações ainda não publicadas', 'Nenhum feedback enviado', 'Nenhuma pendência aberta', 'Nenhum registro de evolução']) assert.match(js, new RegExp(text));
+  for (const text of ['Anamnese ainda não respondida', 'Nenhum plano criado', 'Rascunho em edição', 'Plano publicado', 'Alterações em revisão', 'Nenhum feedback enviado', 'Nenhuma pendência aberta', 'Nenhum registro de evolução']) assert.match(js, new RegExp(text));
   assert.doesNotMatch(html + js, /access_token|x-admin-token'\s*:/);
-  assert.match(js, /admin-premium-nutrition-plan\.html\?student_id=/);
+  assert.match(js, /admin-premium-nutrition-plan\.html/);
+  assert.match(js, /searchParams\.set\('student_id'/);
   assert.doesNotMatch(js, /admin-nutrition-plan\.html\?email=/);
-  assert.match(js, /return_to=/);
-  assert.match(js, /admin-premium-student-record\.html\?student_id=/);
+  assert.match(js, /searchParams\.set\('return_to'/);
+  assert.match(js, /admin-premium-student-record\.html/);
 });
 
 test('HTML seguro: Prontuário não usa innerHTML nem interpolação HTML dinâmica', () => {
@@ -44,6 +45,7 @@ test('XSS: dados maliciosos aparecem como texto sem criar elementos ou atributos
     window: { LMAdminAuth: { requireAdmin(){}, attachLogout(){}, getAdminAuthHeaders(headers){ return headers; } } },
     location: { search: '?student_id=student-xss' },
     URLSearchParams,
+    URL,
     FormData: class {},
     fetch: async (url) => ({ ok: true, json: async () => ({ ok: true, data: payload, url }) }),
     console,
@@ -61,6 +63,37 @@ test('XSS: dados maliciosos aparecem como texto sem criar elementos ou atributos
   assert.equal(attrs.some(([name, value]) => name === 'href' && String(value).startsWith('javascript:')), false);
   const allText = dom.text();
   for (const value of maliciousValues) assert.match(allText, new RegExp(escapeRegExp(value)));
+});
+
+test('Prontuário mantém a CTA alimentar para todas as combinações e constrói retorno contextual por student_id', async () => {
+  const cases = [
+    [{ current: null, draft: null }, 'Nenhum plano criado', 'Criar planejamento alimentar'],
+    [{ current: null, draft: { id: 'draft-1' } }, 'Rascunho em edição', 'Continuar planejamento'],
+    [{ current: { id: 'published-1' }, draft: null }, 'Plano publicado', 'Editar planejamento alimentar'],
+    [{ current: { id: 'published-1' }, draft: { id: 'draft-1' } }, 'Alterações em revisão', 'Revisar alterações']
+  ];
+  for (const [nutrition_plan, label, actionLabel] of cases) {
+    const dom = createFakeDocument();
+    const context = {
+      document: dom.document,
+      window: { LMAdminAuth: { requireAdmin(){}, attachLogout(){}, getAdminAuthHeaders(headers){ return headers; } } },
+      location: { search: '?student_id=student%20safe', origin: 'https://admin.example' },
+      URLSearchParams,
+      URL,
+      FormData: class {},
+      fetch: async () => ({ ok: true, json: async () => ({ ok: true, data: { student: { student_id: 'student safe', name: 'Ana' }, summary: {}, nutrition_plan, pending_items: [], feedbacks: [], followup_entries: [] } }) })
+    };
+    vm.runInNewContext(readFileSync(new URL('../admin-premium-student-record.js', import.meta.url), 'utf8'), context);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const planText = dom.document.getElementById('plan').textContent;
+    assert.match(planText, new RegExp(label));
+    assert.match(planText, new RegExp(actionLabel));
+    const action = dom.created.find((node) => node.attributes.href?.startsWith('/admin-premium-nutrition-plan.html'));
+    assert.ok(action, 'CTA alimentar deve permanecer disponível');
+    const href = new URL(action.attributes.href, 'https://admin.example');
+    assert.equal(href.searchParams.get('student_id'), 'student safe');
+    assert.equal(href.searchParams.get('return_to'), '/admin-premium-student-record.html?student_id=student+safe');
+  }
 });
 
 test('Student 360 expõe navegação do prontuário apenas com feature flag', () => {
