@@ -1,0 +1,153 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Admin Check-ins LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body class='admin-checkins-page'>
+  <div class='container'>
+    <div class='student-action-row'><button id='adminLogoutBtn' type='button'>Sair</button></div>
+    <section class='card hero'>
+      <p class='eyebrow'>Consultoria LM • Painel interno</p>
+      <h1>Admin Check-ins LM</h1>
+      <p class='hero-title'>Acompanhe os check-ins enviados pelos alunos e registre a orientação da semana.</p>
+    </section>
+
+    <section class='card checkin-filters'>
+      <label>Token admin<input id='adminToken' type='password' required></label>
+      <label>Status
+        <select id='statusFilter'>
+          <option value='all'>Todos</option>
+          <option value='pending'>Pendentes</option>
+          <option value='replied'>Respondidos</option>
+        </select>
+      </label>
+      <label>Busca por email/nome<input id='search' type='text' placeholder='aluno@email.com'></label>
+      <label>Limite<input id='limit' type='number' min='1' max='200' value='50'></label>
+      <button id='loadBtn' type='button'>Carregar check-ins</button>
+    </section>
+
+    <section class='card'>
+      <p id='statusMsg' class='status muted'>Informe o token e carregue os check-ins.</p>
+      <div id='list'></div>
+    </section>
+  </div>
+
+<script src='/admin-auth.js'></script>
+  <script>
+window.LMAdminAuth.requireAdmin();
+window.LMAdminAuth.hydrateAdminTokenInput('adminToken');
+window.LMAdminAuth.attachLogout('adminLogoutBtn');
+</script>
+<script>
+const adminTokenEl = document.getElementById('adminToken');
+const statusFilterEl = document.getElementById('statusFilter');
+const searchEl = document.getElementById('search');
+const limitEl = document.getElementById('limit');
+const loadBtn = document.getElementById('loadBtn');
+const statusMsg = document.getElementById('statusMsg');
+const list = document.getElementById('list');
+
+function fmtDate(value){ if(!value) return '-'; const d = new Date(value); return Number.isNaN(d.getTime()) ? value : d.toLocaleString('pt-BR'); }
+function setStatus(text, type='muted'){ statusMsg.textContent=text; statusMsg.className='status '+type; }
+function esc(v){ return String(v || '').replace(/[&<>"']/g, (c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function loadCheckins(){
+  const token = adminTokenEl.value.trim();
+  if(!token){ setStatus('Informe o token admin.', 'error'); return; }
+
+  const params = new URLSearchParams();
+  if(statusFilterEl.value) params.set('status', statusFilterEl.value);
+  if(searchEl.value.trim()) params.set('student_email', searchEl.value.trim().toLowerCase());
+  params.set('limit', String(Math.min(200, Math.max(1, Number(limitEl.value || 50)))));
+
+  setStatus('Carregando check-ins...', 'muted');
+  list.innerHTML = '';
+
+  try {
+    const response = await fetch('/api/admin/checkins?' + params.toString(), { headers: window.LMAdminAuth.getAdminAuthHeaders()});
+    const payload = await response.json();
+    if (!response.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao carregar');
+
+    const items = payload.data || [];
+    if(!items.length){ setStatus('Nenhum check-in encontrado para os filtros aplicados.', 'muted'); return; }
+
+    list.innerHTML = items.map((c) => {
+      const statusClass = (c.coach_status || 'pending') === 'replied' ? 'ok' : 'badge-warning';
+      const replied = c.coach_reply ? `<div class='coach-reply-card'><strong>Resposta salva</strong><p>${esc(c.coach_reply)}</p><small>${esc(fmtDate(c.coach_reply_at))}</small></div>` : '';
+
+      return `<article class='checkin-admin-card' data-id='${esc(c.id)}'>
+        <header>
+          <h3>${esc(c.student_name || 'Aluno')}</h3>
+          <p class='muted'>${esc(c.student_email || '-')}</p>
+          <span class='badge checkin-status ${statusClass}'>${esc(c.coach_status || 'pending')}</span>
+          <p class='muted'>${esc(fmtDate(c.created_at))}</p>
+        </header>
+        <div class='checkin-detail-grid'>
+          <div><strong>Peso</strong><p>${esc(c.weekly_weight || '-')}</p></div>
+          <div><strong>Adesão</strong><p>Treino: ${esc(c.training_adherence || '-')}<br>Cardio: ${esc(c.cardio_adherence || '-')}</p></div>
+          <div><strong>Treinos</strong><p>${esc(c.strength_status || c.training_adherence || '-')}</p></div>
+          <div><strong>Alimentação</strong><p>${esc(c.nutrition_adherence || '-')}</p></div>
+          <div><strong>Observações</strong><p>${esc(c.main_difficulty || c.routine_context || '-')}</p></div>
+        </div>
+        <details><summary>Ver detalhes</summary>
+          <div class='details'>
+            <p><strong>Fome:</strong> ${esc(c.hunger_level || '-')}</p>
+            <p><strong>Sono:</strong> ${esc(c.sleep_quality || '-')}</p>
+            <p><strong>Energia:</strong> ${esc(c.energy_level || '-')}</p>
+            <p><strong>Estresse:</strong> ${esc(c.stress_level || '-')}</p>
+            <p><strong>Suporte:</strong> ${esc(c.support_needed || '-')}</p>
+          </div>
+        </details>
+        <div class='checkin-reply-box'>
+          <textarea placeholder='Digite a orientação semanal...' rows='3'>${esc(c.coach_reply || '')}</textarea>
+          <button type='button' data-save='${esc(c.id)}'>Salvar resposta</button>
+        </div>
+        ${replied}
+      </article>`;
+    }).join('');
+
+    setStatus(`Check-ins carregados: ${items.length}.`, 'ok');
+  } catch (error) {
+    setStatus('Falha ao carregar check-ins. Verifique token e filtros.', 'error');
+  }
+}
+
+list.addEventListener('click', async (event) => {
+  const btn = event.target.closest('button[data-save]');
+  if(!btn) return;
+  const token = adminTokenEl.value.trim();
+  if(!token){ setStatus('Informe o token admin.', 'error'); return; }
+
+  const card = btn.closest('.checkin-admin-card');
+  const textarea = card.querySelector('textarea');
+  const id = btn.getAttribute('data-save');
+  const coachReply = textarea.value.trim();
+  if(!coachReply){ setStatus('Preencha a orientação antes de salvar.', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  try {
+    const response = await fetch(`/api/admin/checkins/${encodeURIComponent(id)}/reply`, {
+      method:'PATCH',
+      headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ coach_reply: coachReply, coach_status: 'replied' })
+    });
+    const payload = await response.json();
+    if(!response.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao salvar');
+    setStatus('Resposta salva com sucesso.', 'ok');
+    await loadCheckins();
+  } catch {
+    setStatus('Não foi possível salvar a resposta.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Salvar resposta';
+  }
+});
+
+loadBtn.addEventListener('click', loadCheckins);
+</script>
+</body>
+</html>

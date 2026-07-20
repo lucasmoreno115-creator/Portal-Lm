@@ -1,0 +1,153 @@
+<!-- LEGACY - DO NOT EXTEND
+     SUPERSEDED BY PROJECT LM V5 -->
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Consistência — Projeto LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body class='portal-home-v7 consistency-page'>
+  <main class='container home-main'>
+    <div id='nav' class='mobile-nav'></div>
+
+    <section class='card hero hero-premium consistency-hero'>
+      <p class='eyebrow'>Projeto LM</p>
+      <h1>Sua Consistência</h1>
+      <p class='hero-subtext'>Pequenas ações repetidas vencem dias perfeitos isolados.</p>
+    </section>
+
+    <p id='consistencyStatus' class='status' role='status'>Carregando sua consistência...</p>
+
+    <section class='consistency-metric-grid' aria-label='Resumo de consistência'>
+      <article class='card dashboard-card consistency-metric-card'>
+        <h2>Dias ativos</h2>
+        <p id='activeDaysValue' class='consistency-metric-value'>—</p>
+        <p class='muted'>Dias em que você registrou pelo menos uma ação.</p>
+      </article>
+      <article class='card dashboard-card consistency-metric-card'>
+        <h2>Sequência atual</h2>
+        <p id='currentStreakValue' class='consistency-metric-value'>—</p>
+        <p class='muted'>Sua sequência ativa de dias com ação registrada.</p>
+      </article>
+      <article class='card dashboard-card consistency-metric-card'>
+        <h2>Seu recorde</h2>
+        <p id='bestStreakValue' class='consistency-metric-value'>—</p>
+        <p class='muted'>Sua maior sequência registrada até agora.</p>
+      </article>
+    </section>
+
+    <section class='card dashboard-card consistency-calendar-section'>
+      <h2>Últimos 30 dias</h2>
+      <div id='calendarGrid' class='consistency-calendar-grid' aria-label='Calendário dos últimos 30 dias'></div>
+      <div class='consistency-legend' aria-label='Legenda do calendário'>
+        <span><i class='consistency-day is-completed' aria-hidden='true'></i>Ativo</span>
+        <span><i class='consistency-day' aria-hidden='true'></i>Sem registro</span>
+      </div>
+    </section>
+
+    <section id='emptyState' class='card dashboard-card consistency-empty-card' hidden>
+      <p>Seu primeiro registro ainda não aconteceu. Comece com uma ação simples hoje.</p>
+    </section>
+
+    <section class='card dashboard-card consistency-moment-card'>
+      <h2>Seu momento atual</h2>
+      <p id='momentText'>Carregando sua consistência...</p>
+    </section>
+
+    <section class='card dashboard-card consistency-cta-card'>
+      <h2>Plano B</h2>
+      <p>Quando o dia apertar:</p>
+      <ul class='consistency-plan-b-list'>
+        <li>✓ Beber água</li>
+        <li>✓ Fazer uma refeição com proteína</li>
+        <li>✓ Caminhar 10 minutos</li>
+      </ul>
+      <p>Isso já conta.</p>
+      <a class='primary-cta' href='projeto-lm-dia-dificil.html'>Abrir Modo Dia Difícil</a>
+    </section>
+  </main>
+  <script src='/assets/js/lm-access.js?v=20260623-1'></script>
+  <script src='portal-shared.js'></script>
+  <script>
+    requireAuth();
+    redirectIfNoAccess('consistencia');
+    document.getElementById('nav').innerHTML = nav();
+
+    const statusEl = document.getElementById('consistencyStatus');
+    const activeDaysEl = document.getElementById('activeDaysValue');
+    const currentStreakEl = document.getElementById('currentStreakValue');
+    const bestStreakEl = document.getElementById('bestStreakValue');
+    const calendarGridEl = document.getElementById('calendarGrid');
+    const momentTextEl = document.getElementById('momentText');
+    const emptyStateEl = document.getElementById('emptyState');
+
+    function getMomentText(currentStreak) {
+      if (currentStreak === 0) return `Você não precisa compensar o que ficou para trás.
+
+Precisa apenas recomeçar pelo próximo passo.`;
+      if (currentStreak === 1) return `Você já começou.
+
+Agora seu objetivo não é fazer mais.
+É apenas repetir amanhã.`;
+      if (currentStreak >= 2 && currentStreak < 3) return `Os primeiros dias costumam ser os mais difíceis.
+
+Continue acumulando pequenas vitórias.`;
+      if (currentStreak >= 3 && currentStreak < 7) return `Você está construindo consistência.
+
+Proteja o básico e continue avançando.`;
+      if (currentStreak >= 7 && currentStreak < 14) return `Sua rotina está ficando mais forte.
+
+Não subestime o que você já construiu.`;
+      return 'Você está provando para si mesmo que consegue continuar mesmo sem depender de motivação.';
+    }
+
+    function normalizeCalendar(calendar) {
+      const days = Array.isArray(calendar) ? calendar : [];
+      return days.slice(-30);
+    }
+
+    function renderCalendar(calendar) {
+      const days = normalizeCalendar(calendar);
+      calendarGridEl.innerHTML = '';
+
+      days.forEach((day, index) => {
+        const date = day.date || day.day || day.created_at || `Dia ${index + 1}`;
+        const completed = Boolean(day.completed);
+        const marker = document.createElement('span');
+        marker.className = `consistency-day${completed ? ' is-completed' : ''}`;
+        marker.title = date;
+        marker.setAttribute('aria-label', `${date}: ${completed ? 'ativo' : 'sem registro'}`);
+        calendarGridEl.appendChild(marker);
+      });
+    }
+
+    function renderConsistency(data) {
+      const activeDays = Number(data?.activeDays || 0);
+      const currentStreak = Number(data?.currentStreak || 0);
+      const bestStreak = Number(data?.bestStreak || 0);
+
+      activeDaysEl.textContent = activeDays;
+      currentStreakEl.textContent = `${currentStreak} dia(s)`;
+      bestStreakEl.textContent = `${bestStreak} dia(s)`;
+      momentTextEl.textContent = getMomentText(currentStreak);
+      emptyStateEl.hidden = activeDays !== 0;
+      renderCalendar(data?.calendar);
+      statusEl.hidden = true;
+    }
+
+    async function loadConsistency() {
+      try {
+        const response = await api('/portal/project-lm/consistency');
+        renderConsistency(response?.data || response || {});
+      } catch (error) {
+        statusEl.textContent = 'Não foi possível carregar sua consistência agora. Tente novamente em instantes.';
+        momentTextEl.textContent = 'Não foi possível carregar sua consistência agora. Tente novamente em instantes.';
+      }
+    }
+
+    loadConsistency();
+  </script>
+</body>
+</html>

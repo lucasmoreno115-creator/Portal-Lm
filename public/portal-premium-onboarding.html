@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Portal Premium LM</title>
+  <style>
+    :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100svh;background:radial-gradient(circle at top,#272015 0,#0d0d0d 48rem);color:#f6f1e7;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.onboarding{min-height:100svh;display:grid;place-items:center;padding:24px}.panel{width:min(100%,680px);padding:clamp(28px,6vw,56px);border:1px solid rgba(212,175,55,.28);border-radius:24px;background:rgba(21,20,18,.92);box-shadow:0 24px 80px rgba(0,0,0,.35)}.brand{font-weight:800;letter-spacing:.18em;color:#d9b85a;font-size:1.05rem}.status{display:inline-block;margin:38px 0 16px;padding:7px 11px;border:1px solid rgba(212,175,55,.38);border-radius:999px;color:#e2c977;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase}h1{font-size:clamp(2rem,6vw,3.4rem);line-height:1.08;margin:0 0 18px;letter-spacing:-.04em}p,li{font-size:1.05rem;line-height:1.65;color:#d2cec6}ul{padding-left:1.2rem;margin:24px 0}.cta{display:inline-flex;justify-content:center;align-items:center;min-height:52px;margin-top:18px;padding:0 24px;border-radius:10px;background:#d4af37;color:#161208;text-decoration:none;font-weight:800}.help{margin-top:28px;font-size:.95rem}.help a{color:#e2c977}@media(max-width:480px){.onboarding{padding:16px}.panel{min-height:calc(100svh - 32px);display:flex;flex-direction:column;justify-content:center;border-radius:18px}.cta{width:100%}}
+  </style>
+</head>
+<body>
+  <main class="onboarding"><section class="panel" aria-live="polite">
+    <div class="brand" aria-label="LM">LM</div>
+    <span class="status" id="status">Validando acesso</span>
+    <h1 id="title">Preparando sua experiência</h1>
+    <div id="content"><p>Estamos verificando seu acesso com segurança.</p></div>
+  </section></main>
+  <script src="portal-shared.js"></script>
+  <script>
+    const messages = {
+      NEW: { title: (name) => `Bem-vindo ao Portal Premium, ${name}!`, body: 'Antes de preparar o seu planejamento, preciso conhecer melhor sua rotina, seus objetivos e suas necessidades.<br><br>Responda à anamnese com atenção. Essa etapa leva cerca de 10 minutos.' },
+      AWAITING_ANAMNESIS: { title: (name) => `Bem-vindo ao Portal Premium, ${name}!`, body: 'Antes de preparar o seu planejamento, preciso conhecer melhor sua rotina, seus objetivos e suas necessidades.<br><br>Responda à anamnese com atenção. Essa etapa leva cerca de 10 minutos.' },
+      UNDER_REVIEW: { title: () => 'Suas informações foram enviadas com sucesso!', body: 'Agora vou analisar tudo com atenção e preparar o seu planejamento.<br><br>Assim que estiver pronto, entrarei em contato para explicar os próximos passos.', list: ['Análise da anamnese', 'Preparação do treino', 'Definição da estratégia nutricional', 'Organização do acompanhamento'] },
+      READY_TO_RELEASE: { title: () => 'Seu planejamento está sendo finalizado', body: 'As informações já foram analisadas e seu acompanhamento está pronto para a etapa final de liberação.<br><br>Assim que o acesso completo for liberado, entrarei em contato com você.' },
+      PAUSED: { title: () => 'Seu acompanhamento está pausado', body: 'O acesso aos módulos do acompanhamento está temporariamente indisponível.<br><br>Entre em contato comigo caso precise de ajuda ou queira retomar.' },
+      ENDED: { title: () => 'Seu acompanhamento foi encerrado', body: 'Obrigado por fazer parte da Consultoria LM.<br><br>Caso queira iniciar uma nova etapa, entre em contato comigo.' }
+    };
+    (async function load() {
+      if (!getAuth().email || !getAuth().token) return window.location.replace('portal-login.html');
+      try {
+        const response = await api('/portal/premium/access-state');
+        const state = response.data;
+        if (state.experience === 'PREMIUM_PORTAL') return window.location.replace('portal-premium-home.html');
+        const message = messages[state.consultationStatus] || messages.NEW;
+        document.getElementById('status').textContent = state.consultationStatusLabel || 'Portal Premium';
+        document.getElementById('title').textContent = message.title(state.name || 'Aluno');
+        const content = document.getElementById('content');
+        content.innerHTML = `<p>${message.body}</p>${message.list ? `<ul>${message.list.map((item) => `<li>${item}</li>`).join('')}</ul>` : ''}${state.primaryAction ? `<a class="cta" href="${state.primaryAction.href}">Responder minha anamnese</a>` : ''}${state.supportLink ? `<p class="help"><a href="${state.supportLink}">Preciso de ajuda</a></p>` : ''}`;
+      } catch (_) { window.location.replace('portal-login.html'); }
+    }());
+  </script>
+</body>
+</html>

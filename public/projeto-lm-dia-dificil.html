@@ -1,0 +1,84 @@
+<!-- LEGACY - DO NOT EXTEND
+     SUPERSEDED BY PROJECT LM V5 -->
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Plano B — Projeto LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body class='portal-home-v7 projeto-lm-hard-day-page'>
+  <main class='container home-main'>
+    <div id='nav' class='mobile-nav'></div>
+
+    <section class='card hero hero-premium hard-day-hero'>
+      <p class='eyebrow'>Projeto LM</p>
+      <h1>Plano B</h1>
+      <p class='hero-subtext'>Para os dias em que a vida não colabora.</p>
+      <p class='hero-subtext'>Hoje não é dia de vencer. É dia de não desistir.</p>
+      <p class='hard-day-hero-focus'>Seu único objetivo agora:<br>proteger o processo.</p>
+    </section>
+
+    <section class='card dashboard-card hard-day-reminder-card'>
+      <h2>🧠 Lembrete</h2>
+      <p>Um dia difícil não destrói seus resultados.</p>
+      <p>O que destrói resultados é transformar<br>um dia difícil em uma semana difícil.</p>
+    </section>
+
+    <section id='hardDayChecklistCard' class='card dashboard-card hard-day-checklist-card'>
+      <h2>Checklist Plano B</h2>
+      <ul class='hard-day-checklist'>
+        <li>✔ Beber 2 l de água</li>
+        <li>✔ Fazer uma refeição com proteína</li>
+        <li>✔ Caminhar 30 minutos</li>
+        <li>✔ Encerrar o dia sem desistir</li>
+      </ul>
+      <button id='doneBtn' class='primary-cta' type='button'>✅ Hoje eu não desisti</button>
+      <p id='doneMsg' class='muted' role='status'></p>
+    </section>
+
+    <section class='card dashboard-card hard-day-next-step-card'>
+      <h2>📍 Próximo passo</h2>
+      <p>Amanhã você volta para o plano normal.</p>
+      <p>Hoje era apenas sobre continuar.</p>
+      <a class='primary-cta' href='projeto-lm-jornada.html'>Ver Minha Jornada →</a>
+    </section>
+  </main>
+  <script src='/assets/js/lm-access.js?v=20260623-1'></script>
+  <script src='portal-shared.js'></script>
+  <script>
+    requireAuth();
+    redirectIfNoAccess('modo-dia-dificil');
+    document.getElementById('nav').innerHTML = nav();
+
+    const doneBtn = document.getElementById('doneBtn');
+    const doneMsg = document.getElementById('doneMsg');
+    const checklistCard = document.getElementById('hardDayChecklistCard');
+
+    function renderSuccess() {
+      checklistCard.classList.add('hard-day-success-card');
+      checklistCard.innerHTML = `
+        <h2>✅ Vitória registrada</h2>
+        <p>Você protegeu o processo hoje.</p>
+        <p>Amanhã você volta para o plano normal.</p>
+      `;
+    }
+
+    doneBtn.onclick = async () => {
+      doneBtn.disabled = true;
+      doneMsg.textContent = '';
+      try {
+        await api('/portal/project-lm/daily-actions', {
+          method: 'POST',
+          body: JSON.stringify({ actionType: 'modo_dia_dificil' })
+        });
+        renderSuccess();
+      } catch (error) {
+        doneBtn.disabled = false;
+        doneMsg.textContent = error.message || 'Não foi possível registrar o mínimo de hoje agora.';
+      }
+    };
+  </script>
+</body>
+</html>

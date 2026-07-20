@@ -1,0 +1,76 @@
+<!-- LEGACY - DO NOT EXTEND
+     SUPERSEDED BY PROJECT LM V5 -->
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Biblioteca LM — Projeto LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body class='portal-home-v7 projeto-lm-library-page'>
+  <main class='container home-main'>
+    <div id='nav' class='mobile-nav'></div>
+
+    <section class='card hero hero-premium library-hero'>
+      <p class='eyebrow'>Projeto LM</p>
+      <h1>Biblioteca LM</h1>
+      <p class='hero-subtext'>Conteúdos curtos para continuar evoluindo sem depender de perfeição.</p>
+    </section>
+
+    <p id='libraryStatus' class='status' role='status'>Carregando biblioteca...</p>
+    <section id='libraryGrid' class='library-grid' aria-label='Conteúdos da Biblioteca LM'></section>
+  </main>
+
+  <script src='/assets/js/lm-access.js?v=20260623-1'></script>
+  <script src='portal-shared.js'></script>
+  <script>
+    requireAuth();
+    redirectIfNoAccess('biblioteca');
+    redirectProjectLmOnboardingIfNeeded().catch(() => {});
+    document.getElementById('nav').innerHTML = nav();
+
+    const statusEl = document.getElementById('libraryStatus');
+    const gridEl = document.getElementById('libraryGrid');
+
+    function renderLibrary(items) {
+      gridEl.innerHTML = '';
+      if (!items.length) {
+        statusEl.textContent = 'Nenhum conteúdo cadastrado ainda.';
+        statusEl.hidden = false;
+        return;
+      }
+
+      items.forEach((item) => {
+        const card = document.createElement('article');
+        card.className = `card dashboard-card library-card${item.locked ? ' is-locked' : ''}${item.completed ? ' is-completed' : ''}`;
+        const statusText = item.locked ? '🔒 Bloqueado' : '🔓 Liberado';
+        const actionHtml = item.locked
+          ? `<button class='primary-cta' type='button' disabled>Bloqueado</button>`
+          : `<a class='primary-cta' href='projeto-lm-conteudo.html?slug=${encodeURIComponent(item.slug)}'>Assistir</a>`;
+
+        card.innerHTML = `
+          <h2>🎥 ${item.title || 'Conteúdo'}</h2>
+          <p>${item.description || ''}</p>
+          <p class='library-card-status'><strong>Status:</strong> ${statusText}</p>
+          ${item.completed ? `<p class='library-card-completed'>Conteúdo concluído ✅</p>` : ''}
+          ${actionHtml}
+        `;
+        gridEl.appendChild(card);
+      });
+      statusEl.hidden = true;
+    }
+
+    async function loadLibrary() {
+      try {
+        const response = await api('/portal/project-lm/library');
+        renderLibrary(response?.data || []);
+      } catch (error) {
+        statusEl.textContent = error.message || 'Não foi possível carregar a biblioteca agora.';
+      }
+    }
+
+    loadLibrary();
+  </script>
+</body>
+</html>

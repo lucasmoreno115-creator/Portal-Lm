@@ -1,0 +1,6 @@
+const API_BASE = '/api';
+function getAuth(){return{email:localStorage.getItem('lm_student_email')||'',token:localStorage.getItem('lm_student_token')||''}}
+function logout(){localStorage.removeItem('lm_student_email');localStorage.removeItem('lm_student_token');localStorage.removeItem('lm_student_name');localStorage.removeItem('lm_student_plan');localStorage.removeItem('lm_student_plan_type');window.location.href='portal-login.html';}
+function requireAuth(){const {email,token}=getAuth();if(!email||!token) window.location.href='portal-login.html';}
+function nav(){return typeof renderPlanAwareMenu==='function'?renderPlanAwareMenu():`<nav><a href='portal.html'>Página inicial</a><a href='portal-checkin.html'>Check-in semanal</a><a href='portal-plano-alimentar.html'>Plano alimentar</a><a href='portal-progressao.html'>Progressão de carga</a><a href='portal-checkin.html#supportNeeded'>Preciso de ajuda</a><button onclick='logout()'>Sair</button></nav>`}
+async function api(path, options={}){const {email,token}=getAuth();const headers={ 'Content-Type':'application/json', ...(options.headers||{})}; if(email&&token){headers['x-student-email']=email; headers['x-student-token']=token;} const res=await fetch(`${API_BASE}${path}`,{...options,headers}); const data=await res.json().catch(()=>({})); if(!res.ok) throw new Error(data.error||'Erro'); return data;}

@@ -1,0 +1,160 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Cadastro de aluno LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <nav>
+      <a href='/admin.html'>Admin Hub</a>
+      <a href='/admin-command-center.html'>Command Center</a>
+      <a href='/admin-student.html'>Student 360</a>
+      <a href='/admin-students.html'>Cadastro de aluno</a>
+      <button id='adminLogoutBtn' type='button'>Sair</button>
+    </nav>
+    <section class='card hero'>
+      <p class='eyebrow'>Consultoria LM • Painel interno</p>
+      <h1>Cadastro de aluno LM</h1>
+      <p class='hero-title'>Crie ou atualize acesso, produto e status do aluno.</p>
+      <p class='muted'>Após salvar, envie ao aluno o link do portal, email e token de acesso.</p>
+    </section>
+
+    <section class='card'>
+      <form id='studentAccessForm'>
+        <label>Token admin
+          <input id='adminToken' type='password' autocomplete='off' required>
+        </label>
+
+        <div class='grid'>
+          <label>Nome do aluno
+            <input id='studentName' type='text' required>
+          </label>
+          <label>Email do aluno
+            <input id='studentEmail' type='email' required>
+          </label>
+        </div>
+
+        <label>WhatsApp do aluno
+          <input id='studentWhatsapp' type='text' placeholder='5514999999999'>
+        </label>
+
+        <label>Token/senha de acesso
+          <input id='accessToken' type='text' required>
+        </label>
+
+        <label>Produto
+          <select id='studentPlan'>
+            <option value='premium' selected>Consultoria Premium</option>
+            <option value='projeto_lm'>Projeto LM</option>
+          </select>
+        </label>
+
+        <label>Status
+          <select id='status'>
+            <option value='ACTIVE' selected>ACTIVE</option>
+            <option value='PENDING_ONBOARDING'>PENDING_ONBOARDING</option>
+            <option value='INACTIVE'>INACTIVE</option>
+          </select>
+        </label>
+
+        <button id='saveBtn' type='submit'>Salvar acesso</button>
+      </form>
+    </section>
+
+    <section class='card'>
+      <p id='statusBox' class='status muted'>Preencha os dados do aluno para criar ou atualizar o acesso.</p>
+      <pre id='shareBlock' class='status' style='display:none;white-space:pre-wrap'></pre>
+      <a class='secondary-link' href='/admin-command-center.html'>Voltar ao Command Center</a>
+    </section>
+  </div>
+
+  <script src='/admin-auth.js'></script>
+  <script>
+window.LMAdminAuth.requireAdmin();
+window.LMAdminAuth.hydrateAdminTokenInput('adminToken');
+window.LMAdminAuth.attachLogout('adminLogoutBtn');
+</script>
+<script>
+    const form = document.getElementById('studentAccessForm');
+    const saveBtn = document.getElementById('saveBtn');
+    const statusBox = document.getElementById('statusBox');
+    const shareBlock = document.getElementById('shareBlock');
+
+    function normalizeWhatsapp(value) {
+      const digits = String(value || '').replace(/\D+/g, '');
+      if (!digits) return null;
+      if (digits.startsWith('55')) return digits;
+      if (digits.length === 10 || digits.length === 11) return `55${digits}`;
+      return digits;
+    }
+
+    function setStatus(message, type) {
+      statusBox.textContent = message;
+      statusBox.className = 'status';
+      statusBox.classList.add(type || 'muted');
+    }
+
+    function legacyPlanTypeForPlan(plan) {
+      return plan === 'projeto_lm' ? 'START' : 'PREMIUM';
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const adminToken = document.getElementById('adminToken').value.trim();
+      const name = document.getElementById('studentName').value.trim();
+      const email = document.getElementById('studentEmail').value.trim().toLowerCase();
+      const accessToken = document.getElementById('accessToken').value.trim();
+      const plan = document.getElementById('studentPlan').value.trim();
+      const planType = legacyPlanTypeForPlan(plan);
+      const status = document.getElementById('status').value.trim();
+      const whatsapp = normalizeWhatsapp(document.getElementById('studentWhatsapp').value);
+
+      if (!adminToken || !name || !email || !accessToken) {
+        setStatus('Preencha token admin, nome, email e token/senha de acesso.', 'error');
+        shareBlock.style.display = 'none';
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Salvando...';
+      setStatus('Salvando acesso do aluno...', 'muted');
+      shareBlock.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/admin/student-access', {
+          method: 'POST',
+          headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            name,
+            email,
+            access_token: accessToken,
+            plan,
+            plan_type: planType,
+            status,
+            whatsapp
+          })
+        });
+
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) {
+          throw new Error(payload?.error || 'Falha ao salvar acesso');
+        }
+
+        setStatus('Acesso salvo com sucesso.', 'ok');
+
+        shareBlock.textContent = `Acesso liberado ao Portal LM:\n\nLink: https://portal.lucasmorenopersonal.com.br\nEmail: ${email}\nToken: ${accessToken}\n\nMensagem:\nSeu acesso ao Portal LM foi liberado. Use o link abaixo com seu email e token para entrar.`;
+        shareBlock.style.display = 'block';
+      } catch (error) {
+        setStatus('Não foi possível salvar o acesso. Verifique token admin e campos obrigatórios.', 'error');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Salvar acesso';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,355 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Plano Alimentar</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <div id='nav'></div>
+
+    <section class='card hero'>
+      <p class='eyebrow'>Consultoria LM</p>
+      <h1>Plano Alimentar</h1>
+      <p class='hero-subtext'>Sua estratégia nutricional atual organizada de forma simples para facilitar a execução no dia a dia.</p>
+    </section>
+
+    <section id='contentCard' class='card'>
+      <p id='statusText' class='muted'>Carregando seu plano alimentar...</p>
+      <div id='planContent' hidden></div>
+      <div id='pdfActions' hidden style='margin-top:16px;'>
+        <button id='downloadPdfBtn' type='button' class='primary-cta'>Baixar PDF completo</button>
+      </div>
+    </section>
+  </div>
+
+  <script src='/assets/js/lm-access.js?v=20260623-1'></script>
+  <script src='portal-shared.js'></script>
+  <script>
+    requireAuth();
+    redirectIfNoAccess('plano-alimentar');
+    document.getElementById('nav').innerHTML = nav();
+
+    const statusText = document.getElementById('statusText');
+    const planContent = document.getElementById('planContent');
+    const pdfActions = document.getElementById('pdfActions');
+    const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function renderList(items) {
+      return `<ul class='mission-list'>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+    }
+
+    function renderTextBlock(text) {
+      return `<p style='white-space: pre-line;'>${escapeHtml(text)}</p>`;
+    }
+
+    function normalizeLineItems(value) {
+      const stripMarker = (line) => line.replace(/^\s*(?:[-•*]\s+|\d+[.)]\s+)/, '').trim();
+      const splitLines = (text) => String(text || '').split(/\r?\n/).map((line) => stripMarker(line)).filter(Boolean);
+
+      if (Array.isArray(value)) {
+        return value.flatMap((item) => splitLines(item)).filter(Boolean);
+      }
+
+      return splitLines(value);
+    }
+
+    function renderTextOrList(value) {
+      const lines = normalizeLineItems(value);
+      if (!lines.length) return '';
+      return lines.length > 1 ? renderList(lines) : renderTextBlock(lines[0]);
+    }
+
+
+    const equivalenceNote = 'As substitui&ccedil;&otilde;es s&atilde;o aproxima&ccedil;&otilde;es pr&aacute;ticas. O objetivo &eacute; manter prote&iacute;na alta, carboidrato controlado e boa ades&atilde;o alimentar.';
+
+    function renderFoodEquivalences(substitutions) {
+      if (!Array.isArray(substitutions) || !substitutions.length) return '';
+      const modernItems = substitutions.filter((item) => item && typeof item === 'object' && 'category' in item && 'reference' in item);
+      if (!modernItems.length) {
+        return substitutions.map((sub) => `
+          <article class='equivalence-card'>
+            <div class='equivalence-card-title'>
+              <span class='equivalence-icon'>*</span>
+              <h3>${escapeHtml(sub?.title || 'Substituicao')}</h3>
+            </div>
+            ${renderTextBlock(Array.isArray(sub?.items) ? String(sub.items[0] || '') : '')}
+          </article>
+        `).join('');
+      }
+      return modernItems.map((category) => `
+        <article class='equivalence-card'>
+          <div class='equivalence-card-title'>
+            <span class='equivalence-icon'>${escapeHtml(category.icon || '*')}</span>
+            <h3>${escapeHtml(category.category || 'Categoria')}</h3>
+          </div>
+          <p class='equivalence-reference'>${escapeHtml(category.reference || '')}</p>
+          ${renderList(Array.isArray(category.items) ? category.items : [])}
+        </article>
+      `).join('');
+    }
+
+    function sectionHtml(title, content) {
+      if (!content) return '';
+      return `<section class='card'><h2>${title}</h2>${content}</section>`;
+    }
+
+    function createAccordionSection(id, title, content, isOpen) {
+      return `
+        <section class='card nutrition-accordion ${isOpen ? 'is-open' : ''}' data-accordion>
+          <button type='button' class='nutrition-accordion-header' aria-expanded='${isOpen ? 'true' : 'false'}' aria-controls='${id}'>
+            <span>${title}</span>
+            <span class='accordion-chevron' aria-hidden='true'>⌄</span>
+          </button>
+          <div id='${id}' class='nutrition-accordion-content' ${isOpen ? '' : 'hidden'}>${content}</div>
+        </section>
+      `;
+    }
+
+    function buildFoodConverterSection() {
+      return `
+        <div class='nutrition-tools-card'>
+          <div class='food-converter'>
+            <h3>🥩 Conversor Cru ↔ Pronto</h3>
+            <p class='muted'>Use esta ferramenta para estimar o peso aproximado da prote&iacute;na antes ou depois do preparo.</p>
+            <div class='food-converter-grid'>
+              <div class='food-converter-field'>
+                <label for='foodType'>Tipo de alimento</label>
+                <select id='foodType'>
+                  <option value='frango'>Frango</option>
+                  <option value='carne bovina'>Carne bovina</option>
+                  <option value='carne suina'>Carne su&iacute;na</option>
+                  <option value='peixe'>Peixe</option>
+                </select>
+              </div>
+              <div class='food-converter-field'>
+                <label for='foodDirection'>Convers&atilde;o</label>
+                <select id='foodDirection'>
+                  <option value='raw_to_cooked'>Cru → Pronto</option>
+                  <option value='cooked_to_raw'>Pronto → Cru</option>
+                </select>
+              </div>
+              <div class='food-converter-field'>
+                <label for='foodWeight'>Peso</label>
+                <div class='food-converter-weight-wrap'>
+                  <input id='foodWeight' type='number' min='0' step='1' placeholder='Ex: 150' inputmode='numeric'>
+                  <span>g</span>
+                </div>
+              </div>
+            </div>
+            <p id='foodConverterResult' class='food-converter-result' aria-live='polite'>Informe o peso para calcular.</p>
+            <p class='food-converter-note'>Valores aproximados. O peso final pode variar conforme m&eacute;todo de preparo, tempo de coc&ccedil;&atilde;o e teor de &aacute;gua do alimento.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    function setupFoodConverter() {
+      const foodType = document.getElementById('foodType');
+      const foodDirection = document.getElementById('foodDirection');
+      const foodWeight = document.getElementById('foodWeight');
+      const result = document.getElementById('foodConverterResult');
+      if (!foodType || !foodDirection || !foodWeight || !result) return;
+
+      const lossRateByFood = {
+        frango: 0.3,
+        'carne bovina': 0.3,
+        'carne suina': 0.3,
+        peixe: 0.2
+      };
+      const labelByFood = {
+        frango: 'frango',
+        'carne bovina': 'carne bovina',
+        'carne suina': 'carne suína',
+        peixe: 'peixe'
+      };
+
+      const updateResult = () => {
+        const weight = Number(foodWeight.value);
+        const selectedFood = foodType.value;
+        const selectedDirection = foodDirection.value;
+        const lossRate = lossRateByFood[selectedFood] ?? 0.3;
+
+        if (!Number.isFinite(weight) || weight <= 0) {
+          result.textContent = 'Informe o peso para calcular.';
+          return;
+        }
+
+        const baseFactor = 1 - lossRate;
+        const convertedWeight = selectedDirection === 'raw_to_cooked'
+          ? weight * baseFactor
+          : weight / baseFactor;
+
+        const roundedInput = Math.round(weight);
+        const roundedResult = Math.round(convertedWeight);
+        const foodLabel = labelByFood[selectedFood] || selectedFood;
+
+        result.textContent = selectedDirection === 'raw_to_cooked'
+          ? `${roundedInput}g de ${foodLabel} cru equivalem a aproximadamente ${roundedResult}g pronto.`
+          : `${roundedInput}g de ${foodLabel} pronto equivalem a aproximadamente ${roundedResult}g cru.`;
+      };
+
+      foodType.addEventListener('change', updateResult);
+      foodDirection.addEventListener('change', updateResult);
+      foodWeight.addEventListener('input', updateResult);
+      updateResult();
+    }
+
+    function renderPlan(plan) {
+      const strategyGoalHtml = plan.goal
+        ? `<div><p class='eyebrow'>🎯 Objetivo atual</p>${renderTextBlock(plan.goal)}</div>`
+        : '';
+      const strategyFocusHtml = (() => {
+        const focusHtml = renderTextOrList(plan.strategy);
+        if (!focusHtml) return '';
+        return `<div><p class='eyebrow'>📈 Foco da fase</p>${focusHtml}</div>`;
+      })();
+      const strategyHtml = strategyGoalHtml || strategyFocusHtml
+        ? `${strategyGoalHtml}${strategyFocusHtml}`
+        : '<p class="muted">Sem estrat&eacute;gia cadastrada.</p>';
+
+      const mealsHtml = (plan.meals || []).map((meal) => `
+        <article class='meal-card'>
+          <h3>${escapeHtml(meal?.name || 'Refeicao')}</h3>
+          ${renderTextBlock(Array.isArray(meal?.items) ? String(meal.items[0] || '') : '')}
+        </article>
+      `).join('');
+
+      const substitutionsHtml = renderFoodEquivalences(plan.substitutions || []);
+      const adherenceRulesHtml = renderTextOrList(plan.adherence_rules);
+      const message = encodeURIComponent(plan.whatsapp_message || 'Ola, estou com duvida sobre meu plano alimentar no Portal LM.');
+      const summaryHtml = `
+        <section class='card'>
+          <h2>Resumo do plano</h2>
+          <div class='nutrition-summary-grid'>
+            <article class='nutrition-summary-card'>
+              <p class='eyebrow'>🎯 Objetivo atual</p>
+              <p>Recomposi&ccedil;&atilde;o corporal</p>
+            </article>
+            <article class='nutrition-summary-card'>
+              <p class='eyebrow'>📈 Foco da fase</p>
+              <p>Sustentar resultado e melhorar performance</p>
+            </article>
+            <article class='nutrition-summary-card'>
+              <p class='eyebrow'>✅ Status do plano</p>
+              <p>Plano ativo</p>
+            </article>
+          </div>
+        </section>
+      `;
+
+      const mealsSection = mealsHtml ? `<div class='grid'>${mealsHtml}</div>` : '<p class="muted">Sem refei&ccedil;&otilde;es cadastradas.</p>';
+      const substitutionsSection = substitutionsHtml ? `<div class='equivalence-grid'>${substitutionsHtml}</div><p class='equivalence-note'>${equivalenceNote}</p>` : '<p class="muted">Sem equival&ecirc;ncias cadastradas.</p>';
+      const supportSection = `
+        <p class='muted'>Se surgiu qualquer d&uacute;vida na execu&ccedil;&atilde;o, pe&ccedil;a orienta&ccedil;&atilde;o antes de ajustar por conta pr&oacute;pria.</p>
+        <div class='nutrition-actions'>
+          <a class='primary-cta' href='https://wa.me/5514991174500?text=${message}' target='_blank' rel='noopener noreferrer'>Falar com Lucas sobre este plano</a>
+        </div>
+      `;
+
+      planContent.innerHTML = `
+        ${summaryHtml}
+        ${createAccordionSection('acc-strategy', 'Estrat&eacute;gia atual', strategyHtml, false)}
+        ${createAccordionSection('acc-meals', 'Refei&ccedil;&otilde;es do plano', mealsSection, true)}
+        ${createAccordionSection('acc-equivalences', 'Guia de Equival&ecirc;ncias Alimentares', substitutionsSection, false)}
+        ${createAccordionSection('acc-rules', 'Regras de ades&atilde;o', adherenceRulesHtml || '<p class="muted">Sem regras cadastradas.</p>', false)}
+        ${createAccordionSection('acc-notes', 'Observa&ccedil;&otilde;es', plan.notes ? renderTextBlock(plan.notes) : '<p class="muted">Sem observa&ccedil;&otilde;es.</p>', false)}
+        ${createAccordionSection('acc-tools', '🧮 Ferramentas nutricionais', buildFoodConverterSection(), false)}
+        ${createAccordionSection('acc-support', 'Suporte', supportSection, false)}
+      `;
+
+      statusText.hidden = true;
+      planContent.hidden = false;
+      bindAccordions();
+      setAccordionDefaultByViewport();
+      setupFoodConverter();
+    }
+
+    function toggleAccordion(section, shouldOpen) {
+      const header = section.querySelector('.nutrition-accordion-header');
+      const content = section.querySelector('.nutrition-accordion-content');
+      if (!header || !content) return;
+      section.classList.toggle('is-open', shouldOpen);
+      header.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+      content.hidden = !shouldOpen;
+    }
+
+    function bindAccordions() {
+      document.querySelectorAll('[data-accordion]').forEach((section) => {
+        const header = section.querySelector('.nutrition-accordion-header');
+        if (!header) return;
+        header.onclick = () => {
+          const isOpen = section.classList.contains('is-open');
+          toggleAccordion(section, !isOpen);
+        };
+      });
+    }
+
+    function setAccordionDefaultByViewport() {
+      if (window.innerWidth > 720) return;
+      document.querySelectorAll('[data-accordion]').forEach((section) => {
+        const content = section.querySelector('.nutrition-accordion-content');
+        toggleAccordion(section, content?.id === 'acc-meals');
+      });
+    }
+
+    function downloadPlanPdf() {
+      downloadPdfBtn.disabled = true;
+      const originalText = downloadPdfBtn.textContent;
+      downloadPdfBtn.textContent = 'Abrindo versão para impressão...';
+
+      try {
+        const printWindow = window.open(
+          'portal-plano-alimentar-print.html',
+          '_blank',
+          'noopener,noreferrer'
+        );
+
+        if (!printWindow) {
+          window.location.href = 'portal-plano-alimentar-print.html';
+        }
+      } catch (error) {
+        alert(error.message || 'Não foi possível abrir a versão de impressão.');
+      } finally {
+        window.setTimeout(() => {
+          downloadPdfBtn.disabled = false;
+          downloadPdfBtn.textContent = originalText;
+        }, 500);
+      }
+    }
+
+    downloadPdfBtn.addEventListener('click', downloadPlanPdf);
+
+    async function loadPlan() {
+      try {
+        const response = await api('/portal/nutrition-plan');
+
+        if (!response?.data) {
+          statusText.textContent = 'Seu plano alimentar ainda não foi liberado no portal. Assim que estiver disponível, ele aparecerá aqui.';
+          statusText.className = 'status muted';
+          return;
+        }
+
+        renderPlan(response.data);
+        pdfActions.hidden = false;
+      } catch (error) {
+        statusText.textContent = 'Não foi possível carregar seu plano alimentar agora. Tente novamente em instantes.';
+        statusText.className = 'status error';
+      }
+    }
+
+    loadPlan();
+  </script>
+</body>
+</html>

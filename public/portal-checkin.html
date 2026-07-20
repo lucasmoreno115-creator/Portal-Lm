@@ -1,0 +1,137 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Check-in LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body>
+  <div class='container'>
+    <div id='nav'></div>
+
+    <div class='card'>
+      <h1>Check-in semanal</h1>
+      <p class='muted'>Use este espaço para enviar seu feedback da semana. Suas respostas ajudam a ajustar a estratégia com mais precisão.</p>
+      <form id='f' class='grid'>
+        <label>Adesão ao treino
+          <select name='trainingAdherence' required>
+            <option value=''>Selecione</option>
+            <option>100%</option><option>75–90%</option><option>50–75%</option><option>&lt;50%</option>
+          </select>
+        </label>
+        <label>Adesão à alimentação
+          <select name='nutritionAdherence' required>
+            <option value=''>Selecione</option>
+            <option>Excelente</option><option>Boa</option><option>Média</option><option>Baixa</option>
+          </select>
+        </label>
+        <label>Cardio realizado
+          <select name='cardioAdherence' required>
+            <option value=''>Selecione</option>
+            <option>Sim</option><option>Parcialmente</option><option>Não</option>
+          </select>
+        </label>
+        <label>Peso semanal
+          <input name='weeklyWeight' type='number' step='0.1' placeholder='Ex.: 78.4'>
+        </label>
+        <label>Cintura
+          <input name='waist' type='number' step='0.1' placeholder='Ex.: 84'>
+        </label>
+        <label>Fome
+          <select name='hungerLevel' required>
+            <option value=''>Selecione</option>
+            <option>Muito controlada</option><option>Normal</option><option>Alta</option><option>Muito alta</option>
+          </select>
+        </label>
+        <label>Sono
+          <select name='sleepQuality' required>
+            <option value=''>Selecione</option>
+            <option>Excelente</option><option>Bom</option><option>Regular</option><option>Ruim</option>
+          </select>
+        </label>
+        <label>Energia
+          <select name='energyLevel' required>
+            <option value=''>Selecione</option>
+            <option>Alto</option><option>Normal</option><option>Baixo</option><option>Muito baixo</option>
+          </select>
+        </label>
+        <label>Estresse
+          <select name='stressLevel' required>
+            <option value=''>Selecione</option>
+            <option>Baixo</option><option>Moderado</option><option>Alto</option><option>Muito alto</option>
+          </select>
+        </label>
+        <label>Principal dificuldade da semana
+          <input name='mainDifficulty' placeholder='Descreva em poucas palavras' required>
+        </label>
+        <label id='supportNeeded'>Precisa de suporte?
+          <select name='supportNeeded' required>
+            <option value=''>Selecione</option>
+            <option>Não</option><option>Sim um pouco</option><option>Sim bastante</option>
+          </select>
+        </label>
+      </form>
+      <button id='send'>Enviar check-in</button>
+      <p id='msg'></p>
+    </div>
+
+    <div class='card'>
+      <h2>Histórico</h2>
+      <div id='hist'></div>
+    </div>
+  </div>
+
+  <script src='/assets/js/lm-access.js?v=20260623-1'></script>
+  <script src='portal-shared.js'></script>
+  <script>
+    const navEl = document.getElementById('nav');
+    const f = document.getElementById('f');
+    const send = document.getElementById('send');
+    const msg = document.getElementById('msg');
+    const hist = document.getElementById('hist');
+
+    requireAuth();
+    redirectIfNoAccess('checkin');
+    navEl.innerHTML = nav();
+
+    send.onclick = async () => {
+      if (!f.reportValidity()) return;
+      const data = Object.fromEntries(new FormData(f).entries());
+
+      try {
+        await api('/portal/checkin', { method: 'POST', body: JSON.stringify(data) });
+        msg.className = 'ok';
+        msg.textContent = 'Check-in enviado com sucesso. Seu feedback já está registrado para análise.';
+        f.reset();
+        load();
+      } catch (e) {
+        msg.className = 'error';
+        msg.textContent = e.message;
+      }
+    };
+
+    function formatDate(value) {
+      if (!value) return '-';
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString('pt-BR');
+    }
+
+    async function load() {
+      const r = await api('/portal/checkins');
+      hist.innerHTML = (r.data || []).map(c => {
+        const replyBlock = c.coach_reply
+          ? `<div class='coach-reply-card'><strong>Resposta do Lucas</strong><p>${c.coach_reply}</p><small>${formatDate(c.coach_reply_at)}</small></div>`
+          : `<p class='muted'>Seu check-in foi recebido. A orientação aparecerá aqui quando for registrada.</p>`;
+
+        return `<div class='status'>
+          <p><strong>${formatDate(c.created_at)}</strong> · Treino: ${c.training_adherence || '-'} · Dificuldade: ${c.main_difficulty || '-'}</p>
+          ${replyBlock}
+        </div>`;
+      }).join('') || 'Sem histórico';
+    }
+
+    load();
+  </script>
+</body>
+</html>

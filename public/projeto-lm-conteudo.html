@@ -1,0 +1,119 @@
+<!-- LEGACY - DO NOT EXTEND
+     SUPERSEDED BY PROJECT LM V5 -->
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Conteúdo — Biblioteca LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body class='portal-home-v7 projeto-lm-content-page'>
+  <main class='container home-main'>
+    <div id='nav' class='mobile-nav'></div>
+
+    <section class='card hero hero-premium content-hero'>
+      <p class='eyebrow'>Biblioteca LM</p>
+      <h1 id='contentTitle'>Conteúdo</h1>
+      <p id='contentDescription' class='hero-subtext'>Carregando...</p>
+    </section>
+
+    <p id='contentStatus' class='status' role='status'>Carregando conteúdo...</p>
+
+    <section id='contentBody' hidden>
+      <section class='card dashboard-card content-video-card'>
+        <h2>Vídeo</h2>
+        <div id='videoContainer' class='content-video-placeholder'>Vídeo será cadastrado em breve.</div>
+      </section>
+
+      <section class='card dashboard-card'>
+        <h2>Resumo</h2>
+        <p id='contentSummary'></p>
+      </section>
+
+      <section class='card dashboard-card'>
+        <h2>Ação prática</h2>
+        <p id='contentAction'></p>
+      </section>
+
+      <section class='card dashboard-card content-complete-card'>
+        <p id='completedMessage' class='library-card-completed' hidden>Conteúdo concluído ✅</p>
+        <button id='completeButton' class='primary-cta' type='button'>✅ Concluir conteúdo</button>
+        <a class='secondary-cta' href='projeto-lm-biblioteca.html'>Voltar para Biblioteca</a>
+      </section>
+    </section>
+  </main>
+
+  <script src='/assets/js/lm-access.js?v=20260623-1'></script>
+  <script src='portal-shared.js'></script>
+  <script>
+    requireAuth();
+    redirectIfNoAccess('biblioteca');
+    redirectProjectLmOnboardingIfNeeded().catch(() => {});
+    document.getElementById('nav').innerHTML = nav();
+
+    const slug = new URLSearchParams(window.location.search).get('slug') || '';
+    const titleEl = document.getElementById('contentTitle');
+    const descriptionEl = document.getElementById('contentDescription');
+    const statusEl = document.getElementById('contentStatus');
+    const bodyEl = document.getElementById('contentBody');
+    const videoEl = document.getElementById('videoContainer');
+    const summaryEl = document.getElementById('contentSummary');
+    const actionEl = document.getElementById('contentAction');
+    const completedEl = document.getElementById('completedMessage');
+    const completeButton = document.getElementById('completeButton');
+    let currentContent = null;
+
+    function renderContent(content) {
+      currentContent = content;
+      titleEl.textContent = content.title || 'Conteúdo';
+      descriptionEl.textContent = content.description || '';
+      summaryEl.textContent = content.summary || 'Resumo em preparação.';
+      actionEl.textContent = content.action_text || content.actionText || 'Escolha uma ação prática para aplicar hoje.';
+      if (content.video_url || content.videoUrl) {
+        const videoUrl = content.video_url || content.videoUrl;
+        videoEl.innerHTML = `<iframe src='${videoUrl}' title='${content.title || 'Vídeo'}' allowfullscreen></iframe>`;
+      }
+      renderCompleted(Boolean(content.completed));
+      bodyEl.hidden = false;
+      statusEl.hidden = true;
+    }
+
+    function renderCompleted(completed) {
+      completedEl.hidden = !completed;
+      completeButton.hidden = completed;
+    }
+
+    async function completeContent() {
+      if (!currentContent?.slug) return;
+      completeButton.disabled = true;
+      try {
+        await api('/portal/project-lm/library/complete', {
+          method: 'POST',
+          body: JSON.stringify({ slug: currentContent.slug })
+        });
+        renderCompleted(true);
+      } catch (error) {
+        completeButton.disabled = false;
+        alert(error.message || 'Não foi possível concluir este conteúdo agora.');
+      }
+    }
+
+    async function loadContent() {
+      if (!slug) {
+        statusEl.textContent = 'Conteúdo não informado.';
+        return;
+      }
+      try {
+        const response = await api(`/portal/project-lm/library/${encodeURIComponent(slug)}`);
+        renderContent(response?.data || response || {});
+      } catch (error) {
+        statusEl.textContent = error.message || 'Não foi possível carregar este conteúdo agora.';
+      }
+    }
+
+    completeButton.addEventListener('click', completeContent);
+    loadContent();
+  </script>
+</body>
+</html>

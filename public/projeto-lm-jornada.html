@@ -1,0 +1,263 @@
+<!-- LEGACY - DO NOT EXTEND
+     SUPERSEDED BY PROJECT LM V5 -->
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Projeto LM — Minha Jornada</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body class='portal-home-v7 projeto-lm-journey-page'>
+  <main class='container home-main'>
+    <div id='nav' class='mobile-nav'></div>
+    <section class='card hero hero-premium journey-hero'>
+      <p class='eyebrow'>ETAPA 1 DE 5</p>
+      <h1>Projeto LM</h1>
+      <p class='journey-hero-title'>Seu primeiro passo já começou</p>
+      <p id='projectLmHeroSubtext' class='hero-subtext'>Você não precisa fazer tudo perfeito.<br>Seu foco agora é apenas o passo de hoje.</p>
+      <span class='hero-badge'>✅ Direção definida</span>
+    </section>
+
+    <section class='card weekly-mission-card' aria-label='Sua missão da semana'>
+      <p class='weekly-mission-kicker'>🎯 Sua Missão da Semana</p>
+      <p id='weeklyMissionWeek' class='journey-card-subtitle'>Semana 1 de 4</p>
+      <h2 id='weeklyMissionTitle' class='weekly-mission-title'>Pare de Recomeçar</h2>
+      <p id='weeklyMissionDescription'>Seu objetivo nesta semana não é emagrecer rápido. É criar movimento.</p>
+      <div class='weekly-mission-grid'>
+        <article class='weekly-mission-box'>
+          <strong>Missão:</strong>
+          <p id='weeklyMissionMain'>Cumprir 3 ações mínimas.</p>
+        </article>
+        <article class='weekly-mission-box'>
+          <strong>Para avançar:</strong>
+          <p id='weeklyMissionSuccess'>3 ações registradas.</p>
+        </article>
+      </div>
+      <a class='secondary-link weekly-mission-plan-link' href='projeto-lm-planejamento.html'>📋 Ver Meu Planejamento</a>
+    </section>
+
+    <section class='card dashboard-card' aria-label='Próximo marco'>
+      <h2>🏅 Próximo Marco</h2>
+      <p id='projectLmNextMilestone' class='journey-card-subtitle'>🏅 Primeira Vitória</p>
+      <a class='primary-cta' href='projeto-lm-conquistas.html'>Ver todos os marcos</a>
+    </section>
+
+    <section class='card dashboard-card' aria-label='Conteúdo da semana'>
+      <h2>📚 Conteúdo da Semana</h2>
+      <p class='journey-card-subtitle'>Pare de Recomeçar</p>
+      <a class='primary-cta' href='projeto-lm-biblioteca.html'>Assistir</a>
+    </section>
+
+
+    <section class='card dashboard-card consistency-card' aria-label='Consistência'>
+      <h2>📈 Consistência</h2>
+      <p id='projectLmConsistencyTitle' class='journey-card-subtitle'>Sequência atual: 0 dia(s)</p>
+      <p id='projectLmConsistencyText'>Hoje é uma boa oportunidade para recomeçar.</p>
+    </section>
+
+    <section class='card dashboard-card journey-achievements-card' aria-label='Marcos da jornada'>
+      <h2>🏅 Marcos da Jornada</h2>
+      <p id='projectLmAchievementsText'>Cada marco representa uma prova de que você continua avançando.</p>
+      <a class='primary-cta' href='projeto-lm-conquistas.html'>Ver conquistas</a>
+    </section>
+
+    <section class='card dashboard-card journey-progress-card' aria-label='Progresso da jornada'>
+      <h2>🗺 Sua Jornada</h2>
+      <ol id='journeySteps' class='journey-progress-list'>
+        <li class='is-complete'><span class='journey-step-marker'>✅</span><span>Direção definida</span></li>
+        <li><span class='journey-step-marker'>⬜</span><span>Primeira vitória</span></li>
+        <li><span class='journey-step-marker'>⬜</span><span>Plano B utilizado</span></li>
+        <li><span class='journey-step-marker'>⬜</span><span>3 dias de consistência</span></li>
+        <li><span class='journey-step-marker'>⬜</span><span>7 dias de consistência</span></li>
+        <li><span class='journey-step-marker'>⬜</span><span>14 dias de consistência</span></li>
+        <li><span class='journey-step-marker'>⬜</span><span>Consolidar rotina</span></li>
+      </ol>
+    </section>
+  </main>
+  <script src='/assets/js/lm-access.js?v=20260623-1'></script>
+  <script src='portal-shared.js'></script>
+  <script>
+    requireAuth();
+    redirectIfNoAccess('minha-jornada');
+    const accessMessage = sessionStorage.getItem('lm_access_message');
+    if (accessMessage) {
+      sessionStorage.removeItem('lm_access_message');
+      const notice = document.createElement('div');
+      notice.className = 'card status error';
+      notice.textContent = accessMessage;
+      document.querySelector('.home-main')?.prepend(notice);
+    }
+    redirectProjectLmOnboardingIfNeeded().catch(() => {});
+    document.getElementById('nav').innerHTML = nav();
+
+    const projectLmGoalMessages = {
+      emagrecer_com_consistencia: 'Emagrecer com mais constância, sem depender de extremos.',
+      voltar_a_treinar: 'Voltar a se movimentar com regularidade.',
+      melhorar_alimentacao: 'Organizar escolhas simples na alimentação.',
+      mais_energia: 'Recuperar energia com ações básicas e consistentes.',
+      recomecar_sem_extremos: 'Recomeçar com um plano leve, claro e possível.'
+    };
+
+    const journeyStepsEl = document.getElementById('journeySteps');
+    const projectLmHeroSubtext = document.getElementById('projectLmHeroSubtext');
+    const nextMilestoneText = document.getElementById('projectLmNextMilestone');
+    const consistencyTitle = document.getElementById('projectLmConsistencyTitle');
+    const consistencyText = document.getElementById('projectLmConsistencyText');
+    const achievementsText = document.getElementById('projectLmAchievementsText');
+    const weeklyMissionWeek = document.getElementById('weeklyMissionWeek');
+    const weeklyMissionTitle = document.getElementById('weeklyMissionTitle');
+    const weeklyMissionDescription = document.getElementById('weeklyMissionDescription');
+    const weeklyMissionMain = document.getElementById('weeklyMissionMain');
+    const weeklyMissionSuccess = document.getElementById('weeklyMissionSuccess');
+
+    function isTruthy(value) {
+      return value === true || value === 1 || value === 'true';
+    }
+
+    function isFirstVictoryCompleted(summary) {
+      return isTruthy(summary?.firstVictoryCompleted) || isTruthy(summary?.first_victory_completed);
+    }
+
+    function isHardDayModeCompleted(summary) {
+      return isTruthy(summary?.hardDayModeCompleted) || isTruthy(summary?.hard_day_mode_completed);
+    }
+
+    function getStreak(consistency, summary) {
+      return Number(consistency?.currentStreak ?? summary?.currentStreak ?? 0) || 0;
+    }
+
+    function getCompletedCount(library = {}) {
+      const directCount = Number(library?.completedCount ?? library?.completed_count);
+      if (Number.isFinite(directCount)) return directCount;
+
+      const contents = Array.isArray(library?.contents)
+        ? library.contents
+        : Array.isArray(library?.items)
+          ? library.items
+          : Array.isArray(library)
+            ? library
+            : [];
+
+      return contents.filter((item) => isTruthy(item?.completed)).length;
+    }
+
+    function getUnlockedAchievementsCount(summary = {}, consistency = {}, library = {}) {
+      const currentStreak = getStreak(consistency, summary);
+      const completedCount = getCompletedCount(library);
+      return [
+        isFirstVictoryCompleted(summary),
+        isHardDayModeCompleted(summary),
+        currentStreak >= 3,
+        currentStreak >= 7,
+        currentStreak >= 14,
+        currentStreak >= 21,
+        completedCount >= 1,
+        completedCount >= 5
+      ].filter(Boolean).length;
+    }
+
+    function renderJourney(summary = {}, consistency = {}) {
+      const firstVictoryCompleted = isFirstVictoryCompleted(summary);
+      const hardDayModeCompleted = isHardDayModeCompleted(summary);
+      const currentStreak = getStreak(consistency, summary);
+      const steps = [
+        { label: 'Direção definida', complete: true },
+        { label: 'Primeira vitória', complete: firstVictoryCompleted },
+        { label: 'Plano B utilizado', complete: hardDayModeCompleted },
+        { label: '3 dias de consistência', complete: currentStreak >= 3 },
+        { label: '7 dias de consistência', complete: currentStreak >= 7 },
+        { label: '14 dias de consistência', complete: currentStreak >= 14 },
+        { label: 'Consolidar rotina', complete: currentStreak >= 21 }
+      ];
+
+      journeyStepsEl.innerHTML = steps.map((step) => `
+        <li class='${step.complete ? 'is-complete' : ''}'>
+          <span class='journey-step-marker'>${step.complete ? '✅' : '⬜'}</span>
+          <span>${step.label}</span>
+        </li>
+      `).join('');
+    }
+
+    function renderConsistencyCard(consistency = {}) {
+      const currentStreak = Number(consistency?.currentStreak ?? 0) || 0;
+      const activeDays = Number(consistency?.activeDays ?? 0) || 0;
+
+      consistencyTitle.textContent = `Sequência atual: ${currentStreak} dia(s)`;
+      consistencyText.textContent = currentStreak === 0
+        ? 'Hoje é uma boa oportunidade para recomeçar.'
+        : `${activeDays} dias ativos registrados.`;
+    }
+
+
+    function renderNextMilestone(summary = {}, consistency = {}) {
+      const firstVictoryCompleted = isFirstVictoryCompleted(summary);
+      const currentStreak = getStreak(consistency, summary);
+
+      if (!firstVictoryCompleted) {
+        nextMilestoneText.textContent = '🏅 Primeira Vitória';
+      } else if (currentStreak >= 21) {
+        nextMilestoneText.textContent = '🏅 Rotina consolidada';
+      } else if (currentStreak >= 14) {
+        nextMilestoneText.textContent = '🏅 Consolidar rotina';
+      } else if (currentStreak >= 7) {
+        nextMilestoneText.textContent = '🏅 14 dias de consistência';
+      } else if (currentStreak >= 3) {
+        nextMilestoneText.textContent = '🏅 7 dias de consistência';
+      } else {
+        nextMilestoneText.textContent = '🏅 3 dias de consistência';
+      }
+    }
+
+    function renderAchievementsCard(summary = {}, consistency = {}, library = {}, hasError = false) {
+      if (hasError) {
+        achievementsText.textContent = 'Continue avançando para desbloquear conquistas.';
+        return;
+      }
+
+      const unlockedCount = getUnlockedAchievementsCount(summary, consistency, library);
+      achievementsText.textContent = `${unlockedCount} de 8 conquistas desbloqueadas.`;
+    }
+
+    function renderWeeklyMission(mission = {}) {
+      const week = Math.min(4, Math.max(1, Number(mission.week || 1) || 1));
+      weeklyMissionWeek.textContent = `Semana ${week} de 4`;
+      weeklyMissionTitle.textContent = mission.title || 'Pare de Recomeçar';
+      weeklyMissionDescription.textContent = mission.description || 'Seu objetivo nesta semana não é emagrecer rápido. É criar movimento.';
+      weeklyMissionMain.textContent = mission.mainMission || 'Cumprir 3 ações mínimas.';
+      weeklyMissionSuccess.textContent = mission.successCriteria || '3 ações registradas.';
+    }
+
+    async function fetchSafe(path) {
+      try {
+        const response = await api(path);
+        return response?.data || response || null;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    async function loadJourney() {
+      const [summaryResult, consistencyResult, libraryResult, missionResult] = await Promise.all([
+        fetchSafe('/portal/project-lm/daily-actions/summary'),
+        fetchSafe('/portal/project-lm/consistency'),
+        fetchSafe('/portal/project-lm/library'),
+        fetchSafe('/portal/project-lm/current-mission')
+      ]);
+      const summary = summaryResult || {};
+      const consistency = consistencyResult || {};
+      const library = libraryResult || {};
+      const mission = missionResult || {};
+
+      renderJourney(summary, consistency);
+      renderNextMilestone(summary, consistency);
+      renderConsistencyCard(consistency);
+      renderAchievementsCard(summary, consistency, library, !summaryResult || !consistencyResult || !libraryResult);
+      if (missionResult) renderWeeklyMission(mission);
+
+    }
+
+    loadJourney();
+  </script>
+</body>
+</html>

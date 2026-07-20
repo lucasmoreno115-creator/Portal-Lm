@@ -1,0 +1,513 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>Admin Command Center LM</title>
+  <link rel='stylesheet' href='portal.css'>
+</head>
+<body class='command-center-page'>
+  <div class='container'>
+    <nav>
+      <a href='/admin.html'>Admin Hub</a>
+      <a href='/admin-command-center.html'>Command Center</a>
+      <a href='/admin-student.html'>Student 360</a>
+      <a href='/admin-students.html'>Cadastro de aluno</a>
+      <button id='adminLogoutBtn' type='button'>Sair</button>
+    </nav>
+
+    <section class='card'>
+      <p class='eyebrow'>Consultoria LM • Operação diária</p>
+      <h1>Admin Command Center LM</h1>
+      <p class='muted'>Sua visão diária de operação, retenção e acompanhamento da Consultoria LM.</p>
+      <div class='command-actions'>
+        <label>
+          Token admin
+          <input id='token' placeholder='Sessão admin' />
+        </label>
+        <button id='loadBtn' type='button'>Carregar operação</button>
+      </div>
+      <div id='status' class='status'>Informe o token admin para carregar os indicadores.</div>
+    </section>
+
+    <section class='command-grid'>
+      <article class='card command-card'>
+        <h2>Check-ins pendentes</h2>
+        <p id='pendingCheckins' class='command-number'>0</p>
+        <p class='muted'>Check-ins aguardando resposta do coach.</p>
+        <a class='secondary-link' href='/admin-student.html'>Resolver no Student 360</a>
+      </article>
+
+
+      <article class='card command-card'>
+        <h2>Alunos sem check-in na semana</h2>
+        <p id='withoutCheckinWeek' class='command-number'>0</p>
+        <p class='muted'>Alunos ativos sem check-in na semana atual.</p>
+        <a class='secondary-link' href='/admin-student.html'>Ver alunos no Student 360</a>
+      </article>
+
+      <article class='card command-card'>
+        <h2>Anamneses novas</h2>
+        <p id='newAnamneses' class='command-number'>0</p>
+        <p class='muted'>Anamneses premium com status RECEBIDA.</p>
+        <a class='secondary-link' href='/admin-student.html'>Abrir no Student 360</a>
+      </article>
+
+      <article class='card command-card'>
+        <h2>Sem objetivo do planejamento</h2>
+        <p id='withoutWeeklyPlan' class='command-number'>0</p>
+        <p class='muted'>Alunos ativos sem objetivo do planejamento da semana atual.</p>
+        <a class='secondary-link' href='/admin-student.html'>Resolver no Student 360</a>
+      </article>
+
+      <article class='card command-card'>
+        <h2>Sem plano alimentar</h2>
+        <p id='withoutNutritionPlan' class='command-number'>0</p>
+        <p class='muted'>Alunos ativos sem plano alimentar ativo.</p>
+        <a class='secondary-link' href='/admin-student.html'>Resolver no Student 360</a>
+      </article>
+
+      <article class='card command-card'>
+        <h2>🆕 Novos alunos aguardando liberação</h2>
+        <p id='pendingOnboarding' class='command-number'>0</p>
+        <p class='muted'>Registros em student_access com status PENDING_ONBOARDING.</p>
+        <a class='secondary-link' href='/admin-students.html'>Abrir cadastro de aluno</a>
+      </article>
+
+      <article class='card command-card'>
+        <h2>♻️ Reativação</h2>
+        <p id='inactiveStudents' class='command-number'>0</p>
+        <p id='reactivationRevenuePotential' class='muted'>Potencial de receita: R$ 0</p>
+        <p class='muted'>Alunos inativos que podem voltar para a operação.</p>
+        <a class='secondary-link' href='#reactivationHub'>Abrir hub de reativação</a>
+      </article>
+
+      <article class='card command-card'>
+        <h2>Follow-ups vencidos</h2>
+        <p id='overdueFollowups' class='command-number'>0</p>
+        <p class='muted'>Follow-ups abertos com prazo já vencido.</p>
+        <a class='secondary-link' href='/admin-student.html'>Resolver no Student 360</a>
+      </article>
+    </section>
+
+    <section class='card command-priority'>
+      <h2>Prioridade Operacional</h2>
+      <p id='priorityMsg'>Operação em dia.</p>
+      <p id='criticalPendingCount' class='muted'>Pendências críticas: 0</p>
+      <p id='recommendedAction' class='muted'>Ação recomendada: revisar os cards de maior impacto.</p>
+    </section>
+
+    <section class='card action-inbox'>
+      <h2>Follow-ups</h2>
+      <p class='muted'>Follow-ups vencidos e próximos para responder o que precisa ser resolvido hoje.</p>
+      <a class='secondary-link' href='/admin-followup.html'>Abrir tela antiga de follow-ups</a>
+      <div id='followupsConsolidatedList' class='action-list'>
+        <p class='muted'>Aguardando carregamento dos follow-ups.</p>
+      </div>
+    </section>
+
+    <section class='card action-inbox'>
+      <h2>Alertas</h2>
+      <p class='muted'>Alertas do portal consolidados sem resolução inline.</p>
+      <a class='secondary-link' href='/admin-alerts.html'>Abrir tela antiga de alertas</a>
+      <div id='portalAlertsConsolidatedList' class='action-list'>
+        <p class='muted'>Aguardando carregamento dos alertas.</p>
+      </div>
+    </section>
+
+    <section class='card command-health-panel'>
+      <h2>Saúde do sistema</h2>
+      <p id='systemHealthStatus' class='status'>Informe o token admin para carregar a saúde do sistema.</p>
+      <p id='systemHealthDetails' class='muted'></p>
+      <h3>🔴 Erros recentes</h3>
+      <div id='systemErrorLogs' class='action-list'>
+        <p class='muted'>Aguardando carregamento dos logs.</p>
+      </div>
+    </section>
+
+    <section class='card action-inbox'>
+      <h2>Caixa de entrada operacional</h2>
+      <div class='action-grid'>
+        <article class='action-section'>
+          <h3>⚡ Check-ins pendentes</h3>
+          <div id='pendingCheckinsList' class='action-list'></div>
+        </article>
+        <article class='action-section'>
+          <h3>🚨 Sem check-in na semana</h3>
+          <div id='withoutCheckinWeekList' class='action-list'></div>
+        </article>
+        <article class='action-section'>
+          <h3>📝 Anamneses novas</h3>
+          <div id='newAnamnesesList' class='action-list'></div>
+        </article>
+        <article class='action-section'>
+          <h3>📋 Sem objetivo do planejamento</h3>
+          <div id='withoutWeeklyPlanList' class='action-list'></div>
+        </article>
+        <article class='action-section'>
+          <h3>🥗 Sem plano alimentar</h3>
+          <div id='withoutNutritionPlanList' class='action-list'></div>
+        </article>
+        <article class='action-section'>
+          <h3>🆕 Aguardando liberação</h3>
+          <div id='pendingOnboardingList' class='action-list'></div>
+        </article>
+        <article class='action-section'>
+          <h3>🔄 Follow-ups vencidos</h3>
+          <div id='overdueFollowupsList' class='action-list'></div>
+        </article>
+        <article class='action-section'>
+          <h3 id='reactivationHub'>♻️ Reativação Hub V1</h3>
+          <div id='inactiveStudentsList' class='action-list'></div>
+        </article>
+        <article class='action-section'>
+          <h3>🕒 Últimas atividades</h3>
+          <div id='recentActivitiesList' class='action-list'></div>
+        </article>
+      </div>
+    </section>
+  </div>
+
+  <script src='/admin-auth.js'></script>
+  <script>window.LMAdminAuth.attachLogout('adminLogoutBtn');</script>
+<script>
+    const tokenInput = document.getElementById('token');
+    const adminSessionToken = window.LMAdminAuth.requireAdmin();
+    window.LMAdminAuth.hydrateAdminTokenInput('token');
+    const loadBtn = document.getElementById('loadBtn');
+    const statusEl = document.getElementById('status');
+
+
+    function setText(id, value) {
+      document.getElementById(id).textContent = String(value ?? 0);
+    }
+    function getStudent360Url(email, fallbackUrl) {
+      const normalizedEmail = String(email || '').trim().toLowerCase();
+      if (normalizedEmail && normalizedEmail !== '-') {
+        return `/admin-student.html?email=${encodeURIComponent(normalizedEmail)}`;
+      }
+      return fallbackUrl || '/admin-student.html';
+    }
+
+    function renderActionList(id, list, fallbackUrl) {
+      const root = document.getElementById(id);
+      const items = Array.isArray(list) ? list : [];
+      if (!items.length) {
+        root.innerHTML = "<p class='muted'>Nenhuma pendência nesta lista.</p>";
+        return;
+      }
+      root.innerHTML = items.map((item) => {
+        const date = item.last_event_at ? `<p class='action-item-meta'>Data: ${new Date(item.last_event_at).toLocaleString('pt-BR')}</p>` : '';
+        const actionUrl = getStudent360Url(item.email, fallbackUrl || item.action_url);
+        return `<article class='action-item'>
+          <div>
+            <strong>${item.name || '-'}</strong>
+            <p class='action-item-meta'>${item.email || '-'}</p>
+            <p class='action-item-reason'>${item.reason || ''}</p>
+            ${date}
+          </div>
+          <a class='action-item-button' href='${actionUrl}'>Abrir no Student 360</a>
+        </article>`;
+      }).join('');
+    }
+    function currencyBRL(value) {
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
+    }
+
+    function getHealthInconsistencyTotal(checks) {
+      return Object.values(checks || {}).reduce((total, check) => total + Number(check?.count || 0), 0);
+    }
+    function renderSystemErrorLogs(logs) {
+      const root = document.getElementById('systemErrorLogs');
+      const items = Array.isArray(logs) ? logs : [];
+      if (!items.length) {
+        root.innerHTML = "<p class='muted'>Nenhum erro crítico recente.</p>";
+        return;
+      }
+      root.innerHTML = '';
+      items.forEach((log) => {
+        const item = document.createElement('article');
+        item.className = 'action-item';
+        const content = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = `${log.created_at || '-'} • ${log.area || '-'} • ${log.event || '-'}`;
+        const route = document.createElement('p');
+        route.className = 'action-item-meta';
+        route.textContent = `Rota: ${log.route || '-'}`;
+        const message = document.createElement('p');
+        message.className = 'action-item-reason';
+        message.textContent = log.message || 'Erro operacional registrado.';
+        content.append(title, route, message);
+        item.appendChild(content);
+        root.appendChild(item);
+      });
+    }
+    async function loadSystemHealth(token) {
+      const healthStatus = document.getElementById('systemHealthStatus');
+      const healthDetails = document.getElementById('systemHealthDetails');
+      const errorLogs = document.getElementById('systemErrorLogs');
+      healthStatus.textContent = 'Carregando saúde do sistema...';
+      healthDetails.textContent = '';
+      errorLogs.innerHTML = "<p class='muted'>Carregando logs de erro...</p>";
+
+      try {
+        const [healthRes, logsRes] = await Promise.all([
+          fetch('/api/admin/health-check', { headers: window.LMAdminAuth.getAdminAuthHeaders() }),
+          fetch('/api/admin/operational-logs?level=error&limit=5', { headers: window.LMAdminAuth.getAdminAuthHeaders() })
+        ]);
+        const [healthPayload, logsPayload] = await Promise.all([healthRes.json(), logsRes.json()]);
+
+        if (!healthRes.ok || !healthPayload.ok || !logsRes.ok || !logsPayload.ok) {
+          throw new Error('Falha ao carregar saúde do sistema.');
+        }
+
+        const health = healthPayload.data || {};
+        if (health.status === 'healthy') {
+          healthStatus.textContent = 'Saúde do sistema: 🟢 Saudável';
+          healthDetails.textContent = '';
+        } else if (health.status === 'warning') {
+          const total = getHealthInconsistencyTotal(health.checks);
+          healthStatus.textContent = 'Saúde do sistema: 🟡 Atenção necessária';
+          healthDetails.textContent = `Total de inconsistências encontradas: ${total}`;
+        } else {
+          healthStatus.textContent = 'Saúde do sistema: 🟡 Atenção necessária';
+          healthDetails.textContent = 'Status de saúde inesperado recebido.';
+        }
+
+        renderSystemErrorLogs(logsPayload.data?.logs);
+      } catch (error) {
+        healthStatus.textContent = 'Não foi possível carregar a saúde do sistema.';
+        healthDetails.textContent = '';
+        errorLogs.innerHTML = "<p class='muted'>Não foi possível carregar os logs de erro.</p>";
+      }
+    }
+    function getReactivationMessage(student) {
+      return `Oi, ${student.name || 'tudo bem'}! Sentimos sua falta na Consultoria LM.\n\nVi que sua conta ficou inativa há ${student.days_since_inactivation ?? '-'} dias${student.reason ? ` (${student.reason})` : ''}. Quero te ajudar a retomar com um plano simples e direto para essa semana.\n\nSe fizer sentido pra você, te reativo agora e já alinhamos seu próximo passo. 💪`;
+    }
+    function renderReactivationList(list) {
+      const root = document.getElementById('inactiveStudentsList');
+      const items = Array.isArray(list) ? list : [];
+      if (!items.length) {
+        root.innerHTML = "<p class='muted'>Nenhum aluno inativo recente.</p>";
+        return;
+      }
+      root.innerHTML = items.map((item, index) => `<article class='action-item'>
+          <div>
+            <strong>${item.name || '-'}</strong>
+            <p class='action-item-meta'>${item.email || '-'}</p>
+            <p class='action-item-reason'>Motivo: ${item.reason || 'Sem motivo informado'}</p>
+            <p class='action-item-meta'>Dias desde inativação: ${item.days_since_inactivation ?? '-'}</p>
+          </div>
+          <div class='command-actions'>
+            <a class='action-item-button' href='${getStudent360Url(item.email)}'>Student 360</a>
+            <button type='button' class='action-item-button' data-action='send-contact' data-index='${index}'>💬 Reativar contato</button>
+            <button type='button' class='action-item-button' data-action='reactivate-student' data-index='${index}'>🔁 Reativar aluno</button>
+          </div>
+        </article>`).join('');
+    }
+
+    let inactiveStudentsCache = [];
+    function getTimelineEventView(event) {
+      const type = String(event?.type || event?.event_type || '').toUpperCase();
+      const map = {
+        ANAMNESE_SUBMITTED: { icon: '📝', title: 'Anamnese enviada', description: 'O aluno enviou a Anamnese Premium LM.', category: 'onboarding' },
+        CHECKIN_SUBMITTED: { icon: '✅', title: 'Check-in enviado', description: 'O aluno enviou o check-in semanal.', category: 'checkins' },
+        COACH_REPLY_SENT: { icon: '📩', title: 'Check-in respondido', description: 'O coach respondeu o check-in do aluno.', category: 'checkins' },
+        PROGRESSION_LOG_SUBMITTED: { icon: '🏋️', title: 'Progressão registrada', description: 'O aluno registrou uma atualização de treino.', category: 'treino' },
+        FOLLOWUP_LOGGED: { icon: '💬', title: 'Follow-up registrado', description: 'Uma ação de acompanhamento foi registrada.', category: 'comunicação' },
+        WEEKLY_PLAN_UPDATED: { icon: '📋', title: 'Objetivo do planejamento atualizado', description: 'O planejamento estratégico da semana foi criado ou revisado.', category: 'planos' },
+        NUTRITION_PLAN_UPDATED: { icon: '🥗', title: 'Plano alimentar atualizado', description: 'O plano alimentar ativo foi criado ou revisado.', category: 'planos' },
+        STUDENT_INACTIVATED: { icon: '⚫', title: 'Aluno inativado', description: 'O aluno foi removido da operação ativa.', category: 'lifecycle' },
+        STUDENT_REACTIVATED: { icon: '🟢', title: 'Aluno reativado', description: 'O aluno voltou para a operação ativa.', category: 'lifecycle' },
+        STUDENT_TOKEN_UPDATED: { icon: '🔐', title: 'Token de acesso atualizado', description: 'O token/senha de acesso do aluno foi alterado.', category: 'lifecycle' },
+        REACTIVATION_CONTACT_SENT: { icon: '📲', title: 'Contato de reativação enviado', description: 'Uma tentativa de reativação foi registrada para o aluno.', category: 'comunicação' }
+      };
+      return map[type] || { icon: '🕒', title: 'Atividade registrada', description: 'Um evento operacional foi registrado no sistema.', category: 'outros' };
+    }
+
+
+    function compactStudentCard(item, label, fallbackReason) {
+      const email = item.email || item.student_email || '-';
+      const reason = item.reason || item.status || item.riskLevel || item.outcome || fallbackReason || 'Pendência operacional';
+      const when = item.nextAction || item.lastFollowupAt || item.lastCheckin || item.created_at || item.last_event_at || '';
+      return `<article class='action-item'>
+          <div>
+            <strong>${label}: ${item.name || 'Aluno'}</strong>
+            <p class='action-item-meta'>${email}</p>
+            <p class='action-item-reason'>${reason}</p>
+            ${when ? `<p class='action-item-meta'>Status/data: ${when}</p>` : ''}
+          </div>
+          <a class='action-item-button' href='${getStudent360Url(email)}'>Abrir no Student 360</a>
+        </article>`;
+    }
+
+    function renderConsolidatedFollowups(data) {
+      const root = document.getElementById('followupsConsolidatedList');
+      const groups = [
+        ['Vencido', data.criticalRiskStudents],
+        ['Vencido', data.highRiskStudents],
+        ['Vencido', data.missingCheckins],
+        ['Próximo', data.cancellationRiskStudents],
+        ['Próximo', data.financialRiskStudents]
+      ];
+      const items = groups.flatMap(([label, rows]) => (Array.isArray(rows) ? rows.map((row) => [label, row]) : []));
+      if (!items.length) {
+        root.innerHTML = "<p class='muted'>Nenhum follow-up vencido ou próximo no momento.</p>";
+        return 0;
+      }
+      root.innerHTML = items.slice(0, 8).map(([label, item]) => compactStudentCard(item, label, 'Follow-up pendente')).join('');
+      return items.length;
+    }
+
+    function renderConsolidatedAlerts(alerts) {
+      const root = document.getElementById('portalAlertsConsolidatedList');
+      const groups = [
+        ['Plano semanal', alerts.missingWeeklyPlan],
+        ['Check-in', alerts.missingCheckin],
+        ['Risco', alerts.riskStudents]
+      ];
+      const items = groups.flatMap(([label, rows]) => (Array.isArray(rows) ? rows.map((row) => [label, row]) : []));
+      if (!items.length) {
+        root.innerHTML = "<p class='muted'>Nenhum alerta do portal no momento.</p>";
+        return 0;
+      }
+      root.innerHTML = items.slice(0, 8).map(([label, item]) => compactStudentCard(item, label, item.planType || item.lastCheckin || 'Alerta do portal')).join('');
+      return items.length;
+    }
+
+    async function loadFollowupBlock(token) {
+      try {
+        const response = await fetch('/api/admin/followup-alerts', { method: 'GET', headers: window.LMAdminAuth.getAdminAuthHeaders() });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) throw new Error('Falha ao carregar follow-ups.');
+        return renderConsolidatedFollowups(payload.data || {});
+      } catch (error) {
+        document.getElementById('followupsConsolidatedList').innerHTML = "<p class='muted'>Não foi possível carregar follow-ups agora.</p>";
+        return 0;
+      }
+    }
+
+    async function loadPortalAlertsBlock(token) {
+      try {
+        const response = await fetch('/api/admin/portal-alerts', { method: 'GET', headers: window.LMAdminAuth.getAdminAuthHeaders() });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) throw new Error('Falha ao carregar alertas.');
+        return renderConsolidatedAlerts(payload.data || {});
+      } catch (error) {
+        document.getElementById('portalAlertsConsolidatedList').innerHTML = "<p class='muted'>Não foi possível carregar alertas agora.</p>";
+        return 0;
+      }
+    }
+
+    function updateOperationalPriority(data, followupTotal, alertTotal) {
+      const criticalTotal = Number(data.pending_checkins || 0) + Number(data.overdue_followups || 0) + Number(data.pending_onboarding || 0) + Number(data.inactive_students || 0) + followupTotal + alertTotal;
+      document.getElementById('criticalPendingCount').textContent = `Pendências críticas: ${criticalTotal}`;
+      const recommended = criticalTotal > 0 ? 'Ação recomendada: priorize follow-ups vencidos, alertas com aluno identificado e reativações de maior potencial.' : 'Ação recomendada: manter acompanhamento preventivo e revisar atividades recentes.';
+      document.getElementById('recommendedAction').textContent = recommended;
+      document.getElementById('priorityMsg').textContent = data.priority_message || (criticalTotal > 0 ? 'Existem pendências operacionais para resolver hoje.' : 'Operação em dia.');
+    }
+    async function loadCommandCenter() {
+      const token = tokenInput.value.trim();
+      if (!token) {
+        statusEl.textContent = 'Informe o token admin para carregar os indicadores.';
+        return;
+      }
+
+      loadBtn.disabled = true;
+      statusEl.textContent = 'Carregando operação...';
+
+      try {
+        const res = await fetch('/api/admin/command-center', {
+          headers: window.LMAdminAuth.getAdminAuthHeaders()
+        });
+        const payload = await res.json();
+
+        if (!res.ok || !payload.ok) {
+          throw new Error(payload.error || 'Falha ao carregar command center.');
+        }
+
+        const data = payload.data || {};
+        setText('pendingCheckins', data.pending_checkins);
+        setText('withoutCheckinWeek', data.students_without_checkin_week);
+        setText('newAnamneses', data.new_anamneses);
+        setText('withoutWeeklyPlan', data.students_without_weekly_plan);
+        setText('withoutNutritionPlan', data.students_without_nutrition_plan);
+        setText('overdueFollowups', data.overdue_followups);
+        setText('pendingOnboarding', data.pending_onboarding);
+        setText('inactiveStudents', data.inactive_students);
+        document.getElementById('reactivationRevenuePotential').textContent = `Potencial de receita: ${currencyBRL(data.reactivation_revenue_potential)}`;
+        renderActionList('pendingCheckinsList', data.pending_checkins_list, '/admin-checkins.html');
+        renderActionList('withoutCheckinWeekList', data.students_without_checkin_week_list, '/admin-checkins.html');
+        renderActionList('newAnamnesesList', data.new_anamneses_list, '/admin-anamneses.html');
+        renderActionList('withoutWeeklyPlanList', data.students_without_weekly_plan_list, '/admin-weekly-plan.html');
+        renderActionList('withoutNutritionPlanList', data.students_without_nutrition_plan_list, '/admin-nutrition-plan.html');
+        renderActionList('overdueFollowupsList', data.overdue_followups_list, '/admin-followup.html');
+        renderActionList('pendingOnboardingList', data.pending_onboarding_list, '/admin-students.html');
+        inactiveStudentsCache = Array.isArray(data.inactive_students_list) ? data.inactive_students_list : [];
+        renderReactivationList(inactiveStudentsCache);
+        renderActionList('recentActivitiesList', (data.recent_activities || []).map((item) => {
+          const view = getTimelineEventView(item);
+          return ({
+          name: `${view.icon} ${view.title}`,
+          email: item.student_email || '-',
+          reason: view.description,
+          last_event_at: item.at || null,
+          action_url: item.action_url || '#'
+        })}));
+        const [followupTotal, alertTotal] = await Promise.all([
+          loadFollowupBlock(token),
+          loadPortalAlertsBlock(token),
+          loadSystemHealth(token)
+        ]).then(([followups, alerts]) => [followups, alerts]);
+        updateOperationalPriority(data, followupTotal, alertTotal);
+        statusEl.textContent = 'Operação carregada com sucesso.';
+      } catch (error) {
+        statusEl.textContent = error.message || 'Erro ao carregar operação.';
+      } finally {
+        loadBtn.disabled = false;
+      }
+    }
+
+    loadBtn.addEventListener('click', loadCommandCenter);
+    document.getElementById('inactiveStudentsList').addEventListener('click', async (event) => {
+      const target = event.target.closest('button[data-action]');
+      if (!target) return;
+      const action = target.getAttribute('data-action');
+      const index = Number(target.getAttribute('data-index'));
+      const student = inactiveStudentsCache[index];
+      if (!student) return;
+      const token = tokenInput.value.trim();
+      if (!token) {
+        statusEl.textContent = 'Informe o token admin para executar ações de reativação.';
+        return;
+      }
+      if (action === 'send-contact') {
+        const message = getReactivationMessage(student);
+        await navigator.clipboard.writeText(message);
+        await fetch('/api/admin/reactivation-contact', {
+          method: 'POST',
+          headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ email: student.email, reason: student.reason || null })
+        });
+        statusEl.textContent = `Mensagem copiada e contato de reativação registrado para ${student.name}.`;
+        return;
+      }
+      if (action === 'reactivate-student') {
+        const res = await fetch('/api/admin/student-access/status', {
+          method: 'POST',
+          headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ email: student.email, status: 'ACTIVE', reason: 'Reativado via Command Center - Reativação Hub V1' })
+        });
+        const payload = await res.json();
+        if (!res.ok || !payload.ok) {
+          statusEl.textContent = payload.error || 'Falha ao reativar aluno.';
+          return;
+        }
+        statusEl.textContent = `Aluno ${student.name} reativado com sucesso.`;
+        await loadCommandCenter();
+      }
+    });
+    if (adminSessionToken) loadCommandCenter();
+  </script>
+</body>
+</html>
