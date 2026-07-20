@@ -23,12 +23,15 @@ const historicalAssets = [
   '/assets/css/project-lm-v5.css'
 ];
 
-test('legacy V5 entrypoint remains present for historical compatibility in the public assets directory', async () => {
+test('legacy V5 entrypoint remains included in the configured static assets directory', async () => {
   await assert.doesNotReject(() => access(v5Entrypoint));
-  assert.doesNotMatch(wrangler, /\[assets\][\s\S]*binding\s*=\s*"ASSETS"/);
+  assert.match(wrangler, /\[assets\]/);
+  assert.match(wrangler, /directory\s*=\s*"\.\/public"/);
+  assert.match(wrangler, /binding\s*=\s*"ASSETS"/);
+  assert.match(wrangler, /run_worker_first\s*=\s*\[[^\]]*"\/api\/\*"[^\]]*\]/);
 });
 
-test('hotfix keeps Worker scoped to APIs and out of static hosting', () => {
+test('static assets preparation preserves API routing without hostname cutover', () => {
   assert.match(wrangler, /pattern\s*=\s*"portal\.lucasmorenopersonal\.com\.br\/api\/\*"/);
   assert.doesNotMatch(wrangler, /pattern\s*=\s*"portal\.lucasmorenopersonal\.com\.br\/\*"/);
   assert.doesNotMatch(worker, /!url\.pathname\.startsWith\('\/api\/'\)[\s\S]*serveStaticAsset\(request, env\)/);
