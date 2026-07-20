@@ -83,19 +83,33 @@
   }
 
   function nutritionPlanLink(studentId) {
-    const returnTo = `/admin-premium-student-record.html?student_id=${encodeURIComponent(studentId)}`;
-    return `/admin-premium-nutrition-plan.html?student_id=${encodeURIComponent(studentId)}&return_to=${encodeURIComponent(returnTo)}`;
+    const origin = location.origin || 'http://localhost';
+    const returnTo = new URL('/admin-premium-student-record.html', origin);
+    returnTo.searchParams.set('student_id', studentId);
+    const editor = new URL('/admin-premium-nutrition-plan.html', origin);
+    editor.searchParams.set('student_id', studentId);
+    editor.searchParams.set('return_to', `${returnTo.pathname}${returnTo.search}`);
+    return `${editor.pathname}${editor.search}`;
   }
 
   function renderPlan(workflow, student) {
     const target = byId('plan');
     const current = workflow?.current || null;
     const draft = workflow?.draft || null;
-    const action = (label) => el('a', { className: 'button', textContent: label, href: nutritionPlanLink(student.student_id) });
-    if (!current && !draft) return target.replaceChildren(emptyState('Planejamento ainda não iniciado.', 'Prepare o planejamento alimentar deste aluno.'), action('Criar planejamento'));
-    if (!current && draft) return target.replaceChildren(emptyState('Planejamento em edição.', `Atualizado em ${fmt(draft.updated_at)}`), action('Continuar planejamento'));
-    if (current && draft) return target.replaceChildren(emptyState('Existem alterações ainda não publicadas.', `Plano publicado em ${fmt(current.published_at)}.`), action('Revisar alterações'));
-    target.replaceChildren(emptyState('Planejamento publicado.', current.published_at ? `Publicado em ${fmt(current.published_at)}.` : 'Plano disponível para consulta.'), action('Visualizar planejamento'), action('Editar planejamento'));
+    const hasPublished = workflow?.hasPublished ?? Boolean(current);
+    const hasDraft = workflow?.hasDraft ?? Boolean(draft);
+    const fallback = hasPublished && hasDraft
+      ? { label: 'Alterações em revisão', description: 'O plano publicado continua ativo enquanto o novo rascunho é editado.', actionLabel: 'Revisar alterações' }
+      : hasDraft
+        ? { label: 'Rascunho em edição', description: 'Há alterações ainda não publicadas.', actionLabel: 'Continuar planejamento' }
+        : hasPublished
+          ? { label: 'Plano publicado', description: 'O aluno já possui um planejamento ativo.', actionLabel: 'Editar planejamento alimentar' }
+          : { label: 'Nenhum plano criado', description: 'Crie o primeiro planejamento alimentar deste aluno.', actionLabel: 'Criar planejamento alimentar' };
+    const plan = workflow && typeof workflow === 'object' ? workflow : fallback;
+    const actionLabel = plan.actionLabel || fallback.actionLabel;
+    const action = el('a', { className: 'button nutrition-plan-action', textContent: actionLabel, href: nutritionPlanLink(student.student_id) });
+    action.setAttribute('aria-label', `${actionLabel} para ${student.name || student.display_name || 'este aluno'}`);
+    target.replaceChildren(el('div', { className: 'nutrition-plan-status' }, el('span', { className: 'badge', textContent: plan.label || fallback.label }), el('p', { className: 'muted', textContent: plan.description || fallback.description })), action);
   }
 
   function renderFeedbacks(feedbacks) {
@@ -157,7 +171,7 @@
 
   async function load() {
     if (!studentId) {
-      state.textContent = 'Informe student_id na URL.';
+      state.textContent = 'Aluno não identificado.';
       return;
     }
     try {
