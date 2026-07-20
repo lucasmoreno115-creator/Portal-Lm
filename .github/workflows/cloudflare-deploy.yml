@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: cloudflare-production-${{ github.ref }}
-  cancel-in-progress: true
+  group: cloudflare-production
+  cancel-in-progress: false
 
 jobs:
   quality:
@@ -46,7 +46,11 @@ jobs:
   deploy:
     name: Deploy production Worker and assets
     needs: quality
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
 
     steps:
       - name: Checkout repository
