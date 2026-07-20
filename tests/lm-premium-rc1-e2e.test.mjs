@@ -34,6 +34,21 @@ function seedAccess(sqlite, { id, name, email, plan, plan_type = plan, student_i
   sqlite.prepare('INSERT INTO student_access (id,name,email,whatsapp,status,plan_type,created_at,plan,student_id) VALUES (?,?,?,?,?,?,?,?,?)')
     .run(id, name, email, '+5511999999999', 'active', plan_type, '2026-07-14T00:00:00.000Z', plan, student_id);
 }
+
+test('RC1 fixture aplica a migration de auditoria do backfill legado e o repository aceita lote opcional', async () => {
+  assert.equal(RC1_PREMIUM_MIGRATIONS.at(-1), 'migrations/0034_premium_legacy_identity_backfill_audit.sql');
+  assert(RC1_PREMIUM_MIGRATIONS.indexOf('migrations/0034_premium_legacy_identity_backfill_audit.sql') > RC1_PREMIUM_MIGRATIONS.indexOf('migrations/0025_create_premium_students.sql'));
+  const fixture = createRc1D1Fixture();
+  assert(scalar(fixture.sqlite, "SELECT 1 AS present FROM pragma_table_info('premium_students') WHERE name='legacy_backfill_batch_id'"));
+  assert(scalar(fixture.sqlite, "SELECT 1 AS present FROM sqlite_master WHERE type='table' AND name='premium_legacy_identity_backfill_audit'"));
+
+  const repository = createD1PremiumStudentRepository(fixture.db);
+  const withoutBatch = await repository.create({ student_id: 'legacy-null-batch', email: 'null-batch@example.com', display_name: 'Null batch', source: 'TEST', created_at: '2026-07-20T00:00:00.000Z' });
+  const withBatch = await repository.create({ student_id: 'legacy-with-batch', email: 'with-batch@example.com', display_name: 'With batch', source: 'LEGACY_BACKFILL', legacy_backfill_batch_id: 'batch-rc1', created_at: '2026-07-20T00:00:00.000Z' });
+
+  assert.equal(withoutBatch.legacy_backfill_batch_id, null);
+  assert.equal(withBatch.legacy_backfill_batch_id, 'batch-rc1');
+});
 function deps() {
   const fixture = createRc1D1Fixture();
   const randomUUID = makeIds();

@@ -2756,12 +2756,26 @@ async function ensureSchemaUncached(db) {
     consultation_status TEXT NOT NULL DEFAULT 'NEW',
     access_status TEXT NOT NULL DEFAULT 'ACTIVE',
     source TEXT NOT NULL DEFAULT 'MIGRATION',
+    legacy_backfill_batch_id TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`).run();
+  await ensureColumn(db, 'premium_students', 'legacy_backfill_batch_id', 'TEXT');
   await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_students_normalized_email ON premium_students(normalized_email)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_students_legacy_backfill_batch ON premium_students(legacy_backfill_batch_id)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_students_access_status ON premium_students(access_status)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_student_access_student_id ON student_access(student_id)`).run();
+  await db.prepare(`CREATE TABLE IF NOT EXISTS premium_legacy_identity_backfill_audit (
+    id TEXT PRIMARY KEY,
+    batch_id TEXT NOT NULL,
+    student_access_id TEXT NOT NULL,
+    previous_student_id TEXT,
+    new_student_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    rolled_back_at TEXT,
+    UNIQUE(batch_id, student_access_id)
+  )`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_legacy_identity_backfill_audit_batch ON premium_legacy_identity_backfill_audit(batch_id, rolled_back_at)`).run();
 
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS project_lm_profiles (

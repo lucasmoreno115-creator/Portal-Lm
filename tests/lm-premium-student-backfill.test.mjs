@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { BACKFILL_MODE, evaluatePremiumEligibility, runPremiumStudentIdentityBackfill } from '../scripts/premium-student-identity-backfill.mjs';
+import { BACKFILL_MODE, evaluatePremiumEligibility, rollbackPremiumStudentIdentityBackfill, runPremiumStudentIdentityBackfill } from '../scripts/premium-student-identity-backfill.mjs';
 
 function memoryRepository(candidates, initialStudents = []) {
   const students = initialStudents.map((student) => ({ ...student }));
@@ -41,7 +41,7 @@ test('dry-run é padrão e não persiste criação nem associação', async () =
   assert.equal(result.created, 0);
   assert.equal(result.associated, 0);
   assert.equal(result.planned_created, 1);
-  assert.equal(result.planned_associated, 1);
+  assert.equal(result.planned_associated, 0);
   assert.equal(repository.students.length, 0);
   assert.equal(repository.associatedCalls.length, 0);
   assert.equal(tables.nutrition_plans[0].student_id, undefined);
@@ -54,21 +54,21 @@ test('apply persiste associações e segunda execução não duplica nem sobresc
     nutrition_plans: [{ id: 'plan-1', student_email: 'aluna@example.com' }],
     student_checkins: [{ id: 'checkin-1', student_email: 'aluna@example.com', student_id: 'existing-id' }],
   };
-  const first = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, randomUUID: () => 'uuid-1', now: () => '2026-07-13T00:00:00.000Z' });
+  const first = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, batchId: 'batch-test', randomUUID: () => 'uuid-1', now: () => '2026-07-13T00:00:00.000Z' });
   tables.student_access[0].student_id = 'uuid-1';
   tables.nutrition_plans[0].student_id = 'uuid-1';
-  const second = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, randomUUID: () => 'uuid-2', now: () => '2026-07-13T00:00:00.000Z' });
+  const second = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, batchId: 'batch-test', randomUUID: () => 'uuid-2', now: () => '2026-07-13T00:00:00.000Z' });
 
   assert.equal(first.candidates, 1);
   assert.equal(first.created, 1);
-  assert.equal(first.associated, 2);
-  assert.equal(first.skipped, 1);
+  assert.equal(first.associated, 1);
+  assert.equal(first.skipped, 0);
   assert.equal(second.created, 0);
   assert.equal(second.associated, 0);
   assert.equal(repository.students.length, 1);
   assert.equal(repository.students[0].student_id, 'uuid-1');
   assert.equal(tables.student_checkins[0].student_id, 'existing-id');
-  assert.deepEqual(repository.associatedCalls.map((call) => call.id), ['access-1', 'plan-1']);
+  assert.deepEqual(repository.associatedCalls.map((call) => call.id), ['access-1']);
 });
 
 test('backfill registra classificação ausente, conflituosa, Projeto LM e desconhecida sem criar identidades', async () => {
@@ -79,7 +79,7 @@ test('backfill registra classificação ausente, conflituosa, Projeto LM e desco
     { id: 'project-type', email: 'project-type@example.com', plan_type: 'lm2' },
     { id: 'unknown', email: 'unknown@example.com', plan: 'vip' },
   ]);
-  const result = await runPremiumStudentIdentityBackfill({ repository, mode: BACKFILL_MODE.APPLY, randomUUID: () => 'uuid-never' });
+  const result = await runPremiumStudentIdentityBackfill({ repository, mode: BACKFILL_MODE.APPLY, batchId: 'batch-test', randomUUID: () => 'uuid-never' });
   assert.equal(repository.students.length, 0);
   assert(result.conflicts.some((c) => c.type === 'MISSING_PRODUCT_CLASSIFICATION'));
   assert(result.conflicts.some((c) => c.type === 'CONFLICTING_PRODUCT_CLASSIFICATION'));
@@ -93,9 +93,9 @@ test('backfill registra e-mails vazios e múltiplos acessos normalizados', async
     { id: 'a', email: 'dup@example.com', plan: 'premium' },
     { id: 'b', email: ' DUP@example.com ', plan: 'premium' },
   ]);
-  const result = await runPremiumStudentIdentityBackfill({ repository, mode: BACKFILL_MODE.APPLY });
+  const result = await runPremiumStudentIdentityBackfill({ repository, mode: BACKFILL_MODE.APPLY, batchId: 'batch-test' });
   assert.equal(repository.students.length, 0);
-  assert(result.conflicts.some((c) => c.type === 'EMPTY_EMAIL'));
+  assert(result.conflicts.some((c) => c.type === 'INVALID_EMAIL'));
   assert(result.conflicts.some((c) => c.type === 'MULTIPLE_ACCESS_RECORDS'));
 });
 
@@ -115,9 +115,10 @@ function createFakeD1(initial) {
       state.premium_students.push({ student_id: params[0], email: params[1], normalized_email: params[2], display_name: params[3], consultation_status: params[4], access_status: params[5], source: params[6], created_at: params[7], updated_at: params[8] });
       return { meta: { changes: 1 } };
     }
+    if (sql.startsWith('INSERT OR IGNORE INTO premium_legacy_identity_backfill_audit')) return { meta: { changes: 1 } };
     const selectMatch = sql.match(/^SELECT id, (email|student_email), student_id FROM (\w+)/);
     if (selectMatch) return { results: (state[selectMatch[2]] ?? []).map((row) => ({ ...row })) };
-    const updateMatch = sql.match(/^UPDATE (\w+) SET student_id = \? WHERE id = \? AND student_id IS NULL$/);
+    const updateMatch = sql.match(/^UPDATE (\w+) SET student_id = \? WHERE id = \? AND \(student_id IS NULL OR lower\(trim\(student_id\)\)=lower\(trim\(email\)\)\)$/);
     if (updateMatch) {
       const row = (state[updateMatch[1]] ?? []).find((item) => item.id === params[1]);
       if (row && !row.student_id) { row.student_id = params[0]; return { meta: { changes: 1 } }; }
@@ -141,12 +142,12 @@ test('D1 adapter em apply persiste student_id com queries parametrizadas e sem c
     premium_anamnesis: [], nutrition_plans: [{ id: 'plan-1', student_email: 'aluna@example.com' }], student_checkins: [], activity_timeline: [], weekly_plans: [], progression_logs: [], followup_logs: [], retention_actions: [],
   });
   const repository = createD1PremiumStudentRepository(db);
-  const result = await runPremiumStudentIdentityBackfill({ repository, mode: BACKFILL_MODE.APPLY, randomUUID: () => 'uuid-d1', now: () => '2026-07-13T00:00:00.000Z' });
+  const result = await runPremiumStudentIdentityBackfill({ repository, mode: BACKFILL_MODE.APPLY, batchId: 'batch-test', randomUUID: () => 'uuid-d1', now: () => '2026-07-13T00:00:00.000Z' });
   assert.equal(result.created, 1);
-  assert.equal(result.associated, 2);
+  assert.equal(result.associated, 1);
   assert.equal(db.state.premium_students.length, 1);
   assert.equal(db.state.student_access[0].student_id, 'uuid-d1');
-  assert.equal(db.state.nutrition_plans[0].student_id, 'uuid-d1');
+  assert.equal(db.state.nutrition_plans[0].student_id, undefined);
 });
 
 test('Premium e Projeto LM com mesmo e-mail bloqueiam o e-mail e não compartilham student_id', async () => {
@@ -168,7 +169,7 @@ test('Premium e Projeto LM com mesmo e-mail bloqueiam o e-mail e não compartilh
   assert.equal(tables.student_access[1].student_id, undefined);
   assert(dryRun.conflicts.some((conflict) => conflict.type === 'MIXED_PRODUCT_ACCESS_FOR_EMAIL'));
 
-  const apply = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, randomUUID: () => 'uuid-shared' });
+  const apply = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, batchId: 'batch-test', randomUUID: () => 'uuid-shared' });
   assert.equal(apply.created, 0);
   assert.equal(apply.associated, 0);
   assert.equal(repository.students.length, 0);
@@ -185,7 +186,7 @@ test('student_access usa apenas o id exato do candidato Premium elegível', asyn
       { id: 'other-access-same-email', email: 'aluna@example.com' },
     ],
   };
-  const result = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, randomUUID: () => 'uuid-exact' });
+  const result = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, batchId: 'batch-test', randomUUID: () => 'uuid-exact' });
   assert.equal(result.created, 1);
   assert.equal(result.associated, 1);
   assert.deepEqual(repository.associatedCalls.map((call) => call.id), ['premium-access']);
@@ -197,8 +198,8 @@ test('student_id existente correto conta como associação existente e execuçã
     [{ student_id: 'uuid-ok', email: 'aluna@example.com', normalized_email: 'aluna@example.com' }]
   );
   const tables = { student_access: [{ id: 'premium-access', email: 'aluna@example.com', student_id: 'uuid-ok' }] };
-  const first = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, randomUUID: () => 'uuid-new' });
-  const second = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, randomUUID: () => 'uuid-newer' });
+  const first = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, batchId: 'batch-test', randomUUID: () => 'uuid-new' });
+  const second = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, batchId: 'batch-test', randomUUID: () => 'uuid-newer' });
   assert.equal(first.created, 0);
   assert.equal(first.associated, 0);
   assert.equal(first.existing_associations, 1);
@@ -215,9 +216,17 @@ test('student_id existente diferente gera conflito e nunca sobrescreve', async (
     [{ student_id: 'uuid-resolved', email: 'aluna@example.com', normalized_email: 'aluna@example.com' }]
   );
   const tables = { student_access: [{ id: 'premium-access', email: 'aluna@example.com', student_id: 'other-id' }] };
-  const result = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, randomUUID: () => 'uuid-unused' });
+  const result = await runPremiumStudentIdentityBackfill({ repository, tables, mode: BACKFILL_MODE.APPLY, batchId: 'batch-test', randomUUID: () => 'uuid-unused' });
   assert.equal(result.created, 0);
   assert.equal(result.associated, 0);
   assert.equal(tables.student_access[0].student_id, 'other-id');
   assert(result.conflicts.some((conflict) => conflict.type === 'IDENTITY_ASSOCIATION_MISMATCH'));
+});
+
+test('rollback é delimitado ao lote e preserva linhas modificadas posteriormente', async () => {
+  const calls = [];
+  const repository = { async rollbackBackfillBatch(batchId, timestamp) { calls.push({ batchId, timestamp }); return { restored: 1, deleted: 1, audited: 2 }; } };
+  assert.deepEqual(await rollbackPremiumStudentIdentityBackfill({ repository, batchId: 'batch-1', now: () => '2026-07-20T00:00:00.000Z' }), { restored: 1, deleted: 1, audited: 2 });
+  assert.deepEqual(calls, [{ batchId: 'batch-1', timestamp: '2026-07-20T00:00:00.000Z' }]);
+  await assert.rejects(() => rollbackPremiumStudentIdentityBackfill({ repository }), /BACKFILL_BATCH_ID_REQUIRED/);
 });

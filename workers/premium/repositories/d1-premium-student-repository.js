@@ -6,7 +6,7 @@ function changedRows(result) { return Number(result?.meta?.changes ?? result?.ch
 const ASSOCIATION_QUERIES = Object.freeze({
   student_access: Object.freeze({
     select: 'SELECT id, email, student_id FROM student_access ORDER BY created_at ASC, id ASC',
-    update: 'UPDATE student_access SET student_id = ? WHERE id = ? AND student_id IS NULL',
+    update: "UPDATE student_access SET student_id = ? WHERE id = ? AND (student_id IS NULL OR lower(trim(student_id))=lower(trim(email)))",
   }),
   premium_anamnesis: Object.freeze({
     select: 'SELECT id, student_email, student_id FROM premium_anamnesis ORDER BY created_at ASC, id ASC',
@@ -60,9 +60,9 @@ export function createD1PremiumStudentRepository(db) {
     async create(student) {
       const normalizedEmail = normalizePremiumStudentEmail(student.normalized_email ?? student.email, { required: true });
       const now = student.created_at ?? new Date().toISOString();
-      await db.prepare(`INSERT INTO premium_students (student_id, email, normalized_email, display_name, consultation_status, access_status, source, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .bind(student.student_id, student.email, normalizedEmail, student.display_name ?? null, student.consultation_status ?? 'NEW', student.access_status ?? 'ACTIVE', student.source ?? 'MIGRATION', now, student.updated_at ?? now).run();
+      await db.prepare(`INSERT INTO premium_students (student_id, email, normalized_email, display_name, consultation_status, access_status, source, legacy_backfill_batch_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .bind(student.student_id, student.email, normalizedEmail, student.display_name ?? null, student.consultation_status ?? 'NEW', student.access_status ?? 'ACTIVE', student.source ?? 'MIGRATION', student.legacy_backfill_batch_id ?? null, now, student.updated_at ?? now).run();
       return this.findByStudentId(student.student_id);
     },
     async updateEmail(studentId, email) {
@@ -111,6 +111,28 @@ export function createD1PremiumStudentRepository(db) {
         results.push(changedRows(await statement.run()));
       }
       return results;
+    },
+    async createBackfillAudit(record) {
+      await db.prepare(`INSERT OR IGNORE INTO premium_legacy_identity_backfill_audit (id, batch_id, student_access_id, previous_student_id, new_student_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)`)
+        .bind(record.id, record.batch_id, record.student_access_id, record.previous_student_id ?? null, record.new_student_id, record.created_at).run();
+    },
+    async rollbackBackfillBatch(batchId, rolledBackAt) {
+      const audit = await db.prepare(`SELECT a.student_access_id, a.previous_student_id, a.new_student_id
+        FROM premium_legacy_identity_backfill_audit a
+        WHERE a.batch_id=? AND a.rolled_back_at IS NULL`).bind(batchId).all();
+      const auditRows = rowResult(audit);
+      let restored = 0;
+      for (const row of auditRows) {
+        const result = await db.prepare(`UPDATE student_access SET student_id=? WHERE id=? AND student_id=?`)
+          .bind(row.previous_student_id ?? null, row.student_access_id, row.new_student_id).run();
+        restored += changedRows(result);
+      }
+      await db.prepare(`UPDATE premium_legacy_identity_backfill_audit SET rolled_back_at=? WHERE batch_id=? AND rolled_back_at IS NULL`)
+        .bind(rolledBackAt, batchId).run();
+      const removed = await db.prepare(`DELETE FROM premium_students WHERE legacy_backfill_batch_id=? AND updated_at=created_at`)
+        .bind(batchId).run();
+      return { restored, deleted: changedRows(removed), audited: auditRows.length };
     },
   });
 }
