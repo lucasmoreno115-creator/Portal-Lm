@@ -15,6 +15,7 @@ export const RC1_PREMIUM_MIGRATIONS = Object.freeze([
   'migrations/0031_add_nutrition_plan_lifecycle.sql',
   'migrations/0032_finalize_nutrition_plan_lifecycle.sql',
   'migrations/0033_add_professional_workspace_indexes.sql',
+  'migrations/0034_premium_legacy_identity_backfill_audit.sql',
 ]);
 
 function resultFromRun(result = {}) { return { success: true, changes: Number(result.changes ?? 0), meta: { changes: Number(result.changes ?? 0) } }; }
