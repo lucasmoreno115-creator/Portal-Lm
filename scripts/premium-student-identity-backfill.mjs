@@ -4,6 +4,11 @@ export const BACKFILL_MODE = Object.freeze({ DRY_RUN: 'dry-run', APPLY: 'apply' 
 
 export const PREMIUM_STUDENT_IDENTITY_TABLES = Object.freeze({
   student_access: Object.freeze({ emailColumn: 'email', idColumn: 'id' }),
+});
+
+// These tables are intentionally read-only in W2.6.3. Their records are
+// audited for follow-up but are never changed by this identity backfill.
+export const PREMIUM_RELATED_AUDIT_TABLES = Object.freeze({
   premium_anamnesis: Object.freeze({ emailColumn: 'student_email', idColumn: 'id' }),
   nutrition_plans: Object.freeze({ emailColumn: 'student_email', idColumn: 'id' }),
   student_checkins: Object.freeze({ emailColumn: 'student_email', idColumn: 'id' }),
@@ -57,7 +62,9 @@ export function evaluatePremiumEligibility(row) {
 }
 
 export function createConflict(type, table, record, email, reason, recommended_action) {
-  return { type, table, record: String(record ?? ''), email: email ?? null, reason, recommended_action };
+  // Conflict objects may be persisted or surfaced by an administrative runner.
+  // Keep only opaque record IDs and never expose e-mail addresses.
+  return { type, table, record: String(record ?? ''), email: null, reason, recommended_action };
 }
 
 function accessStatus(row) {
@@ -75,7 +82,7 @@ function validateMode(mode) {
 
 async function listAssociationCandidates(repository, tables) {
   if (repository.listAssociationCandidates) {
-    return repository.listAssociationCandidates(Object.keys(PREMIUM_STUDENT_IDENTITY_TABLES));
+    return repository.listAssociationCandidates([...Object.keys(PREMIUM_STUDENT_IDENTITY_TABLES), ...Object.keys(PREMIUM_RELATED_AUDIT_TABLES)]);
   }
   return tables;
 }
@@ -86,10 +93,13 @@ export async function runPremiumStudentIdentityBackfill({
   mode = BACKFILL_MODE.DRY_RUN,
   now = () => new Date().toISOString(),
   randomUUID,
+  batchId = null,
 } = {}) {
   const selectedMode = validateMode(mode);
   const apply = selectedMode === BACKFILL_MODE.APPLY;
+  if (apply && !batchId) throw new Error('BACKFILL_BATCH_ID_REQUIRED');
   const conflicts = [];
+  const counts = { already_migrated: 0, eligible: 0, ambiguous: 0, invalid_email: 0, project_only: 0, inactive: 0, conflicting_student_id: 0, error: 0 };
   const candidates = await repository.listBackfillCandidates();
   const associationTables = await listAssociationCandidates(repository, tables);
   const accessByEmail = new Map();
@@ -101,7 +111,8 @@ export async function runPremiumStudentIdentityBackfill({
     try {
       normalizedEmail = normalizePremiumStudentEmail(candidate.email, { required: true });
     } catch {
-      conflicts.push(createConflict('EMPTY_EMAIL', 'student_access', candidate.id, candidate.email, 'E-mail vazio ou não normalizável.', 'Corrigir e-mail antes de executar novo backfill.'));
+      counts.invalid_email += 1;
+      conflicts.push(createConflict('INVALID_EMAIL', 'student_access', candidate.id, null, 'E-mail vazio ou não normalizável.', 'Corrigir e-mail antes de executar novo backfill.'));
       continue;
     }
 
@@ -111,7 +122,16 @@ export async function runPremiumStudentIdentityBackfill({
     allForEmail.push(entry);
     accessByEmail.set(normalizedEmail, allForEmail);
 
+    if (String(candidate.status ?? 'ACTIVE').trim().toUpperCase() !== 'ACTIVE') {
+      counts.inactive += 1;
+      entry.eligibility = { eligible: false, conflictType: 'INACTIVE_ACCESS', reason: 'Acesso não está ACTIVE.' };
+      conflicts.push(createConflict('INACTIVE_ACCESS', 'student_access', candidate.id, null, entry.eligibility.reason, 'Reativar o acesso antes de executar novo backfill.'));
+      continue;
+    }
+
     if (!eligibility.eligible) {
+      if (eligibility.conflictType === 'NON_PREMIUM_ACCESS') counts.project_only += 1;
+      else counts.ambiguous += 1;
       conflicts.push(createConflict(eligibility.conflictType, 'student_access', candidate.id, candidate.email, eligibility.reason, 'Revisar classificação de produto antes de executar o backfill.'));
       continue;
     }
@@ -126,6 +146,7 @@ export async function runPremiumStudentIdentityBackfill({
     const hasIneligible = accessRows.some((row) => !row.eligibility.eligible);
     if (hasEligible && hasIneligible) {
       blockedEmails.add(normalizedEmail);
+      counts.ambiguous += 1;
       conflicts.push(createConflict(
         'MIXED_PRODUCT_ACCESS_FOR_EMAIL',
         'student_access',
@@ -147,13 +168,26 @@ export async function runPremiumStudentIdentityBackfill({
   for (const [normalizedEmail, rows] of eligibleByEmail) {
     if (blockedEmails.has(normalizedEmail)) continue;
     if (rows.length > 1) {
+      counts.ambiguous += 1;
       conflicts.push(createConflict('MULTIPLE_ACCESS_RECORDS', 'student_access', rows.map((r) => r.id).join(','), normalizedEmail, 'Mais de um acesso Premium elegível para o mesmo e-mail normalizado.', 'Revisar manualmente antes de vincular.'));
       continue;
     }
 
     const access = rows[0];
-    let students = normalizeRows(await repository.findByNormalizedEmail(normalizedEmail));
+    const accessStudentId = String(access.student_id ?? '').trim();
+    const accessUsesEmailAsId = accessStudentId && normalizePremiumStudentEmail(accessStudentId) === normalizedEmail;
+    let studentById = null;
+    if (accessStudentId && !accessUsesEmailAsId) {
+      studentById = await repository.findByStudentId?.(accessStudentId);
+      if (repository.findByStudentId && (!studentById || normalizePremiumStudentEmail(studentById.email) !== normalizedEmail)) {
+        counts.conflicting_student_id += 1;
+        conflicts.push(createConflict('CONFLICTING_STUDENT_ID', 'student_access', access.id, null, 'student_id canônico não resolve para o mesmo e-mail Premium.', 'Revisar manualmente antes de executar o backfill.'));
+        continue;
+      }
+    }
+    let students = studentById ? [studentById] : normalizeRows(await repository.findByNormalizedEmail(normalizedEmail));
     if (students.length > 1) {
+      counts.ambiguous += 1;
       conflicts.push(createConflict('IDENTITY_COLLISION', 'premium_students', students.map((s) => s.student_id).join(','), normalizedEmail, 'Mais de uma identidade para o e-mail normalizado.', 'Resolver colisão manualmente.'));
       continue;
     }
@@ -167,7 +201,8 @@ export async function runPremiumStudentIdentityBackfill({
         display_name: access.name,
         consultation_status: 'NEW',
         access_status: accessStatus(access),
-        source: 'BACKFILL',
+        source: 'LEGACY_BACKFILL',
+        legacy_backfill_batch_id: batchId,
         created_at: now(),
         updated_at: now(),
       };
@@ -178,6 +213,9 @@ export async function runPremiumStudentIdentityBackfill({
       } else {
         student = newStudent;
       }
+      counts.eligible += 1;
+    } else {
+      counts.already_migrated += 1;
     }
 
     const updates = [];
@@ -188,10 +226,12 @@ export async function runPremiumStudentIdentityBackfill({
         const recordNormalized = normalizePremiumStudentEmail(recordEmail);
         if (recordNormalized !== normalizedEmail) continue;
         if (table === 'student_access' && record[config.idColumn] !== access.id) continue;
-        if (record.student_id) {
+        const recordUsesEmailAsId = record.student_id && normalizePremiumStudentEmail(record.student_id) === normalizedEmail;
+        if (record.student_id && !recordUsesEmailAsId) {
           if (record.student_id === student.student_id) {
             existing_associations += 1;
           } else {
+            counts.conflicting_student_id += 1;
             conflicts.push(createConflict(
               'IDENTITY_ASSOCIATION_MISMATCH',
               table,
@@ -214,10 +254,11 @@ export async function runPremiumStudentIdentityBackfill({
         ? await repository.batchAssociateStudentIds(updates)
         : await Promise.all(updates.map((update) => repository.associateStudentId(update.table, update.id, update.student_id)));
       associated += Array.isArray(persisted) ? persisted.reduce((total, value) => total + Number(value ?? 0), 0) : updates.length;
+      for (const update of updates) await repository.createBackfillAudit?.({ id: generatePremiumStudentId(randomUUID), batch_id: batchId, student_access_id: update.id, previous_student_id: access.student_id ?? null, new_student_id: update.student_id, created_at: now() });
     }
   }
 
-  for (const [table, config] of Object.entries(PREMIUM_STUDENT_IDENTITY_TABLES)) {
+  for (const [table, config] of Object.entries(PREMIUM_RELATED_AUDIT_TABLES)) {
     const rowsForTable = associationTables[table] ?? [];
     for (const record of rowsForTable) {
       const recordEmail = record[config.emailColumn];
@@ -232,6 +273,8 @@ export async function runPremiumStudentIdentityBackfill({
   return {
     mode: selectedMode,
     candidates: candidates.length,
+    scanned: candidates.length,
+    classifications: counts,
     created,
     associated,
     skipped,
@@ -242,7 +285,20 @@ export async function runPremiumStudentIdentityBackfill({
   };
 }
 
+export async function rollbackPremiumStudentIdentityBackfill({ repository, batchId, now = () => new Date().toISOString() } = {}) {
+  if (!batchId) throw new Error('BACKFILL_BATCH_ID_REQUIRED');
+  if (!repository?.rollbackBackfillBatch) throw new Error('BACKFILL_ROLLBACK_UNAVAILABLE');
+  return repository.rollbackBackfillBatch(batchId, now());
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const mode = process.argv.includes('--apply') ? BACKFILL_MODE.APPLY : BACKFILL_MODE.DRY_RUN;
-  console.log(JSON.stringify({ mode, message: 'Use este módulo com um repository D1 autenticado. Dry-run é padrão; --apply deve ser solicitado explicitamente. Tokens não são lidos nem impressos.' }, null, 2));
+  const batchIdIndex = process.argv.indexOf('--batch-id');
+  const batchId = batchIdIndex >= 0 ? process.argv[batchIdIndex + 1] : null;
+  if (mode === BACKFILL_MODE.APPLY && !batchId) {
+    console.error(JSON.stringify({ error: 'BACKFILL_BATCH_ID_REQUIRED', message: '--apply exige --batch-id; nenhuma escrita foi executada.' }));
+    process.exitCode = 2;
+  } else {
+    console.log(JSON.stringify({ mode, batch_id: batchId, message: 'Módulo administrativo: execute-o pelo runner D1 autenticado. Dry-run é o padrão; tokens e e-mails completos nunca são impressos.' }, null, 2));
+  }
 }
