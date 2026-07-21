@@ -27,4 +27,22 @@ jobs:
           path: premium-nutrition-plan-discovery.json
           retention-days: 1
       - name: Publish aggregate summary only
-        run: node --input-type=module -e "import fs from 'node:fs';const s=JSON.parse(fs.readFileSync('premium-nutrition-plan-discovery.json')).summary;fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'## Premium Nutrition Plan Discovery\\n\\n'+Object.entries(s).map(([k,v])=>k+': '+v).join('\\n')+'\\n');"
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const report = JSON.parse(
+            fs.readFileSync('premium-nutrition-plan-discovery.json', 'utf8')
+          );
+
+          const summary = report.summary;
+
+          const output = [
+            '## Premium Nutrition Plan Discovery',
+            '',
+            ...Object.entries(summary).map(([key, value]) => `${key}: ${value}`),
+            ''
+          ].join('\n');
+
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, output);
+          NODE
