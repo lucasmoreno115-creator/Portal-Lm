@@ -26,6 +26,30 @@ test('Prontuário LM renderiza estrutura, empty states e não expõe token', () 
   assert.match(js, /admin-premium-student-record\.html/);
 });
 
+test('renderização do prontuário permanece operacional sem o container opcional de status', async () => {
+  const html = readFileSync(new URL('../public/admin-premium-student-record.html', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(html, /careStatusContent/);
+  assert.match(source, /const student=data\.student\|\|\{\}, summary=data\.summary\|\|\{\}, root=byId\('careStatusContent'\); if \(!root\) return;/);
+  assert.match(source, /renderCareStatus\(data\);[\s\S]*renderPlan\(data\.nutrition_plan \|\| null, student\);/);
+
+  const dom = createFakeDocument({ includeCareStatus: false });
+  const location = { search: '?student_id=student-1', origin: 'https://admin.example', assign(url) { this.assigned = url; } };
+  const context = { document: dom.document, window: { location, LMAdminAuth: { requireAdmin(){}, attachLogout(){}, getAdminAuthHeaders(headers){ return headers; } } }, location, URLSearchParams, URL, FormData: class {}, fetch: async () => ({ ok: true, json: async () => ({ ok: true, data: { student: { student_id: 'student-1', name: 'Ana' }, summary: {}, nutrition_plan: { current: null, draft: null }, pending_items: [], feedbacks: [], followup_entries: [] } }) }) };
+  vm.runInNewContext(source, context);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const action = dom.created.find((node) => node.attributes.href?.startsWith('/admin-premium-nutrition-plan.html'));
+  assert.ok(action, 'renderPlan deve continuar gerando a ação oficial do editor');
+  const card = dom.elements.get('planejamento-alimentar');
+  assert.equal(card.attributes.role, 'link');
+  assert.equal(card.attributes.tabindex, '0');
+  card.onclick({ target: { closest: () => null } });
+  assert.equal(location.assigned, '/admin-premium-nutrition-plan.html?student_id=student-1&return_to=%2Fadmin-premium-student-record.html%3Fstudent_id%3Dstudent-1%23planejamento-alimentar');
+  let prevented = false;
+  card.onkeydown({ key: ' ', preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+});
+
 test('HTML seguro: Prontuário não usa innerHTML nem interpolação HTML dinâmica', () => {
   const publicJs = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
   const assetJs = readFileSync(new URL('../public/assets/js/admin-premium-student-record.js', import.meta.url), 'utf8');
@@ -91,7 +115,7 @@ test('Prontuário mantém a CTA alimentar para todas as combinações e constró
     assert.ok(action, 'CTA alimentar deve permanecer disponível');
     const href = new URL(action.attributes.href, 'https://admin.example');
     assert.equal(href.searchParams.get('student_id'), 'student safe');
-    assert.equal(href.searchParams.get('return_to'), '/admin-premium-student-record.html?student_id=student+safe');
+    assert.equal(href.searchParams.get('return_to'), '/admin-premium-student-record.html?student_id=student+safe#planejamento-alimentar');
   }
 });
 
@@ -114,7 +138,7 @@ function maliciousRecord() {
   };
 }
 
-function createFakeDocument() {
+function createFakeDocument({ includeCareStatus = true } = {}) {
   const created = [];
   class Element {
     constructor(tagName, id = '') {
@@ -137,14 +161,14 @@ function createFakeDocument() {
     addEventListener() {}
     reset() {}
   }
-  const ids = ['state','record','studentName','contact','status','summary','pendingList','anamnesis','plan','feedbacks','entries','entryForm','adminLogoutBtn','primaryAction','careStatusContent'];
+  const ids = ['state','record','studentName','contact','status','summary','pendingList','planejamento-alimentar','anamnesis','plan','feedbacks','entries','entryForm','adminLogoutBtn','primaryAction', ...(includeCareStatus ? ['careStatusContent'] : [])];
   const elements = new Map(ids.map((id) => [id, new Element(id === 'entryForm' ? 'form' : 'div', id)]));
   const document = {
     getElementById(id) { return elements.get(id) || null; },
     createElement(tagName) { return new Element(tagName); },
     addEventListener() {},
   };
-  return { document, created, text: () => [...elements.values()].map((node) => node.textContent).join('\n') };
+  return { document, elements, created, text: () => [...elements.values()].map((node) => node.textContent).join('\n') };
 }
 
 function escapeRegExp(value) {

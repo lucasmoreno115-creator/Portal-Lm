@@ -46,7 +46,7 @@
     );
   }
 
-  function renderCareStatus(data) { const student=data.student||{}, summary=data.summary||{}, root=byId('careStatusContent'), status=student.consultation_status; const action=status==='UNDER_REVIEW'?{label:'Marcar planejamento como pronto',to:'READY_TO_RELEASE',confirmation:'O planejamento deste aluno está concluído e pronto para liberação?'}:status==='READY_TO_RELEASE'?{label:'Liberar acesso ao aluno',to:'ACTIVE',confirmation:'Ao liberar, o aluno poderá acessar os módulos publicados no Portal.'}:null; const description=status==='ACTIVE'?'Acompanhamento ativo. Acesso ao Portal liberado.':status==='READY_TO_RELEASE'?'O planejamento está pronto para liberação.':'Acompanhe as pendências e o próximo passo permitido.'; const last=(data.followup_entries||[]).find(x=>x.entry_type==='CONSULTATION_STATUS_CHANGE'); root.replaceChildren(field('Status atual',statusLabels[status]||status),field('Descrição',description),field('Próxima ação permitida',action?.label||(status==='ACTIVE'?'Acompanhamento ativo':summary.next_operational_action)),field('Pendências',`${summary.open_pending_items_count||0} abertas`),field('Última mudança',last?`${fmt(last.created_at)} — ${text(last.content)}`:'Sem mudança registrada')); if(action)root.append(el('button',{textContent:action.label,dataset:{transition:action.to,confirmation:action.confirmation}})); }
+  function renderCareStatus(data) { const student=data.student||{}, summary=data.summary||{}, root=byId('careStatusContent'); if (!root) return; const status=student.consultation_status; const action=status==='UNDER_REVIEW'?{label:'Marcar planejamento como pronto',to:'READY_TO_RELEASE',confirmation:'O planejamento deste aluno está concluído e pronto para liberação?'}:status==='READY_TO_RELEASE'?{label:'Liberar acesso ao aluno',to:'ACTIVE',confirmation:'Ao liberar, o aluno poderá acessar os módulos publicados no Portal.'}:null; const description=status==='ACTIVE'?'Acompanhamento ativo. Acesso ao Portal liberado.':status==='READY_TO_RELEASE'?'O planejamento está pronto para liberação.':'Acompanhe as pendências e o próximo passo permitido.'; const last=(data.followup_entries||[]).find(x=>x.entry_type==='CONSULTATION_STATUS_CHANGE'); root.replaceChildren(field('Status atual',statusLabels[status]||status),field('Descrição',description),field('Próxima ação permitida',action?.label||(status==='ACTIVE'?'Acompanhamento ativo':summary.next_operational_action)),field('Pendências',`${summary.open_pending_items_count||0} abertas`),field('Última mudança',last?`${fmt(last.created_at)} — ${text(last.content)}`:'Sem mudança registrada')); if(action)root.append(el('button',{textContent:action.label,dataset:{transition:action.to,confirmation:action.confirmation}})); }
 
   function renderPending(items) {
     const list = byId('pendingList');
@@ -88,14 +88,18 @@
     const origin = location.origin || 'http://localhost';
     const returnTo = new URL('/admin-premium-student-record.html', origin);
     returnTo.searchParams.set('student_id', studentId);
+    returnTo.hash = 'planejamento-alimentar';
     const editor = new URL('/admin-premium-nutrition-plan.html', origin);
     editor.searchParams.set('student_id', studentId);
-    editor.searchParams.set('return_to', `${returnTo.pathname}${returnTo.search}`);
+    editor.searchParams.set('return_to', `${returnTo.pathname}${returnTo.search}${returnTo.hash}`);
     return `${editor.pathname}${editor.search}`;
   }
 
+  function makeNutritionPlanCardNavigable(studentId) { const card=byId('planejamento-alimentar'); if (!card || !studentId) return; card.setAttribute('role', 'link'); card.setAttribute('tabindex', '0'); const navigate=()=>window.location.assign(nutritionPlanLink(studentId)); card.onclick=(event)=>{if(event.target?.closest?.('a, button'))return;navigate();}; card.onkeydown=(event)=>{if(event.key!=='Enter'&&event.key!==' ')return;event.preventDefault();navigate();}; }
+
   function renderPlan(workflow, student) {
     const target = byId('plan');
+    makeNutritionPlanCardNavigable(student.student_id);
     const current = workflow?.current || null;
     const draft = workflow?.draft || null;
     const hasPublished = workflow?.hasPublished ?? Boolean(current);
