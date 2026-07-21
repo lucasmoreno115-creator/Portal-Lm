@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-const READ_PREFIX = /^(SELECT|WITH|PRAGMA)\b/i;
+const READ_PREFIX = /^(SELECT|WITH)\b/i;
 const FORBIDDEN = /\b(INSERT|UPDATE|DELETE|REPLACE|CREATE|ALTER|DROP|VACUUM|BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE|ATTACH|DETACH)\b/i;
 const HASH_DOMAIN = 'portal-lm:premium-nutrition-plan-discovery:v1:';
 
@@ -61,5 +61,5 @@ export async function runDiscovery({ client }) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  try { const report = await runDiscovery({ client: createReadOnlyD1Client({ token: process.env.CLOUDFLARE_D1_API_TOKEN || process.env.CLOUDFLARE_API_TOKEN, accountId: process.env.CLOUDFLARE_ACCOUNT_ID, databaseId: process.env.CLOUDFLARE_D1_DATABASE_ID }) }); process.stdout.write(`${JSON.stringify(report, null, 2)}\n`); } catch (error) { process.stderr.write(`${error?.message === 'DIAGNOSTIC_WRITE_SQL_BLOCKED' ? 'DIAGNOSTIC_WRITE_SQL_BLOCKED' : 'PREMIUM_NUTRITION_DISCOVERY_FAILED'}\n`); process.exitCode = 1; }
+  try { const report = await runDiscovery({ client: createReadOnlyD1Client({ token: process.env.CLOUDFLARE_D1_API_TOKEN, accountId: process.env.CLOUDFLARE_ACCOUNT_ID, databaseId: process.env.CLOUDFLARE_D1_DATABASE_ID }) }); process.stdout.write(`${JSON.stringify(report, null, 2)}\n`); } catch (error) { process.stderr.write(`${error?.message === 'DIAGNOSTIC_WRITE_SQL_BLOCKED' ? 'DIAGNOSTIC_WRITE_SQL_BLOCKED' : 'PREMIUM_NUTRITION_DISCOVERY_FAILED'}\n`); process.exitCode = 1; }
 }
