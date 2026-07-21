@@ -24,4 +24,16 @@ jobs:
           path: premium-nutrition-plan-blocked-review.json
           retention-days: 1
       - name: Publish aggregate summary only
-        run: node --input-type=module -e "import fs from 'node:fs'; const {summary}=JSON.parse(fs.readFileSync('premium-nutrition-plan-blocked-review.json')); fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, ['## Premium Nutrition Plan Blocked Review','',...Object.entries(summary).map(([k,v])=>k+': '+v),''].join('\\n'));"
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const report = JSON.parse(
+            fs.readFileSync('premium-nutrition-plan-blocked-review.json', 'utf8')
+          );
+          const summary = report.summary;
+          fs.appendFileSync(
+            process.env.GITHUB_STEP_SUMMARY,
+            ['## Premium Nutrition Plan Blocked Review', '', ...Object.entries(summary).map(([key, value]) => `${key}: ${value}`), ''].join('\n')
+          );
+          NODE

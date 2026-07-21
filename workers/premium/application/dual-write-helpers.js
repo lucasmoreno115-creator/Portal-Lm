@@ -30,7 +30,9 @@ export async function resolvePremiumIdentityForLegacyEmail({ identityService, em
   try {
     const result = await identityService.resolve({ email });
     if (result.ok) {
-      policy = { student_id: result.student.student_id, allowFallback: false, blocked: false, reason: PREMIUM_IDENTITY_POLICY_REASONS.RESOLVED, resolution: result };
+      // Read use-cases that explicitly opt in retain legacy continuity after an
+      // ID lookup misses; write callers still pass the same explicit policy.
+      policy = { student_id: result.student.student_id, allowFallback: allowLegacyFallback, blocked: false, reason: PREMIUM_IDENTITY_POLICY_REASONS.RESOLVED, resolution: result };
     } else if (result.error === STUDENT_IDENTITY_ERRORS.STUDENT_NOT_FOUND && allowLegacyFallback) {
       policy = { student_id: null, allowFallback: true, blocked: false, reason: PREMIUM_IDENTITY_POLICY_REASONS.LEGACY_FALLBACK_ALLOWED, resolution: result };
     } else if (isBlockingIdentityError(result.error) || result.error === STUDENT_IDENTITY_ERRORS.STUDENT_NOT_FOUND) {
