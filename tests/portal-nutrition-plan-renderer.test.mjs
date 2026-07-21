@@ -43,16 +43,28 @@ test('text and structured substitutions are normalized and malicious content is 
   assert.doesNotMatch(renderer.renderLines(substitutions[2]), /<img/);
 });
 
-test('portal and print pages share the renderer and preserve the established endpoint', () => {
-  for (const file of ['public/portal-plano-alimentar.html', 'public/portal-plano-alimentar-print.html']) {
+test('portal and print pages share the renderer, preserve the established endpoint, and omit redundant plan blocks', () => {
+  const nutritionPages = [
+    'portal-plano-alimentar.html',
+    'public/portal-plano-alimentar.html',
+    'portal-plano-alimentar-print.html',
+    'public/portal-plano-alimentar-print.html'
+  ];
+  for (const file of nutritionPages) {
     const html = fs.readFileSync(file, 'utf8');
     assert.match(html, /premium-nutrition-plan-renderer\.js/);
     assert.match(html, /\/portal\/nutrition-plan/);
   }
   const portal = fs.readFileSync('public/portal-plano-alimentar.html', 'utf8');
-  assert.match(portal, /plan\.goal \|\| 'Objetivo não informado'/);
-  assert.match(portal, /plan\.strategy \|\| 'Estratégia não informada'/);
+  assert.match(portal, /plan\.goal/);
+  assert.match(portal, /plan\.strategy/);
   assert.match(portal, /meal\?\.guidance/);
+  assert.match(portal, /acc-strategy/);
+  for (const html of nutritionPages.map((file) => fs.readFileSync(file, 'utf8'))) {
+    assert.doesNotMatch(html, /Resumo do plano/);
+    assert.doesNotMatch(html, /Regras de adesão|Regras de ades&atilde;o/);
+    assert.doesNotMatch(html, /adherence_rules/);
+  }
 });
 
 test('meal rendering prioritizes primary text, safely falls back to legacy object items, and labels guidance', () => {
@@ -83,7 +95,6 @@ test('portal and print pages render meal direction, scoped substitutions, genera
     assert.match(html, /renderFoodEquivalences\(plan\?\.substitutions|renderFoodEquivalences\(plan\.substitutions/);
     assert.match(html, /Hidrata/);
     assert.match(html, /Suplementos/);
-    assert.match(html, /adherence_rules/);
     assert.match(html, /observations.*notes|notes.*observations/);
   }
   assert.match(portal, /content\.substitutionsHtml/);
