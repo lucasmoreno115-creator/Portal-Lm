@@ -100,3 +100,4 @@ test('portal and print pages render meal direction, scoped substitutions, genera
   assert.match(portal, /content\.substitutionsHtml/);
   assert.match(print, /rendered\.substitutionsHtml/);
 });
+test('print omits the general equivalence section when its array is empty',()=>{const print=fs.readFileSync('public/portal-plano-alimentar-print.html','utf8');assert.match(print,/Array\.isArray\(plan\?\.substitutions\) && plan\.substitutions\.length/);});
