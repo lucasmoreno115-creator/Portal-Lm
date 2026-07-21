@@ -12,7 +12,8 @@ test('legacy identity backfill workflow is manual and production protected', () 
   assert.match(workflow, /timeout-minutes: 20/);
   assert.match(workflow, /CLOUDFLARE_D1_DATABASE_ID: \$\{\{ vars\.CLOUDFLARE_D1_DATABASE_ID \}\}/);
   assert.match(workflow, /CLOUDFLARE_ACCOUNT_ID: \$\{\{ secrets\.CLOUDFLARE_ACCOUNT_ID \}\}/);
-  assert.match(workflow, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/);
+ assert.match(workflow, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_D1_API_TOKEN \}\}/);
+assert.doesNotMatch(workflow, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/);
   assert.match(workflow, /BACKFILL_MODE: \$\{\{ inputs\.mode \}\}/);
   assert.match(workflow, /BACKFILL_BATCH_ID: \$\{\{ inputs\.batch_id \}\}/);
   const runLines = workflow.split('\n').filter((line) => /^\s+run:/.test(line));
