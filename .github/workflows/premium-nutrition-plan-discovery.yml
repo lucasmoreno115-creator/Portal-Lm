@@ -1,0 +1,30 @@
+name: Premium Nutrition Plan Discovery
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_D1_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_D1_DATABASE_ID: ${{ vars.CLOUDFLARE_D1_DATABASE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Run read-only discovery
+        run: node scripts/diagnose-premium-nutrition-plan-linkage.mjs > premium-nutrition-plan-discovery.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: premium-nutrition-plan-discovery
+          path: premium-nutrition-plan-discovery.json
+          retention-days: 1
+      - name: Publish aggregate summary only
+        run: node --input-type=module -e "import fs from 'node:fs';const s=JSON.parse(fs.readFileSync('premium-nutrition-plan-discovery.json')).summary;fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'## Premium Nutrition Plan Discovery\\n\\n'+Object.entries(s).map(([k,v])=>k+': '+v).join('\\n')+'\\n');"
