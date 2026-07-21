@@ -83,9 +83,9 @@ export function validateNutritionPlanStructure(input = {}) {
     const hasPrimaryText = Boolean(text(meal.primary_text));
     const hasGuidance = Boolean(text(meal.guidance));
     const items = Array.isArray(meal.items) ? meal.items : [];
-    // v2 requires a real primary meal for newly textual plans. Structured v1 meals
-    // remain publishable for backwards compatibility.
-    if (!hasPrimaryText && items.length === 0 && !hasGuidance) errors.push(`MEAL_${mealIndex + 1}_PRIMARY_TEXT_REQUIRED`);
+    // v2 requires a real primary meal. Structured v1 items remain publishable for
+    // backwards compatibility, but guidance is only an observation, never content.
+    if (!hasPrimaryText && items.length === 0) errors.push(`MEAL_${mealIndex + 1}_PRIMARY_TEXT_REQUIRED`);
     for (const [itemIndex, item] of items.entries()) {
       if (!text(item.food)) errors.push(`MEAL_${mealIndex + 1}_ITEM_${itemIndex + 1}_FOOD_REQUIRED`);
       if (!text(item.quantity) && !hasGuidance && !text(item.note)) errors.push(`MEAL_${mealIndex + 1}_ITEM_${itemIndex + 1}_QUANTITY_OR_GUIDANCE_REQUIRED`);

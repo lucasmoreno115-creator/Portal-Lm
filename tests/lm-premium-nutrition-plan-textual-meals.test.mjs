@@ -19,6 +19,13 @@ test('an incomplete textual meal remains a valid draft but is blocked from publi
   assert.ok(validateNutritionPlanStructure(input).errors.includes('MEAL_1_PRIMARY_TEXT_REQUIRED'));
 });
 
+test('guidance does not make an empty textual meal publishable', () => {
+  const input={title:'Plano',meals:[{name:'Almoço',guidance:'Preferir comida preparada em casa.',primary_text:'   ',items:[]}]};
+  const validation=validateNutritionPlanStructure(input);
+  assert.equal(validation.ok,false);
+  assert.ok(validation.errors.includes('MEAL_1_PRIMARY_TEXT_REQUIRED'));
+});
+
 test('legacy structured items survive normalization beside new textual fields', () => {
   const legacy={meals:[{id:'meal-1',name:'Almoço',items:[{id:'item-1',food:'Arroz',quantity:'100',unit:'g',substitutions:[{food:'Batata'}]}],substitutions:[{id:'old-sub',food:'Sem texto'}]}]};
   const meal=toCanonicalNutritionPlan(legacy).meals[0];
