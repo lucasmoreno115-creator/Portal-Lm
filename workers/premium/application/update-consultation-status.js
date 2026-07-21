@@ -19,7 +19,7 @@ export function createUpdateConsultationStatusUseCase({ studentRepository, follo
       ) SELECT ?, student_id, 'CONSULTATION_STATUS_CHANGE', ?, ?, 'admin', 'premium_students', ?, ?, ?, ?
         FROM premium_students
         WHERE student_id=? AND consultation_status=?`).bind(
-        entryId, 'Status da consultoria alterado', `${student.consultation_status} → ${status}`,
+        entryId, 'Status da consultoria alterado', JSON.stringify({ student_id, from: student.consultation_status, to: status, action: status === 'READY_TO_RELEASE' ? 'mark-ready' : status === 'ACTIVE' ? 'release' : 'status-change', origin: 'student_record' }),
         student_id, created_by, now, now, student_id, student.consultation_status
       ),
       db.prepare('UPDATE premium_students SET consultation_status=?, updated_at=? WHERE student_id=? AND consultation_status=?')

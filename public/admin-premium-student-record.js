@@ -6,7 +6,7 @@
   const studentId = params.get('student_id');
   const state = document.getElementById('state');
   const root = document.getElementById('record');
-  const statusLabels = { NEW:'Novo', AWAITING_ANAMNESIS:'Aguardando anamnese', UNDER_REVIEW:'Em análise', ACTIVE:'Ativo', PAUSED:'Pausado', ENDED:'Encerrado' };
+  const statusLabels = { NEW:'Novo', AWAITING_ANAMNESIS:'Aguardando anamnese', UNDER_REVIEW:'Em análise', READY_TO_RELEASE:'Pronto para liberação', ACTIVE:'Ativo', PAUSED:'Pausado', ENDED:'Encerrado' };
 
   const byId = (id) => document.getElementById(id);
   const fmt = (value) => value ? new Date(value).toLocaleString('pt-BR') : '—';
@@ -45,6 +45,8 @@
       field('Próxima ação', summary.next_operational_action)
     );
   }
+
+  function renderCareStatus(data) { const student=data.student||{}, summary=data.summary||{}, root=byId('careStatusContent'), status=student.consultation_status; const action=status==='UNDER_REVIEW'?{label:'Marcar planejamento como pronto',to:'READY_TO_RELEASE',confirmation:'O planejamento deste aluno está concluído e pronto para liberação?'}:status==='READY_TO_RELEASE'?{label:'Liberar acesso ao aluno',to:'ACTIVE',confirmation:'Ao liberar, o aluno poderá acessar os módulos publicados no Portal.'}:null; const description=status==='ACTIVE'?'Acompanhamento ativo. Acesso ao Portal liberado.':status==='READY_TO_RELEASE'?'O planejamento está pronto para liberação.':'Acompanhe as pendências e o próximo passo permitido.'; const last=(data.followup_entries||[]).find(x=>x.entry_type==='CONSULTATION_STATUS_CHANGE'); root.replaceChildren(field('Status atual',statusLabels[status]||status),field('Descrição',description),field('Próxima ação permitida',action?.label||(status==='ACTIVE'?'Acompanhamento ativo':summary.next_operational_action)),field('Pendências',`${summary.open_pending_items_count||0} abertas`),field('Última mudança',last?`${fmt(last.created_at)} — ${text(last.content)}`:'Sem mudança registrada')); if(action)root.append(el('button',{textContent:action.label,dataset:{transition:action.to,confirmation:action.confirmation}})); }
 
   function renderPending(items) {
     const list = byId('pendingList');
@@ -143,6 +145,7 @@
     byId('contact').textContent = [student.email, student.phone].filter(Boolean).join(' • ');
     byId('status').textContent = statusLabels[student.consultation_status] || student.consultation_status || '—';
     renderSummary(student, summary);
+    renderCareStatus(data);
     renderPending(data.pending_items || []);
     renderAnamnesis(data.anamnesis || null);
     renderPlan(data.nutrition_plan || null, student);
@@ -151,6 +154,8 @@
   }
 
   document.addEventListener('click', async (event) => {
+    const transition = event.target?.dataset?.transition;
+    if (transition) { if (!confirm(event.target.dataset.confirmation)) return; event.target.disabled=true; try { await api(`/api/admin/premium/students/${encodeURIComponent(studentId)}/status`, { method:'PATCH', body:JSON.stringify({status:transition}) }); await load(); } catch(error) { alert(error.message); event.target.disabled=false; } return; }
     const id = event.target?.dataset?.resolve;
     if (!id) return;
     event.target.disabled = true;

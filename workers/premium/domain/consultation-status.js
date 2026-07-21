@@ -7,6 +7,7 @@ export const ConsultationStatus = Object.freeze({
   NEW: 'NEW',
   AWAITING_ANAMNESIS: 'AWAITING_ANAMNESIS',
   UNDER_REVIEW: 'UNDER_REVIEW',
+  READY_TO_RELEASE: 'READY_TO_RELEASE',
   ACTIVE: 'ACTIVE',
   PAUSED: 'PAUSED',
   ENDED: 'ENDED',
@@ -17,7 +18,8 @@ const validStatuses = new Set(Object.values(ConsultationStatus));
 const allowedTransitions = Object.freeze({
   [ConsultationStatus.NEW]: Object.freeze([ConsultationStatus.AWAITING_ANAMNESIS]),
   [ConsultationStatus.AWAITING_ANAMNESIS]: Object.freeze([ConsultationStatus.UNDER_REVIEW]),
-  [ConsultationStatus.UNDER_REVIEW]: Object.freeze([ConsultationStatus.ACTIVE]),
+  [ConsultationStatus.UNDER_REVIEW]: Object.freeze([ConsultationStatus.READY_TO_RELEASE]),
+  [ConsultationStatus.READY_TO_RELEASE]: Object.freeze([ConsultationStatus.ACTIVE]),
   [ConsultationStatus.ACTIVE]: Object.freeze([ConsultationStatus.PAUSED, ConsultationStatus.ENDED]),
   [ConsultationStatus.PAUSED]: Object.freeze([ConsultationStatus.ACTIVE, ConsultationStatus.ENDED]),
   [ConsultationStatus.ENDED]: Object.freeze([]),
