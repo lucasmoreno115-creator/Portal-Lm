@@ -1,0 +1,53 @@
+name: Premium Nutrition Plan Association Phase 1
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: dry-run performs reads only; apply or rollback requires confirmation.
+        required: true
+        default: dry-run
+        type: choice
+        options: [dry-run, apply, rollback]
+      confirmation:
+        description: Enter APPLY_PHASE_1 or ROLLBACK_PHASE_1 for the matching write mode.
+        required: false
+        type: string
+      rollback_manifest:
+        description: Sanitized rollback manifest JSON, required only for rollback.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  associate:
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_D1_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_D1_DATABASE_ID: ${{ vars.CLOUDFLARE_D1_DATABASE_ID }}
+      MODE: ${{ inputs.mode }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+      ROLLBACK_MANIFEST: ${{ inputs.rollback_manifest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Run association operation
+        run: node scripts/run-premium-nutrition-plan-association-phase1.mjs > premium-nutrition-plan-association-phase1.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: premium-nutrition-plan-association-phase1
+          path: premium-nutrition-plan-association-phase1.json
+          retention-days: 1
+      - name: Publish aggregate summary only
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const { mode, summary } = JSON.parse(fs.readFileSync('premium-nutrition-plan-association-phase1.json', 'utf8'));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, [`## Premium Nutrition Plan Association Phase 1 (${mode})`, '', ...Object.entries(summary).map(([key, value]) => `${key}: ${value}`), ''].join('\n'));
+          NODE
