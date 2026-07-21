@@ -101,7 +101,12 @@ export function createRemoteD1Binding(client) {
 }
 
 export function summarizeDryRun(result) {
-  return { mode: 'dry-run', scanned: result.scanned, classifications: result.classifications };
+  return {
+    mode: 'dry-run',
+    scanned: result.scanned,
+    classifications: result.classifications,
+    restricted_blockers: result.restricted_blockers ?? [],
+  };
 }
 
 export async function executeRemoteBackfill({ mode, batchId = '', confirmApply = '', confirmRollback = '', env = process.env, fetchImpl, timeoutMs } = {}) {

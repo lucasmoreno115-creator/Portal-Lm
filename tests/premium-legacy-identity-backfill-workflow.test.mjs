@@ -21,3 +21,13 @@ assert.doesNotMatch(workflow, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_
   assert(runLines.every((line) => !line.includes('inputs.mode')));
   assert.doesNotMatch(workflow, /wrangler/i);
 });
+
+test('workflow uploads a one-day sanitized blockers artifact only for dry-runs', () => {
+  assert.match(workflow, /name: Create sanitized dry-run blockers artifact\n\s+if: \$\{\{ inputs\.mode == 'dry-run' \}\}/);
+  assert.match(workflow, /name: Upload sanitized dry-run blockers artifact\n\s+if: \$\{\{ inputs\.mode == 'dry-run' \}\}\n\s+uses: actions\/upload-artifact@v4/);
+  assert.match(workflow, /path: premium-legacy-identity-backfill-blockers\.json/);
+  assert.match(workflow, /retention-days: 1/);
+  const artifactCommand = workflow.match(/name: Create sanitized dry-run blockers artifact[\s\S]*?(?=\n\s+- name: Upload)/)?.[0] ?? '';
+  assert.match(artifactCommand, /restricted_blockers/);
+  assert.doesNotMatch(artifactCommand, /GITHUB_STEP_SUMMARY/);
+});
