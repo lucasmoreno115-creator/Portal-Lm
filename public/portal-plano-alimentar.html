@@ -43,7 +43,7 @@
     const renderMealContent = nutritionRenderer.renderMealContent;
 
     function renderList(items) {
-      return `<ul class='mission-list'>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+      return `<ul class='mission-list'>${items.map((item) => `<li>${escapeHtml(nutritionRenderer.formatStructuredItem(item))}</li>`).join('')}</ul>`;
     }
 
     function renderTextBlock(text) {
@@ -212,7 +212,7 @@
         return `<article class='meal-card'>
           <h3>${escapeHtml(meal?.name || 'Refeicao')}</h3>
           ${meal?.time ? `<p class='muted'>${escapeHtml(meal.time)}</p>` : ''}
-          ${meal?.guidance ? `<p class='muted' style='white-space: pre-wrap;'>${escapeHtml(meal.guidance)}</p>` : ''}
+          ${meal?.guidance ? `<div class='meal-guidance'><h4>Direção</h4><p class='muted' style='white-space: pre-wrap;'>${escapeHtml(meal.guidance)}</p></div>` : ''}
           ${content.primaryHtml}
           ${content.substitutionsHtml}
         </article>`;
@@ -220,6 +220,9 @@
 
       const substitutionsHtml = renderFoodEquivalences(plan.substitutions || []);
       const adherenceRulesHtml = renderTextOrList(plan.adherence_rules);
+      const observationsHtml = renderTextOrList(plan.observations || plan.notes);
+      const hydrationHtml = renderTextOrList(plan.hydration);
+      const supplementsHtml = renderTextOrList(plan.supplements);
       const message = encodeURIComponent(plan.whatsapp_message || 'Ola, estou com duvida sobre meu plano alimentar no Portal LM.');
       const summaryHtml = `
         <section class='card'>
@@ -256,7 +259,9 @@
         ${createAccordionSection('acc-meals', 'Refei&ccedil;&otilde;es do plano', mealsSection, true)}
         ${substitutionsSection ? createAccordionSection('acc-equivalences', 'Guia de Equival&ecirc;ncias Alimentares', substitutionsSection, false) : ''}
         ${createAccordionSection('acc-rules', 'Regras de ades&atilde;o', adherenceRulesHtml || '<p class="muted">Sem regras cadastradas.</p>', false)}
-        ${createAccordionSection('acc-notes', 'Observa&ccedil;&otilde;es', plan.notes ? renderTextBlock(plan.notes) : '<p class="muted">Sem observa&ccedil;&otilde;es.</p>', false)}
+        ${createAccordionSection('acc-notes', 'Observa&ccedil;&otilde;es', observationsHtml || '<p class="muted">Sem observa&ccedil;&otilde;es.</p>', false)}
+        ${hydrationHtml ? createAccordionSection('acc-hydration', 'Hidrata&ccedil;&atilde;o', hydrationHtml, false) : ''}
+        ${supplementsHtml ? createAccordionSection('acc-supplements', 'Suplementos', supplementsHtml, false) : ''}
         ${createAccordionSection('acc-tools', '🧮 Ferramentas nutricionais', buildFoodConverterSection(), false)}
         ${createAccordionSection('acc-support', 'Suporte', supportSection, false)}
       `;

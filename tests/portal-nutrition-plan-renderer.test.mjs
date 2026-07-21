@@ -54,3 +54,38 @@ test('portal and print pages share the renderer and preserve the established end
   assert.match(portal, /plan\.strategy \|\| 'Estratégia não informada'/);
   assert.match(portal, /meal\?\.guidance/);
 });
+
+test('meal rendering prioritizes primary text, safely falls back to legacy object items, and labels guidance', () => {
+  const meal = {
+    name: 'Café da manhã',
+    primary_text: '2 ovos\n1 fruta',
+    guidance: 'Prepare com antecedência.',
+    items: [{ food: 'Este item legado não deve aparecer', quantity: '1', unit: 'porção' }],
+    substitutions: [{ text: 'Iogurte natural' }]
+  };
+  const rendered = renderer.renderMealContent(meal);
+  assert.equal(rendered.primary.source, 'primary_text');
+  assert.match(rendered.primaryHtml, /2 ovos\n1 fruta/);
+  assert.doesNotMatch(rendered.primaryHtml, /Este item legado/);
+
+  const fallback = renderer.renderMealContent({ items: [{ food: 'Aveia', quantity: '40', unit: 'g', note: 'sem açúcar' }] });
+  assert.equal(fallback.primary.source, 'items');
+  assert.match(fallback.primaryHtml, /40 g de Aveia — sem açúcar/);
+  assert.doesNotMatch(fallback.primaryHtml, /\[object Object\]/);
+});
+
+test('portal and print pages render meal direction, scoped substitutions, general data, and separate general substitutions', () => {
+  const portal = fs.readFileSync('public/portal-plano-alimentar.html', 'utf8');
+  const print = fs.readFileSync('public/portal-plano-alimentar-print.html', 'utf8');
+  for (const html of [portal, print]) {
+    assert.match(html, /Direção/);
+    assert.match(html, /renderMealContent\(meal/);
+    assert.match(html, /renderFoodEquivalences\(plan\?\.substitutions|renderFoodEquivalences\(plan\.substitutions/);
+    assert.match(html, /Hidrata/);
+    assert.match(html, /Suplementos/);
+    assert.match(html, /adherence_rules/);
+    assert.match(html, /observations.*notes|notes.*observations/);
+  }
+  assert.match(portal, /content\.substitutionsHtml/);
+  assert.match(print, /rendered\.substitutionsHtml/);
+});
