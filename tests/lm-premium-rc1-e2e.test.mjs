@@ -1,4 +1,6 @@
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import assert from 'node:assert/strict';
 import { createRc1D1Fixture, RC1_PREMIUM_MIGRATIONS } from './helpers/lm-premium-rc1-d1-fixture.mjs';
 import { createD1PremiumStudentRepository } from '../workers/premium/repositories/d1-premium-student-repository.js';
@@ -27,6 +29,16 @@ import { presentStudentRecord } from '../workers/premium/presenters/student-reco
 import { presentWorkspaceSummary } from '../workers/premium/presenters/professional-workspace-summary-presenter.js';
 import { presentWorkspaceStudentContext } from '../workers/premium/presenters/professional-workspace-student-presenter.js';
 
+test('READY_TO_RELEASE migration upgrades an existing premium_students schema without data loss', () => {
+  const sqlite = new DatabaseSync(':memory:');
+  sqlite.exec(`CREATE TABLE premium_students (student_id TEXT PRIMARY KEY,email TEXT NOT NULL,normalized_email TEXT NOT NULL,display_name TEXT,consultation_status TEXT NOT NULL DEFAULT 'NEW' CHECK (consultation_status IN ('NEW','AWAITING_ANAMNESIS','UNDER_REVIEW','ACTIVE','PAUSED','ENDED')),access_status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (access_status IN ('ACTIVE','INACTIVE')),source TEXT NOT NULL DEFAULT 'MIGRATION',created_at TEXT NOT NULL,updated_at TEXT NOT NULL,legacy_backfill_batch_id TEXT); CREATE UNIQUE INDEX idx_premium_students_normalized_email ON premium_students(normalized_email); CREATE INDEX idx_premium_students_access_status ON premium_students(access_status); CREATE INDEX idx_premium_students_consultation_status ON premium_students(consultation_status); CREATE INDEX idx_premium_students_legacy_backfill_batch ON premium_students(legacy_backfill_batch_id);`);
+  sqlite.prepare(`INSERT INTO premium_students VALUES (?,?,?,?,?,?,?,?,?,?)`).run('student-old','old@example.com','old@example.com','Old','UNDER_REVIEW','ACTIVE','TEST','2026-01-01','2026-01-02','batch-old');
+  sqlite.exec(readFileSync('migrations/0035_add_ready_to_release_consultation_status.sql','utf8'));
+  assert.deepEqual(sqlite.prepare('SELECT * FROM premium_students').get(), { student_id:'student-old',email:'old@example.com',normalized_email:'old@example.com',display_name:'Old',consultation_status:'UNDER_REVIEW',access_status:'ACTIVE',source:'TEST',created_at:'2026-01-01',updated_at:'2026-01-02',legacy_backfill_batch_id:'batch-old' });
+  sqlite.prepare(`UPDATE premium_students SET consultation_status='READY_TO_RELEASE' WHERE student_id='student-old'`).run();
+  assert.equal(sqlite.prepare(`SELECT consultation_status FROM premium_students WHERE student_id='student-old'`).get().consultation_status,'READY_TO_RELEASE');
+});
+
 function makeIds() { let n = 0; return () => `rc1-${++n}`; }
 function scalar(sqlite, sql, ...params) { return sqlite.prepare(sql).get(...params); }
 function all(sqlite, sql, ...params) { return sqlite.prepare(sql).all(...params); }
@@ -36,8 +48,8 @@ function seedAccess(sqlite, { id, name, email, plan, plan_type = plan, student_i
 }
 
 test('RC1 fixture aplica a migration de auditoria do backfill legado e o repository aceita lote opcional', async () => {
-  assert.equal(RC1_PREMIUM_MIGRATIONS.at(-1), 'migrations/0034_premium_legacy_identity_backfill_audit.sql');
-  assert(RC1_PREMIUM_MIGRATIONS.indexOf('migrations/0034_premium_legacy_identity_backfill_audit.sql') > RC1_PREMIUM_MIGRATIONS.indexOf('migrations/0025_create_premium_students.sql'));
+  assert.equal(RC1_PREMIUM_MIGRATIONS.at(-1), 'migrations/0035_add_ready_to_release_consultation_status.sql');
+  assert(RC1_PREMIUM_MIGRATIONS.indexOf('migrations/0035_add_ready_to_release_consultation_status.sql') > RC1_PREMIUM_MIGRATIONS.indexOf('migrations/0025_create_premium_students.sql'));
   const fixture = createRc1D1Fixture();
   assert(scalar(fixture.sqlite, "SELECT 1 AS present FROM pragma_table_info('premium_students') WHERE name='legacy_backfill_batch_id'"));
   assert(scalar(fixture.sqlite, "SELECT 1 AS present FROM sqlite_master WHERE type='table' AND name='premium_legacy_identity_backfill_audit'"));

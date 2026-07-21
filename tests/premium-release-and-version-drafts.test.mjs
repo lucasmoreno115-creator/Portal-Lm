@@ -25,13 +25,13 @@ test('version draft use case accepts immutable versions and rejects draft origin
   source.status='ARCHIVED'; assert.equal((await use.execute({id:'p',student_id:'s'})).ok,true);
   source.status='DRAFT'; assert.equal((await use.execute({id:'p',student_id:'s'})).error,'SOURCE_PLAN_NOT_VERSIONED');
 });
-test('existing draft reports structured conflict and repository requires atomic batch',async()=>{
+test('existing draft reports structured conflict and replacement uses a conditional update',async()=>{
   const source={id:'p',student_id:'s',status:'PUBLISHED',meals_json:'[]',substitutions_json:'[]',adherence_rules_json:'[]'};
   const existing={id:'old',title:'Draft',updated_at:'now'}; const repo={findById:async()=>source,findDraftByStudentId:async()=>existing};
   const use=createDraftFromPublishedPlanUseCase({nutritionPlanRepository:repo,randomUUID:()=> 'd'});
   const result=await use.execute({id:'p',student_id:'s'}); assert.equal(result.error,'DRAFT_ALREADY_EXISTS'); assert.deepEqual(result.data,{id:'old',updated_at:'now',title:'Draft'});
   const repository=fs.readFileSync('workers/premium/repositories/d1-nutrition-plan-repository.js','utf8');
-  assert.match(repository,/NUTRITION_PLAN_DRAFT_REPLACE_ATOMICITY_REQUIRED/); assert.match(repository,/await db\.batch\(\[remove, insert\]\)/); assert.doesNotMatch(repository,/archive\(existing\.id\)/);
+  assert.match(repository,/UPDATE nutrition_plans SET student_email=/); assert.match(repository,/status='DRAFT' AND updated_at=\?/); assert.match(repository,/changes\(result\) !== 1\) throw conflict\('NUTRITION_PLAN_DRAFT_REPLACE_CONFLICT'\)/); assert.doesNotMatch(repository,/archive\(existing\.id\)/);
 });
 test('editor preserves conflict metadata, filters invalid history and uses readable modal',()=>{
  const src=fs.readFileSync('public/admin-premium-nutrition-plan.js','utf8');
