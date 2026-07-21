@@ -43,5 +43,5 @@ test('report contains no input email or plan IDs and summary counts safe and blo
 });
 test('candidate workflow is manually dispatched, production-scoped, and publishes only aggregate summary', () => {
   const workflow = fs.readFileSync('.github/workflows/premium-nutrition-plan-candidate-discovery.yml', 'utf8');
-  assert.match(workflow, /^on:\n  workflow_dispatch:/m); assert.match(workflow, /environment: production/); assert.match(workflow, /CLOUDFLARE_D1_API_TOKEN/); assert.doesNotMatch(workflow, /CLOUDFLARE_API_TOKEN/); assert.match(workflow, /retention-days: 1/); assert.match(workflow, /upload-artifact/); assert.match(workflow, /Object\.entries\(summary\)/); assert.doesNotMatch(workflow, /nutrition_plans.*(?:UPDATE|INSERT|DELETE)/i);
+  assert.match(workflow, /^on:\n  workflow_dispatch:/m); assert.match(workflow, /discover:\n    if: github\.ref == 'refs\/heads\/main'\n    environment: production/); assert.match(workflow, /CLOUDFLARE_D1_API_TOKEN/); assert.doesNotMatch(workflow, /CLOUDFLARE_API_TOKEN/); assert.match(workflow, /retention-days: 1/); assert.match(workflow, /upload-artifact/); assert.match(workflow, /Object\.entries\(summary\)/); assert.doesNotMatch(workflow, /nutrition_plans.*(?:UPDATE|INSERT|DELETE)/i);
 });
