@@ -4,11 +4,17 @@ function changes(result) { return Number(result?.meta?.changes ?? result?.change
 function nowIso(value) { return value ?? new Date().toISOString(); }
 function bindPlan(stmt, plan, now) { const s = serializeCanonicalNutritionPlan(plan); return stmt.bind(plan.id, plan.student_id ?? null, plan.student_email ?? null, s.title, s.goal, s.strategy, s.meals_json, s.substitutions_json, s.adherence_rules_json, s.notes, s.whatsapp_message, plan.status, plan.version_number ?? null, plan.published_at ?? null, plan.published_by ?? null, plan.archived_at ?? null, plan.supersedes_plan_id ?? null, plan.source_feedback_id ?? null, Number(plan.is_active ?? 0), plan.created_at ?? now, plan.updated_at ?? now); }
 function conflict(message) { const error = new Error(message); error.conflict = true; return error; }
+// This is the source-of-truth read contract used by the Premium student portal.
+// Keep diagnostics importing these strings rather than re-creating their own order.
+export const PORTAL_NUTRITION_PLAN_QUERIES = Object.freeze({
+  byStudentId: "SELECT * FROM nutrition_plans WHERE student_id = ? AND is_active = 1 AND (status = 'PUBLISHED' OR status IS NULL) ORDER BY version_number DESC, datetime(published_at) DESC LIMIT 1",
+  byEmail: "SELECT * FROM nutrition_plans WHERE lower(student_email) = lower(?) AND student_id IS NULL AND is_active = 1 AND (status = 'PUBLISHED' OR status IS NULL) ORDER BY datetime(updated_at) DESC, datetime(created_at) DESC LIMIT 1",
+});
 export function createD1NutritionPlanRepository(db) {
   const repo = {
     findById(id) { return db.prepare('SELECT * FROM nutrition_plans WHERE id = ? LIMIT 1').bind(id).first(); },
-    findCurrentByStudentId(studentId) { return db.prepare("SELECT * FROM nutrition_plans WHERE student_id = ? AND is_active = 1 AND (status = 'PUBLISHED' OR status IS NULL) ORDER BY version_number DESC, datetime(published_at) DESC LIMIT 1").bind(studentId).first(); },
-    findCurrentByEmail(email) { return db.prepare("SELECT * FROM nutrition_plans WHERE lower(student_email) = lower(?) AND student_id IS NULL AND is_active = 1 AND (status = 'PUBLISHED' OR status IS NULL) ORDER BY datetime(updated_at) DESC, datetime(created_at) DESC LIMIT 1").bind(email).first(); },
+    findCurrentByStudentId(studentId) { return db.prepare(PORTAL_NUTRITION_PLAN_QUERIES.byStudentId).bind(studentId).first(); },
+    findCurrentByEmail(email) { return db.prepare(PORTAL_NUTRITION_PLAN_QUERIES.byEmail).bind(email).first(); },
     findDraftByStudentId(studentId) { return db.prepare("SELECT * FROM nutrition_plans WHERE student_id = ? AND status = 'DRAFT' ORDER BY datetime(updated_at) DESC LIMIT 1").bind(studentId).first(); },
     listByStudentId(studentId, { limit = 20, offset = 0 } = {}) { return db.prepare('SELECT * FROM nutrition_plans WHERE student_id = ? ORDER BY COALESCE(version_number, 0) DESC, datetime(updated_at) DESC LIMIT ? OFFSET ?').bind(studentId, limit, offset).all().then(r => r.results || []); },
     findPreviousPublished(studentId) { return this.findCurrentByStudentId(studentId); },
