@@ -27,6 +27,7 @@
 
   <script src='public/assets/js/lm-access.js?v=20260623-1'></script>
   <script src='portal-shared.js'></script>
+  <script src='public/assets/js/premium-nutrition-plan-renderer.js'></script>
   <script>
     requireAuth();
     redirectIfNoAccess('plano-alimentar');
@@ -37,17 +38,12 @@
     const pdfActions = document.getElementById('pdfActions');
     const downloadPdfBtn = document.getElementById('downloadPdfBtn');
 
-    function escapeHtml(value) {
-      return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
+    const nutritionRenderer = window.PortalNutritionPlanRenderer;
+    const escapeHtml = nutritionRenderer.escapeHtml;
+    const renderMealContent = nutritionRenderer.renderMealContent;
 
     function renderList(items) {
-      return `<ul class='mission-list'>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+      return `<ul class='mission-list'>${items.map((item) => `<li>${escapeHtml(nutritionRenderer.formatStructuredItem(item))}</li>`).join('')}</ul>`;
     }
 
     function renderTextBlock(text) {
@@ -55,22 +51,14 @@
     }
 
     function normalizeLineItems(value) {
-      const stripMarker = (line) => line.replace(/^\s*(?:[-•*]\s+|\d+[.)]\s+)/, '').trim();
-      const splitLines = (text) => String(text || '').split(/\r?\n/).map((line) => stripMarker(line)).filter(Boolean);
-
-      if (Array.isArray(value)) {
-        return value.flatMap((item) => splitLines(item)).filter(Boolean);
-      }
-
-      return splitLines(value);
+      return nutritionRenderer.normalizeMealLines(value);
     }
 
     function renderTextOrList(value) {
       const lines = normalizeLineItems(value);
       if (!lines.length) return '';
-      return lines.length > 1 ? renderList(lines) : renderTextBlock(lines[0]);
+      return nutritionRenderer.renderLines(lines);
     }
-
 
     const equivalenceNote = 'As substitui&ccedil;&otilde;es s&atilde;o aproxima&ccedil;&otilde;es pr&aacute;ticas. O objetivo &eacute; manter prote&iacute;na alta, carboidrato controlado e boa ades&atilde;o alimentar.';
 
@@ -219,15 +207,22 @@
         ? `${strategyGoalHtml}${strategyFocusHtml}`
         : '<p class="muted">Sem estrat&eacute;gia cadastrada.</p>';
 
-      const mealsHtml = (plan.meals || []).map((meal) => `
-        <article class='meal-card'>
+      const mealsHtml = (plan.meals || []).map((meal) => {
+        const content = renderMealContent(meal, { emptyHtml: '<p class="muted">Sem itens cadastrados.</p>' });
+        return `<article class='meal-card'>
           <h3>${escapeHtml(meal?.name || 'Refeicao')}</h3>
-          ${renderTextBlock(Array.isArray(meal?.items) ? String(meal.items[0] || '') : '')}
-        </article>
-      `).join('');
+          ${meal?.time ? `<p class='muted'>${escapeHtml(meal.time)}</p>` : ''}
+          ${meal?.guidance ? `<div class='meal-guidance'><h4>Direção</h4><p class='muted' style='white-space: pre-wrap;'>${escapeHtml(meal.guidance)}</p></div>` : ''}
+          ${content.primaryHtml}
+          ${content.substitutionsHtml}
+        </article>`;
+      }).join('');
 
       const substitutionsHtml = renderFoodEquivalences(plan.substitutions || []);
       const adherenceRulesHtml = renderTextOrList(plan.adherence_rules);
+      const observationsHtml = renderTextOrList(plan.observations || plan.notes);
+      const hydrationHtml = renderTextOrList(plan.hydration);
+      const supplementsHtml = renderTextOrList(plan.supplements);
       const message = encodeURIComponent(plan.whatsapp_message || 'Ola, estou com duvida sobre meu plano alimentar no Portal LM.');
       const summaryHtml = `
         <section class='card'>
@@ -235,11 +230,11 @@
           <div class='nutrition-summary-grid'>
             <article class='nutrition-summary-card'>
               <p class='eyebrow'>🎯 Objetivo atual</p>
-              <p>Recomposi&ccedil;&atilde;o corporal</p>
+              <p>${escapeHtml(plan.goal || 'Objetivo não informado')}</p>
             </article>
             <article class='nutrition-summary-card'>
               <p class='eyebrow'>📈 Foco da fase</p>
-              <p>Sustentar resultado e melhorar performance</p>
+              <p>${escapeHtml(plan.strategy || 'Estratégia não informada')}</p>
             </article>
             <article class='nutrition-summary-card'>
               <p class='eyebrow'>✅ Status do plano</p>
@@ -250,7 +245,7 @@
       `;
 
       const mealsSection = mealsHtml ? `<div class='grid'>${mealsHtml}</div>` : '<p class="muted">Sem refei&ccedil;&otilde;es cadastradas.</p>';
-      const substitutionsSection = substitutionsHtml ? `<div class='equivalence-grid'>${substitutionsHtml}</div><p class='equivalence-note'>${equivalenceNote}</p>` : '<p class="muted">Sem equival&ecirc;ncias cadastradas.</p>';
+      const substitutionsSection = substitutionsHtml ? `<div class='equivalence-grid'>${substitutionsHtml}</div><p class='equivalence-note'>${equivalenceNote}</p>` : '';
       const supportSection = `
         <p class='muted'>Se surgiu qualquer d&uacute;vida na execu&ccedil;&atilde;o, pe&ccedil;a orienta&ccedil;&atilde;o antes de ajustar por conta pr&oacute;pria.</p>
         <div class='nutrition-actions'>
@@ -262,9 +257,11 @@
         ${summaryHtml}
         ${createAccordionSection('acc-strategy', 'Estrat&eacute;gia atual', strategyHtml, false)}
         ${createAccordionSection('acc-meals', 'Refei&ccedil;&otilde;es do plano', mealsSection, true)}
-        ${createAccordionSection('acc-equivalences', 'Guia de Equival&ecirc;ncias Alimentares', substitutionsSection, false)}
+        ${substitutionsSection ? createAccordionSection('acc-equivalences', 'Guia de Equival&ecirc;ncias Alimentares', substitutionsSection, false) : ''}
         ${createAccordionSection('acc-rules', 'Regras de ades&atilde;o', adherenceRulesHtml || '<p class="muted">Sem regras cadastradas.</p>', false)}
-        ${createAccordionSection('acc-notes', 'Observa&ccedil;&otilde;es', plan.notes ? renderTextBlock(plan.notes) : '<p class="muted">Sem observa&ccedil;&otilde;es.</p>', false)}
+        ${createAccordionSection('acc-notes', 'Observa&ccedil;&otilde;es', observationsHtml || '<p class="muted">Sem observa&ccedil;&otilde;es.</p>', false)}
+        ${hydrationHtml ? createAccordionSection('acc-hydration', 'Hidrata&ccedil;&atilde;o', hydrationHtml, false) : ''}
+        ${supplementsHtml ? createAccordionSection('acc-supplements', 'Suplementos', supplementsHtml, false) : ''}
         ${createAccordionSection('acc-tools', '🧮 Ferramentas nutricionais', buildFoodConverterSection(), false)}
         ${createAccordionSection('acc-support', 'Suporte', supportSection, false)}
       `;
