@@ -26,11 +26,39 @@ test('elegibilidade exige classificação explícita e aceita Premium em plan ou
   assert.equal(evaluatePremiumEligibility({ plan: 'premium' }).eligible, true);
 });
 
-test('elegibilidade bloqueia conflito, Projeto LM em qualquer coluna e valor desconhecido', () => {
+test('elegibilidade prioriza identificadores explícitos do Projeto LM sobre plan_type genérico', () => {
   assert.equal(evaluatePremiumEligibility({ plan: 'premium', plan_type: 'projeto_lm' }).conflictType, 'CONFLICTING_PRODUCT_CLASSIFICATION');
-  assert.equal(evaluatePremiumEligibility({ plan: 'projeto_lm' }).conflictType, 'NON_PREMIUM_ACCESS');
+  const projetoLm = evaluatePremiumEligibility({ plan: 'projeto_lm', plan_type: 'START' });
+  assert.equal(projetoLm.conflictType, 'NON_PREMIUM_ACCESS');
+  assert.equal(projetoLm.reason, 'Acesso exclusivo do Projeto LM.');
+  assert.equal(evaluatePremiumEligibility({ plan: 'project_lm' }).conflictType, 'NON_PREMIUM_ACCESS');
+  assert.equal(evaluatePremiumEligibility({ plan: 'lm2' }).conflictType, 'NON_PREMIUM_ACCESS');
+  assert.equal(evaluatePremiumEligibility({ plan: ' PROJETO_LM ' }).conflictType, 'NON_PREMIUM_ACCESS');
   assert.equal(evaluatePremiumEligibility({ plan_type: 'project_lm' }).conflictType, 'NON_PREMIUM_ACCESS');
+  assert.equal(evaluatePremiumEligibility({ plan_type: 'START' }).conflictType, 'UNKNOWN_PRODUCT_CLASSIFICATION');
+  assert.equal(evaluatePremiumEligibility({ plan: 'premium', plan_type: 'START' }).eligible, true);
   assert.equal(evaluatePremiumEligibility({ plan: 'vip' }).conflictType, 'UNKNOWN_PRODUCT_CLASSIFICATION');
+});
+
+test('dry-run classifica Projeto LM sem ambiguidade e preserva o resumo agregado esperado', async () => {
+  const candidates = [
+    ...Array.from({ length: 16 }, (_, index) => ({ id: `eligible-${index}`, email: `eligible-${index}@example.com`, status: 'ACTIVE', plan: 'premium' })),
+    { id: 'migrated-1', email: 'migrated-1@example.com', status: 'ACTIVE', plan: 'premium' },
+    { id: 'migrated-2', email: 'migrated-2@example.com', status: 'ACTIVE', plan_type: 'PREMIUM' },
+    { id: 'project-start', email: 'project-start@example.com', status: 'ACTIVE', plan: 'projeto_lm', plan_type: 'START' },
+    { id: 'project-lm2', email: 'project-lm2@example.com', status: 'ACTIVE', plan: 'lm2' },
+  ];
+  const repository = memoryRepository(candidates, [
+    { student_id: 'migrated-1', email: 'migrated-1@example.com', normalized_email: 'migrated-1@example.com' },
+    { student_id: 'migrated-2', email: 'migrated-2@example.com', normalized_email: 'migrated-2@example.com' },
+  ]);
+  const result = await runPremiumStudentIdentityBackfill({ repository, randomUUID: () => 'uuid-dry-run' });
+  assert.deepEqual(result.classifications, { already_migrated: 2, eligible: 16, ambiguous: 0, invalid_email: 0, project_only: 2, inactive: 0, conflicting_student_id: 0, error: 0 });
+  assert.equal(repository.students.length, 2);
+  assert.equal(repository.associatedCalls.length, 0);
+  assert.equal(result.conflicts.filter((conflict) => conflict.type === 'NON_PREMIUM_ACCESS').length, 2);
+  assert.equal(result.conflicts.some((conflict) => conflict.type === 'UNKNOWN_PRODUCT_CLASSIFICATION'), false);
+  assert.equal(result.restricted_blockers.some((blocker) => blocker.type === 'NON_PREMIUM_ACCESS' && blocker.plan === 'projeto_lm' && blocker.plan_type === 'START'), true);
 });
 
 test('dry-run é padrão e não persiste criação nem associação', async () => {

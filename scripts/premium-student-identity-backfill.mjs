@@ -41,23 +41,40 @@ function classifyProductValue(value) {
 }
 
 export function evaluatePremiumEligibility(row) {
-  const plan = classifyProductValue(row?.plan);
+  // `plan` and the legacy product aliases are explicit product identifiers.
+  // Evaluate them before the generic `plan_type`: Project LM rows in the
+  // legacy data may use `START` as their plan type.
+  const explicitProducts = [row?.plan, row?.product, row?.produto]
+    .map(classifyProductValue);
   const planType = classifyProductValue(row?.plan_type);
-  const present = [plan, planType].filter((entry) => entry.kind !== 'missing');
+  const explicitPresent = explicitProducts.filter((entry) => entry.kind !== 'missing');
+  const present = [...explicitPresent, planType].filter((entry) => entry.kind !== 'missing');
 
   if (present.length === 0) {
     return { eligible: false, conflictType: 'MISSING_PRODUCT_CLASSIFICATION', reason: 'plan e plan_type ausentes.' };
   }
-  if (present.some((entry) => entry.kind === 'unknown')) {
+  const hasExplicitPremium = explicitPresent.some((entry) => entry.kind === 'premium');
+  const hasExplicitProjectLm = explicitPresent.some((entry) => entry.kind === 'project_lm');
+  if (hasExplicitPremium && hasExplicitProjectLm) {
+    return { eligible: false, conflictType: 'CONFLICTING_PRODUCT_CLASSIFICATION', reason: 'Campos explícitos indicam produtos diferentes.' };
+  }
+  if (hasExplicitProjectLm) {
+    return { eligible: false, conflictType: 'NON_PREMIUM_ACCESS', reason: 'Acesso exclusivo do Projeto LM.' };
+  }
+  if (hasExplicitPremium) {
+    if (planType.kind === 'project_lm') {
+      return { eligible: false, conflictType: 'CONFLICTING_PRODUCT_CLASSIFICATION', reason: 'plan e plan_type indicam produtos diferentes.' };
+    }
+    return { eligible: true, conflictType: null, reason: 'Premium explícito.' };
+  }
+  if (explicitPresent.some((entry) => entry.kind === 'unknown')) {
     return { eligible: false, conflictType: 'UNKNOWN_PRODUCT_CLASSIFICATION', reason: 'Classificação de produto desconhecida.' };
   }
-  const hasPremium = present.some((entry) => entry.kind === 'premium');
-  const hasProjectLm = present.some((entry) => entry.kind === 'project_lm');
-  if (hasPremium && hasProjectLm) {
-    return { eligible: false, conflictType: 'CONFLICTING_PRODUCT_CLASSIFICATION', reason: 'plan e plan_type indicam produtos diferentes.' };
+  if (planType.kind === 'project_lm') {
+    return { eligible: false, conflictType: 'NON_PREMIUM_ACCESS', reason: 'Acesso exclusivo do Projeto LM.' };
   }
-  if (hasProjectLm) {
-    return { eligible: false, conflictType: 'NON_PREMIUM_ACCESS', reason: 'Registro pertence ao Projeto LM.' };
+  if (planType.kind === 'unknown') {
+    return { eligible: false, conflictType: 'UNKNOWN_PRODUCT_CLASSIFICATION', reason: 'Classificação de produto desconhecida.' };
   }
   return { eligible: true, conflictType: null, reason: 'Premium explícito.' };
 }
