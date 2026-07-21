@@ -21,5 +21,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_students_normalized_email ON premi
 CREATE INDEX IF NOT EXISTS idx_premium_students_access_status ON premium_students(access_status);
 CREATE INDEX IF NOT EXISTS idx_premium_students_consultation_status ON premium_students(consultation_status);
 CREATE INDEX IF NOT EXISTS idx_premium_students_legacy_backfill_batch ON premium_students(legacy_backfill_batch_id);
+CREATE INDEX IF NOT EXISTS idx_premium_students_status_name
+  ON premium_students(consultation_status, display_name, email);
 COMMIT;
 PRAGMA foreign_keys=ON;
