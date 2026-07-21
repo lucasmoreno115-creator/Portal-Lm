@@ -219,31 +219,10 @@
       }).join('');
 
       const substitutionsHtml = renderFoodEquivalences(plan.substitutions || []);
-      const adherenceRulesHtml = renderTextOrList(plan.adherence_rules);
       const observationsHtml = renderTextOrList(plan.observations || plan.notes);
       const hydrationHtml = renderTextOrList(plan.hydration);
       const supplementsHtml = renderTextOrList(plan.supplements);
       const message = encodeURIComponent(plan.whatsapp_message || 'Ola, estou com duvida sobre meu plano alimentar no Portal LM.');
-      const summaryHtml = `
-        <section class='card'>
-          <h2>Resumo do plano</h2>
-          <div class='nutrition-summary-grid'>
-            <article class='nutrition-summary-card'>
-              <p class='eyebrow'>🎯 Objetivo atual</p>
-              <p>${escapeHtml(plan.goal || 'Objetivo não informado')}</p>
-            </article>
-            <article class='nutrition-summary-card'>
-              <p class='eyebrow'>📈 Foco da fase</p>
-              <p>${escapeHtml(plan.strategy || 'Estratégia não informada')}</p>
-            </article>
-            <article class='nutrition-summary-card'>
-              <p class='eyebrow'>✅ Status do plano</p>
-              <p>Plano ativo</p>
-            </article>
-          </div>
-        </section>
-      `;
-
       const mealsSection = mealsHtml ? `<div class='grid'>${mealsHtml}</div>` : '<p class="muted">Sem refei&ccedil;&otilde;es cadastradas.</p>';
       const substitutionsSection = substitutionsHtml ? `<div class='equivalence-grid'>${substitutionsHtml}</div><p class='equivalence-note'>${equivalenceNote}</p>` : '';
       const supportSection = `
@@ -254,11 +233,9 @@
       `;
 
       planContent.innerHTML = `
-        ${summaryHtml}
         ${createAccordionSection('acc-strategy', 'Estrat&eacute;gia atual', strategyHtml, false)}
         ${createAccordionSection('acc-meals', 'Refei&ccedil;&otilde;es do plano', mealsSection, true)}
         ${substitutionsSection ? createAccordionSection('acc-equivalences', 'Guia de Equival&ecirc;ncias Alimentares', substitutionsSection, false) : ''}
-        ${createAccordionSection('acc-rules', 'Regras de ades&atilde;o', adherenceRulesHtml || '<p class="muted">Sem regras cadastradas.</p>', false)}
         ${createAccordionSection('acc-notes', 'Observa&ccedil;&otilde;es', observationsHtml || '<p class="muted">Sem observa&ccedil;&otilde;es.</p>', false)}
         ${hydrationHtml ? createAccordionSection('acc-hydration', 'Hidrata&ccedil;&atilde;o', hydrationHtml, false) : ''}
         ${supplementsHtml ? createAccordionSection('acc-supplements', 'Suplementos', supplementsHtml, false) : ''}
