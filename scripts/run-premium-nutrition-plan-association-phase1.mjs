@@ -3,13 +3,15 @@ import { classifyStudent, discoverNutritionPlanColumns } from './diagnose-premiu
 
 const AUDIT_DDL = [
   `CREATE TABLE IF NOT EXISTS premium_nutrition_plan_association_operations (operation_id TEXT PRIMARY KEY, mode TEXT NOT NULL, created_at TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS premium_nutrition_plan_association_records (operation_id TEXT NOT NULL, plan_id TEXT NOT NULL, previous_student_id TEXT, new_student_id TEXT NOT NULL, plan_fingerprint TEXT NOT NULL, applied_at TEXT, rolled_back_at TEXT, status TEXT NOT NULL CHECK(status IN ('PENDING', 'APPLIED', 'ROLLED_BACK')), PRIMARY KEY(operation_id, plan_id), FOREIGN KEY(operation_id) REFERENCES premium_nutrition_plan_association_operations(operation_id))`,
+  `CREATE TABLE IF NOT EXISTS premium_nutrition_plan_association_records (operation_id TEXT NOT NULL, plan_id TEXT NOT NULL, previous_student_id TEXT, new_student_id TEXT NOT NULL, plan_fingerprint TEXT NOT NULL, applied_at TEXT, rolled_back_at TEXT, status TEXT NOT NULL CHECK(status IN ('PENDING', 'APPLIED', 'COMPENSATED', 'ROLLED_BACK', 'FAILED')), PRIMARY KEY(operation_id, plan_id), FOREIGN KEY(operation_id) REFERENCES premium_nutrition_plan_association_operations(operation_id))`,
   `CREATE INDEX IF NOT EXISTS idx_premium_nutrition_plan_association_records_operation_status ON premium_nutrition_plan_association_records(operation_id, status)`,
 ];
 const REQUIRED_COLUMNS = ['id', 'student_id', 'student_email', 'status'];
 const now = () => new Date().toISOString();
 const fingerprint = (plan) => createHash('sha256').update(JSON.stringify([plan.id, String(plan.student_email ?? '').trim().toLowerCase(), plan.status ?? null, plan.updated_at ?? null, plan.created_at ?? null])).digest('hex');
 const rows = (value) => Array.isArray(value) ? value : [];
+const changedExactlyOne = (result) => result?.meta?.changes === 1;
+const fatal = (code) => { const error = new Error(code); error.fatal = true; return error; };
 
 export function sanitizedReport({ mode, operationId = null, applied = 0, rolledBack = 0, blocked = 0, candidates = 0 } = {}) {
   return { mode, operation_id: operationId, summary: { candidates, applied, rolled_back: rolledBack, blocked } };
@@ -43,6 +45,23 @@ async function candidates(client) {
   }
   return output;
 }
+async function transitionAudit(client, sql, params, failureCode) {
+  if (!changedExactlyOne(await client.execute(sql, params))) throw fatal(failureCode);
+}
+async function compensateApply(client, { operationId, plan, student, clock }) {
+  if (!changedExactlyOne(await client.execute('UPDATE nutrition_plans SET student_id = ? WHERE id = ? AND student_id = ?', [plan.student_id, plan.id, student.student_id]))) throw fatal('ASSOCIATION_COMPENSATION_FAILED');
+  const after = rows(await client.all('SELECT student_id FROM nutrition_plans WHERE id = ?', [plan.id]));
+  if (after.length !== 1 || after[0].student_id !== plan.student_id) throw fatal('ASSOCIATION_COMPENSATION_VERIFICATION_FAILED');
+  await transitionAudit(client, "UPDATE premium_nutrition_plan_association_records SET status = 'COMPENSATED', rolled_back_at = ? WHERE operation_id = ? AND plan_id = ? AND status = 'PENDING'", [clock(), operationId, plan.id], 'ASSOCIATION_COMPENSATION_AUDIT_FAILED');
+}
+async function failPendingAudit(client, { operationId, plan, clock }) {
+  await transitionAudit(client, "UPDATE premium_nutrition_plan_association_records SET status = 'FAILED', rolled_back_at = ? WHERE operation_id = ? AND plan_id = ? AND status = 'PENDING'", [clock(), operationId, plan.id], 'ASSOCIATION_FAILED_AUDIT_UPDATE_FAILED');
+}
+async function restoreRollback(client, { record, plan }) {
+  if (!changedExactlyOne(await client.execute('UPDATE nutrition_plans SET student_id = ? WHERE id = ? AND student_id IS NULL AND lower(student_email) = lower(?) AND status IS NULL', [record.new_student_id, record.plan_id, plan.student_email]))) throw fatal('ASSOCIATION_ROLLBACK_RESTORE_FAILED');
+  const after = rows(await client.all('SELECT student_id FROM nutrition_plans WHERE id = ?', [record.plan_id]));
+  if (after.length !== 1 || after[0].student_id !== record.new_student_id) throw fatal('ASSOCIATION_ROLLBACK_RESTORE_VERIFICATION_FAILED');
+}
 
 export async function runAssociation({ client, mode = 'dry-run', operationId = null, confirmation = false, clock = now } = {}) {
   if (!['dry-run', 'apply', 'rollback'].includes(mode)) throw new Error('ASSOCIATION_MODE_INVALID');
@@ -59,16 +78,27 @@ export async function runAssociation({ client, mode = 'dry-run', operationId = n
     await client.execute('INSERT INTO premium_nutrition_plan_association_operations (operation_id, mode, created_at) VALUES (?, ?, ?)', [id, 'apply', clock()]);
     let applied = 0; let blocked = 0;
     for (const candidate of found) {
+      let association = null; let auditPending = false; let planUpdated = false;
       try {
         const { student, plan } = await revalidateCandidate(client, candidate);
+        association = { student, plan };
         await client.execute('INSERT INTO premium_nutrition_plan_association_records (operation_id, plan_id, previous_student_id, new_student_id, plan_fingerprint, status) VALUES (?, ?, ?, ?, ?, ?)', [id, plan.id, plan.student_id, student.student_id, fingerprint(plan), 'PENDING']);
+        auditPending = true;
         const result = await client.execute('UPDATE nutrition_plans SET student_id = ? WHERE id = ? AND student_id IS NULL AND lower(student_email) = lower(?) AND status IS NULL', [student.student_id, plan.id, student.email]);
-        if (result?.meta?.changes !== 1) throw new Error('ASSOCIATION_UPDATE_NOT_EXACTLY_ONE');
+        if (!changedExactlyOne(result)) { await failPendingAudit(client, { operationId: id, plan, clock }); blocked++; continue; }
+        planUpdated = true;
         const after = rows(await client.all('SELECT id, student_id, student_email, status, created_at, updated_at FROM nutrition_plans WHERE id = ?', [plan.id]));
         if (after.length !== 1 || after[0].student_id !== student.student_id) throw new Error('ASSOCIATION_POST_UPDATE_VERIFICATION_FAILED');
-        await client.execute("UPDATE premium_nutrition_plan_association_records SET status = 'APPLIED', applied_at = ? WHERE operation_id = ? AND plan_id = ? AND status = 'PENDING'", [clock(), id, plan.id]);
+        await transitionAudit(client, "UPDATE premium_nutrition_plan_association_records SET status = 'APPLIED', applied_at = ? WHERE operation_id = ? AND plan_id = ? AND status = 'PENDING'", [clock(), id, plan.id], 'ASSOCIATION_APPLIED_AUDIT_UPDATE_FAILED');
         applied++;
-      } catch { blocked++; }
+      } catch (error) {
+        try {
+          if (planUpdated) await compensateApply(client, { operationId: id, ...association, clock });
+          else if (auditPending) await failPendingAudit(client, { operationId: id, plan: association.plan, clock });
+          else if (error?.fatal) throw error;
+        } catch (cleanupError) { throw cleanupError?.fatal ? cleanupError : fatal('ASSOCIATION_CLEANUP_FAILED'); }
+        blocked++;
+      }
     }
     return sanitizedReport({ mode, operationId: id, candidates: found.length, applied, blocked });
   }
@@ -84,8 +114,9 @@ export async function runAssociation({ client, mode = 'dry-run', operationId = n
     const result = await client.execute('UPDATE nutrition_plans SET student_id = ? WHERE id = ? AND student_id = ? AND lower(student_email) = lower(?) AND status IS NULL', [record.previous_student_id, record.plan_id, record.new_student_id, plan.student_email]);
     if (result?.meta?.changes !== 1) { blocked++; continue; }
     const after = rows(await client.all('SELECT student_id FROM nutrition_plans WHERE id = ?', [record.plan_id]));
-    if (after.length !== 1 || after[0].student_id !== record.previous_student_id) { blocked++; continue; }
-    await client.execute("UPDATE premium_nutrition_plan_association_records SET status = 'ROLLED_BACK', rolled_back_at = ? WHERE operation_id = ? AND plan_id = ? AND status = 'APPLIED'", [clock(), operationId, record.plan_id]);
+    if (after.length !== 1 || after[0].student_id !== record.previous_student_id) { await restoreRollback(client, { record, plan }); blocked++; continue; }
+    try { await transitionAudit(client, "UPDATE premium_nutrition_plan_association_records SET status = 'ROLLED_BACK', rolled_back_at = ? WHERE operation_id = ? AND plan_id = ? AND status = 'APPLIED'", [clock(), operationId, record.plan_id], 'ASSOCIATION_ROLLED_BACK_AUDIT_UPDATE_FAILED'); }
+    catch (error) { await restoreRollback(client, { record, plan }); blocked++; continue; }
     rolledBack++;
   }
   return sanitizedReport({ mode, operationId, rolledBack, blocked });

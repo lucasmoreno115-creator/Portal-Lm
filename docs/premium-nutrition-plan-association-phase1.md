@@ -7,7 +7,7 @@ This manually dispatched, production-only operation associates **only** a curren
 Before an `apply` or `rollback`, the runner creates the following dedicated, idempotent audit schema. The DDL is intentionally kept with this narrowly scoped operation so it is independently reviewable; `dry-run` never executes it or any write.
 
 - `premium_nutrition_plan_association_operations` records an operation identifier and creation time.
-- `premium_nutrition_plan_association_records` records `operation_id`, internal `plan_id`, previous/new student IDs, a non-reversible plan fingerprint, `applied_at`, and an `APPLIED`/`ROLLED_BACK` status.
+- `premium_nutrition_plan_association_records` records `operation_id`, internal `plan_id`, previous/new student IDs, a non-reversible plan fingerprint, `applied_at`, and `PENDING`, `APPLIED`, `COMPENSATED`, `FAILED`, or `ROLLED_BACK` status.
 
 The sanitized GitHub artifact is **not** rollback authority. Rollback takes an `operation_id` and queries these D1 audit tables. A non-existent operation, no remaining `APPLIED` records, mismatched current student ID, modern lifecycle status, or changed plan fingerprint blocks that record. Rollback updates the plan with defensive predicates, verifies exactly one changed row, re-reads the plan, then marks the audit record `ROLLED_BACK`.
 
@@ -26,7 +26,9 @@ WHERE id = ?
   AND status IS NULL
 ```
 
-It requires `meta.changes === 1`, then re-reads the plan and confirms the expected `student_id`. Any failed revalidation or verification is counted as blocked; no bulk update is used.
+It requires `meta.changes === 1`, then re-reads the plan and confirms the expected `student_id`; the `PENDING → APPLIED` audit transition must also change exactly one record. The D1 query path does not offer a multi-statement transaction, so a failure after linking performs explicit compensation: it restores the prior `student_id`, verifies that restoration, and transitions the audit record to `COMPENSATED`. A failed compensation or compensation-audit transition is fatal and fails the job rather than returning an inconsistent success. Any failed revalidation is blocked; no bulk update is used.
+
+Rollback likewise requires exactly one plan change, post-rollback verification, and exactly one `APPLIED → ROLLED_BACK` audit transition. If that final audit transition fails, the runner immediately restores the audited `new_student_id` using defensive predicates and verifies it. A failed restoration is fatal; otherwise the record remains `APPLIED` and is not counted as rolled back.
 
 ## Workflow inputs
 
