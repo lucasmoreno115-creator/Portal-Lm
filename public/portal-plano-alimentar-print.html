@@ -326,7 +326,7 @@
         sectionHtml(1, 'Objetivo atual', textBlock(plan?.goal, 'Não informado.')),
         sectionHtml(2, 'Estratégia da fase', textBlock(plan?.strategy, 'Não informada.')),
         sectionHtml(3, 'Plano alimentar', renderMeals(plan?.meals)),
-        sectionHtml(4, 'Guia de Equival&ecirc;ncias Alimentares', renderFoodEquivalences(plan?.substitutions)),
+        Array.isArray(plan?.substitutions) && plan.substitutions.length ? sectionHtml(4, 'Guia de Equival&ecirc;ncias Alimentares', renderFoodEquivalences(plan.substitutions)) : '',
         sectionHtml(5, 'Observações', textBlock(plan?.observations || plan?.notes, 'Sem observações.')),
         plan?.hydration ? sectionHtml(6, 'Hidratação', contentBlock(plan.hydration)) : '',
         plan?.supplements ? sectionHtml(7, 'Suplementos', contentBlock(plan.supplements, 'Sem suplementos cadastrados.')) : '',
