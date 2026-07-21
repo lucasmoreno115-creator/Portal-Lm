@@ -302,7 +302,7 @@
         const entries = (Array.isArray(item?.items) ? item.items : []).map((entry) => `<li>${escapeHtml(cleanText(nutritionRenderer.formatStructuredItem(entry)))}</li>`).join('');
         return '<article class="equivalence-print-card">' +
           '<h3>' + escapeHtml(cleanText(title)) + '</h3>' +
-          '<p class="equivalence-reference">' + escapeHtml(cleanText(item?.reference || '')) + '</p>' +
+          (item?.reference ? '<div class="equivalence-reference"><strong>Referência:</strong><p>' + escapeHtml(cleanText(item.reference)) + '</p></div>' : '') +
           '<ul>' + entries + '</ul>' +
           '</article>';
       }).join('');

@@ -82,7 +82,7 @@
             <span class='equivalence-icon'>${escapeHtml(category.icon || '*')}</span>
             <h3>${escapeHtml(category.category || 'Categoria')}</h3>
           </div>
-          <p class='equivalence-reference'>${escapeHtml(category.reference || '')}</p>
+          ${category.reference ? `<div class='equivalence-reference'><strong>Referência:</strong><p>${escapeHtml(category.reference)}</p></div>` : ''}
           ${renderList(Array.isArray(category.items) ? category.items : [])}
         </article>
       `).join('');

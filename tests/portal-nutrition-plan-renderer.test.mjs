@@ -101,3 +101,13 @@ test('portal and print pages render meal direction, scoped substitutions, genera
   assert.match(print, /rendered\.substitutionsHtml/);
 });
 test('print omits the general equivalence section when its array is empty',()=>{const print=fs.readFileSync('public/portal-plano-alimentar-print.html','utf8');assert.match(print,/Array\.isArray\(plan\?\.substitutions\) && plan\.substitutions\.length/);});
+
+
+test('portal and print render a labeled reference only when a category provides one', () => {
+  for (const file of ['public/portal-plano-alimentar.html', 'portal-plano-alimentar.html', 'public/portal-plano-alimentar-print.html', 'portal-plano-alimentar-print.html']) {
+    const html = fs.readFileSync(file, 'utf8');
+    assert.match(html, /Referência:/);
+    assert.match(html, /reference \?/);
+    assert.match(html, /items/);
+  }
+});
