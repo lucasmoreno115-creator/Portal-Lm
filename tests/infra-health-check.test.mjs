@@ -11,6 +11,14 @@ function failingDatabase() {
   });
 }
 
+function failingAssets() {
+  return {
+    fetch() {
+      throw new Error('Unknown API routes must not fetch static assets.');
+    }
+  };
+}
+
 async function requestHealth(method = 'GET', headers = {}) {
   return worker.fetch(new Request('https://portal.test/api/health', { method, headers }), { DB: failingDatabase() });
 }
@@ -36,10 +44,16 @@ test('non-GET /api/health rejects mutations without authentication or D1 access'
   assert.deepEqual(await response.json(), { ok: false, error: 'METHOD_NOT_ALLOWED' });
 });
 
-test('unknown API routes retain the existing JSON 404 response', async () => {
-  const source = await readFile(new URL('../workers/api.js', import.meta.url), 'utf8');
+test('unknown API routes return an immediate non-cacheable JSON 404 without D1 or static asset access', async () => {
+  const response = await worker.fetch(
+    new Request('https://portal.test/api/rota-inexistente'),
+    { DB: failingDatabase(), ASSETS: failingAssets() }
+  );
 
-  assert.match(source, /return json\(\{ ok: false, error: 'Not found' \}, 404\);/);
+  assert.equal(response.status, 404);
+  assert.equal(response.headers.get('content-type'), 'application/json; charset=utf-8');
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(await response.json(), { ok: false, error: 'API_ROUTE_NOT_FOUND' });
 });
 
 test('post-deploy smoke checks canonical HTML routes and validates legacy redirects', async () => {
@@ -48,6 +62,7 @@ test('post-deploy smoke checks canonical HTML routes and validates legacy redire
   assert.match(workflow, /for attempt in 1 2 3 4 5; do/);
   assert.match(workflow, /--max-time 10/);
   assert.match(workflow, /request \/api\/health 200 'application\/json'/);
+  assert.match(workflow, /request \/api\/rota-inexistente 404 'application\/json' 'API_ROUTE_NOT_FOUND' true/);
   assert.match(workflow, /node -e 'const fs=require/);
   assert.match(workflow, /request \/portal 200 'text\/html' 'Portal Premium LM'/);
   assert.match(workflow, /request \/admin-premium-student-record 200 'text\/html' 'Planejamento alimentar'/);

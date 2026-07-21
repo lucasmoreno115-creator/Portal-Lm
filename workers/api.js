@@ -220,6 +220,10 @@ export default {
       return healthResponse({ ok: true, service: 'lm-system-api', environment: 'production' });
     }
 
+    if (isUnknownApiRootRoute(url.pathname)) {
+      return apiRouteNotFoundResponse();
+    }
+
     if (method === 'GET' && (url.pathname === '/admin' || url.pathname === '/admin/')) {
       const target = env.PREMIUM_ADMIN_CUTOVER_ENABLED === 'true' ? '/admin-premium-workspace.html' : '/admin-legacy.html';
       return Response.redirect(new URL(target, url.origin).toString(), 302);
@@ -5191,6 +5195,29 @@ function healthResponse(payload, status = 200) {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
       ...(status === 405 ? { Allow: 'GET' } : {})
+    }
+  });
+}
+
+function isUnknownApiRootRoute(pathname) {
+  if (!pathname.startsWith('/api/')) return false;
+
+  return ![
+    '/api/admin/',
+    '/api/anamnese-premium',
+    '/api/diagnostic/evaluate',
+    '/api/portal/',
+    '/api/project-lm/',
+    '/api/project-lm-2/'
+  ].some((routePrefix) => pathname === routePrefix.slice(0, -1) || pathname.startsWith(routePrefix));
+}
+
+function apiRouteNotFoundResponse() {
+  return new Response(JSON.stringify({ ok: false, error: 'API_ROUTE_NOT_FOUND' }), {
+    status: 404,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store'
     }
   });
 }
