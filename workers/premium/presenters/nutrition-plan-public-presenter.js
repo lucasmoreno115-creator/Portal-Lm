@@ -25,13 +25,15 @@ function presentMeal(meal) {
 
 export function presentPublicNutritionPlan(plan) {
   // A draft, archived version, or inactive published version must never reach the student portal.
-  if (!plan || plan.status !== 'PUBLISHED' || Number(plan.is_active) !== 1) return null;
+  const isPublished = plan?.status === 'PUBLISHED';
+  const isLegacyActive = plan?.status == null;
+  if (!plan || Number(plan.is_active) !== 1 || (!isPublished && !isLegacyActive)) return null;
 
   return {
     title: text(plan.title) || 'Plano alimentar',
     goal: text(plan.goal),
     strategy: text(plan.strategy),
-    status: 'PUBLISHED',
+    status: isPublished ? 'PUBLISHED' : null,
     meals: safeJsonArray(plan.meals ?? plan.meals_json).map(presentMeal),
     substitutions: safeJsonArray(plan.substitutions ?? plan.substitutions_json),
     observations: text(plan.observations ?? plan.notes),

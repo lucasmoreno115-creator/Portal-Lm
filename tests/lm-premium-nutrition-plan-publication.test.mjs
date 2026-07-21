@@ -4,6 +4,7 @@ import { createD1NutritionPlanRepository } from '../workers/premium/repositories
 
 test('public presenter exposes the complete published plan contract without administrative fields',()=>{
   assert.equal(presentPublicNutritionPlan({ status:'DRAFT', is_active:1 }), null);
+  assert.equal(presentPublicNutritionPlan({ status:'ARCHIVED', is_active:1 }), null);
   assert.equal(presentPublicNutritionPlan({ status:'PUBLISHED', is_active:0 }), null);
   const p=presentPublicNutritionPlan({
     status:'PUBLISHED', is_active:1, student_id:'s', id:'id', published_by:'admin', source_feedback_id:'feedback', title:'T', goal:'Definição', strategy:'Déficit leve',
@@ -16,8 +17,9 @@ test('public presenter exposes the complete published plan contract without admi
   for (const field of ['student_id','id','published_by','source_feedback_id']) assert.equal(field in p,false);
 });
 
-test('public presenter preserves legacy meal items when primary text is unavailable',()=>{
-  const p=presentPublicNutritionPlan({ status:'PUBLISHED', is_active:1, meals:[{ title:'Almoço', items:[{ food:'Frango', quantity:'120', unit:'g' }] }] });
+test('public presenter keeps active legacy plans and their items visible',()=>{
+  const p=presentPublicNutritionPlan({ status:null, is_active:1, meals:[{ title:'Almoço', items:[{ food:'Frango', quantity:'120', unit:'g' }] }] });
+  assert.equal(p.status, null);
   assert.deepEqual(p.meals,[{ name:'Almoço', time:null, primary_text:null, guidance:null, items:[{ food:'Frango', quantity:'120', unit:'g' }], substitutions:[] }]);
 });
 
