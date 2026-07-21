@@ -92,7 +92,8 @@ test('RC1 E2E aplica migrations reais e exercita repositories/use cases dos Buil
   assert.equal((await analyzeAnamnesis.execute({ id: 'anamnesis-1', status: 'ANALYZED', updated_at: '2026-07-14T02:00:00.000Z' })).ok, true);
   await d.pendingItemRepository.resolveOpenByRelated({ student_id: 'student-premium', type: 'ANALYZE_ANAMNESIS', related_entity_type: 'premium_anamnesis', related_entity_id: 'anamnesis-1', resolved_at: '2026-07-14T02:01:00.000Z' });
 
-  for (const status of ['AWAITING_ANAMNESIS', 'UNDER_REVIEW', 'ACTIVE']) assert.equal((await updateStatus({ student_id: 'student-premium', status, created_by: 'admin' })).ok, true);
+  for (const status of ['AWAITING_ANAMNESIS', 'UNDER_REVIEW', 'READY_TO_RELEASE', 'ACTIVE']) assert.equal((await updateStatus({ student_id: 'student-premium', status, created_by: 'admin' })).ok, true);
+  assert.equal(scalar(d.sqlite, "SELECT COUNT(*) total FROM premium_followup_entries WHERE student_id='student-premium' AND entry_type='CONSULTATION_STATUS_CHANGE'").total >= 3, true);
 
   const previousPlan = await d.nutritionPlanRepository.saveCurrent({ id: 'legacy-plan', student_id: 'student-premium', student_email: 'ana@example.com', title: 'Plano anterior', goal: 'base', strategy: 'base', meals: [{ name: 'Café' }], substitutions: [], adherence_rules: [], notes: 'nota antiga', whatsapp_message: 'msg', created_at: '2026-07-13T00:00:00.000Z' });
   assert.equal(previousPlan.status, 'PUBLISHED');
