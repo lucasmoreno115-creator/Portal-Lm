@@ -27,18 +27,16 @@ test('Prontuário LM renderiza estrutura, empty states e não expõe token', () 
 });
 
 test('HTML seguro: Prontuário não usa innerHTML nem interpolação HTML dinâmica', () => {
-  const rootJs = readFileSync(new URL('../admin-premium-student-record.js', import.meta.url), 'utf8');
   const publicJs = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
   const assetJs = readFileSync(new URL('../public/assets/js/admin-premium-student-record.js', import.meta.url), 'utf8');
-  assert.equal(rootJs, publicJs);
-  assert.equal(rootJs, assetJs);
-  assert.doesNotMatch(rootJs, /\.innerHTML\s*=/);
-  assert.match(rootJs, /textContent/);
-  assert.match(rootJs, /replaceChildren/);
+  assert.equal(publicJs, assetJs);
+  assert.doesNotMatch(publicJs, /\.innerHTML\s*=/);
+  assert.match(publicJs, /textContent/);
+  assert.match(publicJs, /replaceChildren/);
 });
 
 test('XSS: dados maliciosos aparecem como texto sem criar elementos ou atributos perigosos', async () => {
-  const source = readFileSync(new URL('../admin-premium-student-record.js', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
   const dom = createFakeDocument();
   const payload = maliciousRecord();
   const context = {
@@ -84,7 +82,7 @@ test('Prontuário mantém a CTA alimentar para todas as combinações e constró
       FormData: class {},
       fetch: async () => ({ ok: true, json: async () => ({ ok: true, data: { student: { student_id: 'student safe', name: 'Ana' }, summary: {}, nutrition_plan, pending_items: [], feedbacks: [], followup_entries: [] } }) })
     };
-    vm.runInNewContext(readFileSync(new URL('../admin-premium-student-record.js', import.meta.url), 'utf8'), context);
+    vm.runInNewContext(readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8'), context);
     await new Promise((resolve) => setTimeout(resolve, 0));
     const planText = dom.document.getElementById('plan').textContent;
     assert.match(planText, new RegExp(label));
@@ -139,7 +137,7 @@ function createFakeDocument() {
     addEventListener() {}
     reset() {}
   }
-  const ids = ['state','record','studentName','contact','status','summary','pendingList','anamnesis','plan','feedbacks','entries','entryForm','adminLogoutBtn','primaryAction'];
+  const ids = ['state','record','studentName','contact','status','summary','pendingList','anamnesis','plan','feedbacks','entries','entryForm','adminLogoutBtn','primaryAction','careStatusContent'];
   const elements = new Map(ids.map((id) => [id, new Element(id === 'entryForm' ? 'form' : 'div', id)]));
   const document = {
     getElementById(id) { return elements.get(id) || null; },

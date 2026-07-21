@@ -49,6 +49,20 @@ export function createD1NutritionPlanRepository(db) {
       if (!openDraft) throw conflict('NUTRITION_PLAN_DRAFT_CREATE_CONFLICT');
       return openDraft;
     },
+    async replaceDraftFromVersion(existingDraft, plan) {
+      if (!existingDraft || existingDraft.status !== NUTRITION_PLAN_STATUS.DRAFT || existingDraft.student_id !== plan.student_id) throw conflict('NUTRITION_PLAN_DRAFT_REPLACE_CONFLICT');
+      const now = nowIso(plan.created_at);
+      const draft = { ...plan, status: NUTRITION_PLAN_STATUS.DRAFT, is_active: 0, created_at: now, updated_at: now };
+      const content = serializeCanonicalNutritionPlan(draft);
+      const immutableBefore = await db.prepare("SELECT * FROM nutrition_plans WHERE student_id=? AND status IN ('PUBLISHED','ARCHIVED') ORDER BY id").bind(plan.student_id).all();
+      const result = await db.prepare(`UPDATE nutrition_plans SET student_email=?, title=?, goal=?, strategy=?, meals_json=?, substitutions_json=?, adherence_rules_json=?, notes=?, whatsapp_message=?, source_feedback_id=?, supersedes_plan_id=NULL, version_number=NULL, published_at=NULL, published_by=NULL, archived_at=NULL, is_active=0, updated_at=? WHERE id=? AND student_id=? AND status='DRAFT' AND updated_at=?`).bind(content.student_email ?? plan.student_email ?? null, content.title, content.goal, content.strategy, content.meals_json, content.substitutions_json, content.adherence_rules_json, content.notes, content.whatsapp_message, plan.source_feedback_id ?? null, now, existingDraft.id, plan.student_id, existingDraft.updated_at).run();
+      if (changes(result) !== 1) throw conflict('NUTRITION_PLAN_DRAFT_REPLACE_CONFLICT');
+      const replacement = await this.findById(existingDraft.id);
+      const drafts = await db.prepare("SELECT id FROM nutrition_plans WHERE student_id=? AND status='DRAFT'").bind(plan.student_id).all();
+      const immutableAfter = await db.prepare("SELECT * FROM nutrition_plans WHERE student_id=? AND status IN ('PUBLISHED','ARCHIVED') ORDER BY id").bind(plan.student_id).all();
+      if (!replacement || replacement.status !== NUTRITION_PLAN_STATUS.DRAFT || replacement.student_id !== plan.student_id || (drafts?.results || []).length !== 1 || replacement.title !== content.title || replacement.meals_json !== content.meals_json || JSON.stringify(immutableBefore?.results || []) !== JSON.stringify(immutableAfter?.results || [])) throw conflict('NUTRITION_PLAN_DRAFT_REPLACE_CONFLICT');
+      return replacement;
+    },
     async updateDraft(id, updates) {
       const current = await this.findById(id);
       assertDraftEditable(current);

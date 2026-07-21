@@ -4,6 +4,8 @@ test('workspace exposes only approved Sprint 3.1 student context actions',()=>{c
 test('UNDER_REVIEW only marks planning ready after a published plan exists',()=>{const base={consultation_status:'UNDER_REVIEW'};const cases=[
   [{...base,nutrition_plan_status:'NO_PUBLISHED_PLAN',has_draft:false,has_published:false},{label:'Abrir planejamento',action:'open-nutrition-plan',description:'Analise a anamnese e prepare o planejamento alimentar do aluno.'}],
   [{...base,nutrition_plan_status:'DRAFT',has_draft:true,has_published:false},{label:'Continuar planejamento',action:'open-nutrition-plan',description:'Existe um planejamento alimentar em edição.'}],
-  [{...base,nutrition_plan_status:'PUBLISHED',has_draft:false,has_published:true},{label:'Marcar planejamento como pronto',action:'mark-ready',description:'O planejamento alimentar foi publicado e pode seguir para liberação.'}],
+  [{...base,nutrition_plan_status:'PUBLISHED',has_draft:false,has_published:true},{label:'Abrir Prontuário',action:'open-student',description:'Marque o planejamento como pronto no Prontuário.'}],
   [{...base,nutrition_plan_status:'DRAFT',has_draft:true,has_published:true},{label:'Revisar alterações',action:'open-nutrition-plan',description:'Existem alterações ainda não publicadas no planejamento alimentar.'}],
 ];for(const [student,expected] of cases)assert.deepEqual(nextAction(student,true),{title:'Recebidas / em preparação',...expected});});
+
+test('READY_TO_RELEASE opens the record for release',()=>assert.deepEqual(nextAction({consultation_status:'READY_TO_RELEASE'},true),{title:'Pronto para liberação',label:'Abrir Prontuário',action:'open-student',description:'Libere o acesso no Prontuário.'}));

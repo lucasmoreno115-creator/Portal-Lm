@@ -1731,9 +1731,9 @@ export default {
           if (action === 'draft' && method === 'PATCH') result = await premiumApp.updateNutritionPlanDraft.execute({ id, student_id: plan.student_id, updates: body || {} });
           else if (action === 'publish' && method === 'POST') result = await premiumApp.publishNutritionPlan.execute({ id, student_id: plan.student_id, published_by: 'admin', professional_note: body?.professional_note || null });
           else if (action === 'archive' && method === 'POST') result = await premiumApp.archiveNutritionPlan.execute({ id, student_id: plan.student_id });
-          else if (action === 'duplicate-as-draft' && method === 'POST') result = await premiumApp.createDraftFromPublishedPlan.execute({ id, student_id: plan.student_id, source_feedback_id: body?.source_feedback_id || null });
+          else if (action === 'duplicate-as-draft' && method === 'POST') result = await premiumApp.createDraftFromPublishedPlan.execute({ id, student_id: plan.student_id, source_feedback_id: body?.source_feedback_id || null, replace_existing_draft: body?.replace_existing_draft === true });
           else return json({ ok:false, error:'METHOD_NOT_ALLOWED' }, 405);
-          return json({ ok: result.ok, data: presentAdminNutritionPlan(result.data), error: result.error, details: result.details }, result.ok ? 200 : (result.conflict ? 409 : 400));
+          return json({ ok: result.ok, data: result.ok ? presentAdminNutritionPlan(result.data) : result.data, error: result.error, details: result.details }, result.ok ? 200 : (result.conflict ? 409 : 400));
         }
 
         if (url.pathname === '/api/admin/checkins' && method === 'GET') {

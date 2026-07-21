@@ -425,7 +425,7 @@ CREATE TABLE premium_students (
   email TEXT NOT NULL,
   normalized_email TEXT NOT NULL,
   display_name TEXT,
-  consultation_status TEXT NOT NULL DEFAULT 'NEW' CHECK (consultation_status IN ('NEW', 'AWAITING_ANAMNESIS', 'UNDER_REVIEW', 'ACTIVE', 'PAUSED', 'ENDED')),
+  consultation_status TEXT NOT NULL DEFAULT 'NEW' CHECK (consultation_status IN ('NEW', 'AWAITING_ANAMNESIS', 'UNDER_REVIEW', 'READY_TO_RELEASE', 'ACTIVE', 'PAUSED', 'ENDED')),
   access_status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (access_status IN ('ACTIVE', 'INACTIVE')),
   source TEXT NOT NULL DEFAULT 'MIGRATION',
   created_at TEXT NOT NULL,
