@@ -51,13 +51,17 @@ export function createD1NutritionPlanRepository(db) {
     },
     async replaceDraftFromVersion(existingDraft, plan) {
       if (!existingDraft || existingDraft.status !== NUTRITION_PLAN_STATUS.DRAFT || existingDraft.student_id !== plan.student_id) throw conflict('NUTRITION_PLAN_DRAFT_REPLACE_CONFLICT');
+      if (typeof db.batch !== 'function') throw conflict('NUTRITION_PLAN_DRAFT_REPLACE_ATOMICITY_REQUIRED');
       const now = nowIso(plan.created_at);
       const draft = { ...plan, status: NUTRITION_PLAN_STATUS.DRAFT, is_active: 0, created_at: now, updated_at: now };
+      const immutableBefore = await db.prepare("SELECT id, status, student_id, version_number, published_at, archived_at, is_active FROM nutrition_plans WHERE student_id=? AND status IN ('PUBLISHED','ARCHIVED') ORDER BY id").bind(plan.student_id).all();
       const remove = db.prepare("DELETE FROM nutrition_plans WHERE id=? AND student_id=? AND status='DRAFT' AND updated_at=?").bind(existingDraft.id, plan.student_id, existingDraft.updated_at);
       const insert = bindPlan(db.prepare(`INSERT INTO nutrition_plans (id, student_id, student_email, title, goal, strategy, meals_json, substitutions_json, adherence_rules_json, notes, whatsapp_message, status, version_number, published_at, published_by, archived_at, supersedes_plan_id, source_feedback_id, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`), draft, now);
-      try { if (typeof db.batch === 'function') await db.batch([remove, insert]); else { await remove.run(); await insert.run(); } } catch (error) { throw conflict('NUTRITION_PLAN_DRAFT_REPLACE_FAILED'); }
+      try { await db.batch([remove, insert]); } catch (error) { throw conflict('NUTRITION_PLAN_DRAFT_REPLACE_FAILED'); }
+      const old = await this.findById(existingDraft.id);
       const replacement = await this.findById(plan.id);
-      if (!replacement || replacement.status !== NUTRITION_PLAN_STATUS.DRAFT) throw conflict('NUTRITION_PLAN_DRAFT_REPLACE_FAILED');
+      const immutableAfter = await db.prepare("SELECT id, status, student_id, version_number, published_at, archived_at, is_active FROM nutrition_plans WHERE student_id=? AND status IN ('PUBLISHED','ARCHIVED') ORDER BY id").bind(plan.student_id).all();
+      if (old || !replacement || replacement.status !== NUTRITION_PLAN_STATUS.DRAFT || replacement.student_id !== plan.student_id || JSON.stringify(immutableBefore?.results || []) !== JSON.stringify(immutableAfter?.results || [])) throw conflict('NUTRITION_PLAN_DRAFT_REPLACE_FAILED');
       return replacement;
     },
     async updateDraft(id, updates) {
