@@ -220,6 +220,12 @@ export default {
       return healthResponse({ ok: true, service: 'lm-system-api', environment: 'production' });
     }
 
+    // Reject unknown API namespaces before schema initialization so they cannot
+    // touch D1 or fall through to a static/HTML handler.
+    if (url.pathname.startsWith('/api/') && !isKnownApiNamespace(url.pathname)) {
+      return healthResponse({ ok: false, error: 'API_ROUTE_NOT_FOUND' }, 404);
+    }
+
     if (method === 'GET' && (url.pathname === '/admin' || url.pathname === '/admin/')) {
       const target = env.PREMIUM_ADMIN_CUTOVER_ENABLED === 'true' ? '/admin-premium-workspace.html' : '/admin-legacy.html';
       return Response.redirect(new URL(target, url.origin).toString(), 302);
@@ -2689,6 +2695,7 @@ Me responde aqui para ajustarmos o próximo passo e evitar que sua semana fique 
         }
       }
 
+      if (url.pathname.startsWith('/api/')) return healthResponse({ ok: false, error: 'API_ROUTE_NOT_FOUND' }, 404);
       return json({ ok: false, error: 'Not found' }, 404);
     } catch (err) {
       await logOperationalEvent(env.DB, buildOperationalErrorPayload(request, err));
@@ -2700,6 +2707,15 @@ Me responde aqui para ajustarmos o próximo passo e evitar que sua semana fique 
     }
   }
 };
+
+function isKnownApiNamespace(pathname) {
+  return pathname === '/api/anamnese-premium'
+    || pathname === '/api/diagnostic/evaluate'
+    || pathname.startsWith('/api/admin/')
+    || pathname.startsWith('/api/portal/')
+    || pathname.startsWith('/api/project-lm/')
+    || pathname.startsWith('/api/project-lm-2/');
+}
 
 async function ensureSchema(db) {
   if (db && (typeof db === 'object' || typeof db === 'function')) {
