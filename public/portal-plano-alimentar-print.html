@@ -241,6 +241,7 @@
   </main>
 
   <script src='portal-shared.js'></script>
+  <script src='/assets/js/premium-nutrition-plan-renderer.js'></script>
   <script>
     requireAuth();
 
@@ -250,22 +251,14 @@
     const studentName = document.getElementById('studentName');
     const printBtn = document.getElementById('printBtn');
 
-    function escapeHtml(value) {
-      return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
+    const nutritionRenderer = window.PortalNutritionPlanRenderer;
+    const escapeHtml = nutritionRenderer.escapeHtml;
 
     function removeEmoji(value) {
       return String(value || '').replace(/[\uFE0F\u200D]|\p{Extended_Pictographic}/gu, '').trim();
     }
 
-    function cleanText(value) {
-      return removeEmoji(value);
-    }
+    function cleanText(value) { return removeEmoji(value); }
 
     function textBlock(value, fallback) {
       const fallbackText = fallback || 'Não informado.';
@@ -273,9 +266,20 @@
       return `<p class='text-block${text ? '' : ' empty'}'>${escapeHtml(text || fallbackText)}</p>`;
     }
 
-    function itemContent(item) {
-      const content = Array.isArray(item?.items) ? item.items.join('\n') : '';
-      return textBlock(content, 'Sem itens cadastrados.');
+    function renderMeal(meal, index) {
+      const rendered = nutritionRenderer.renderMealContent(meal, { emptyHtml: '<p class="empty">Sem itens cadastrados.</p>' });
+      return `<article class='item'>
+        <h3>${escapeHtml(cleanText(meal?.name || `Refeição ${index + 1}`))}</h3>
+        ${meal?.time ? `<p class='empty'>${escapeHtml(cleanText(meal.time))}</p>` : ''}
+        ${meal?.guidance ? `<p class='text-block'>${escapeHtml(cleanText(meal.guidance))}</p>` : ''}
+        ${rendered.primaryHtml}
+        ${rendered.substitutionsHtml}
+      </article>`;
+    }
+
+    function renderMeals(meals) {
+      if (!Array.isArray(meals) || !meals.length) return '<p class="empty">Sem refeições cadastradas.</p>';
+      return meals.map(renderMeal).join('');
     }
 
     function sectionHtml(number, title, content) {
@@ -302,16 +306,12 @@
     }
 
     function renderItems(items, titleKey, fallbackTitle) {
-      if (!Array.isArray(items) || !items.length) {
-        return '<p class="empty">Sem itens cadastrados.</p>';
-      }
-
-      return items.map((item, index) => `
-        <article class='item'>
-          <h3>${escapeHtml(cleanText(item?.[titleKey] || `${fallbackTitle} ${index + 1}`))}</h3>
-          ${itemContent(item)}
-        </article>
-      `).join('');
+      if (!Array.isArray(items) || !items.length) return '<p class="empty">Sem itens cadastrados.</p>';
+      return items.map((item, index) => {
+        const title = item && typeof item === 'object' ? item[titleKey] : '';
+        const lines = nutritionRenderer.normalizeMealLines(item?.items || item?.text || item);
+        return `<article class='item'><h3>${escapeHtml(cleanText(title || `${fallbackTitle} ${index + 1}`))}</h3>${nutritionRenderer.renderLines(lines, { emptyHtml: '<p class="empty">Sem itens cadastrados.</p>' })}</article>`;
+      }).join('');
     }
 
     function renderPlan(plan) {
@@ -320,7 +320,7 @@
       planContent.innerHTML = [
         sectionHtml(1, 'Objetivo atual', textBlock(plan?.goal, 'Não informado.')),
         sectionHtml(2, 'Estratégia da fase', textBlock(plan?.strategy, 'Não informada.')),
-        sectionHtml(3, 'Plano alimentar', renderItems(plan?.meals, 'name', 'Refeição')),
+        sectionHtml(3, 'Plano alimentar', renderMeals(plan?.meals)),
         sectionHtml(4, 'Guia de Equival&ecirc;ncias Alimentares', renderFoodEquivalences(plan?.substitutions)),
         sectionHtml(5, 'Regras de adesão', textBlock(Array.isArray(plan?.adherence_rules) ? plan.adherence_rules.join('\n') : plan?.adherence_rules, 'Sem regras cadastradas.')),
         sectionHtml(6, 'Observações', textBlock(plan?.notes, 'Sem observações.')),
