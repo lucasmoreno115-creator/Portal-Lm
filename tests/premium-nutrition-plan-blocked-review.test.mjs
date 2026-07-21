@@ -24,15 +24,15 @@ test('reports a portal ORDER BY tie as non-reproducible rather than choosing a r
 });
 test('falls back to the repository legacy SQL and uses updated_at then created_at ordering', () => {
   const selected = resolvePortalPlan({ student, plans: ambiguousLegacyPair(student.email) });
-  assert.equal(selected.plan.id, 'new'); assert.equal(selected.rule, 'email_fallback'); assert.equal(selected.sql, PORTAL_NUTRITION_PLAN_QUERIES.byEmail); assert.match(selected.sql, /datetime\(updated_at\) DESC, datetime\(created_at\) DESC/);
+  assert.equal(selected.plan.id, 'new'); assert.equal(selected.rule, 'legacy_repository_by_email'); assert.equal(selected.sql, PORTAL_NUTRITION_PLAN_QUERIES.byEmail); assert.match(selected.sql, /datetime\(updated_at\) DESC, datetime\(created_at\) DESC/);
 });
 test('multiple legacy plans produce a manually approvable portal-effective review', () => {
   const review = reviewStudent({ student, plans: ambiguousLegacyPair(student.email) });
-  assert.equal(review.current_category, 'AMBIGUOUS_MULTIPLE_PLANS'); assert.equal(review.decision_suggested, 'PORTAL_EFFECTIVE_LEGACY_REVIEW'); assert.equal(review.portal_effective_plan.selection_rule, 'email_fallback'); assert.equal(review.plans.filter((plan) => plan.portal_effective_plan).length, 1);
+  assert.equal(review.current_category, 'AMBIGUOUS_MULTIPLE_PLANS'); assert.equal(review.decision_suggested, 'LEGACY_EMAIL_SELECTION_REVIEW'); assert.equal(review.legacy_repository_selection_candidate.selection_rule, 'legacy_repository_by_email'); assert.equal(review.plans.filter((plan) => plan.legacy_repository_selected_candidate).length, 1);
 });
 test('legacy plus modern DRAFT is included and exposes only sanitized structural comparison', () => {
   const review = reviewStudent({ student, plans: [legacy('legacy'), draft] });
-  assert.equal(review.current_category, 'MODERN_DRAFT_CONFLICT'); assert.equal(review.decision_suggested, 'LEGACY_PORTAL_VS_MODERN_DRAFT'); assert.equal(review.drafts, 1); assert.equal(review.plans.find((plan) => plan.modern_draft).food_item_count, 1); assert.match(review.plans[0].content_fingerprint, /^[a-f0-9]{64}$/);
+  assert.equal(review.current_category, 'MODERN_DRAFT_CONFLICT'); assert.equal(review.decision_suggested, 'LEGACY_EMAIL_SELECTION_VS_MODERN_DRAFT'); assert.equal(review.drafts, 1); assert.equal(review.plans.find((plan) => plan.modern_draft).food_item_count, 1); assert.match(review.plans[0].content_fingerprint, /^[a-f0-9]{64}$/);
 });
 test('excludes workspace-linked, draft-only, no-plan, and inactive students by scope', () => {
   const linked = { ...legacy('legacy'), student_id: student.student_id, status: 'PUBLISHED', version_number: 1, published_at: '2026-01-01T00:00:00Z' };
@@ -44,7 +44,7 @@ test('excludes workspace-linked, draft-only, no-plan, and inactive students by s
 });
 test('report has no PII, food content, or raw plan IDs and counts only aggregate outcomes', () => {
   const report = buildReport({ students: [student], plansByStudent: new Map([[student.student_id, ambiguousLegacyPair(student.email, '-raw')]]) });
-  const output = JSON.stringify(report); assert.doesNotMatch(output, /private@example\.test|raw-plan|items|foods/i); assert.equal(report.summary.blocked_students_reviewed, 1); assert.equal(report.summary.portal_effective_legacy_review, 1);
+  const output = JSON.stringify(report); assert.doesNotMatch(output, /private@example\.test|raw-plan|items|foods/i); assert.equal(report.summary.blocked_students_reviewed, 1); assert.equal(report.summary.legacy_email_selection_review, 1);
 });
 test('production-shaped data reviews six legacy selections and two legacy-versus-draft conflicts', () => {
   const students = Array.from({ length: 8 }, (_, index) => ({ student_id: `student-${index}`, email: `private-${index}@example.test` }));
@@ -53,7 +53,7 @@ test('production-shaped data reviews six legacy selections and two legacy-versus
     return [current.student_id, index < 6 ? [old, next] : [old, { ...draft, id: `draft-${index}`, student_id: current.student_id, student_email: current.email }]];
   }));
   const report = buildReport({ students, plansByStudent });
-  assert.equal(report.summary.blocked_students_reviewed, 8); assert.equal(report.summary.portal_effective_legacy_review, 6); assert.equal(report.summary.legacy_portal_vs_modern_draft, 2); assert.equal(report.summary.errors, 0);
+  assert.equal(report.summary.blocked_students_reviewed, 8); assert.equal(report.summary.legacy_email_selection_review, 6); assert.equal(report.summary.legacy_email_selection_vs_modern_draft, 2); assert.equal(report.summary.errors, 0);
 });
 test('fingerprints are deterministic, non-reversible hashes, and SQL is strictly read-only', () => {
   assert.equal(contentFingerprint(legacy('x')), contentFingerprint(legacy('y'))); assert.match(contentFingerprint(legacy('x')), /^[a-f0-9]{64}$/);
