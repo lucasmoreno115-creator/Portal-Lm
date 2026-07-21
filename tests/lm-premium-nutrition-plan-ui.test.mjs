@@ -7,3 +7,19 @@ test('nutrition editor serializes textual meals without ephemeral IDs and preser
 test('nutrition editor keeps approved contextual returns and rejects external, unrelated, or cross-student routes',()=>{assert.equal(editorBackHref('?student_id=student-1&return_to=%2Fadmin-premium-student-record.html%3Fstudent_id%3Dstudent-1%23plan'),'/admin-premium-student-record.html?student_id=student-1#plan');assert.equal(editorBackHref('?student_id=student-1&return_to=%2Fadmin-premium-workspace.html%3Fstudent_id%3Dstudent-1'),'/admin-premium-workspace.html?student_id=student-1');for(const value of ['https://evil.example/record','/admin-nutrition-plan.html?email=x@example.com','//evil.example/record','/admin-premium-student-record.html?student_id=student-2','/admin-premium-student-record.html'])assert.equal(editorBackHref(`?student_id=student-1&return_to=${encodeURIComponent(value)}`),'/admin-premium-student-record.html?student_id=student-1');});
 function editorBackHref(search){const elements=new Map(['status','current','history','draftForm','createDraft','duplicateDraft','saveDraft','publishDraft','backToRecord'].map(id=>[id,{attributes:{},setAttribute(name,value){this.attributes[name]=String(value);},getAttribute(name){return this.attributes[name];}}]));const context={URLSearchParams,URL,location:{search,origin:'https://admin.example'},document:{getElementById:id=>elements.get(id)},fetch:async()=>{throw new Error('offline');}};vm.runInNewContext(fs.readFileSync('public/admin-premium-nutrition-plan.js','utf8'),context);return elements.get('backToRecord').getAttribute('href');}
 function editorPayload(model){const elements=new Map(['status','current','history','draftForm','createDraft','duplicateDraft','saveDraft','publishDraft','backToRecord'].map(id=>[id,{attributes:{},setAttribute(name,value){this.attributes[name]=String(value);},getAttribute(name){return this.attributes[name];}}]));const context={URLSearchParams,URL,location:{search:'?student_id=student-1',origin:'https://admin.example'},document:{getElementById:id=>elements.get(id)},fetch:async()=>{throw new Error('offline');}};vm.runInNewContext(`${fs.readFileSync('public/admin-premium-nutrition-plan.js','utf8')}\nstate.model=${JSON.stringify(model)};state.draft={updated_at:'2026-01-01T00:00:00Z'};globalThis.result=serializeDraft();`,context);return context.result;}
+test('nutrition editor persists the reviewed draft before publishing and keeps publication errors in the modal',()=>{
+  const html=fs.readFileSync('public/admin-premium-nutrition-plan.html','utf8');
+  const src=fs.readFileSync('public/admin-premium-nutrition-plan.js','utf8');
+  assert.match(html,/id="reviewStatus"/);
+  assert.match(src,/async function persistDraft\(\)/);
+  assert.match(src,/const payload=\{\.\.\.serializeDraft\(\),student_id:studentId\}/);
+  assert.match(src,/if\(state\.isDirty\)await persistDraft\(\);/);
+  assert.match(src,/saved\.id!==draftId/);
+  assert.match(src,/state\.lastSavedAt=saved\.updated_at/);
+  assert.match(src,/if\(!state\.draft\|\|state\.isSaving\|\|state\.isPublishing\)return;/);
+  assert.match(src,/setPublishButton\(true\)/);
+  assert.match(src,/Salvando e publicando…/);
+  assert.match(src,/Não foi possível publicar o planejamento\./);
+  assert.match(src,/\$\('reviewModal'\)\.close\(\);await load\(\)/);
+  assert.equal(src,fs.readFileSync('public/assets/js/admin-premium-nutrition-plan.js','utf8'));
+});
