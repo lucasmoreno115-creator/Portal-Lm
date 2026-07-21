@@ -56,6 +56,18 @@ test('unknown API routes return an immediate non-cacheable JSON 404 without D1 o
   assert.deepEqual(await response.json(), { ok: false, error: 'API_ROUTE_NOT_FOUND' });
 });
 
+test('GET /api returns an immediate non-cacheable JSON 404 without D1 or static asset access', async () => {
+  const response = await worker.fetch(
+    new Request('https://portal.test/api'),
+    { DB: failingDatabase(), ASSETS: failingAssets() }
+  );
+
+  assert.equal(response.status, 404);
+  assert.equal(response.headers.get('content-type'), 'application/json; charset=utf-8');
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(await response.json(), { ok: false, error: 'API_ROUTE_NOT_FOUND' });
+});
+
 test('post-deploy smoke checks canonical HTML routes and validates legacy redirects', async () => {
   const workflow = await readFile(new URL('../.github/workflows/cloudflare-deploy.yml', import.meta.url), 'utf8');
 

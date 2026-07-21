@@ -5200,7 +5200,7 @@ function healthResponse(payload, status = 200) {
 }
 
 function isUnknownApiRootRoute(pathname) {
-  if (!pathname.startsWith('/api/')) return false;
+  if (pathname !== '/api' && !pathname.startsWith('/api/')) return false;
 
   return ![
     '/api/admin/',
