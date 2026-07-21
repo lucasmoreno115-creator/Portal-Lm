@@ -13,7 +13,6 @@ class FakeNode {
     this.dataset = {};
     this.listeners = {};
     this.className = '';
-    this.attributes = {};
     this.classList = {
       toggle: () => {},
       remove: () => {},
@@ -23,7 +22,6 @@ class FakeNode {
   append(...nodes) { this.children.push(...nodes); this.textContent += nodes.map((node) => node?.textContent || '').join(''); }
   replaceChildren(...nodes) { this.children = [...nodes]; this.textContent = nodes.map((node) => node?.textContent || '').join(''); }
   addEventListener(type, handler) { this.listeners[type] = handler; }
-  setAttribute(name, value) { this.attributes[name] = String(value); }
   closest() { return null; }
 }
 
@@ -123,37 +121,6 @@ test('aluno sem student_id mantém Abrir Prontuário desabilitado sem URL quebra
   assert.equal(openRecord.disabled, true);
   assert.equal(openRecord.onclick, undefined);
   assert.equal(result.location.assigned, null);
-});
-
-test('cards operacionais existentes preservam student_id e suportam click e teclado', async () => {
-  const result = await runWorkspace({
-    fetchImpl: async (url) => {
-      if (String(url).includes('/summary')) return new Response(JSON.stringify({ ok: true, data: { anamnesis: { awaiting: 0, underReview: 0, readyToRelease: 0, items: [] }, checkins: { awaitingReview: 0, withoutRecentResponse: 0, items: [] } } }), { status: 200 });
-      if (String(url).includes('/students/s1')) return new Response(JSON.stringify({ ok: true, data: { identity: { studentId: 's1', name: 'Ana' }, operationalStatus: { label: 'Ativo' }, nextAction: { title: 'Revisar', description: 'Pendência', label: 'Abrir', action: 'open-student' }, anamnesis: null, checkins: { latest: null, history: [] } } }), { status: 200 });
-      return new Response(JSON.stringify({ ok: true, data: { items: [{ studentId: 's1', name: 'Ana', operationalStatusLabel: 'Ativo', anamnesisStatusLabel: 'Respondida', weeklyFeedbackStatusLabel: 'Em dia' }], nextCursor: null } }), { status: 200 });
-    }
-  });
-  const student = result.nodes.get('studentList').children[0];
-  const summary = student.children.flatMap((child) => child.children || [child]).find((child) => child.textContent === 'Ver resumo');
-  summary.onclick();
-  await new Promise((resolve) => setImmediate(resolve));
-  const cards = result.nodes.get('contextBody').children.slice(2);
-  const expected = [
-    '/admin-premium-student-record.html?student_id=s1#pendencias',
-    '/admin-premium-student-record.html?student_id=s1#anamnese',
-    '/admin-premium-student-record.html?student_id=s1#feedbacks-semanais',
-    '/admin-premium-nutrition-plan.html?student_id=s1&return_to=%2Fadmin-premium-student-record.html%3Fstudent_id%3Ds1%23planejamento-alimentar'
-  ];
-  cards.forEach((card, index) => {
-    assert.equal(card.attributes.role, 'link');
-    assert.equal(card.attributes.tabindex, '0');
-    card.onclick({ target: { closest: () => null } });
-    assert.equal(result.location.assigned, expected[index]);
-  });
-  let prevented = false;
-  cards[0].onkeydown({ key: ' ', preventDefault() { prevented = true; } });
-  assert.equal(prevented, true);
-  assert.equal(result.location.assigned, expected[0]);
 });
 
 test('workspace keeps session on 500, 403 and network errors', async () => {

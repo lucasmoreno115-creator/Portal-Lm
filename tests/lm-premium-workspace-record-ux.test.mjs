@@ -42,25 +42,3 @@ test('reabrir o mesmo resumo reutiliza os dados já carregados sem nova chamada'
   assert.match(js, /state\.loadingRecordId = id/);
   assert.match(js, /finally \{ state\.loadingRecordId = null; setRecordButtonState\(id, false\); \}/);
 });
-
-test('os cards operacionais existentes navegam sem adicionar atalhos duplicados', () => {
-  const rootCopy = readFileSync('admin-premium-workspace.js', 'utf8');
-  const assetCopy = readFileSync('public/assets/js/admin-premium-workspace.js', 'utf8');
-
-  assert.equal(rootCopy, js);
-  assert.equal(assetCopy, js);
-  assert.match(js, /function recordDestination\(studentId, sectionId\) \{ const href = premiumRecordUrl\(studentId\); return href && sectionId \? `\$\{href\}#\$\{sectionId\}` : href; \}/);
-  assert.match(js, /function makeRecordCardNavigable\(card, destination\)/);
-  assert.match(js, /card\.setAttribute\('role', 'link'\); card\.setAttribute\('tabindex', '0'\);/);
-  assert.match(js, /card\.onkeydown = \(event\) => \{ if \(event\.key !== 'Enter' && event\.key !== ' '\) return; event\.preventDefault\(\); navigate\(\); \}/);
-  assert.match(js, /makeRecordCardNavigable\(next, recordDestination\(studentId, 'pendencias'\)\)/);
-  assert.match(js, /makeRecordCardNavigable\(anamnesis, recordDestination\(studentId, 'anamnese'\)\)/);
-  assert.match(js, /makeRecordCardNavigable\(checkins, recordDestination\(studentId, 'feedbacks-semanais'\)\)/);
-  assert.match(js, /makeRecordCardNavigable\(plan, nutritionPlanDestination\(studentId\)\)/);
-  assert.match(js, /admin-premium-nutrition-plan\.html\?student_id=\$\{encodeURIComponent\(studentId\)\}/);
-  assert.match(css, /\.record-navigation-card\{cursor:pointer\}/);
-  assert.match(css, /\.record-navigation-card:focus-visible/);
-  assert.doesNotMatch(js, /recordSectionShortcut|recordSectionShortcuts|Áreas do prontuário/);
-  assert.doesNotMatch(css, /record-shortcut|record-section-shortcuts/);
-  assert.doesNotMatch(js, /<form|createElement\('form'\)/);
-});

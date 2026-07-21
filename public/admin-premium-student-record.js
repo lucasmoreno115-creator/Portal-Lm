@@ -88,14 +88,18 @@
     const origin = location.origin || 'http://localhost';
     const returnTo = new URL('/admin-premium-student-record.html', origin);
     returnTo.searchParams.set('student_id', studentId);
+    returnTo.hash = 'planejamento-alimentar';
     const editor = new URL('/admin-premium-nutrition-plan.html', origin);
     editor.searchParams.set('student_id', studentId);
-    editor.searchParams.set('return_to', `${returnTo.pathname}${returnTo.search}`);
+    editor.searchParams.set('return_to', `${returnTo.pathname}${returnTo.search}${returnTo.hash}`);
     return `${editor.pathname}${editor.search}`;
   }
 
+  function makeNutritionPlanCardNavigable(studentId) { const card=byId('planejamento-alimentar'); if (!card || !studentId) return; card.setAttribute('role', 'link'); card.setAttribute('tabindex', '0'); const navigate=()=>window.location.assign(nutritionPlanLink(studentId)); card.onclick=(event)=>{if(event.target?.closest?.('a, button'))return;navigate();}; card.onkeydown=(event)=>{if(event.key!=='Enter'&&event.key!==' ')return;event.preventDefault();navigate();}; }
+
   function renderPlan(workflow, student) {
     const target = byId('plan');
+    makeNutritionPlanCardNavigable(student.student_id);
     const current = workflow?.current || null;
     const draft = workflow?.draft || null;
     const hasPublished = workflow?.hasPublished ?? Boolean(current);
