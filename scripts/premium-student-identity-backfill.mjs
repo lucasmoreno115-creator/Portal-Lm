@@ -61,10 +61,10 @@ export function evaluatePremiumEligibility(row) {
   return { eligible: true, conflictType: null, reason: 'Premium explícito.' };
 }
 
-export function createConflict(type, table, record, email, reason, recommended_action) {
+export function createConflict(type, table, record, email, reason, recommended_action, studentAccessIds = []) {
   // Conflict objects may be persisted or surfaced by an administrative runner.
   // Keep only opaque record IDs and never expose e-mail addresses.
-  return { type, table, record: String(record ?? ''), email: null, reason, recommended_action };
+  return { type, table, record: String(record ?? ''), email: null, reason, recommended_action, student_access_ids: studentAccessIds.map(String) };
 }
 
 function accessStatus(row) {
@@ -188,7 +188,7 @@ export async function runPremiumStudentIdentityBackfill({
     let students = studentById ? [studentById] : normalizeRows(await repository.findByNormalizedEmail(normalizedEmail));
     if (students.length > 1) {
       counts.ambiguous += 1;
-      conflicts.push(createConflict('IDENTITY_COLLISION', 'premium_students', students.map((s) => s.student_id).join(','), normalizedEmail, 'Mais de uma identidade para o e-mail normalizado.', 'Resolver colisão manualmente.'));
+      conflicts.push(createConflict('IDENTITY_COLLISION', 'premium_students', students.map((s) => s.student_id).join(','), normalizedEmail, 'Mais de uma identidade para o e-mail normalizado.', 'Resolver colisão manualmente.', [access.id]));
       continue;
     }
 
