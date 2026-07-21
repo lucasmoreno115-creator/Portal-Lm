@@ -69,6 +69,8 @@ export async function runLegacyRepositoryAssociation({ client, mode = 'dry-run',
         try {
           if (updated) {
             if (!changedExactlyOne(await client.execute('UPDATE nutrition_plans SET student_id = NULL WHERE id = ? AND student_id = ?', [association.plan.id, association.student.student_id]))) throw fatal('ASSOCIATION_COMPENSATION_FAILED');
+            const compensated = rows(await client.all('SELECT student_id FROM nutrition_plans WHERE id = ?', [association.plan.id]));
+            if (compensated.length !== 1 || compensated[0].student_id !== null) throw fatal('ASSOCIATION_COMPENSATION_VERIFICATION_FAILED');
             await auditTransition(client, "UPDATE premium_nutrition_plan_association_records SET status = 'COMPENSATED', rolled_back_at = ? WHERE operation_id = ? AND plan_id = ? AND status = 'PENDING'", [clock(), id, association.plan.id], 'ASSOCIATION_COMPENSATION_AUDIT_FAILED');
           } else if (pending) await auditTransition(client, "UPDATE premium_nutrition_plan_association_records SET status = 'FAILED', rolled_back_at = ? WHERE operation_id = ? AND plan_id = ? AND status = 'PENDING'", [clock(), id, association.plan.id], 'ASSOCIATION_FAILED_AUDIT_UPDATE_FAILED');
           else if (error?.fatal) throw error;
@@ -87,9 +89,15 @@ export async function runLegacyRepositoryAssociation({ client, mode = 'dry-run',
     const plan = rows(await client.all('SELECT id, student_id, student_email, status, is_active, created_at, updated_at FROM nutrition_plans WHERE id = ?', [record.plan_id]))[0];
     if (!plan || plan.student_id !== record.new_student_id || plan.status != null || Number(plan.is_active) !== 1 || fingerprint(plan) !== record.plan_fingerprint) { blocked++; continue; }
     if (!changedExactlyOne(await client.execute('UPDATE nutrition_plans SET student_id = NULL WHERE id = ? AND student_id = ? AND lower(student_email) = lower(?) AND is_active = 1 AND status IS NULL', [record.plan_id, record.new_student_id, plan.student_email]))) { blocked++; continue; }
-    try { await auditTransition(client, "UPDATE premium_nutrition_plan_association_records SET status = 'ROLLED_BACK', rolled_back_at = ? WHERE operation_id = ? AND plan_id = ? AND status = 'APPLIED'", [clock(), operationId, record.plan_id], 'ASSOCIATION_ROLLED_BACK_AUDIT_UPDATE_FAILED'); rolledBack++; }
+    const reverted = rows(await client.all('SELECT student_id FROM nutrition_plans WHERE id = ?', [record.plan_id]));
+    try {
+      if (reverted.length !== 1 || reverted[0].student_id !== record.previous_student_id) throw new Error('ASSOCIATION_ROLLBACK_VERIFICATION_FAILED');
+      await auditTransition(client, "UPDATE premium_nutrition_plan_association_records SET status = 'ROLLED_BACK', rolled_back_at = ? WHERE operation_id = ? AND plan_id = ? AND status = 'APPLIED'", [clock(), operationId, record.plan_id], 'ASSOCIATION_ROLLED_BACK_AUDIT_UPDATE_FAILED'); rolledBack++;
+    }
     catch (error) {
       if (!changedExactlyOne(await client.execute('UPDATE nutrition_plans SET student_id = ? WHERE id = ? AND student_id IS NULL', [record.new_student_id, record.plan_id]))) throw fatal('ASSOCIATION_ROLLBACK_RESTORE_FAILED');
+      const restored = rows(await client.all('SELECT student_id FROM nutrition_plans WHERE id = ?', [record.plan_id]));
+      if (restored.length !== 1 || restored[0].student_id !== record.new_student_id) throw fatal('ASSOCIATION_ROLLBACK_RESTORE_VERIFICATION_FAILED');
       throw error?.fatal ? error : fatal('ASSOCIATION_ROLLBACK_AUDIT_UPDATE_FAILED');
     }
   }
