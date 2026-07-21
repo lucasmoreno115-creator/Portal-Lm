@@ -92,6 +92,18 @@ test('GET /api/portal/nutrition-plan preserva contrato público e bloqueia Proje
   assert.equal(blocked.body.ok, false);
 }));
 
+test('GET /api/portal/premium/nutrition-plan/current expõe somente o contrato publicado ativo', async () => withDb(async (db) => {
+  await seedAccess(db);
+  await seedPremiumStudent(db);
+  await db.prepare(`INSERT INTO nutrition_plans (id, student_id, student_email, title, goal, strategy, meals_json, substitutions_json, adherence_rules_json, notes, status, is_active, published_at, published_by, source_feedback_id, created_at, updated_at) VALUES ('published-plan', 'student-1', 'student@example.com', 'Plano', 'Meta', 'Estratégia', ?, ?, ?, 'Observações', 'PUBLISHED', 1, '2026-07-15T00:00:00.000Z', 'admin', 'feedback-1', ?, ?)`)
+    .bind(JSON.stringify([{ name:'Café', primary_text:'Ovos e fruta', guidance:'Sem açúcar', substitutions:[{ text:'Iogurte' }], items:[{ food:'Ovos', quantity:'2' }] }]), JSON.stringify([{ text:'Fruta por iogurte' }]), JSON.stringify(['Siga os horários']), '2026-07-14T00:00:00.000Z', '2026-07-14T00:00:00.000Z').run();
+  const response = await api(db, 'GET', '/api/portal/premium/nutrition-plan/current');
+  assert.equal(response.status, 200); assert.equal(response.body.ok, true);
+  assert.equal(response.body.data.status, 'PUBLISHED'); assert.equal(response.body.data.meals[0].primary_text, 'Ovos e fruta'); assert.equal(response.body.data.meals[0].guidance, 'Sem açúcar');
+  assert.deepEqual(response.body.data.meals[0].substitutions, [{ text:'Iogurte' }]); assert.deepEqual(response.body.data.substitutions, [{ text:'Fruta por iogurte' }]); assert.equal(response.body.data.observations, 'Observações');
+  assertNoInternalFields(response.body); assert.equal('published_by' in response.body.data, false); assert.equal('source_feedback_id' in response.body.data, false);
+}));
+
 test('POST /api/portal/checkin e GET /api/portal/checkins preservam contrato público e autenticação', async () => withDb(async (db) => {
   const unauthorized = await worker.fetch(new Request('https://portal.test/api/portal/checkins'), { DB: db, ADMIN_TOKEN: 'admin-token' });
   assert.equal(unauthorized.status, 401);
