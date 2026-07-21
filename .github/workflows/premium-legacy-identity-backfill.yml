@@ -49,6 +49,16 @@ jobs:
         run: node --input-type=module -e "import { validateOperationFromEnv } from './scripts/run-premium-student-identity-backfill-remote.mjs'; validateOperationFromEnv();"
       - name: Run remote administrative backfill
         run: node scripts/run-premium-student-identity-backfill-remote.mjs > backfill-summary.json
+      - name: Create sanitized dry-run blockers artifact
+        if: ${{ inputs.mode == 'dry-run' }}
+        run: node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync('backfill-summary.json')); fs.writeFileSync('premium-legacy-identity-backfill-blockers.json', JSON.stringify({restricted_blockers:Array.isArray(r.restricted_blockers)?r.restricted_blockers:[]}, null, 2)+'\\n');"
+      - name: Upload sanitized dry-run blockers artifact
+        if: ${{ inputs.mode == 'dry-run' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: premium-legacy-identity-backfill-blockers
+          path: premium-legacy-identity-backfill-blockers.json
+          retention-days: 1
       - name: Publish sanitized summary
         run: |
           node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync('backfill-summary.json')); const d=r.dry_run||r; const c=d.classifications||{}; const rows=[['Mode',r.mode],['Batch ID',r.batch_id],['Scanned',d.scanned],['Eligible',c.eligible],['Already migrated',r.already_migrated??c.already_migrated],['Ambiguous',c.ambiguous],['Invalid email',c.invalid_email],['Project only',c.project_only],['Inactive',c.inactive],['Conflicting student ID',c.conflicting_student_id],['Created',r.created],['Associated',r.associated],['Ignored',r.ignored],['Audited',r.audited],['Restored',r.restored],['Deleted',r.deleted],['Errors',r.errors??c.error]].filter(([,v])=>v!==undefined); fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '## Premium Legacy Identity Backfill\\n\\n'+rows.map(([k,v])=>k+': '+v).join('\\n')+'\\n');"

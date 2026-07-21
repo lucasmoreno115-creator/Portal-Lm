@@ -1,4 +1,5 @@
 import { generatePremiumStudentId, normalizePremiumStudentEmail } from '../workers/premium/services/student-identity-service.js';
+import { createHash } from 'node:crypto';
 
 export const BACKFILL_MODE = Object.freeze({ DRY_RUN: 'dry-run', APPLY: 'apply' });
 
@@ -67,6 +68,45 @@ export function createConflict(type, table, record, email, reason, recommended_a
   return { type, table, record: String(record ?? ''), email: null, reason, recommended_action };
 }
 
+const RESTRICTED_BLOCKER_HASH_DOMAIN = 'portal-lm:premium-legacy-identity-backfill:v1:';
+
+export function stableEmailHash(normalizedEmail) {
+  if (!normalizedEmail) return null;
+  return createHash('sha256').update(`${RESTRICTED_BLOCKER_HASH_DOMAIN}${normalizedEmail}`, 'utf8').digest('hex');
+}
+
+function opaqueIds(ids) {
+  return [...new Set((Array.isArray(ids) ? ids : [ids])
+    .filter((id) => id !== null && id !== undefined && String(id).trim())
+    .map((id) => String(id)))];
+}
+
+function createRestrictedBlocker({
+  type,
+  table,
+  recordIds = [],
+  studentAccessIds = [],
+  normalizedEmail = null,
+  plan = null,
+  planType = null,
+  accessCount = 0,
+  premiumIdentityCount = 0,
+  recommendedAction,
+}) {
+  return {
+    type,
+    table,
+    opaque_record_ids: opaqueIds(recordIds),
+    student_access_ids: opaqueIds(studentAccessIds),
+    stable_email_hash: stableEmailHash(normalizedEmail),
+    plan: plan ?? null,
+    plan_type: planType ?? null,
+    access_count: accessCount,
+    premium_identity_count: premiumIdentityCount,
+    recommended_action: recommendedAction,
+  };
+}
+
 function accessStatus(row) {
   return String(row?.status ?? 'ACTIVE').toUpperCase() === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE';
 }
@@ -99,6 +139,16 @@ export async function runPremiumStudentIdentityBackfill({
   const apply = selectedMode === BACKFILL_MODE.APPLY;
   if (apply && !batchId) throw new Error('BACKFILL_BATCH_ID_REQUIRED');
   const conflicts = [];
+  const restrictedBlockers = [];
+  const addConflict = (conflict, blocker) => {
+    conflicts.push(conflict);
+    restrictedBlockers.push(createRestrictedBlocker({
+      type: conflict.type,
+      table: conflict.table,
+      recommendedAction: conflict.recommended_action,
+      ...blocker,
+    }));
+  };
   const counts = { already_migrated: 0, eligible: 0, ambiguous: 0, invalid_email: 0, project_only: 0, inactive: 0, conflicting_student_id: 0, error: 0 };
   const candidates = await repository.listBackfillCandidates();
   const associationTables = await listAssociationCandidates(repository, tables);
@@ -112,7 +162,7 @@ export async function runPremiumStudentIdentityBackfill({
       normalizedEmail = normalizePremiumStudentEmail(candidate.email, { required: true });
     } catch {
       counts.invalid_email += 1;
-      conflicts.push(createConflict('INVALID_EMAIL', 'student_access', candidate.id, null, 'E-mail vazio ou não normalizável.', 'Corrigir e-mail antes de executar novo backfill.'));
+      addConflict(createConflict('INVALID_EMAIL', 'student_access', candidate.id, null, 'E-mail vazio ou não normalizável.', 'Corrigir e-mail antes de executar novo backfill.'), { recordIds: candidate.id, studentAccessIds: candidate.id, plan: candidate.plan, planType: candidate.plan_type });
       continue;
     }
 
@@ -125,14 +175,14 @@ export async function runPremiumStudentIdentityBackfill({
     if (String(candidate.status ?? 'ACTIVE').trim().toUpperCase() !== 'ACTIVE') {
       counts.inactive += 1;
       entry.eligibility = { eligible: false, conflictType: 'INACTIVE_ACCESS', reason: 'Acesso não está ACTIVE.' };
-      conflicts.push(createConflict('INACTIVE_ACCESS', 'student_access', candidate.id, null, entry.eligibility.reason, 'Reativar o acesso antes de executar novo backfill.'));
+      addConflict(createConflict('INACTIVE_ACCESS', 'student_access', candidate.id, null, entry.eligibility.reason, 'Reativar o acesso antes de executar novo backfill.'), { recordIds: candidate.id, studentAccessIds: candidate.id, normalizedEmail, plan: candidate.plan, planType: candidate.plan_type, accessCount: 1 });
       continue;
     }
 
     if (!eligibility.eligible) {
       if (eligibility.conflictType === 'NON_PREMIUM_ACCESS') counts.project_only += 1;
       else counts.ambiguous += 1;
-      conflicts.push(createConflict(eligibility.conflictType, 'student_access', candidate.id, candidate.email, eligibility.reason, 'Revisar classificação de produto antes de executar o backfill.'));
+      addConflict(createConflict(eligibility.conflictType, 'student_access', candidate.id, candidate.email, eligibility.reason, 'Revisar classificação de produto antes de executar o backfill.'), { recordIds: candidate.id, studentAccessIds: candidate.id, normalizedEmail, plan: candidate.plan, planType: candidate.plan_type, accessCount: 1 });
       continue;
     }
 
@@ -147,14 +197,14 @@ export async function runPremiumStudentIdentityBackfill({
     if (hasEligible && hasIneligible) {
       blockedEmails.add(normalizedEmail);
       counts.ambiguous += 1;
-      conflicts.push(createConflict(
+      addConflict(createConflict(
         'MIXED_PRODUCT_ACCESS_FOR_EMAIL',
         'student_access',
         accessRows.map((row) => row.id).join(','),
         normalizedEmail,
         'Mesmo e-mail aparece em acessos Premium e não Premium/ambíguos; por regra conservadora o e-mail inteiro fica bloqueado neste backfill.',
         'Resolver manualmente a classificação por acesso antes de associar student_id.'
-      ));
+      ), { recordIds: accessRows.map((row) => row.id), studentAccessIds: accessRows.map((row) => row.id), normalizedEmail, accessCount: accessRows.length });
     }
   }
 
@@ -169,7 +219,7 @@ export async function runPremiumStudentIdentityBackfill({
     if (blockedEmails.has(normalizedEmail)) continue;
     if (rows.length > 1) {
       counts.ambiguous += 1;
-      conflicts.push(createConflict('MULTIPLE_ACCESS_RECORDS', 'student_access', rows.map((r) => r.id).join(','), normalizedEmail, 'Mais de um acesso Premium elegível para o mesmo e-mail normalizado.', 'Revisar manualmente antes de vincular.'));
+      addConflict(createConflict('MULTIPLE_ACCESS_RECORDS', 'student_access', rows.map((r) => r.id).join(','), normalizedEmail, 'Mais de um acesso Premium elegível para o mesmo e-mail normalizado.', 'Revisar manualmente antes de vincular.'), { recordIds: rows.map((row) => row.id), studentAccessIds: rows.map((row) => row.id), normalizedEmail, accessCount: rows.length });
       continue;
     }
 
@@ -181,14 +231,14 @@ export async function runPremiumStudentIdentityBackfill({
       studentById = await repository.findByStudentId?.(accessStudentId);
       if (repository.findByStudentId && (!studentById || normalizePremiumStudentEmail(studentById.email) !== normalizedEmail)) {
         counts.conflicting_student_id += 1;
-        conflicts.push(createConflict('CONFLICTING_STUDENT_ID', 'student_access', access.id, null, 'student_id canônico não resolve para o mesmo e-mail Premium.', 'Revisar manualmente antes de executar o backfill.'));
+        addConflict(createConflict('CONFLICTING_STUDENT_ID', 'student_access', access.id, null, 'student_id canônico não resolve para o mesmo e-mail Premium.', 'Revisar manualmente antes de executar o backfill.'), { recordIds: access.id, studentAccessIds: access.id, normalizedEmail, plan: access.plan, planType: access.plan_type, accessCount: 1, premiumIdentityCount: studentById ? 1 : 0 });
         continue;
       }
     }
     let students = studentById ? [studentById] : normalizeRows(await repository.findByNormalizedEmail(normalizedEmail));
     if (students.length > 1) {
       counts.ambiguous += 1;
-      conflicts.push(createConflict('IDENTITY_COLLISION', 'premium_students', students.map((s) => s.student_id).join(','), normalizedEmail, 'Mais de uma identidade para o e-mail normalizado.', 'Resolver colisão manualmente.'));
+      addConflict(createConflict('IDENTITY_COLLISION', 'premium_students', students.map((s) => s.student_id).join(','), normalizedEmail, 'Mais de uma identidade para o e-mail normalizado.', 'Resolver colisão manualmente.'), { recordIds: students.map((student) => student.student_id), studentAccessIds: access.id, normalizedEmail, plan: access.plan, planType: access.plan_type, accessCount: 1, premiumIdentityCount: students.length });
       continue;
     }
 
@@ -232,14 +282,14 @@ export async function runPremiumStudentIdentityBackfill({
             existing_associations += 1;
           } else {
             counts.conflicting_student_id += 1;
-            conflicts.push(createConflict(
+            addConflict(createConflict(
               'IDENTITY_ASSOCIATION_MISMATCH',
               table,
               record[config.idColumn],
               recordEmail,
               'Registro já possui student_id diferente da identidade Premium resolvida.',
               'Revisar manualmente antes de qualquer alteração; o backfill nunca sobrescreve student_id existente.'
-            ));
+            ), { recordIds: record[config.idColumn], studentAccessIds: access.id, normalizedEmail, plan: access.plan, planType: access.plan_type, accessCount: 1, premiumIdentityCount: student ? 1 : 0 });
           }
           skipped += 1;
           continue;
@@ -265,7 +315,7 @@ export async function runPremiumStudentIdentityBackfill({
       const normalizedEmail = normalizePremiumStudentEmail(recordEmail);
       if (record.student_id) continue;
       if (!eligibleByEmail.has(normalizedEmail) && !accessByEmail.has(normalizedEmail)) {
-        conflicts.push(createConflict('PREMIUM_DATA_WITHOUT_ACCESS', table, record[config.idColumn], recordEmail, 'Dado Premium sem acesso Premium correspondente.', 'Revisar origem antes de associar.'));
+        addConflict(createConflict('PREMIUM_DATA_WITHOUT_ACCESS', table, record[config.idColumn], recordEmail, 'Dado Premium sem acesso Premium correspondente.', 'Revisar origem antes de associar.'), { recordIds: record[config.idColumn], normalizedEmail, premiumIdentityCount: 0 });
       }
     }
   }
@@ -282,6 +332,7 @@ export async function runPremiumStudentIdentityBackfill({
     planned_created,
     planned_associated,
     conflicts,
+    restricted_blockers: restrictedBlockers,
   };
 }
 

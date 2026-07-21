@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { BACKFILL_MODE, evaluatePremiumEligibility, rollbackPremiumStudentIdentityBackfill, runPremiumStudentIdentityBackfill } from '../scripts/premium-student-identity-backfill.mjs';
+import { BACKFILL_MODE, evaluatePremiumEligibility, rollbackPremiumStudentIdentityBackfill, runPremiumStudentIdentityBackfill, stableEmailHash } from '../scripts/premium-student-identity-backfill.mjs';
 
 function memoryRepository(candidates, initialStudents = []) {
   const students = initialStudents.map((student) => ({ ...student }));
@@ -229,4 +229,27 @@ test('rollback é delimitado ao lote e preserva linhas modificadas posteriorment
   assert.deepEqual(await rollbackPremiumStudentIdentityBackfill({ repository, batchId: 'batch-1', now: () => '2026-07-20T00:00:00.000Z' }), { restored: 1, deleted: 1, audited: 2 });
   assert.deepEqual(calls, [{ batchId: 'batch-1', timestamp: '2026-07-20T00:00:00.000Z' }]);
   await assert.rejects(() => rollbackPremiumStudentIdentityBackfill({ repository }), /BACKFILL_BATCH_ID_REQUIRED/);
+});
+
+test('dry-run restricted blockers are allowlisted and never expose direct identifiers', async () => {
+  const email = 'private.student@example.com';
+  const name = 'Nome Privado';
+  const token = 'access-token-private';
+  const result = await runPremiumStudentIdentityBackfill({
+    repository: memoryRepository([
+      { id: 'access-premium', name, email, access_token: token, status: 'ACTIVE', plan: 'premium' },
+      { id: 'access-project', name, email, access_token: token, status: 'ACTIVE', plan_type: 'projeto_lm' },
+    ]),
+  });
+  const permittedKeys = new Set(['type', 'table', 'opaque_record_ids', 'student_access_ids', 'stable_email_hash', 'plan', 'plan_type', 'access_count', 'premium_identity_count', 'recommended_action']);
+  assert(result.restricted_blockers.some((blocker) => blocker.type === 'MIXED_PRODUCT_ACCESS_FOR_EMAIL'));
+  for (const blocker of result.restricted_blockers) assert.deepEqual(Object.keys(blocker).sort(), [...permittedKeys].sort());
+  const serialized = JSON.stringify({ restricted_blockers: result.restricted_blockers });
+  assert(!serialized.includes(email));
+  assert(!serialized.includes(name));
+  assert(!serialized.includes(token));
+  assert.match(result.restricted_blockers.find((blocker) => blocker.stable_email_hash)?.stable_email_hash ?? '', /^[a-f0-9]{64}$/);
+  assert.equal(stableEmailHash(email), stableEmailHash(email));
+  assert.notEqual(stableEmailHash(email), stableEmailHash('other@example.com'));
+  assert.notEqual(stableEmailHash(email), email);
 });

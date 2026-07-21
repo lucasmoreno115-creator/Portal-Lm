@@ -68,3 +68,24 @@ test('apply performs dry run before writes and aborts on ambiguity', async () =>
   await assert.rejects(() => executeRemoteBackfill({ mode: 'apply', batchId: 'batch-1', confirmApply: 'APPLY_LEGACY_PREMIUM_BACKFILL', env, fetchImpl }), /BACKFILL_APPLY_BLOCKED/);
   assert(sql.every((statement) => /^SELECT\b/i.test(statement)));
 });
+
+test('dry-run returns sanitized restricted blockers while retaining SELECT-only access', async () => {
+  const sql = [];
+  const email = 'private.student@example.com';
+  const fetchImpl = async (_url, options) => {
+    const statement = JSON.parse(options.body).sql;
+    sql.push(statement);
+    if (statement.includes('FROM student_access')) return response({ results: [
+      { id: 'premium-access', name: 'Private Student', email, access_token: 'private-token', status: 'ACTIVE', plan: 'premium' },
+      { id: 'project-access', name: 'Private Student', email, access_token: 'private-token', status: 'ACTIVE', plan: 'projeto_lm' },
+    ] });
+    return response({ results: [] });
+  };
+  const result = await executeRemoteBackfill({ mode: 'dry-run', env, fetchImpl });
+  const serialized = JSON.stringify(result.restricted_blockers);
+  assert(result.restricted_blockers.some((blocker) => blocker.type === 'MIXED_PRODUCT_ACCESS_FOR_EMAIL'));
+  assert(!serialized.includes(email));
+  assert(!serialized.includes('Private Student'));
+  assert(!serialized.includes('private-token'));
+  assert(sql.every((statement) => /^SELECT\b/i.test(statement)));
+});
