@@ -19,6 +19,7 @@ function substitutionFields(substitution, path, errors) {
   scalarField(substitution.notes, `${path}_NOTES`, 'string', errors);
   scalarField(substitution.note, `${path}_NOTE`, 'string', errors);
   scalarField(substitution.observation, `${path}_OBSERVATION`, 'string', errors);
+  scalarField(substitution.text, `${path}_TEXT`, 'string', errors);
 }
 // Drafts may be clinically incomplete, but must still be safe to serialize and persist.
 export function validateNutritionPlanDraftStructure(input = {}) {
@@ -33,7 +34,7 @@ export function validateNutritionPlanDraftStructure(input = {}) {
     if (!isObject(meal)) { errors.push(`MEAL_${mealIndex + 1}_MUST_BE_OBJECT`); return; }
     const mealPath = `MEAL_${mealIndex + 1}`;
     idField(meal.id, mealPath, errors);
-    for (const field of ['name','title','time','notes','guidance','orientation']) scalarField(meal[field], `${mealPath}_${field.toUpperCase()}`, 'string', errors);
+    for (const field of ['name','title','time','notes','guidance','orientation','primary_text']) scalarField(meal[field], `${mealPath}_${field.toUpperCase()}`, 'string', errors);
     const items = arrayField(meal.items, `${mealPath}_ITEMS`, errors);
     const mealSubstitutions = arrayField(meal.substitutions, `${mealPath}_SUBSTITUTIONS`, errors);
     mealSubstitutions.forEach((substitution, index) => substitutionFields(substitution, `${mealPath}_SUBSTITUTION_${index + 1}`, errors));
@@ -60,8 +61,11 @@ export function toCanonicalNutritionPlan(input = {}) {
       name: text(meal?.name ?? meal?.title),
       time: text(meal?.time) || null,
       guidance: text(meal?.guidance ?? meal?.orientation) || null,
-      items: safeJsonArray(meal?.items).map((item) => ({ food: text(item?.food ?? item?.name), quantity: text(item?.quantity), unit: text(item?.unit), note: text(item?.note ?? item?.observation) || null })),
-      substitutions: safeJsonArray(meal?.substitutions),
+      // Schema v2 is additive: textual meals coexist with the structured v1 items.
+      // Keep legacy item data intact so loading and saving a legacy plan never erases it.
+      primary_text: text(meal?.primary_text ?? meal?.primaryText) || null,
+      items: safeJsonArray(meal?.items).map((item) => ({ ...item, id: text(item?.id) || undefined, food: text(item?.food ?? item?.name), quantity: text(item?.quantity), unit: text(item?.unit), note: text(item?.note ?? item?.observation) || null })),
+      substitutions: safeJsonArray(meal?.substitutions).map((substitution) => ({ ...substitution, id: text(substitution?.id) || undefined, text: text(substitution?.text) || undefined })),
     })),
     substitutions: safeJsonArray(input.substitutions ?? input.substitutions_json),
     adherenceRules: safeJsonArray(input.adherenceRules ?? input.adherence_rules ?? input.adherence_rules_json),
@@ -76,9 +80,12 @@ export function validateNutritionPlanStructure(input = {}) {
   if (!Array.isArray(plan.meals) || plan.meals.length === 0) errors.push('MEALS_REQUIRED');
   for (const [mealIndex, meal] of (plan.meals || []).entries()) {
     if (!text(meal.name)) errors.push(`MEAL_${mealIndex + 1}_NAME_REQUIRED`);
+    const hasPrimaryText = Boolean(text(meal.primary_text));
     const hasGuidance = Boolean(text(meal.guidance));
     const items = Array.isArray(meal.items) ? meal.items : [];
-    if (!hasGuidance && items.length === 0) errors.push(`MEAL_${mealIndex + 1}_ITEM_OR_GUIDANCE_REQUIRED`);
+    // v2 requires a real primary meal for newly textual plans. Structured v1 meals
+    // remain publishable for backwards compatibility.
+    if (!hasPrimaryText && items.length === 0 && !hasGuidance) errors.push(`MEAL_${mealIndex + 1}_PRIMARY_TEXT_REQUIRED`);
     for (const [itemIndex, item] of items.entries()) {
       if (!text(item.food)) errors.push(`MEAL_${mealIndex + 1}_ITEM_${itemIndex + 1}_FOOD_REQUIRED`);
       if (!text(item.quantity) && !hasGuidance && !text(item.note)) errors.push(`MEAL_${mealIndex + 1}_ITEM_${itemIndex + 1}_QUANTITY_OR_GUIDANCE_REQUIRED`);
