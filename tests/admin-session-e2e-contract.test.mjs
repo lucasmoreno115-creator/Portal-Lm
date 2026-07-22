@@ -6,7 +6,15 @@ import vm from 'node:vm';
 async function authSandbox({ fetchImpl = async () => new Response('{}'), store = new Map(), pathname = '/admin-premium-workspace.html' } = {}) {
   const source = await readFile('admin-auth.js', 'utf8');
   const current = new URL(`https://portal.test${pathname}`);
-  const location = { origin: current.origin, protocol: current.protocol, pathname: current.pathname, search: '', hash: '', href: current.href };
+  const location = {
+    origin: current.origin,
+    protocol: current.protocol,
+    pathname: current.pathname,
+    search: '',
+    hash: '',
+    href: current.href,
+    replace(value) { this.href = value; }
+  };
   const document = { readyState: 'complete', addEventListener(){}, getElementById(){ return null; } };
   const sandbox = { window: { location }, document, localStorage: { getItem: k => store.get(k) || null, setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) }, fetch: fetchImpl, URL, Date, String, RegExp, console };
   sandbox.window.window = sandbox.window; sandbox.window.document = document; sandbox.window.localStorage = sandbox.localStorage; sandbox.window.fetch = fetchImpl;
@@ -42,5 +50,5 @@ test('admin session persists across a real page recreation and logout clears sha
 
   const third = await authSandbox({ fetchImpl, store });
   assert.equal(third.window.LMAdminAuth.requireAdmin(), '');
-  assert.match(third.window.location.href, /admin-login\.html/);
+  assert.equal(third.window.location.href, '/admin-login.html?returnTo=%2Fadmin-premium-workspace.html');
 });

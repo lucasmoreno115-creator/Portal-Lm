@@ -40,11 +40,17 @@ test('redirects have one unambiguous rule per route and route /admin to the cuto
   }
 });
 
-test('legacy rollback page is the real operational Admin Hub', () => {
+test('legacy compatibility entry redirects authenticated and anonymous admins to the canonical workspace flow', () => {
   const legacy = readFileSync('public/admin-legacy.html', 'utf8');
-  assert.match(legacy, /Legacy Admin — rollback only/);
-  for (const text of ['Command Center', 'Student 360', 'Cadastro de aluno', 'adminLogoutBtn']) assert.match(legacy, new RegExp(text));
+  assert.match(legacy, /Abrindo Workspace Premium/);
+  assert.match(legacy, /Admin legado foi retirado do fluxo operacional/);
   assert.match(legacy, /admin-auth\.js/);
+  assert.match(legacy, /getAdminSession/);
+  assert.match(legacy, /getAdminLoginUrl/);
+  assert.match(legacy, /admin-premium-workspace\.html/);
+  assert.match(legacy, /window\.location\.replace/);
+  assert.doesNotMatch(legacy, /Legacy Admin — rollback only/);
+  assert.doesNotMatch(legacy, /Command Center|Student 360|Cadastro de aluno|adminLogoutBtn/);
   assert.doesNotMatch(legacy, /http-equiv="refresh"/i);
 });
 
