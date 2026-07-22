@@ -47,7 +47,7 @@ test('valid login flow returns to requested workspace', async () => {
   const { window } = await loadAuth('/admin-login.html', '?returnTo=%2Fadmin-premium-workspace.html');
   const params = new URLSearchParams(window.location.search);
   assert.equal(window.LMAdminAuth.resolveAdminReturnTo(params.get('returnTo')), '/admin-premium-workspace.html');
-  const loginHtml = await readFile('admin-login.html', 'utf8');
+  const loginHtml = await readFile('public/admin-login.html', 'utf8');
   assert.match(loginHtml, /resolveAdminReturnTo\(params\.get\('returnTo'\), workspace\)/);
 });
 
