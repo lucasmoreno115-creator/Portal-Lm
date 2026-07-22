@@ -135,30 +135,33 @@ function severityRank(value) {
   return { BLOCKER: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }[value] ?? 0;
 }
 
+function resolveModuleStatus(checks) {
+  if (checks.some((item) => item.status === 'FAILED')) return 'FAILED';
+  if (checks.some((item) => item.status === 'NOT_EXECUTED' && item.required)) return 'NOT_EXECUTED';
+  return 'VALIDATED';
+}
+
 function buildReport(results) {
   const failed = results.filter((item) => item.status === 'FAILED');
   const notExecuted = results.filter((item) => item.status === 'NOT_EXECUTED');
   const requiredNotExecuted = notExecuted.filter((item) => item.required);
+  const optionalNotExecuted = notExecuted.filter((item) => !item.required);
   const modules = {};
+
   for (const result of results) {
     modules[result.module] ??= [];
     modules[result.module].push(result);
   }
 
   const moduleStatus = Object.fromEntries(
-    Object.entries(modules).map(([module, checks]) => [
-      module,
-      checks.some((item) => item.status === 'FAILED')
-        ? 'FAILED'
-        : checks.some((item) => item.status === 'NOT_EXECUTED')
-          ? 'NOT_EXECUTED'
-          : 'VALIDATED',
-    ])
+    Object.entries(modules).map(([module, checks]) => [module, resolveModuleStatus(checks)])
   );
 
-  const verdict = failed.length === 0 && notExecuted.length === 0 ? 'VALIDATED' : 'NOT_VALIDATED';
-  const executionStatus = failed.length === 0 && requiredNotExecuted.length === 0 ? 'HEALTHY' : 'BROKEN';
-  const highestSeverity = failed.sort((a, b) => severityRank(b.severity) - severityRank(a.severity))[0]?.severity ?? null;
+  const hasBlockingCondition = failed.length > 0 || requiredNotExecuted.length > 0;
+  const verdict = hasBlockingCondition ? 'NOT_VALIDATED' : 'VALIDATED';
+  const executionStatus = hasBlockingCondition ? 'BROKEN' : 'HEALTHY';
+  const highestSeverity = [...failed, ...requiredNotExecuted]
+    .sort((a, b) => severityRank(b.severity) - severityRank(a.severity))[0]?.severity ?? null;
 
   return {
     agent: 'AGENTE QA LM',
@@ -172,9 +175,10 @@ function buildReport(results) {
       failed: failed.length,
       notExecuted: notExecuted.length,
       requiredNotExecuted: requiredNotExecuted.length,
+      optionalNotExecuted: optionalNotExecuted.length,
     },
     modules: moduleStatus,
-    problems: failed,
+    problems: [...failed, ...requiredNotExecuted],
     notExecuted,
     checks: results,
   };
@@ -208,7 +212,21 @@ function reportMarkdown(report) {
     }
   }
 
-  lines.push('## 4. Evidências', '', `- Testes executados: ${report.summary.total}`, `- Validados: ${report.summary.validated}`, `- Reprovados: ${report.summary.failed}`, `- Não executados: ${report.summary.notExecuted}`, `- Obrigatórios não executados: ${report.summary.requiredNotExecuted}`, '', '## 5. Veredito Final', '', report.verdict === 'VALIDATED' ? '✅ Pode considerar este fluxo validado.' : '❌ Não considerar este fluxo validado.', '');
+  lines.push(
+    '## 4. Evidências',
+    '',
+    `- Testes executados: ${report.summary.total}`,
+    `- Validados: ${report.summary.validated}`,
+    `- Reprovados: ${report.summary.failed}`,
+    `- Não executados: ${report.summary.notExecuted}`,
+    `- Obrigatórios não executados: ${report.summary.requiredNotExecuted}`,
+    `- Opcionais não executados: ${report.summary.optionalNotExecuted}`,
+    '',
+    '## 5. Veredito Final',
+    '',
+    report.verdict === 'VALIDATED' ? '✅ Pode considerar este fluxo validado.' : '❌ Não considerar este fluxo validado.',
+    ''
+  );
   return lines.join('\n');
 }
 

@@ -1,0 +1,125 @@
+name: QA LM Staging E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      qa_base_url:
+        description: 'URL opcional para execução manual. Quando vazia, o workflow resolve o preview mais recente da Cloudflare.'
+        required: false
+        type: string
+  schedule:
+    - cron: '0 11 * * 6'
+
+permissions:
+  contents: read
+
+jobs:
+  staging-e2e:
+    name: Staging autenticado ponta a ponta
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    env:
+      MANUAL_QA_BASE_URL: ${{ inputs.qa_base_url }}
+      SECRET_QA_BASE_URL: ${{ secrets.QA_BASE_URL }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_WORKER_NAME: ${{ vars.CF_WORKER_NAME || 'lm-system-api' }}
+      CF_WORKERS_SUBDOMAIN: ${{ vars.CF_WORKERS_SUBDOMAIN || 'lucasmoreno115' }}
+      QA_STUDENT_EMAIL: ${{ secrets.QA_STUDENT_EMAIL }}
+      QA_STUDENT_TOKEN: ${{ secrets.QA_STUDENT_TOKEN }}
+      QA_ADMIN_SESSION: ${{ secrets.QA_ADMIN_SESSION }}
+      QA_ADMIN_TOKEN: ${{ secrets.QA_ADMIN_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve QA base URL
+        id: resolve-url
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BASE_URL="${MANUAL_QA_BASE_URL:-}"
+          SOURCE="workflow input"
+
+          if [[ -z "$BASE_URL" ]]; then
+            BASE_URL="${SECRET_QA_BASE_URL:-}"
+            SOURCE="QA_BASE_URL secret"
+          fi
+
+          if [[ -z "$BASE_URL" ]]; then
+            if [[ -z "${CF_ACCOUNT_ID:-}" || -z "${CF_API_TOKEN:-}" ]]; then
+              echo "QA_BASE_URL não foi informado e CF_ACCOUNT_ID/CF_API_TOKEN não estão configurados." >&2
+              exit 1
+            fi
+
+            RESPONSE=$(curl --fail-with-body --silent --show-error \
+              --header "Authorization: Bearer ${CF_API_TOKEN}" \
+              --header 'Content-Type: application/json' \
+              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CF_WORKER_NAME}/versions?per_page=1")
+
+            VERSION_ID=$(printf '%s' "$RESPONSE" | jq -r '.result[0].id // empty')
+            if [[ -z "$VERSION_ID" ]]; then
+              echo "A Cloudflare não retornou uma versão do Worker ${CF_WORKER_NAME}." >&2
+              printf '%s\n' "$RESPONSE" >&2
+              exit 1
+            fi
+
+            VERSION_PREFIX="${VERSION_ID:0:8}"
+            BASE_URL="https://${VERSION_PREFIX}-${CF_WORKER_NAME}.${CF_WORKERS_SUBDOMAIN}.workers.dev"
+            SOURCE="Cloudflare latest version preview"
+          fi
+
+          BASE_URL="${BASE_URL%/}"
+          echo "QA_BASE_URL=$BASE_URL" >> "$GITHUB_ENV"
+          echo "base_url=$BASE_URL" >> "$GITHUB_OUTPUT"
+          echo "source=$SOURCE" >> "$GITHUB_OUTPUT"
+          echo "URL resolvida por: $SOURCE"
+          echo "URL de teste: $BASE_URL"
+
+      - name: Wait for preview availability
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 20); do
+            STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 10 "${QA_BASE_URL}/portal-login.html" || true)
+            if [[ "$STATUS" == "200" || "$STATUS" == "302" ]]; then
+              echo "Preview disponível com HTTP $STATUS."
+              exit 0
+            fi
+            echo "Tentativa $attempt/20: HTTP ${STATUS:-indisponível}."
+            sleep 6
+          done
+          echo "Preview não ficou disponível no tempo esperado: ${QA_BASE_URL}" >&2
+          exit 1
+
+      - name: Execute authenticated staging QA
+        run: npm run qa:lm:sprint7 | tee qa-sprint7-report.json
+
+      - name: Publish resolved target
+        if: always()
+        run: |
+          {
+            echo '### QA LM Staging E2E'
+            echo ''
+            echo "- URL: \`${QA_BASE_URL:-não resolvida}\`"
+            echo "- Origem: \`${{ steps.resolve-url.outputs.source }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload staging evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-lm-staging-e2e
+          path: qa-sprint7-report.json
+          retention-days: 30
