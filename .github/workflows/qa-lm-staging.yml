@@ -1,0 +1,45 @@
+name: QA LM Staging E2E
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 11 * * 6'
+
+permissions:
+  contents: read
+
+jobs:
+  staging-e2e:
+    name: Staging autenticado ponta a ponta
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    env:
+      QA_STAGING_BASE_URL: ${{ secrets.QA_STAGING_BASE_URL }}
+      QA_STUDENT_EMAIL: ${{ secrets.QA_STUDENT_EMAIL }}
+      QA_STUDENT_TOKEN: ${{ secrets.QA_STUDENT_TOKEN }}
+      QA_ADMIN_SESSION: ${{ secrets.QA_ADMIN_SESSION }}
+      QA_ADMIN_TOKEN: ${{ secrets.QA_ADMIN_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Execute authenticated staging QA
+        run: npm run qa:lm:sprint7 | tee qa-sprint7-report.json
+
+      - name: Upload staging evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-lm-staging-e2e
+          path: qa-sprint7-report.json
+          retention-days: 30
