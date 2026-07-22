@@ -1,0 +1,45 @@
+{
+  "lifecycle": {
+    "requiredStates": [
+      "NEW",
+      "AWAITING_ANAMNESIS",
+      "UNDER_REVIEW",
+      "READY_TO_RELEASE",
+      "ACTIVE",
+      "PAUSED",
+      "ENDED"
+    ],
+    "semanticAliases": {
+      "RECEIVED": ["NEW", "AWAITING_ANAMNESIS"],
+      "FINISHED": ["ENDED"]
+    }
+  },
+  "isolation": {
+    "premiumRoots": ["public"],
+    "premiumFilePattern": "^(?!.*(?:project-lm|projeto-lm)).*(?:\\.html|\\.js|\\.css)$",
+    "projectFilePattern": ".*(?:project-lm|projeto-lm).*(?:\\.html|\\.js|\\.css)$",
+    "premiumAllowedProjectReferences": [
+      { "path": "public/portal.html", "pattern": ".*" },
+      { "path": "public/portal-login.html", "pattern": ".*" },
+      { "path": "public/portal-premium-home.html", "pattern": ".*" },
+      { "path": "public/anamnese-premium.html", "pattern": ".*" },
+      { "path": "public/admin-student.html", "pattern": ".*" },
+      { "path": "public/admin-students.html", "pattern": ".*" },
+      { "path": "public/assets/js/lm-access.js", "pattern": ".*" }
+    ],
+    "projectAllowedPremiumReferences": [
+      { "path": "public/assets/css/project-lm-2.css", "pattern": ".*" },
+      { "path": "public/assets/js/project-lm-2-app.js", "pattern": ".*" },
+      { "path": "public/assets/js/project-lm-2-router.js", "pattern": ".*" },
+      { "path": "public/assets/js/project-lm-2-state.js", "pattern": ".*" },
+      { "path": "public/assets/js/project-lm-runtime/ui/studentPlanRenderers.js", "pattern": ".*" }
+    ]
+  },
+  "contracts": {
+    "frontendRoots": ["public"],
+    "backendRoots": ["workers"],
+    "ignoredApiPatterns": [
+      "^/api/"
+    ]
+  }
+}
