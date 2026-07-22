@@ -41,7 +41,7 @@ async function auditStudentRecord() {
     getAnamnesis: async () => ({ id:'anam-1', status:'RECEIVED' }),
     getNutritionPlanWorkflow: async () => ({ current:null, draft:null, history:[] }),
     listRecentFeedbacks: async () => [{ id:'feedback-1', coach_status:'PENDING' }],
-    listFollowupEntries: async () => [{ id:'entry-1', entry_type:'NOTE' }],
+    listFollowupEntries: async () => [{ id:'entry-1', entry_type:'PROFESSIONAL_NOTE' }],
     getCurrentSummary: async () => ({ pending_count:3 }),
     listPendingItems: async () => createdPending,
   };
@@ -73,11 +73,11 @@ async function auditFollowup() {
     followupEntryRepository: { append: async (entry) => { appended.push(entry); return entry; } },
     randomUUID: () => 'followup-1',
   });
-  const missingStudent = await useCase({ entry_type:'NOTE', title:'Teste' });
+  const missingStudent = await useCase({ entry_type:'PROFESSIONAL_NOTE', title:'Teste' });
   assert(missingStudent.status === 400, scope, 'Follow-up exige student_id.');
-  const unknown = await useCase({ student_id:'unknown', entry_type:'NOTE', title:'Teste' });
+  const unknown = await useCase({ student_id:'unknown', entry_type:'PROFESSIONAL_NOTE', title:'Teste' });
   assert(unknown.status === 404, scope, 'Follow-up bloqueia aluno inexistente.');
-  const result = await useCase({ student_id:'student-1', entry_type:'NOTE', title:'Registro QA', content:'Evidência' });
+  const result = await useCase({ student_id:'student-1', entry_type:'PROFESSIONAL_NOTE', title:'Registro QA', content:'Evidência' });
   assert(result.ok === true && appended.length === 1, scope, 'Follow-up válido é persistido.');
 }
 
