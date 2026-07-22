@@ -1,0 +1,62 @@
+name: Agente QA LM
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    name: Diagnóstico do Ecossistema LM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Execute Agente QA LM
+        id: qa
+        continue-on-error: true
+        env:
+          QA_PREMIUM_BASE_URL: ${{ secrets.QA_PREMIUM_BASE_URL }}
+        run: npm run qa:lm
+
+      - name: Publish diagnostic summary
+        if: always()
+        run: |
+          if [ -f artifacts/qa-lm/qa-report.md ]; then
+            cat artifacts/qa-lm/qa-report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "❌ O Agente QA LM não gerou relatório." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-lm-report
+          path: artifacts/qa-lm/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Enforce agent health
+        if: always()
+        run: |
+          test -f artifacts/qa-lm/qa-report.json
+          node -e "const r=require('./artifacts/qa-lm/qa-report.json'); if(r.executionStatus!=='HEALTHY'){console.error('Executor do Agente QA LM está quebrado'); process.exit(1)} console.log('Executor do Agente QA LM saudável; veredito do ecossistema:', r.verdict)"
