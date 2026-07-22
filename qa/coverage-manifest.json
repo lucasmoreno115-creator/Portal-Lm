@@ -1,0 +1,74 @@
+{
+  "product": "Consultoria Premium",
+  "version": 1,
+  "modules": [
+    {
+      "name": "Banco",
+      "requirements": [
+        {"id":"DB-001","description":"Replay completo das migrations","checks":["sprint-qa-1-structural-audit","expected-database-schema"]},
+        {"id":"DB-002","description":"Integridade, índices e foreign keys","checks":["sprint-qa-1-structural-audit","sprint-qa-5-5-weekly-operations"]}
+      ]
+    },
+    {
+      "name": "API",
+      "requirements": [
+        {"id":"API-001","description":"Contratos do Worker Premium","checks":["premium-worker-api-contracts"]},
+        {"id":"API-002","description":"Suíte automatizada sem regressões","checks":["automated-test-suite"]}
+      ]
+    },
+    {
+      "name": "Workspace",
+      "requirements": [
+        {"id":"WS-001","description":"Dashboard e indicadores operacionais","checks":["sprint-qa-5-4-operational-dashboard"]},
+        {"id":"WS-002","description":"Operação semanal integrada","checks":["sprint-qa-5-5-weekly-operations"]}
+      ]
+    },
+    {
+      "name": "Student Record",
+      "requirements": [
+        {"id":"SR-001","description":"Carregamento agregado e lifecycle","checks":["sprint-qa-4-student-record-lifecycle"]},
+        {"id":"SR-002","description":"Feedback, pendências e follow-up auditáveis","checks":["sprint-qa-5-1-feedback-pipeline","sprint-qa-5-2-pending-items","sprint-qa-5-3-followup"]}
+      ]
+    },
+    {
+      "name": "Planejamento Alimentar",
+      "requirements": [
+        {"id":"NP-001","description":"Rascunho, publicação, versão ativa e histórico","checks":["sprint-qa-2-nutrition-flow"]},
+        {"id":"NP-002","description":"Publicação refletida na operação semanal","checks":["sprint-qa-5-5-weekly-operations"]}
+      ]
+    },
+    {
+      "name": "Portal do Aluno",
+      "requirements": [
+        {"id":"PORTAL-001","description":"Autenticação, permissões e renderização","checks":["sprint-qa-3-student-portal"]},
+        {"id":"PORTAL-002","description":"Smoke test live do Portal Premium","checks":["premium-home-live"],"live":true}
+      ]
+    },
+    {
+      "name": "Feedback Semanal",
+      "requirements": [
+        {"id":"FB-001","description":"Envio, persistência e entrada na fila","checks":["sprint-qa-5-1-feedback-pipeline"]},
+        {"id":"FB-002","description":"Análise e saída da fila","checks":["sprint-qa-5-5-weekly-operations"]}
+      ]
+    },
+    {
+      "name": "Pendências",
+      "requirements": [
+        {"id":"PEND-001","description":"Criação, deduplicação, resolução e reabertura","checks":["sprint-qa-5-2-pending-items"]}
+      ]
+    },
+    {
+      "name": "Follow-up",
+      "requirements": [
+        {"id":"FU-001","description":"Persistência, cronologia e geração automática","checks":["sprint-qa-5-3-followup"]}
+      ]
+    },
+    {
+      "name": "Compatibilidade Premium × Projeto LM",
+      "requirements": [
+        {"id":"ISO-001","description":"Isolamento estrutural e runtime","checks":["project-lm-runtime-isolation"]},
+        {"id":"ISO-002","description":"Smoke test live do Projeto LM","checks":["project-lm-home-live"],"live":true}
+      ]
+    }
+  ]
+}
