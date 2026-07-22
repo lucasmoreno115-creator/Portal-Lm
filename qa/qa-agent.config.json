@@ -6,6 +6,7 @@
     {"id":"sprint-qa-1-structural-audit","module":"Banco","severity":"BLOCKER","kind":"command","command":"npm","args":["run","qa:lm:sprint1"],"timeoutMs":240000},
     {"id":"sprint-qa-2-nutrition-flow","module":"Integração Workspace → Portal","severity":"BLOCKER","kind":"command","command":"npm","args":["run","qa:lm:sprint2"],"timeoutMs":240000},
     {"id":"sprint-qa-3-student-portal","module":"Portal do Aluno","severity":"BLOCKER","kind":"command","command":"npm","args":["run","qa:lm:sprint3"],"timeoutMs":240000},
+    {"id":"sprint-qa-4-student-record-lifecycle","module":"Student Record","severity":"BLOCKER","kind":"command","command":"npm","args":["run","qa:lm:sprint4"],"timeoutMs":240000},
     {"id":"premium-worker-api-contracts","module":"API","severity":"BLOCKER","kind":"command","command":"npm","args":["run","qa:lm:premium-api"],"timeoutMs":180000},
     {"id":"project-lm-runtime-isolation","module":"Compatibilidade Premium × Projeto LM","severity":"HIGH","kind":"command","command":"npm","args":["run","check:project-lm-runtime"],"timeoutMs":180000},
     {"id":"expected-database-schema","module":"Banco","severity":"BLOCKER","kind":"command","command":"npm","args":["run","db:expected"],"timeoutMs":180000},
