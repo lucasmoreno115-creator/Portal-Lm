@@ -1,13 +1,18 @@
 {
   "lifecycle": {
     "requiredStates": [
-      "RECEIVED",
+      "NEW",
+      "AWAITING_ANAMNESIS",
       "UNDER_REVIEW",
       "READY_TO_RELEASE",
       "ACTIVE",
       "PAUSED",
-      "FINISHED"
-    ]
+      "ENDED"
+    ],
+    "semanticAliases": {
+      "RECEIVED": ["NEW", "AWAITING_ANAMNESIS"],
+      "FINISHED": ["ENDED"]
+    }
   },
   "isolation": {
     "premiumRoots": ["public"],
@@ -32,10 +37,9 @@
   },
   "contracts": {
     "frontendRoots": ["public"],
-    "backendRoots": ["functions/api"],
+    "backendRoots": ["workers"],
     "ignoredApiPatterns": [
-      "^/api/health(?:/|$)",
-      "^/api/project-lm(?:-2)?(?:/|$)"
+      "^/api/"
     ]
   }
 }
