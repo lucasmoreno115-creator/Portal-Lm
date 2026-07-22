@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createImportLegacyNutritionPlanUseCase } from '../workers/premium/application/import-legacy-nutrition-plan.js';
 
 const legacy = { id:'legacy-1', student_id:null, student_email:'ana@example.com', status:null, is_active:1, title:'Plano anterior', goal:'Hipertrofia', strategy:'Déficit controlado', meals_json:'[{"name":"Café","items":[{"food":"Ovos","quantity":"2"}]}]', substitutions_json:'[{"from":"Ovos","to":"Tofu"}]', adherence_rules_json:'["água"]', notes:'observações', whatsapp_message:'mensagem', private_notes:'nota privada', created_at:'2026-01-01T00:00:00.000Z', updated_at:'2026-01-02T00:00:00.000Z' };
@@ -26,4 +30,27 @@ test('sem legado, Projeto LM e falha de inserção não alteram planos nem liber
 test('Prontuário expõe a importação antes da liberação e a rota mantém etapas explícitas', () => {
   const ui=readFileSync('public/admin-premium-student-record.js','utf8'); const api=readFileSync('workers/api.js','utf8');
   assert.match(ui,/!hasPublished && legacyAvailable/); assert.match(ui,/Importar planejamento antigo/); assert.match(ui,/Planejamento antigo importado e preservado/); assert.match(api,/import-legacy-nutrition-plan/);
+});
+function sqlValue(value) { if (value == null) return 'NULL'; if (typeof value === 'number') return String(value); return `'${String(value).replaceAll("'", "''")}'`; }
+class SqliteD1BatchAdapter {
+  constructor(file) { this.file = file; }
+  prepare(sql) { const adapter=this; let params=[]; const render=()=>{let i=0;return sql.replace(/\?/g,()=>sqlValue(params[i++]));}; return { bind(...values) { params=values; return this; }, async all() { const output=execFileSync('sqlite3',['-json',adapter.file,render()],{encoding:'utf8'}).trim(); return {results:output?JSON.parse(output):[]}; }, async first() { return (await this.all()).results[0] ?? null; }, async run() { execFileSync('sqlite3',[adapter.file],{input:`${render()};`}); return {meta:{changes:1}}; }, render }; }
+  async batch(statements) { execFileSync('sqlite3',[this.file],{input:`.bail on\nBEGIN;\n${statements.map((statement)=>`${statement.render()};`).join('\n')}\nCOMMIT;`}); }
+}
+async function withSqliteD1(fn) {
+  const dir=await mkdtemp(join(tmpdir(),'legacy-import-')); const file=join(dir,'test.db'); const db=new SqliteD1BatchAdapter(file);
+  try { execFileSync('sqlite3',[file],{input:`CREATE TABLE premium_students (student_id TEXT PRIMARY KEY,email TEXT NOT NULL,normalized_email TEXT NOT NULL,display_name TEXT,consultation_status TEXT,access_status TEXT,source TEXT,created_at TEXT,updated_at TEXT); CREATE TABLE student_access (id TEXT PRIMARY KEY,student_id TEXT,plan TEXT,plan_type TEXT,email TEXT); CREATE TABLE nutrition_plans (id TEXT PRIMARY KEY,student_id TEXT,student_email TEXT NOT NULL,title TEXT,goal TEXT,strategy TEXT,meals_json TEXT NOT NULL,substitutions_json TEXT,adherence_rules_json TEXT,notes TEXT,whatsapp_message TEXT,is_active INTEGER,status TEXT,version_number INTEGER,published_at TEXT,published_by TEXT,supersedes_plan_id TEXT,source_feedback_id TEXT,private_notes TEXT,created_at TEXT,updated_at TEXT); CREATE UNIQUE INDEX idx_nutrition_plans_single_active ON nutrition_plans(student_email) WHERE is_active=1; CREATE TABLE premium_followup_entries (id TEXT PRIMARY KEY,student_id TEXT,entry_type TEXT,title TEXT,content TEXT,source TEXT,related_entity_type TEXT,related_entity_id TEXT,created_by TEXT,created_at TEXT,updated_at TEXT);`}); await fn({file,db}); } finally { await rm(dir,{recursive:true,force:true}); }
+}
+function seedRealLegacy(file, { id = 'legacy-real', status = null } = {}) {
+  execFileSync('sqlite3',[file],{input:`INSERT INTO premium_students VALUES ('student-real','real@example.com','real@example.com','Real','UNDER_REVIEW','ACTIVE','TEST','2026-01-01','2026-01-01'); INSERT INTO nutrition_plans (id,student_id,student_email,title,meals_json,is_active,status,created_at,updated_at) VALUES (${sqlValue(id)},NULL,'real@example.com','Legado real','[{"name":"Almoço","items":[{"food":"Arroz","quantity":"100g"}]}]',1,${sqlValue(status)},'2026-01-01','2026-01-01');`});
+}
+test('formato legado confirmado pelas migrations: somente status NULL ativo é elegível', async () => {
+  const originalSchema=readFileSync('migrations/0004_nutrition_plans.sql','utf8'); const lifecycle=readFileSync('migrations/0031_add_nutrition_plan_lifecycle.sql','utf8'); const backfill=readFileSync('migrations/0032_finalize_nutrition_plan_lifecycle.sql','utf8');
+  assert.doesNotMatch(originalSchema,/\bstatus\b/i); assert.match(lifecycle,/ADD COLUMN status TEXT/); assert.match(backfill,/WHERE status IS NULL/); assert.doesNotMatch(backfill,/status\s*=\s*''|status\s*=\s*'ACTIVE'/i);
+  for (const status of ['', 'ACTIVE']) {
+    await withSqliteD1(async ({file,db}) => { seedRealLegacy(file, { id: `legacy-${status || 'empty'}`, status }); const result = await createImportLegacyNutritionPlanUseCase({ db, randomUUID: () => 'import-real' })({ student_id: 'student-real' }); assert.equal(result.status, 404, `status ${JSON.stringify(status)} não é formato legado comprovado`); assert.equal(JSON.parse(execFileSync('sqlite3',['-json',file,"SELECT COUNT(*) AS count FROM nutrition_plans WHERE status='PUBLISHED'"],{encoding:'utf8'}))[0].count, 0); });
+  }
+});
+test('db.batch D1/SQLite faz rollback real quando a auditoria falha após inserir o snapshot', async () => {
+  await withSqliteD1(async ({file,db}) => { seedRealLegacy(file); execFileSync('sqlite3',[file],{input:`CREATE TRIGGER fail_legacy_import_audit BEFORE INSERT ON premium_followup_entries WHEN NEW.title='Planejamento antigo importado' BEGIN SELECT RAISE(ABORT, 'AUDIT_FAILURE'); END;`}); const result = await createImportLegacyNutritionPlanUseCase({ db, randomUUID: () => 'import-real', now: () => '2026-07-22T00:00:00.000Z' })({ student_id: 'student-real' }); assert.equal(result.status, 409); const counts=JSON.parse(execFileSync('sqlite3',['-json',file,"SELECT (SELECT COUNT(*) FROM nutrition_plans WHERE student_id='student-real' AND status='PUBLISHED') AS snapshots, (SELECT COUNT(*) FROM premium_followup_entries WHERE student_id='student-real') AS audits, (SELECT status FROM nutrition_plans WHERE id='legacy-real') AS legacy_status"],{encoding:'utf8'}))[0]; assert.deepEqual(counts,{snapshots:0,audits:0,legacy_status:null}); });
 });

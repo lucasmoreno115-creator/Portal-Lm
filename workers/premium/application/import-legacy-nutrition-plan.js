@@ -34,11 +34,15 @@ export function createImportLegacyNutritionPlanUseCase({ db, randomUUID = () => 
     if (legacy.length > 1) return { ok: false, error: 'Mais de um planejamento legado foi encontrado; revise antes de importar.', status: 409 };
     if (!isValidLegacyPlan(legacy[0])) return { ok: false, error: 'Nenhum planejamento legado válido foi encontrado para este aluno.', status: 404 };
     const source = legacy[0]; const importedId = randomUUID(); const importedAt = now();
-    const compatibility = JSON.stringify({ origin: 'LEGACY_IMPORT', legacy_plan_id: source.id, legacy_private_notes: source.private_notes ?? null });
+    // The original schema has a unique active `student_email` index. Keep the
+    // legacy row active and use an internal snapshot key; the official lookup is
+    // always `student_id` and the original email remains in compatibility data.
+    const snapshotEmail = `legacy-import:${studentId}:${source.id}`;
+    const compatibility = JSON.stringify({ origin: 'LEGACY_IMPORT', legacy_plan_id: source.id, legacy_student_email: source.student_email, legacy_private_notes: source.private_notes ?? null });
     const insert = db.prepare(`INSERT INTO nutrition_plans (id,student_id,student_email,title,goal,strategy,meals_json,substitutions_json,adherence_rules_json,notes,whatsapp_message,is_active,status,version_number,published_at,published_by,supersedes_plan_id,source_feedback_id,private_notes,created_at,updated_at)
       SELECT ?,?,?,?,?,?,?,?,?,?,?,1,'PUBLISHED',(SELECT COALESCE(MAX(version_number),0)+1 FROM nutrition_plans WHERE student_id=?),?,? ,?,NULL,?,?,?
       WHERE EXISTS (SELECT 1 FROM nutrition_plans WHERE id=? AND status IS NULL AND is_active=1)
-        AND NOT EXISTS (SELECT 1 FROM nutrition_plans WHERE student_id=? AND status='PUBLISHED' AND is_active=1)`).bind(importedId, studentId, email, source.title, source.goal, source.strategy, source.meals_json, source.substitutions_json, source.adherence_rules_json, source.notes, source.whatsapp_message, studentId, importedAt, created_by || 'legacy-import', source.id, compatibility, importedAt, importedAt, source.id, studentId);
+        AND NOT EXISTS (SELECT 1 FROM nutrition_plans WHERE student_id=? AND status='PUBLISHED' AND is_active=1)`).bind(importedId, studentId, snapshotEmail, source.title, source.goal, source.strategy, source.meals_json, source.substitutions_json, source.adherence_rules_json, source.notes, source.whatsapp_message, studentId, importedAt, created_by || 'legacy-import', source.id, compatibility, importedAt, importedAt, source.id, studentId);
     const audit = db.prepare("INSERT INTO premium_followup_entries (id,student_id,entry_type,title,content,source,related_entity_type,related_entity_id,created_by,created_at,updated_at) VALUES (?,?,'PLAN_CHANGE','Planejamento antigo importado',?,'admin','nutrition_plans',?,?,?,?)").bind(`plan-change:${importedId}`, studentId, JSON.stringify({ action: 'import-legacy-nutrition-plan', origin: 'LEGACY_IMPORT', legacy_plan_id: source.id, imported_plan_id: importedId }), importedId, created_by, importedAt, importedAt);
     if (typeof db.batch !== 'function') return { ok: false, error: 'A importação exige uma transação atômica; nenhuma alteração foi realizada.', status: 503 };
     try { await db.batch([insert, audit]); } catch { return { ok: false, error: 'Não foi possível importar o planejamento legado; nenhuma liberação foi realizada.', status: 409 }; }
