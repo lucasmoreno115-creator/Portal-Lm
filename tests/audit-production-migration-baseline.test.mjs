@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -51,6 +51,29 @@ test('reconciliation SQL excludes data-check, partial, and missing migrations', 
     assert.doesNotMatch(sql, /0024_project_lm_training_model_refinement/);
     assert.doesNotMatch(sql, /0032_finalize_nutrition_plan_lifecycle/);
   } finally { sample.dispose(); }
+});
+
+test('runs from the CLI and generates the audit artifacts', () => {
+  const sample = fixture();
+  const outputDir = path.resolve('release');
+  const outputFiles = [
+    'migration-baseline-audit.json',
+    'migration-baseline-audit.md',
+    'reconcile-d1-migration-history.sql',
+    'production-migration-data-checks.sql',
+  ];
+  try {
+    const stdout = execFileSync(
+      process.execPath,
+      [path.resolve('scripts/audit-production-migration-baseline.mjs'), sample.schemaPath],
+      { encoding: 'utf8' }
+    );
+    assert.match(stdout, /"generated": true/);
+    for (const file of outputFiles) assert.equal(existsSync(path.join(outputDir, file)), true, `${file} should be generated`);
+  } finally {
+    for (const file of outputFiles) rmSync(path.join(outputDir, file), { force: true });
+    sample.dispose();
+  }
 });
 
 test('audit script contains no remote client or Wrangler invocation', () => {
