@@ -2,6 +2,7 @@
   const ADMIN_SESSION_KEY = 'lm_admin_session_id';
   const ADMIN_SESSION_EXPIRES_KEY = 'lm_admin_session_expires_at';
   const LEGACY_ADMIN_TOKEN_KEY = 'lm_admin_token';
+  const ADMIN_WORKSPACE_PATH = '/admin-premium-workspace.html';
 
   function clearLegacyAdminToken(){
     localStorage.removeItem(LEGACY_ADMIN_TOKEN_KEY);
@@ -107,32 +108,33 @@
     if (target.origin !== window.location.origin) return false;
     if (target.protocol !== window.location.protocol) return false;
     const pathname = target.pathname;
-    if (pathname === '/admin') return true;
-    if (pathname === '/admin-login.html') return false;
+    if (pathname === '/admin' || pathname === '/admin/' || pathname === ADMIN_WORKSPACE_PATH) return true;
+    if (pathname === '/admin-login.html' || pathname === '/admin-legacy.html') return false;
     return /^\/admin-[a-z0-9-]+\.html$/i.test(pathname);
   }
 
-  function resolveAdminReturnTo(value, fallback = '/admin'){
+  function resolveAdminReturnTo(value, fallback = ADMIN_WORKSPACE_PATH){
     const raw = String(value || '').trim();
     if (!isSafeAdminReturnTo(raw)) return fallback;
     const target = new URL(raw, window.location.origin);
+    if (target.pathname === '/admin' || target.pathname === '/admin/' || target.pathname === '/admin-legacy.html') return ADMIN_WORKSPACE_PATH;
     return `${target.pathname}${target.search}${target.hash}`;
   }
 
   function getCurrentAdminReturnTo(){
-    return resolveAdminReturnTo(`${window.location.pathname}${window.location.search}${window.location.hash}`);
+    return resolveAdminReturnTo(`${window.location.pathname}${window.location.search}${window.location.hash}`, ADMIN_WORKSPACE_PATH);
   }
 
   function getAdminLoginUrl(returnTo){
     const login = new URL('/admin-login.html', window.location.origin);
-    login.searchParams.set('returnTo', resolveAdminReturnTo(returnTo));
+    login.searchParams.set('returnTo', resolveAdminReturnTo(returnTo, ADMIN_WORKSPACE_PATH));
     return `${login.pathname}${login.search}`;
   }
 
   function requireAdmin(){
     const sessionId = getAdminSession();
     if (!sessionId) {
-      window.location.href = getAdminLoginUrl(getCurrentAdminReturnTo());
+      window.location.replace(getAdminLoginUrl(getCurrentAdminReturnTo()));
       return '';
     }
     return sessionId;
@@ -150,7 +152,8 @@
     if (!button) return;
     button.addEventListener('click', async () => {
       await logoutAdmin();
-      window.location.href = returnTo ? getAdminLoginUrl(returnTo) : '/admin-login.html';
+      const loginTarget = resolveAdminReturnTo(returnTo, ADMIN_WORKSPACE_PATH);
+      window.location.replace(getAdminLoginUrl(loginTarget));
     });
   }
 
@@ -161,6 +164,7 @@
   }
 
   window.LMAdminAuth = {
+    ADMIN_WORKSPACE_PATH,
     loginAdmin,
     logoutAdmin,
     getAdminHeaders,
