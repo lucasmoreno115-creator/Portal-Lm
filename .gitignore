@@ -5,6 +5,9 @@ github-pages-artifact/
 # Build 6.5 generated database operation artifacts
 backups/
 release/
+database/baseline/production-*.sql
+.wrangler/cache/
+test-full.log
 artifacts/db-audit-*.json
 artifacts/production-deploy-plan.json
 
