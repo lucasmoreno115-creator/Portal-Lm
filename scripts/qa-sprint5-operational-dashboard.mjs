@@ -95,8 +95,8 @@ async function auditApplicationSnapshot() {
   const presented = presentWorkspaceSummary(result.data);
   assert(presented.indicators.openPendingItems === 4, scope, 'Presenter mantém contador de pendências.');
   assert(presented.indicators.studentsWithoutResponse === 3, scope, 'Presenter mantém contador de alunos sem resposta.');
-  assert(presented.anamnesis.items[0]?.student_id === 's-ready', scope, 'Card de anamnese preserva aluno prioritário.');
-  assert(presented.checkins.items[0]?.weekly_feedback_status === 'AWAITING_ANALYSIS', scope, 'Card de check-in preserva badge operacional.');
+  assert(presented.anamnesis.items[0]?.studentId === 's-ready', scope, 'Card de anamnese preserva aluno prioritário.');
+  assert(presented.checkins.items[0]?.weeklyFeedbackStatus === 'AWAITING_ANALYSIS', scope, 'Card de check-in preserva badge operacional.');
   assert(presented.checkins.withoutRecentResponse === null, scope, 'Métrica sem política definida permanece explicitamente nula.');
   assert(presented.featureFlag.enabled === true, scope, 'Presenter preserva o estado da feature flag.');
 }
