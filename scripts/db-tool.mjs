@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 
 export const PRODUCTION_DB = 'lmsystemv2-db';
@@ -90,12 +91,48 @@ function validateReplayOverride({ file, originalPath, override, environment }) {
     }
   };
 }
-function columnsExist(db, table, names) { const cols = parseJsonRows(sqlite('-json', db, `PRAGMA table_info(${JSON.stringify(table)});`)).map(c => c.name); return names.every(name => cols.includes(name)); }
+function querySqliteDb(databasePath, sql) {
+  const database = new DatabaseSync(databasePath);
+  try { return database.prepare(sql).all(); }
+  finally { database.close(); }
+}
+
+function executeSql(databasePath, sql) {
+  const database = new DatabaseSync(databasePath);
+  try { database.exec(sql); }
+  finally { database.close(); }
+}
+
+/**
+ * Imports schema SQL into a SQLite database without relying on the sqlite3 CLI.
+ * The caller owns cleanup of the database file and its parent directory.
+ */
+export function importSchemaSql({ schemaSql, databasePath }) {
+  if (!databasePath) throw new Error('A SQLite database path is required.');
+  executeSql(databasePath, schemaSql);
+  return databasePath;
+}
+
+/** Exports application schema statements in a format suitable for re-importing. */
+export function exportSchemaSql(databasePath) {
+  return querySqliteDb(databasePath, `
+    SELECT sql FROM sqlite_schema
+    WHERE type IN ('table', 'index', 'trigger', 'view')
+      AND name NOT LIKE 'sqlite_%'
+      AND sql IS NOT NULL
+    ORDER BY CASE type
+      WHEN 'table' THEN 1
+      WHEN 'index' THEN 2
+      WHEN 'trigger' THEN 3
+      WHEN 'view' THEN 4
+    END, name
+  `).map(({ sql }) => `${sql};`).join('\n\n') + '\n';
+}
+
+function columnsExist(db, table, names) { const cols = querySqliteDb(db, `PRAGMA table_info(${JSON.stringify(table)});`).map(c => c.name); return names.every(name => cols.includes(name)); }
 function shouldUseReplayOverride(db, file, override, environment = 'local') { if (!override) return false; if (environment === 'production' || override.productionAllowed === true) return false; if (file === '0021_lm2_week_transition_activation.sql') return columnsExist(db, 'lm2_journeys', ['week_started_at', 'week_completed_at']); return false; }
 const writeJsonAtomic = (file, data) => { mkdirSync(path.dirname(file), { recursive: true }); const tmp = `${file}.tmp-${process.pid}`; writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`); renameSync(tmp, file); };
 const writeAtomic = (file, data) => { mkdirSync(path.dirname(file), { recursive: true }); const tmp = `${file}.tmp-${process.pid}`; writeFileSync(tmp, data); renameSync(tmp, file); };
-const sqlite = (...args) => run('sqlite3', args);
-const parseJsonRows = output => output && output.trim() ? JSON.parse(output) : [];
 
 function readVersion() {
   if (process.env.RELEASE_VERSION && /^\d+\.\d+\.\d+/.test(process.env.RELEASE_VERSION)) return process.env.RELEASE_VERSION;
@@ -125,7 +162,7 @@ export function replayMigrations({ dir = migrationsDir, bootstrap = bootstrapFil
   const overrides = loadReplayOverrides({ manifestPath: overridesManifest, overridesDir });
   try {
     if (bootstrap) {
-      try { sqlite(db, `.read ${bootstrap}`); }
+      try { importSchemaSql({ databasePath: db, schemaSql: readFileSync(bootstrap, 'utf8') }); }
       catch (error) { return { ok: false, status: 'BLOCKING', database: db, applied, error: { file: bootstrap, migration: 'legacy-base-schema.sql', message: String(error.stderr || error.message || '').trim(), statement: { line: null, context: null } } }; }
     }
     for (const file of migrationFiles(dir)) {
@@ -137,10 +174,10 @@ export function replayMigrations({ dir = migrationsDir, bootstrap = bootstrapFil
           if (!validation.ok) return { ok: false, status: 'BLOCKING', database: db, applied, overridesUsed, error: { migration: file, code: 'REPLAY_OVERRIDE_INVALID', errors: validation.errors, evidence: validation.evidence } };
           const semanticConditionVerified = shouldUseReplayOverride(db, file, override, environment);
           if (!semanticConditionVerified) return { ok: false, status: 'BLOCKING', database: db, applied, overridesUsed, error: { migration: file, code: 'REPLAY_OVERRIDE_SEMANTIC_CONDITION_NOT_MET', evidence: { ...validation.evidence, semanticConditionVerified: false } } };
-          sqlite(db, `.read ${override.path}`);
+          importSchemaSql({ databasePath: db, schemaSql: readFileSync(override.path, 'utf8') });
           overridesUsed.push({ migration: file, override: path.relative(root, override.path), reason: override.reason, result: 'SEMANTICALLY_SATISFIED', ...validation.evidence, hashesVerified: true, semanticConditionVerified: true });
         } else {
-          sqlite(db, `.read ${full}`);
+          importSchemaSql({ databasePath: db, schemaSql: readFileSync(full, 'utf8') });
         }
         applied.push(file);
       } catch (error) {
@@ -159,13 +196,13 @@ export function replayMigrations({ dir = migrationsDir, bootstrap = bootstrapFil
 }
 
 export function introspectSqliteDb(db) {
-  const objects = parseJsonRows(sqlite('-json', db, "SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE type IN ('table','index','trigger','view') AND name NOT LIKE 'sqlite_%' ORDER BY type,name;"));
+  const objects = querySqliteDb(db, "SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE type IN ('table','index','trigger','view') AND name NOT LIKE 'sqlite_%' ORDER BY type,name;");
   const tables = objects.filter(o => o.type === 'table').map(o => o.name).sort();
   const columns = {};
   const indexes = {};
   for (const table of tables) {
-    columns[table] = parseJsonRows(sqlite('-json', db, `PRAGMA table_info(${JSON.stringify(table)});`));
-    indexes[table] = parseJsonRows(sqlite('-json', db, `PRAGMA index_list(${JSON.stringify(table)});`)).map(idx => ({ ...idx, columns: parseJsonRows(sqlite('-json', db, `PRAGMA index_info(${JSON.stringify(idx.name)});`)) }));
+    columns[table] = querySqliteDb(db, `PRAGMA table_info(${JSON.stringify(table)});`);
+    indexes[table] = querySqliteDb(db, `PRAGMA index_list(${JSON.stringify(table)});`).map(idx => ({ ...idx, columns: querySqliteDb(db, `PRAGMA index_info(${JSON.stringify(idx.name)});`) }));
   }
   return { objects, tables, columns, indexes, triggers: objects.filter(o => o.type === 'trigger'), views: objects.filter(o => o.type === 'view') };
 }

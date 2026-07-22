@@ -223,9 +223,8 @@ test('Build 6.5 override validation: altered override hash blocks and does not e
     const result = replayMigrations({ dir: fx.dir, bootstrap: null, overridesManifest: fx.manifestPath, overridesDir: fx.overridesDir });
     assert.equal(result.ok, false);
     assert.equal(result.error.errors.some((error) => error.field === 'overrideHash'), true);
-    const { execFileSync } = await import('node:child_process');
-    const tables = execFileSync('sqlite3', ['-json', result.database, "SELECT name FROM sqlite_schema WHERE type='table' AND name='override_marker';"], { encoding: 'utf8' });
-    assert.equal(tables.trim(), '');
+    const { introspectSqliteDb } = await import('../scripts/db-tool.mjs');
+    assert.equal(introspectSqliteDb(result.database).tables.includes('override_marker'), false);
   } finally { rmSync(fx.dir, { recursive:true, force:true }); }
 });
 

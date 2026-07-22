@@ -4,14 +4,25 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { replayMigrations } from '../scripts/db-tool.mjs';
+import { exportSchemaSql, replayMigrations } from '../scripts/db-tool.mjs';
 import { auditProductionMigrationBaseline } from '../scripts/audit-production-migration-baseline.mjs';
+
+const dataCheckMigrations = [
+  '0010_project_lm_library.sql',
+  '0011_project_lm_weekly_missions.sql',
+  '0018_project_lm_v5_foundation.sql',
+  '0023_project_lm_training_plans.sql',
+  '0024_project_lm_training_model_refinement.sql',
+  '0029_add_weekly_feedback_operational_fields.sql',
+  '0032_finalize_nutrition_plan_lifecycle.sql',
+  '0035_add_ready_to_release_consultation_status.sql',
+];
 
 function fixture() {
   const temp = mkdtempSync(path.join(os.tmpdir(), 'portal-lm-baseline-test-'));
   const replay = replayMigrations();
   try {
-    const schema = execFileSync('sqlite3', [replay.database, '.schema'], { encoding: 'utf8' });
+    const schema = exportSchemaSql(replay.database);
     const schemaPath = path.join(temp, 'schema.sql');
     writeFileSync(schemaPath, schema);
     return { temp, schemaPath, dispose: () => { rmSync(path.dirname(replay.database), { recursive: true, force: true }); rmSync(temp, { recursive: true, force: true }); } };
@@ -27,7 +38,10 @@ test('classifies the official replay schema as structurally satisfied where data
   try {
     const report = auditProductionMigrationBaseline({ schemaPath: sample.schemaPath, outputDir: path.join(sample.temp, 'release') });
     assert.equal(report.results.find(result => result.file.startsWith('0007_')).classification, 'SATISFIED');
-    assert.equal(report.results.find(result => result.file.startsWith('0024_')).classification, 'DATA_CHECK_REQUIRED');
+    assert.deepEqual(
+      report.results.filter(result => result.classification === 'DATA_CHECK_REQUIRED').map(result => result.file),
+      dataCheckMigrations
+    );
   } finally { sample.dispose(); }
 });
 
@@ -70,13 +84,20 @@ test('runs from the CLI and generates the audit artifacts', () => {
     );
     assert.match(stdout, /"generated": true/);
     for (const file of outputFiles) assert.equal(existsSync(path.join(outputDir, file)), true, `${file} should be generated`);
+    const generated = JSON.parse(stdout);
+    assert.deepEqual(generated.results.filter(result => result.classification === 'DATA_CHECK_REQUIRED').map(result => result.file), dataCheckMigrations);
+    const reconciliation = readFileSync(path.join(outputDir, 'reconcile-d1-migration-history.sql'), 'utf8');
+    for (const file of dataCheckMigrations) assert.doesNotMatch(reconciliation, new RegExp(file));
+    assert.match(reconciliation, /0007_student_access_plan\.sql/);
   } finally {
     for (const file of outputFiles) rmSync(path.join(outputDir, file), { force: true });
     sample.dispose();
   }
 });
 
-test('audit script contains no remote client or Wrangler invocation', () => {
+test('audit stays offline and contains no sqlite3 CLI dependency', () => {
   const source = readFileSync('scripts/audit-production-migration-baseline.mjs', 'utf8');
-  assert.doesNotMatch(source, /\bfetch\s*\(|\bwrangler\b|cloudflare\.com/i);
+  const dbToolSource = readFileSync('scripts/db-tool.mjs', 'utf8');
+  assert.doesNotMatch(source, /\bfetch\s*\(|\bwrangler\b|cloudflare\.com|execFileSync\s*\(\s*['"]sqlite3['"]/i);
+  assert.doesNotMatch(dbToolSource, /(?:execFileSync|spawn|exec)\s*\(\s*['"]sqlite3['"]/i);
 });
