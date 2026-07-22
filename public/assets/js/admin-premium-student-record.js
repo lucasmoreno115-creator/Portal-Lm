@@ -115,7 +115,9 @@
     const actionLabel = plan.actionLabel || fallback.actionLabel;
     const action = el('a', { className: 'button nutrition-plan-action', textContent: actionLabel, href: nutritionPlanLink(student.student_id) });
     action.setAttribute('aria-label', `${actionLabel} para ${student.name || student.display_name || 'este aluno'}`);
-    target.replaceChildren(el('div', { className: 'nutrition-plan-status' }, el('span', { className: 'badge', textContent: plan.label || fallback.label }), el('p', { className: 'muted', textContent: plan.description || fallback.description })), action);
+    const nodes = [el('div', { className: 'nutrition-plan-status' }, el('span', { className: 'badge', textContent: plan.label || fallback.label }), el('p', { className: 'muted', textContent: plan.description || fallback.description })), action];
+    if (hasPublished && student.consultation_status !== 'ACTIVE') nodes.push(el('button', { textContent: 'Liberar planejamento', dataset: { releasePlanning: 'true' } }));
+    target.replaceChildren(...nodes);
   }
 
   function renderFeedbacks(feedbacks) {
@@ -160,6 +162,12 @@
   document.addEventListener('click', async (event) => {
     const transition = event.target?.dataset?.transition;
     if (transition) { if (!confirm(event.target.dataset.confirmation)) return; event.target.disabled=true; try { await api(`/api/admin/premium/students/${encodeURIComponent(studentId)}/status`, { method:'PATCH', body:JSON.stringify({status:transition}) }); await load(); } catch(error) { alert(error.message); event.target.disabled=false; } return; }
+    if (event.target?.dataset?.releasePlanning) {
+      if (!confirm('Liberar o Portal para este aluno? O planejamento publicado ficará disponível imediatamente.')) return;
+      event.target.disabled = true;
+      try { await api(`/api/admin/premium/students/${encodeURIComponent(studentId)}/release-planning`, { method: 'POST' }); alert('Planejamento liberado. O aluno já pode acessar o Portal.'); await load(); } catch (error) { alert(error.message); event.target.disabled = false; }
+      return;
+    }
     const id = event.target?.dataset?.resolve;
     if (!id) return;
     event.target.disabled = true;

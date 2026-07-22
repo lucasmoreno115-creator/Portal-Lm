@@ -11,3 +11,4 @@ export * from './list-weekly-feedbacks.js';
 export * from './save-nutrition-plan.js';
 export * from './send-anamnesis-link.js';
 export * from './submit-weekly-feedback.js';
+export * from './release-legacy-planning.js';

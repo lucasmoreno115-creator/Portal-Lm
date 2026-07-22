@@ -25,6 +25,7 @@ import { createAddFollowupEntryUseCase } from './premium/application/add-followu
 import { createCreatePendingItemUseCase } from './premium/application/create-pending-item.js';
 import { createResolvePendingItemUseCase } from './premium/application/resolve-pending-item.js';
 import { createUpdateConsultationStatusUseCase } from './premium/application/update-consultation-status.js';
+import { createReleaseLegacyPlanningUseCase } from './premium/application/release-legacy-planning.js';
 import { createRecordProfessionalDecisionUseCase } from './premium/application/record-professional-decision.js';
 import { presentStudentRecord } from './premium/presenters/student-record-presenter.js';
 import { createD1FeedbackReminderRepository } from './premium/repositories/d1-feedback-reminder-repository.js';
@@ -100,6 +101,7 @@ function createPremiumApplication(env, request) {
     createPendingItem: createCreatePendingItemUseCase({ studentRepository, pendingItemRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
     resolvePendingItem: createResolvePendingItemUseCase({ pendingItemRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
     updateConsultationStatus: createUpdateConsultationStatusUseCase({ studentRepository, followupEntryRepository, db: env.DB, randomUUID: () => crypto.randomUUID() }),
+    releaseLegacyPlanning: createReleaseLegacyPlanningUseCase({ db: env.DB, randomUUID: () => crypto.randomUUID() }),
     recordProfessionalDecision: createRecordProfessionalDecisionUseCase({ weeklyFeedbackRepository, followupEntryRepository, pendingItemRepository, db: env.DB, randomUUID: () => crypto.randomUUID() }),
     getCurrentWeeklyFeedback: createGetCurrentWeeklyFeedbackUseCase({ identityService, weeklyFeedbackRepository, scheduleService }),
     getWeeklyFeedbackForReview: createGetWeeklyFeedbackForReviewUseCase({ weeklyFeedbackRepository, pendingItemRepository, followupEntryRepository, scheduleService }),
@@ -1011,6 +1013,13 @@ export default {
         if (resolvePendingMatch && method === 'PATCH') {
           const premiumApp = createPremiumApplication(env, request);
           const result = await premiumApp.resolvePendingItem({ id: decodeURIComponent(resolvePendingMatch[1]), created_by: request.headers.get('x-admin-user') || 'admin' });
+          return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
+        }
+
+        const releasePlanningMatch = url.pathname.match(/^\/api\/admin\/premium\/students\/([^/]+)\/release-planning$/);
+        if (releasePlanningMatch && method === 'POST') {
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.releaseLegacyPlanning({ student_id: decodeURIComponent(releasePlanningMatch[1]), created_by: request.headers.get('x-admin-user') || 'admin' });
           return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
         }
 
