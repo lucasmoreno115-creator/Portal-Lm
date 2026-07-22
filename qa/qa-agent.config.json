@@ -33,6 +33,15 @@
       "timeoutMs": 240000
     },
     {
+      "id": "premium-worker-api-contracts",
+      "module": "API",
+      "severity": "BLOCKER",
+      "kind": "command",
+      "command": "npm",
+      "args": ["run", "qa:lm:premium-api"],
+      "timeoutMs": 180000
+    },
+    {
       "id": "project-lm-runtime-isolation",
       "module": "Compatibilidade Premium × Projeto LM",
       "severity": "HIGH",
