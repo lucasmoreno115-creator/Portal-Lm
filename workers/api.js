@@ -3160,9 +3160,10 @@ async function ensureSchemaUncached(db) {
     `CREATE INDEX IF NOT EXISTS idx_nutrition_plans_student_email ON nutrition_plans(student_email)`
   ).run();
   await db.prepare(
-    `CREATE UNIQUE INDEX IF NOT EXISTS idx_nutrition_plans_single_active
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_nutrition_plans_single_active_legacy_email
      ON nutrition_plans(student_email)
-     WHERE is_active = 1`
+     WHERE is_active = 1
+       AND student_id IS NULL`
   ).run();
 
   await db.prepare(
