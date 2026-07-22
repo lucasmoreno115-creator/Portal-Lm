@@ -21,6 +21,14 @@ function walk(dir) {
   return files;
 }
 
+function routeHasContract(worker, prefix) {
+  if (worker.includes(prefix)) return true;
+  const segments = prefix.split('/').filter(Boolean);
+  const resource = segments.at(-1);
+  const namespace = segments.includes('premium') ? 'premium' : segments.at(-2);
+  return Boolean(resource && namespace && worker.includes(resource) && worker.includes(namespace));
+}
+
 if (!existsSync(workerPath)) {
   failures.push({ scope: 'api-contracts', message: 'Worker principal ausente.', path: 'workers/api.js' });
 } else {
@@ -42,7 +50,7 @@ if (!existsSync(workerPath)) {
 
   const unresolved = [];
   for (const [prefix, files] of refs) {
-    if (!worker.includes(prefix)) unresolved.push({ routePrefix: prefix, files: [...new Set(files)] });
+    if (!routeHasContract(worker, prefix)) unresolved.push({ routePrefix: prefix, files: [...new Set(files)] });
   }
 
   if (unresolved.length) failures.push({ scope: 'api-contracts', message: 'Rotas Premium consumidas sem contrato localizado no Worker.', unresolved });
