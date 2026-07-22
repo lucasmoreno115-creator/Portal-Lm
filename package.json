@@ -7,6 +7,7 @@
     "qa:lm:sprint2": "node scripts/qa-sprint2.mjs",
     "qa:lm:sprint3": "node scripts/qa-sprint3.mjs",
     "qa:lm:sprint4": "node scripts/qa-sprint4.mjs",
+    "qa:lm:sprint5:feedback": "node scripts/qa-sprint5-feedback-pipeline.mjs",
     "qa:lm:premium-api": "node scripts/qa-premium-api-contracts.mjs",
     "build:project-lm-runtime": "node scripts/build-project-lm-runtime.mjs",
     "check:project-lm-runtime": "node scripts/check-project-lm-runtime.mjs",
