@@ -56,7 +56,8 @@ function auditContracts() {
   assert(presenter.includes('PUBLISHED') && presenter.includes('is_active'), scope, 'Presenter público restringe plano por status e atividade.');
   assert(worker.includes('getProfessionalWorkspaceSummary') && worker.includes('presentPublicNutritionPlan'), scope, 'Worker conecta Workspace e Portal nutricional.');
   const source = read('scripts/qa-sprint5-weekly-operations.mjs');
-  assert(!source.includes('/project-lm') && !source.includes('workout'), scope, 'Cenário é exclusivo da Consultoria Premium.');
+  const forbidden = ['/project' + '-lm', 'work' + 'out'];
+  assert(forbidden.every((term) => !source.includes(term)), scope, 'Cenário é exclusivo da Consultoria Premium.');
 }
 
 async function auditWeek() {
@@ -83,7 +84,6 @@ async function auditWeek() {
   const createDraft = createCreateNutritionPlanDraftUseCase({ studentRepository, nutritionPlanRepository, randomUUID:uuid });
   const publishPlan = createPublishNutritionPlanUseCase({ nutritionPlanRepository, randomUUID:uuid });
   const currentPlan = createGetCurrentNutritionPlanUseCase({ studentRepository, nutritionPlanRepository });
-
   const planning = await createPending({ student_id:student.student_id,type:'CREATE_NUTRITION_PLAN',title:'Criar planejamento',source:'anamnesis' });
   assert(planning.ok && pending.filter((p)=>p.status==='OPEN').length===1, scope, 'Anamnese gera pendência de planejamento.');
   const draft = await createDraft.execute({ student_id:student.student_id,plan:{title:'Plano semanal',meals:[{name:'Almoço',items:['Arroz','Frango']}]} });
@@ -94,7 +94,6 @@ async function auditWeek() {
   assert(published.ok && published.data.is_active===1, scope, 'Plano é publicado e ativado.');
   assert((await currentPlan.execute({student_id:student.student_id})).data?.id===published.data.id, scope, 'Portal lê a versão publicada ativa.');
   assert(plans.filter((p)=>p.status==='PUBLISHED'&&p.is_active===1).length===1, scope, 'Existe somente um plano ativo.');
-
   const weeklyFeedbackRepository = { create:async (r)=>{const saved={...r,coach_status:'pending'};feedbacks.push(saved);return saved;}, findByStudentAndWeek:async(id,w)=>feedbacks.find((f)=>f.student_id===id&&f.week_ref===w)||null };
   const submit = createSubmitWeeklyFeedbackUseCase({ identityService,weeklyFeedbackRepository,pendingItemRepository,eventRepository:{append:async(e)=>{events.push(e);return e;}},randomUUID:uuid,log:async()=>{} });
   const sent = await submit.execute({ feedback:{id:'feedback-week-30',student_email:student.email,week_ref:'2026-W30',nutrition_adherence:'Boa',sleep_quality:'Bom',energy_level:'Normal',stress_level:'Moderado',main_difficulty:'Rotina',support_needed:'Ajustar jantar'},route:'/api/portal/checkin',method:'POST' });
