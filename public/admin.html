@@ -3,37 +3,29 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Admin LM Premium</title>
+  <title>Workspace Premium</title>
   <link rel="stylesheet" href="assets/css/portal.css">
 </head>
 <body>
   <main class="container">
     <section class="card hero">
-      <p class="eyebrow">LM Premium 3.0 • Admin</p>
-      <h1>Admin LM Premium</h1>
-      <p id="adminCutoverStatus" class="status muted" role="status" aria-live="polite">Verificando rota administrativa oficial...</p>
-      <p><a id="fallbackLegacyLink" href="admin-legacy.html">Abrir Admin legado</a></p>
+      <p class="eyebrow">LM Premium • Workspace</p>
+      <h1>Abrindo Workspace Premium</h1>
+      <p id="adminEntryStatus" class="status muted" role="status" aria-live="polite">Verificando sessão administrativa...</p>
     </section>
   </main>
   <script src="assets/js/admin-auth.js"></script>
   <script>
 (function(){
-  const status=document.getElementById('adminCutoverStatus');
-  const legacy='admin-legacy.html';
-  const workspace='admin-premium-workspace.html';
-  async function decide(){
-    try{
-      const response=await fetch('/api/admin/premium/cutover-route',{headers:window.LMAdminAuth?.getAdminAuthHeaders?.()||{}});
-      const payload=await response.json();
-      const target=payload?.data?.target||legacy;
-      status.textContent=payload?.data?.cutoverEnabled?'Abrindo Workspace Premium oficial...':'Abrindo Admin legado por flag de cutover desligada...';
-      window.location.replace(target);
-    }catch(error){
-      status.textContent='Não foi possível verificar o cutover. Abrindo Admin legado real.';
-      window.location.replace(legacy);
-    }
+  const workspace='/admin-premium-workspace.html';
+  const status=document.getElementById('adminEntryStatus');
+  if(window.LMAdminAuth?.getAdminSession?.()){
+    status.textContent='Sessão válida. Abrindo Workspace Premium...';
+    window.location.replace(workspace);
+    return;
   }
-  decide();
+  status.textContent='Sessão necessária. Abrindo login administrativo...';
+  window.location.replace(window.LMAdminAuth?.getAdminLoginUrl?.(workspace)||`/admin-login.html?returnTo=${encodeURIComponent(workspace)}`);
 })();
   </script>
 </body>
