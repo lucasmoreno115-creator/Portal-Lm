@@ -3,6 +3,7 @@
   "scripts": {
     "test": "node --test",
     "qa:lm": "node scripts/qa-agent.mjs",
+    "qa:lm:sprint1": "node scripts/qa-sprint1.mjs",
     "build:project-lm-runtime": "node scripts/build-project-lm-runtime.mjs",
     "check:project-lm-runtime": "node scripts/check-project-lm-runtime.mjs",
     "prepare:pages-artifact": "node scripts/prepare-pages-artifact.mjs",
