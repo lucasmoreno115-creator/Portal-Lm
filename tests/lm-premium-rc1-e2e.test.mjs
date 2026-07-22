@@ -48,7 +48,9 @@ function seedAccess(sqlite, { id, name, email, plan, plan_type = plan, student_i
 }
 
 test('RC1 fixture aplica a migration de auditoria do backfill legado e o repository aceita lote opcional', async () => {
-  assert.equal(RC1_PREMIUM_MIGRATIONS.at(-1), 'migrations/0035_add_ready_to_release_consultation_status.sql');
+  assert.ok(RC1_PREMIUM_MIGRATIONS.includes('migrations/0035_add_ready_to_release_consultation_status.sql'));
+  assert.ok(RC1_PREMIUM_MIGRATIONS.includes('migrations/0036_scope_legacy_active_nutrition_plan_email_unique.sql'));
+  assert.ok(RC1_PREMIUM_MIGRATIONS.indexOf('migrations/0035_add_ready_to_release_consultation_status.sql') < RC1_PREMIUM_MIGRATIONS.indexOf('migrations/0036_scope_legacy_active_nutrition_plan_email_unique.sql'));
   assert(RC1_PREMIUM_MIGRATIONS.indexOf('migrations/0035_add_ready_to_release_consultation_status.sql') > RC1_PREMIUM_MIGRATIONS.indexOf('migrations/0025_create_premium_students.sql'));
   const fixture = createRc1D1Fixture();
   assert(scalar(fixture.sqlite, "SELECT 1 AS present FROM pragma_table_info('premium_students') WHERE name='legacy_backfill_batch_id'"));
