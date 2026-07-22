@@ -4,21 +4,17 @@
  * a temporary database and compares migration-owned structural requirements to
  * the repository's official replay. It intentionally has no remote client.
  */
-import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { introspectSqliteDb, replayMigrations } from './db-tool.mjs';
+import { importSchemaSql, introspectSqliteDb, replayMigrations } from './db-tool.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const migrationDir = path.join(root, 'migrations');
 const auditedRange = /^00(?:0[7-9]|[12]\d|3[0-6])_.*\.sql$/;
 const dataMutation = /\b(?:INSERT|UPDATE|DELETE|REPLACE)\b/i;
 
-function sqlite(database, input) {
-  return execFileSync('sqlite3', [database], { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-}
 function listMigrations() {
   return readdirSync(migrationDir).filter(file => auditedRange.test(file)).sort();
 }
@@ -76,7 +72,7 @@ export function auditProductionMigrationBaseline({ schemaPath, outputDir = path.
     // `.schema` can include SQLite's implementation detail for AUTOINCREMENT;
     // SQLite recreates it as needed and rejects importing it explicitly.
     const schemaSql = readFileSync(schemaPath, 'utf8').replace(/^CREATE TABLE sqlite_sequence\([^;]*\);\s*$/gmi, '');
-    sqlite(actualDb, schemaSql);
+    importSchemaSql({ schemaSql, databasePath: actualDb });
     replay = replayMigrations();
     if (!replay.ok) throw new Error(`Official migration replay failed: ${replay.error?.migration ?? replay.error?.message ?? 'unknown error'}`);
     const actual = introspectSqliteDb(actualDb);
