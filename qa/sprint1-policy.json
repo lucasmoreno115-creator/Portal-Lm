@@ -1,0 +1,35 @@
+{
+  "lifecycle": {
+    "requiredStates": [
+      "RECEIVED",
+      "UNDER_REVIEW",
+      "READY_TO_RELEASE",
+      "ACTIVE",
+      "PAUSED",
+      "FINISHED"
+    ]
+  },
+  "isolation": {
+    "premiumRoots": ["public"],
+    "premiumFilePattern": "^(?!.*project-lm).*(?:\\.html|\\.js|\\.css)$",
+    "projectFilePattern": ".*project-lm.*(?:\\.html|\\.js|\\.css)$",
+    "premiumAllowedProjectReferences": [
+      {
+        "path": "public/portal.html",
+        "pattern": "/projeto-lm/"
+      },
+      {
+        "path": "public/portal.html",
+        "pattern": "projeto_lm"
+      }
+    ],
+    "projectAllowedPremiumReferences": []
+  },
+  "contracts": {
+    "frontendRoots": ["public"],
+    "backendRoots": ["functions/api"],
+    "ignoredApiPatterns": [
+      "^/api/health(?:/|$)"
+    ]
+  }
+}
