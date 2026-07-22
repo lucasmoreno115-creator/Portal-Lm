@@ -104,6 +104,7 @@
     const draft = workflow?.draft || null;
     const hasPublished = workflow?.hasPublished ?? Boolean(current);
     const hasDraft = workflow?.hasDraft ?? Boolean(draft);
+    const legacyAvailable = Boolean(workflow?.legacy_available);
     const fallback = hasPublished && hasDraft
       ? { label: 'Alterações em revisão', description: 'O plano publicado continua ativo enquanto o novo rascunho é editado.', actionLabel: 'Revisar alterações' }
       : hasDraft
@@ -117,6 +118,7 @@
     action.setAttribute('aria-label', `${actionLabel} para ${student.name || student.display_name || 'este aluno'}`);
     const nodes = [el('div', { className: 'nutrition-plan-status' }, el('span', { className: 'badge', textContent: plan.label || fallback.label }), el('p', { className: 'muted', textContent: plan.description || fallback.description })), action];
     if (hasPublished && student.consultation_status !== 'ACTIVE') nodes.push(el('button', { textContent: 'Liberar planejamento', dataset: { releasePlanning: 'true' } }));
+    if (!hasPublished && legacyAvailable) nodes.push(el('button', { textContent: 'Importar planejamento antigo', dataset: { importLegacyPlanning: 'true' } }));
     target.replaceChildren(...nodes);
   }
 
@@ -166,6 +168,12 @@
       if (!confirm('Liberar o Portal para este aluno? O planejamento publicado ficará disponível imediatamente.')) return;
       event.target.disabled = true;
       try { await api(`/api/admin/premium/students/${encodeURIComponent(studentId)}/release-planning`, { method: 'POST' }); alert('Planejamento liberado. O aluno já pode acessar o Portal.'); await load(); } catch (error) { alert(error.message); event.target.disabled = false; }
+      return;
+    }
+    if (event.target?.dataset?.importLegacyPlanning) {
+      if (!confirm('Importar uma cópia publicada do planejamento antigo? O registro original e o rascunho atual serão preservados.')) return;
+      event.target.disabled = true;
+      try { await api(`/api/admin/premium/students/${encodeURIComponent(studentId)}/import-legacy-nutrition-plan`, { method: 'POST' }); alert('Planejamento antigo importado e preservado.'); await load(); } catch (error) { alert(error.message); event.target.disabled = false; }
       return;
     }
     const id = event.target?.dataset?.resolve;
