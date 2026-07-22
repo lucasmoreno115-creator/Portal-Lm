@@ -20,7 +20,8 @@
       "name": "Workspace",
       "requirements": [
         {"id":"WS-001","description":"Dashboard e indicadores operacionais","checks":["sprint-qa-5-4-operational-dashboard"]},
-        {"id":"WS-002","description":"Operação semanal integrada","checks":["sprint-qa-5-5-weekly-operations"]}
+        {"id":"WS-002","description":"Operação semanal integrada","checks":["sprint-qa-5-5-weekly-operations"]},
+        {"id":"WS-003","description":"Entrada canônica, autenticação, sessão, refresh, logout e compatibilidade de rotas","checks":["workspace-entry-authentication"]}
       ]
     },
     {
