@@ -18,6 +18,7 @@
       { "path": "public/portal-login.html", "pattern": ".*" },
       { "path": "public/portal-premium-home.html", "pattern": ".*" },
       { "path": "public/anamnese-premium.html", "pattern": ".*" },
+      { "path": "public/admin-student.html", "pattern": ".*" },
       { "path": "public/admin-students.html", "pattern": ".*" },
       { "path": "public/assets/js/lm-access.js", "pattern": ".*" }
     ],
@@ -33,7 +34,8 @@
     "frontendRoots": ["public"],
     "backendRoots": ["functions/api"],
     "ignoredApiPatterns": [
-      "^/api/health(?:/|$)"
+      "^/api/health(?:/|$)",
+      "^/api/project-lm(?:-2)?(?:/|$)"
     ]
   }
 }
