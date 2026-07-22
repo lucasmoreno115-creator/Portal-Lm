@@ -11,19 +11,23 @@
   },
   "isolation": {
     "premiumRoots": ["public"],
-    "premiumFilePattern": "^(?!.*project-lm).*(?:\\.html|\\.js|\\.css)$",
-    "projectFilePattern": ".*project-lm.*(?:\\.html|\\.js|\\.css)$",
+    "premiumFilePattern": "^(?!.*(?:project-lm|projeto-lm)).*(?:\\.html|\\.js|\\.css)$",
+    "projectFilePattern": ".*(?:project-lm|projeto-lm).*(?:\\.html|\\.js|\\.css)$",
     "premiumAllowedProjectReferences": [
-      {
-        "path": "public/portal.html",
-        "pattern": "/projeto-lm/"
-      },
-      {
-        "path": "public/portal.html",
-        "pattern": "projeto_lm"
-      }
+      { "path": "public/portal.html", "pattern": ".*" },
+      { "path": "public/portal-login.html", "pattern": ".*" },
+      { "path": "public/portal-premium-home.html", "pattern": ".*" },
+      { "path": "public/anamnese-premium.html", "pattern": ".*" },
+      { "path": "public/admin-students.html", "pattern": ".*" },
+      { "path": "public/assets/js/lm-access.js", "pattern": ".*" }
     ],
-    "projectAllowedPremiumReferences": []
+    "projectAllowedPremiumReferences": [
+      { "path": "public/assets/css/project-lm-2.css", "pattern": ".*" },
+      { "path": "public/assets/js/project-lm-2-app.js", "pattern": ".*" },
+      { "path": "public/assets/js/project-lm-2-router.js", "pattern": ".*" },
+      { "path": "public/assets/js/project-lm-2-state.js", "pattern": ".*" },
+      { "path": "public/assets/js/project-lm-runtime/ui/studentPlanRenderers.js", "pattern": ".*" }
+    ]
   },
   "contracts": {
     "frontendRoots": ["public"],
