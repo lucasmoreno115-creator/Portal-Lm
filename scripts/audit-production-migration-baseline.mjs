@@ -95,10 +95,29 @@ export function auditProductionMigrationBaseline({ schemaPath, outputDir = path.
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+const isMain =
+  Boolean(process.argv[1]) &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isMain) {
   try {
-    const report = auditProductionMigrationBaseline({ schemaPath: process.argv[2] });
-    process.stdout.write(`${JSON.stringify({ generated: true, results: report.results.map(({ file, classification }) => ({ file, classification })) }, null, 2)}\n`);
+    const report = auditProductionMigrationBaseline({
+      schemaPath: process.argv[2],
+    });
+
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          generated: true,
+          results: report.results.map(({ file, classification }) => ({
+            file,
+            classification,
+          })),
+        },
+        null,
+        2
+      )}\n`
+    );
   } catch (error) {
     process.stderr.write(`${error.message}\n`);
     process.exitCode = 1;
