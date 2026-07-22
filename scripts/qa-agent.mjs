@@ -15,6 +15,15 @@ function loadConfig() {
   return JSON.parse(readFileSync(configPath, 'utf8'));
 }
 
+function baseResult(check) {
+  return {
+    id: check.id,
+    module: check.module,
+    severity: check.severity,
+    required: check.required !== false,
+  };
+}
+
 function runCommand(check) {
   const startedAt = Date.now();
   const result = spawnSync(check.command, check.args ?? [], {
@@ -27,9 +36,7 @@ function runCommand(check) {
 
   const passed = result.status === 0 && !result.error;
   return {
-    id: check.id,
-    module: check.module,
-    severity: check.severity,
+    ...baseResult(check),
     kind: 'command',
     status: passed ? 'VALIDATED' : 'FAILED',
     command: [check.command, ...(check.args ?? [])].join(' '),
@@ -44,9 +51,7 @@ function checkRequiredFile(check) {
   const fullPath = path.join(root, check.path);
   const passed = existsSync(fullPath);
   return {
-    id: check.id,
-    module: check.module,
-    severity: check.severity,
+    ...baseResult(check),
     kind: 'file',
     status: passed ? 'VALIDATED' : 'FAILED',
     path: check.path,
@@ -71,9 +76,7 @@ function checkSourcePatterns(check) {
     }
   }
   return {
-    id: check.id,
-    module: check.module,
-    severity: check.severity,
+    ...baseResult(check),
     kind: 'source-pattern',
     status: missing.length === 0 ? 'VALIDATED' : 'FAILED',
     matched,
@@ -85,11 +88,9 @@ async function checkHttp(check) {
   const baseUrl = process.env[check.baseUrlEnv];
   if (!baseUrl) {
     return {
-      id: check.id,
-      module: check.module,
-      severity: check.severity,
+      ...baseResult(check),
       kind: 'http',
-      status: check.required ? 'FAILED' : 'NOT_EXECUTED',
+      status: check.required === false ? 'NOT_EXECUTED' : 'FAILED',
       evidence: `Variável ${check.baseUrlEnv} não configurada.`,
     };
   }
@@ -109,9 +110,7 @@ async function checkHttp(check) {
     const expected = check.expectedStatus ?? [200];
     const passed = expected.includes(response.status);
     return {
-      id: check.id,
-      module: check.module,
-      severity: check.severity,
+      ...baseResult(check),
       kind: 'http',
       status: passed ? 'VALIDATED' : 'FAILED',
       url,
@@ -122,9 +121,7 @@ async function checkHttp(check) {
     };
   } catch (error) {
     return {
-      id: check.id,
-      module: check.module,
-      severity: check.severity,
+      ...baseResult(check),
       kind: 'http',
       status: 'FAILED',
       url,
@@ -141,6 +138,7 @@ function severityRank(value) {
 function buildReport(results) {
   const failed = results.filter((item) => item.status === 'FAILED');
   const notExecuted = results.filter((item) => item.status === 'NOT_EXECUTED');
+  const requiredNotExecuted = notExecuted.filter((item) => item.required);
   const modules = {};
   for (const result of results) {
     modules[result.module] ??= [];
@@ -159,11 +157,13 @@ function buildReport(results) {
   );
 
   const verdict = failed.length === 0 && notExecuted.length === 0 ? 'VALIDATED' : 'NOT_VALIDATED';
+  const executionStatus = failed.length === 0 && requiredNotExecuted.length === 0 ? 'HEALTHY' : 'BROKEN';
   const highestSeverity = failed.sort((a, b) => severityRank(b.severity) - severityRank(a.severity))[0]?.severity ?? null;
 
   return {
     agent: 'AGENTE QA LM',
     generatedAt: now,
+    executionStatus,
     verdict,
     highestSeverity,
     summary: {
@@ -171,6 +171,7 @@ function buildReport(results) {
       validated: results.filter((item) => item.status === 'VALIDATED').length,
       failed: failed.length,
       notExecuted: notExecuted.length,
+      requiredNotExecuted: requiredNotExecuted.length,
     },
     modules: moduleStatus,
     problems: failed,
@@ -185,6 +186,8 @@ function reportMarkdown(report) {
     '# Relatório — Agente QA LM',
     '',
     `Gerado em: ${report.generatedAt}`,
+    '',
+    `Saúde do executor: **${report.executionStatus}**`,
     '',
     '## 1. Resumo Executivo',
     '',
@@ -205,7 +208,7 @@ function reportMarkdown(report) {
     }
   }
 
-  lines.push('## 4. Evidências', '', `- Testes executados: ${report.summary.total}`, `- Validados: ${report.summary.validated}`, `- Reprovados: ${report.summary.failed}`, `- Não executados: ${report.summary.notExecuted}`, '', '## 5. Veredito Final', '', report.verdict === 'VALIDATED' ? '✅ Pode considerar este fluxo validado.' : '❌ Não considerar este fluxo validado.', '');
+  lines.push('## 4. Evidências', '', `- Testes executados: ${report.summary.total}`, `- Validados: ${report.summary.validated}`, `- Reprovados: ${report.summary.failed}`, `- Não executados: ${report.summary.notExecuted}`, `- Obrigatórios não executados: ${report.summary.requiredNotExecuted}`, '', '## 5. Veredito Final', '', report.verdict === 'VALIDATED' ? '✅ Pode considerar este fluxo validado.' : '❌ Não considerar este fluxo validado.', '');
   return lines.join('\n');
 }
 
@@ -218,7 +221,7 @@ async function main() {
     else if (check.kind === 'file') results.push(checkRequiredFile(check));
     else if (check.kind === 'source-pattern') results.push(checkSourcePatterns(check));
     else if (check.kind === 'http') results.push(await checkHttp(check));
-    else results.push({ id: check.id, module: check.module, severity: 'BLOCKER', status: 'FAILED', evidence: `Tipo desconhecido: ${check.kind}` });
+    else results.push({ ...baseResult(check), severity: 'BLOCKER', status: 'FAILED', evidence: `Tipo desconhecido: ${check.kind}` });
   }
 
   const report = buildReport(results);
@@ -226,8 +229,8 @@ async function main() {
   writeFileSync(path.join(outputDir, 'qa-report.json'), `${JSON.stringify(report, null, 2)}\n`);
   writeFileSync(path.join(outputDir, 'qa-report.md'), reportMarkdown(report));
 
-  console.log(JSON.stringify({ verdict: report.verdict, summary: report.summary, outputDir: path.relative(root, outputDir) }, null, 2));
-  process.exitCode = report.verdict === 'VALIDATED' ? 0 : 1;
+  console.log(JSON.stringify({ executionStatus: report.executionStatus, verdict: report.verdict, summary: report.summary, outputDir: path.relative(root, outputDir) }, null, 2));
+  process.exitCode = report.executionStatus === 'HEALTHY' ? 0 : 1;
 }
 
 main().catch((error) => {
