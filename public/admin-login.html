@@ -9,9 +9,9 @@
 <body>
   <div class='container'>
     <section class='card hero'>
-      <p class='eyebrow'>Consultoria LM • Admin Hub</p>
+      <p class='eyebrow'>Consultoria LM • Workspace</p>
       <h1>Login Admin LM</h1>
-      <p class='hero-title'>Faça login com seu Admin Token para iniciar a sessão administrativa contínua.</p>
+      <p class='hero-title'>Faça login com seu Admin Token para acessar o Workspace Premium.</p>
     </section>
 
     <section class='card'>
@@ -20,7 +20,7 @@
       </label>
       <div class='grid'>
         <button id='saveBtn' type='button'>Entrar</button>
-        <a class='secondary-link' href='/admin.html'>Voltar ao Admin Hub</a>
+        <a class='secondary-link' href='/admin-premium-workspace.html'>Abrir Workspace</a>
       </div>
       <p id='statusBox' class='status muted'>Informe seu token para autenticar a sessão admin.</p>
     </section>
@@ -31,6 +31,11 @@
     const input = document.getElementById('adminToken');
     const saveBtn = document.getElementById('saveBtn');
     const statusBox = document.getElementById('statusBox');
+    const workspace = '/admin-premium-workspace.html';
+
+    if (window.LMAdminAuth.getAdminSession()) {
+      window.location.replace(workspace);
+    }
 
     saveBtn.addEventListener('click', async () => {
       const token = input.value.trim();
@@ -47,7 +52,7 @@
         statusBox.textContent = 'Login realizado com sucesso. Redirecionando...';
         statusBox.className = 'status ok';
         const params = new URLSearchParams(window.location.search);
-        window.location.href = window.LMAdminAuth.resolveAdminReturnTo(params.get('returnTo'), '/admin');
+        window.location.replace(window.LMAdminAuth.resolveAdminReturnTo(params.get('returnTo'), workspace));
       } catch (error) {
         window.LMAdminAuth.clearAdminToken();
         statusBox.textContent = error.message || 'Falha ao validar token.';
