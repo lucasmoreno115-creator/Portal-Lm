@@ -10,3 +10,8 @@ artifacts/production-deploy-plan.json
 
 # LM Premium 3.1 identity audit artifacts may contain sanitized operational evidence only
 artifacts/lm-premium-3.1-identity-audit/
+
+# Produção - exports temporários
+database/baseline/production-*.sql
+test-full.log
+.wrangler/cache/
