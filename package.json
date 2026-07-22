@@ -9,6 +9,7 @@
     "qa:lm:sprint4": "node scripts/qa-sprint4.mjs",
     "qa:lm:sprint5:feedback": "node scripts/qa-sprint5-feedback-pipeline.mjs",
     "qa:lm:sprint5:pending": "node scripts/qa-sprint5-pending-items.mjs",
+    "qa:lm:sprint5:followup": "node scripts/qa-sprint5-followup.mjs",
     "qa:lm:premium-api": "node scripts/qa-premium-api-contracts.mjs",
     "build:project-lm-runtime": "node scripts/build-project-lm-runtime.mjs",
     "check:project-lm-runtime": "node scripts/check-project-lm-runtime.mjs",
