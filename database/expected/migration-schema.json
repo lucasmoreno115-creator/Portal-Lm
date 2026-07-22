@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-15T20:50:10.675Z",
+  "generatedAt": "2026-07-22T01:26:39.598Z",
   "source": "database/bootstrap/legacy-base-schema.sql + versioned migrations + registered replay overrides",
   "bootstrap": "database/bootstrap/legacy-base-schema.sql",
   "migrations": [
@@ -32,7 +32,10 @@
     "0030_create_premium_feedback_reminders.sql",
     "0031_add_nutrition_plan_lifecycle.sql",
     "0032_finalize_nutrition_plan_lifecycle.sql",
-    "0033_add_professional_workspace_indexes.sql"
+    "0033_add_professional_workspace_indexes.sql",
+    "0034_premium_legacy_identity_backfill_audit.sql",
+    "0035_add_ready_to_release_consultation_status.sql",
+    "0036_scope_legacy_active_nutrition_plan_email_unique.sql"
   ],
   "overridesUsed": [
     {
@@ -81,9 +84,12 @@
     "0030_create_premium_feedback_reminders.sql",
     "0031_add_nutrition_plan_lifecycle.sql",
     "0032_finalize_nutrition_plan_lifecycle.sql",
-    "0033_add_professional_workspace_indexes.sql"
+    "0033_add_professional_workspace_indexes.sql",
+    "0034_premium_legacy_identity_backfill_audit.sql",
+    "0035_add_ready_to_release_consultation_status.sql",
+    "0036_scope_legacy_active_nutrition_plan_email_unique.sql"
   ],
-  "schemaHash": "61e69338523e531e73e225ce22e779361de0ea6cedc562db22f33abb52c6c8cf",
+  "schemaHash": "ca269d947728d33b4c56c888dba40ee0778f33e5abedfbfb0bd4b0dccaaeb46f",
   "tables": {
     "activity_timeline": {
       "columns": [
@@ -1059,7 +1065,7 @@
       ],
       "indexes": [
         {
-          "name": "idx_nutrition_plans_single_active",
+          "name": "idx_nutrition_plans_single_active_legacy_email",
           "unique": true,
           "origin": "c",
           "partial": true,
@@ -1675,6 +1681,90 @@
         }
       ]
     },
+    "premium_legacy_identity_backfill_audit": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "batch_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_access_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "previous_student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "new_student_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "rolled_back_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_premium_legacy_identity_backfill_audit_batch",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "batch_id",
+            "rolled_back_at"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_premium_legacy_identity_backfill_audit_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_premium_legacy_identity_backfill_audit_2",
+          "unique": true,
+          "origin": "u",
+          "partial": false,
+          "columns": [
+            "batch_id",
+            "student_access_id"
+          ]
+        }
+      ]
+    },
     "premium_pending_items": {
       "columns": [
         {
@@ -1922,6 +2012,13 @@
           "notnull": true,
           "dflt_value": null,
           "pk": 0
+        },
+        {
+          "name": "legacy_backfill_batch_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
         }
       ],
       "indexes": [
@@ -1941,6 +2038,15 @@
           "partial": false,
           "columns": [
             "consultation_status"
+          ]
+        },
+        {
+          "name": "idx_premium_students_legacy_backfill_batch",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "legacy_backfill_batch_id"
           ]
         },
         {

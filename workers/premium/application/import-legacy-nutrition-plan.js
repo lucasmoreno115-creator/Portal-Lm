@@ -34,10 +34,9 @@ export function createImportLegacyNutritionPlanUseCase({ db, randomUUID = () => 
     if (legacy.length > 1) return { ok: false, error: 'Mais de um planejamento legado foi encontrado; revise antes de importar.', status: 409 };
     if (!isValidLegacyPlan(legacy[0])) return { ok: false, error: 'Nenhum planejamento legado válido foi encontrado para este aluno.', status: 404 };
     const source = legacy[0]; const importedId = randomUUID(); const importedAt = now();
-    // The original schema has a unique active `student_email` index. Keep the
-    // legacy row active and use an internal snapshot key; the official lookup is
-    // always `student_id` and the original email remains in compatibility data.
-    const snapshotEmail = `legacy-import:${studentId}:${source.id}`;
+    // Migration 0036 scopes active-email uniqueness to unassociated legacy rows,
+    // so the immutable snapshot can retain the student's official email.
+    const snapshotEmail = email;
     const compatibility = JSON.stringify({ origin: 'LEGACY_IMPORT', legacy_plan_id: source.id, legacy_student_email: source.student_email, legacy_private_notes: source.private_notes ?? null });
     const insert = db.prepare(`INSERT INTO nutrition_plans (id,student_id,student_email,title,goal,strategy,meals_json,substitutions_json,adherence_rules_json,notes,whatsapp_message,is_active,status,version_number,published_at,published_by,supersedes_plan_id,source_feedback_id,private_notes,created_at,updated_at)
       SELECT ?,?,?,?,?,?,?,?,?,?,?,1,'PUBLISHED',(SELECT COALESCE(MAX(version_number),0)+1 FROM nutrition_plans WHERE student_id=?),?,? ,?,NULL,?,?,?

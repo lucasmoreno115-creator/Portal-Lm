@@ -19,9 +19,10 @@ CREATE INDEX idx_followup_logs_student_id ON followup_logs(student_id);
 CREATE UNIQUE INDEX idx_lm2_checkins_student_date
   ON lm2_checkins(student_id, checkin_date);
 
-CREATE UNIQUE INDEX idx_nutrition_plans_single_active
+CREATE UNIQUE INDEX idx_nutrition_plans_single_active_legacy_email
   ON nutrition_plans(student_email)
-  WHERE is_active = 1;
+  WHERE is_active = 1
+    AND student_id IS NULL;
 
 CREATE UNIQUE INDEX idx_nutrition_plans_single_open_draft_student
   ON nutrition_plans(student_id)
@@ -99,6 +100,9 @@ CREATE INDEX idx_premium_followup_entries_student_created
 CREATE INDEX idx_premium_followup_entries_type
   ON premium_followup_entries(entry_type);
 
+CREATE INDEX idx_premium_legacy_identity_backfill_audit_batch
+  ON premium_legacy_identity_backfill_audit(batch_id, rolled_back_at);
+
 CREATE INDEX idx_premium_pending_items_created_at
   ON premium_pending_items(created_at);
 
@@ -123,14 +127,13 @@ CREATE INDEX idx_premium_pending_items_student_status
 CREATE INDEX idx_premium_pending_items_workspace
   ON premium_pending_items(status, priority, type, created_at, student_id);
 
-CREATE INDEX idx_premium_students_access_status
-  ON premium_students(access_status);
+CREATE INDEX idx_premium_students_access_status ON premium_students(access_status);
 
-CREATE INDEX idx_premium_students_consultation_status
-  ON premium_students(consultation_status);
+CREATE INDEX idx_premium_students_consultation_status ON premium_students(consultation_status);
 
-CREATE UNIQUE INDEX idx_premium_students_normalized_email
-  ON premium_students(normalized_email);
+CREATE INDEX idx_premium_students_legacy_backfill_batch ON premium_students(legacy_backfill_batch_id);
+
+CREATE UNIQUE INDEX idx_premium_students_normalized_email ON premium_students(normalized_email);
 
 CREATE INDEX idx_premium_students_status_name
   ON premium_students(consultation_status, display_name, email);
@@ -402,6 +405,17 @@ CREATE TABLE premium_followup_entries (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE premium_legacy_identity_backfill_audit (
+  id TEXT PRIMARY KEY,
+  batch_id TEXT NOT NULL,
+  student_access_id TEXT NOT NULL,
+  previous_student_id TEXT,
+  new_student_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  rolled_back_at TEXT,
+  UNIQUE(batch_id, student_access_id)
+);
+
 CREATE TABLE premium_pending_items (
   id TEXT PRIMARY KEY,
   student_id TEXT NOT NULL,
@@ -429,7 +443,8 @@ CREATE TABLE premium_students (
   access_status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (access_status IN ('ACTIVE', 'INACTIVE')),
   source TEXT NOT NULL DEFAULT 'MIGRATION',
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  legacy_backfill_batch_id TEXT
 );
 
 CREATE TABLE progression_logs (
