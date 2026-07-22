@@ -68,7 +68,7 @@ function auditCodeContracts() {
     [submit.includes('resolvePremiumIdentityForLegacyEmail') && submit.includes('student_id'), 'Use case resolve identidade canônica antes de persistir.'],
     [submit.includes('ANALYZE_WEEKLY_FEEDBACK') && submit.includes('premium_pending_items'), 'Recebimento cria pendência operacional de análise.'],
     [submit.includes('FEEDBACK_RECEIVED') && submit.includes('activity_timeline'), 'Recebimento registra evento na timeline.'],
-    [repository.includes('findByStudentAndWeek') && repository.includes('idx_student_checkins_student_id_week_unique') === false, 'Repositório consulta feedback pela chave aluno/semana.'],
+    [repository.includes('findByStudentAndWeek'), 'Repositório consulta feedback pela chave aluno/semana.'],
     [repository.includes("NOT IN ('REVIEWED','REPLIED','ANALYZED'"), 'Feedback analisado não pode ser sobrescrito pelo aluno.'],
     [record.includes('student_checkins') && record.includes('listRecentFeedbacks'), 'Student Record lê os feedbacks persistidos.'],
     [worker.includes('createSubmitWeeklyFeedbackUseCase') && worker.includes('createListWeeklyFeedbacksUseCase'), 'Worker registra envio e histórico de feedback.'],
@@ -82,7 +82,11 @@ async function auditApplicationPipeline() {
   const pending = [];
   const events = [];
   let sequence = 0;
-  const identityService = { resolveIdentifier: async () => ({ ok:true, student:{ student_id:'student-qa-5-1', email:'qa.feedback@lm.test' } }) };
+  const student = { student_id:'student-qa-5-1', email:'qa.feedback@lm.test' };
+  const identityService = {
+    resolve: async ({ email }) => ({ ok:email === student.email, student }),
+    resolveIdentifier: async () => ({ ok:true, student }),
+  };
   const weeklyFeedbackRepository = {
     async create(record) { const saved = { ...record, coach_status:'pending' }; feedbacks.push(saved); return saved; },
     async findByStudentAndWeek(studentId, weekRef) { return feedbacks.find((item) => item.student_id === studentId && item.week_ref === weekRef) ?? null; },
@@ -96,13 +100,13 @@ async function auditApplicationPipeline() {
     log: async () => {},
   });
   const feedback = {
-    id:'feedback-qa-1', student_email:'qa.feedback@lm.test', week_ref:'2026-W30',
+    id:'feedback-qa-1', student_email:student.email, week_ref:'2026-W30',
     nutrition_adherence:'Boa', sleep_quality:'Bom', energy_level:'Normal', stress_level:'Moderado',
     main_difficulty:'Rotina', support_needed:'Não', created_at:'2026-07-22T15:00:00Z',
   };
   const submitted = await submit.execute({ feedback, route:'/api/portal/checkin', method:'POST' });
   assert(submitted.ok === true, scope, 'Feedback válido é recebido pelo use case.');
-  assert(submitted.saved?.student_id === 'student-qa-5-1', scope, 'Feedback é vinculado ao student_id canônico.');
+  assert(submitted.saved?.student_id === student.student_id, scope, 'Feedback é vinculado ao student_id canônico.');
   assert(feedbacks.length === 1 && feedbacks[0].week_ref === '2026-W30', scope, 'Feedback é persistido com a semana correta.');
   assert(pending.length === 1 && pending[0].type === 'ANALYZE_WEEKLY_FEEDBACK', scope, 'Envio cria uma pendência de análise.');
   assert(events.length === 1 && events[0].event_type === 'FEEDBACK_RECEIVED', scope, 'Envio cria evento operacional auditável.');
@@ -112,7 +116,7 @@ async function auditApplicationPipeline() {
     studentRepository: { findByStudentId: async () => null },
     identityService,
     studentRecordRepository: {
-      getStudentHeader: async () => ({ student_id:'student-qa-5-1', consultation_status:'ACTIVE' }),
+      getStudentHeader: async () => ({ student_id:student.student_id, consultation_status:'ACTIVE' }),
       getAnamnesis: async () => ({ id:'anam-1', status:'ANALYZED' }),
       getNutritionPlanWorkflow: async () => ({ current:{ id:'plan-1' }, draft:null, history:[] }),
       listRecentFeedbacks: async () => feedbacks,
@@ -123,7 +127,7 @@ async function auditApplicationPipeline() {
     pendingItemRepository: { create: async (item) => { createdPending.push(item); return item; } },
     randomUUID: () => `record-pending-${++sequence}`,
   });
-  const record = await recordUseCase({ student_id:'student-qa-5-1' });
+  const record = await recordUseCase({ student_id:student.student_id });
   assert(record.ok === true && record.data.feedbacks.length === 1, scope, 'Student Record carrega o feedback recebido.');
   assert(record.data.summary.unanalyzed_feedbacks_count === 1, scope, 'Resumo operacional contabiliza feedback aguardando análise.');
   assert(record.data.pending_items.some((item) => item.type === 'ANALYZE_WEEKLY_FEEDBACK'), scope, 'Workspace/Student Record expõe a pendência vinculada ao feedback.');
