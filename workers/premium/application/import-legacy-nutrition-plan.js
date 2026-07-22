@@ -1,7 +1,7 @@
 function rows(result) { return result?.results ?? []; }
 function isProjectLm(access) { return /^(projeto_lm|project_lm|projeto lm|project lm|lm2)$/i.test(String(access?.plan || '').trim()) || /^(projeto_lm|project_lm|projeto lm|project lm|lm2)$/i.test(String(access?.plan_type || '').trim()); }
 function isValidLegacyPlan(plan) {
-  if (!plan || Number(plan.is_active) !== 1 || plan.status != null) return false;
+  if (!plan || Number(plan.is_active) !== 1 || !['PUBLISHED', null].includes(plan.status)) return false;
   try { return Array.isArray(JSON.parse(plan.meals_json || '[]')); } catch { return false; }
 }
 
@@ -28,9 +28,9 @@ export function createImportLegacyNutritionPlanUseCase({ db, randomUUID = () => 
     if (published.length > 1) return { ok: false, error: 'Conflito de planos publicados do aluno.', status: 409 };
     if (published.length === 1) return { ok: true, data: { student_id: studentId, nutrition_plan_id: published[0].id, idempotent: true } };
 
-    // `status IS NULL` is the audited storage format of the legacy admin plan.
-    // Match canonical student_id first, with email only for unassociated legacy rows.
-    const legacy = await db.prepare("SELECT * FROM nutrition_plans WHERE is_active=1 AND status IS NULL AND (student_id=? OR (student_id IS NULL AND lower(trim(student_email))=lower(trim(?)))) ORDER BY datetime(updated_at) DESC, datetime(created_at) DESC LIMIT 2").bind(studentId, email).all().then(rows);
+    // Backfilled legacy rows are PUBLISHED but remain unassociated (student_id IS NULL).
+    // NULL status is retained solely for partially migrated environments.
+    const legacy = await db.prepare("SELECT * FROM nutrition_plans WHERE is_active=1 AND student_id IS NULL AND (status='PUBLISHED' OR status IS NULL) AND lower(trim(student_email))=lower(trim(?)) ORDER BY CASE WHEN status='PUBLISHED' THEN 0 ELSE 1 END, datetime(updated_at) DESC, datetime(created_at) DESC LIMIT 2").bind(email).all().then(rows);
     if (legacy.length > 1) return { ok: false, error: 'Mais de um planejamento legado foi encontrado; revise antes de importar.', status: 409 };
     if (!isValidLegacyPlan(legacy[0])) return { ok: false, error: 'Nenhum planejamento legado válido foi encontrado para este aluno.', status: 404 };
     const source = legacy[0]; const importedId = randomUUID(); const importedAt = now();
@@ -41,7 +41,7 @@ export function createImportLegacyNutritionPlanUseCase({ db, randomUUID = () => 
     const compatibility = JSON.stringify({ origin: 'LEGACY_IMPORT', legacy_plan_id: source.id, legacy_student_email: source.student_email, legacy_private_notes: source.private_notes ?? null });
     const insert = db.prepare(`INSERT INTO nutrition_plans (id,student_id,student_email,title,goal,strategy,meals_json,substitutions_json,adherence_rules_json,notes,whatsapp_message,is_active,status,version_number,published_at,published_by,supersedes_plan_id,source_feedback_id,private_notes,created_at,updated_at)
       SELECT ?,?,?,?,?,?,?,?,?,?,?,1,'PUBLISHED',(SELECT COALESCE(MAX(version_number),0)+1 FROM nutrition_plans WHERE student_id=?),?,? ,?,NULL,?,?,?
-      WHERE EXISTS (SELECT 1 FROM nutrition_plans WHERE id=? AND status IS NULL AND is_active=1)
+      WHERE EXISTS (SELECT 1 FROM nutrition_plans WHERE id=? AND student_id IS NULL AND is_active=1 AND (status='PUBLISHED' OR status IS NULL))
         AND NOT EXISTS (SELECT 1 FROM nutrition_plans WHERE student_id=? AND status='PUBLISHED' AND is_active=1)`).bind(importedId, studentId, snapshotEmail, source.title, source.goal, source.strategy, source.meals_json, source.substitutions_json, source.adherence_rules_json, source.notes, source.whatsapp_message, studentId, importedAt, created_by || 'legacy-import', source.id, compatibility, importedAt, importedAt, source.id, studentId);
     const audit = db.prepare("INSERT INTO premium_followup_entries (id,student_id,entry_type,title,content,source,related_entity_type,related_entity_id,created_by,created_at,updated_at) VALUES (?,?,'PLAN_CHANGE','Planejamento antigo importado',?,'admin','nutrition_plans',?,?,?,?)").bind(`plan-change:${importedId}`, studentId, JSON.stringify({ action: 'import-legacy-nutrition-plan', origin: 'LEGACY_IMPORT', legacy_plan_id: source.id, imported_plan_id: importedId }), importedId, created_by, importedAt, importedAt);
     if (typeof db.batch !== 'function') return { ok: false, error: 'A importação exige uma transação atômica; nenhuma alteração foi realizada.', status: 503 };
