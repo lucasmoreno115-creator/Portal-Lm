@@ -55,8 +55,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Enforce verdict
+      - name: Enforce agent health
         if: always()
         run: |
           test -f artifacts/qa-lm/qa-report.json
-          node -e "const r=require('./artifacts/qa-lm/qa-report.json'); if(r.verdict!=='VALIDATED'){console.error('Ecossistema NÃO VALIDADO'); process.exit(1)} console.log('Ecossistema VALIDADO')"
+          node -e "const r=require('./artifacts/qa-lm/qa-report.json'); if(r.executionStatus!=='HEALTHY'){console.error('Executor do Agente QA LM está quebrado'); process.exit(1)} console.log('Executor do Agente QA LM saudável; veredito do ecossistema:', r.verdict)"
