@@ -3,8 +3,8 @@ import process from 'node:process';
 
 const failures = [];
 const evidence = [];
+const baseUrl = String(process.env.QA_BASE_URL || process.env.QA_STAGING_BASE_URL || '').trim().replace(/\/+$/, '');
 const requiredEnv = [
-  'QA_STAGING_BASE_URL',
   'QA_STUDENT_EMAIL',
   'QA_STUDENT_TOKEN',
   'QA_ADMIN_SESSION',
@@ -15,12 +15,8 @@ const pass = (scope, message, details = {}) => evidence.push({ scope, message, .
 const fail = (scope, message, details = {}) => failures.push({ scope, message, ...details });
 const assert = (condition, scope, message, details = {}) => condition ? pass(scope, message, details) : fail(scope, message, details);
 
-function normalizeBaseUrl(value) {
-  return String(value || '').trim().replace(/\/+$/, '');
-}
-
 async function request(path, { headers = {}, expectedStatus = [200], method = 'GET', body } = {}) {
-  const url = `${normalizeBaseUrl(process.env.QA_STAGING_BASE_URL)}${path}`;
+  const url = `${baseUrl}${path}`;
   const startedAt = Date.now();
   try {
     const response = await fetch(url, {
@@ -54,10 +50,12 @@ function parseJson(result) {
 
 async function main() {
   const missing = requiredEnv.filter((name) => !process.env[name]);
+  if (!baseUrl) missing.unshift('QA_BASE_URL');
+
   if (missing.length) {
-    fail('configuration', 'Credenciais obrigatórias de staging não configuradas.', { missing });
+    fail('configuration', 'URL ou credenciais obrigatórias de staging não configuradas.', { missing });
   } else {
-    pass('configuration', 'Credenciais obrigatórias de staging estão configuradas.');
+    pass('configuration', 'URL resolvida e credenciais obrigatórias de staging estão configuradas.', { baseUrl });
   }
 
   if (missing.length === 0) {
@@ -110,6 +108,7 @@ async function main() {
   const report = {
     sprint: 'QA 7',
     environment: 'staging',
+    baseUrl: baseUrl || null,
     status: failures.length ? 'NOT_VALIDATED' : 'VALIDATED',
     generatedAt: new Date().toISOString(),
     summary: { failures: failures.length, evidence: evidence.length },
