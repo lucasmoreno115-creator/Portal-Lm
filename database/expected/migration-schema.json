@@ -33,6 +33,7 @@
     "0031_add_nutrition_plan_lifecycle.sql",
     "0032_finalize_nutrition_plan_lifecycle.sql",
     "0033_add_professional_workspace_indexes.sql",
+    "0034_add_weekly_feedback_followup_at.sql",
     "0034_premium_legacy_identity_backfill_audit.sql",
     "0035_add_ready_to_release_consultation_status.sql",
     "0036_scope_legacy_active_nutrition_plan_email_unique.sql"
@@ -85,6 +86,7 @@
     "0031_add_nutrition_plan_lifecycle.sql",
     "0032_finalize_nutrition_plan_lifecycle.sql",
     "0033_add_professional_workspace_indexes.sql",
+    "0034_add_weekly_feedback_followup_at.sql",
     "0034_premium_legacy_identity_backfill_audit.sql",
     "0035_add_ready_to_release_consultation_status.sql",
     "0036_scope_legacy_active_nutrition_plan_email_unique.sql"
