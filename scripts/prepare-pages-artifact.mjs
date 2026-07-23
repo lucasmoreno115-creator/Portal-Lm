@@ -26,7 +26,6 @@ const legacyRootFiles = [
   'portal-biblioteca.html',
   'portal-checkin.html',
   'portal-login.html',
-  'portal-plano-alimentar-print.html',
   'portal-plano-alimentar.html',
   'portal-progressao.html',
   'portal-shared.js',

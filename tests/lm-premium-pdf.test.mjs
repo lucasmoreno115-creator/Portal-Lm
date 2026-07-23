@@ -4,6 +4,10 @@ import test from 'node:test';
 
 const portal = fs.readFileSync('public/portal-plano-alimentar.html', 'utf8');
 const css = fs.readFileSync('public/portal.css', 'utf8');
+const premiumRuntimeFiles = [
+  'public/portal-premium-nutrition-plan.js',
+  'public/assets/js/portal-premium-nutrition-plan.js'
+];
 
 test('premium print header identifies the student, update date, and objective', () => {
   for (const value of ['Consultoria LM', 'Plano Alimentar', 'premiumStudentName', 'premiumPlanUpdatedAt', 'premiumPlanGoal', 'formatPlanDate', 'plan.updated_at || plan.published_at']) {
@@ -17,6 +21,12 @@ test('the portal structure is the sole PDF source and retains the shared meal re
   assert.match(portal, /window\.print\(\)/);
   assert.doesNotMatch(portal, /portal-plano-alimentar-print/);
   assert.equal(fs.existsSync('public/portal-plano-alimentar-print.html'), false);
+  assert.equal(fs.existsSync('portal-plano-alimentar-print.html'), false);
+  for (const file of premiumRuntimeFiles) {
+    const runtime = fs.readFileSync(file, 'utf8');
+    assert.match(runtime, /window\.print\(\)/);
+    assert.doesNotMatch(runtime, /portal-plano-alimentar-print\.html/);
+  }
 });
 
 test('print styles expand equivalences and keep meal blocks together', () => {
