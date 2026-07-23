@@ -17,6 +17,6 @@ function render(plan){
   appendSection('Observações',observations);
   appendSection('Ferramentas',el('p','Use as substituições e orientações do plano para organizar sua rotina.'));
   const support=el('div','');support.append(el('p',plan.whatsapp_message||'Em caso de dúvida, fale com seu consultor antes de ajustar o plano.'));appendSection('Suporte',support);
-  const pdf=el('a','Baixar PDF','card');pdf.href='/portal-plano-alimentar-print.html';app.append(pdf);
+  const pdf=el('button','Baixar PDF','card');pdf.type='button';pdf.addEventListener('click',()=>window.print());app.append(pdf);
 }
 fetch('/api/portal/premium/nutrition-plan/current').then(r=>r.json()).then(j=>render(j.data)).catch(()=>app.replaceChildren(el('p','Não foi possível carregar o plano agora.','card')));

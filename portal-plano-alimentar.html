@@ -10,9 +10,14 @@
   <div class='container'>
     <div id='nav'></div>
 
-    <header class='card hero nutrition-plan-hero'>
+    <header class='card hero nutrition-plan-hero premium-plan-header'>
+      <p class='premium-plan-brand'>Consultoria LM</p>
       <h1>Plano Alimentar</h1>
-      <p class='hero-subtext'>Seu planejamento nutricional foi preparado especialmente para você.</p>
+      <p id='premiumStudentName' class='premium-plan-student'>Aluno</p>
+      <dl class='premium-plan-details'>
+        <div><dt>Atualizado em</dt><dd id='premiumPlanUpdatedAt'>—</dd></div>
+        <div><dt>Objetivo</dt><dd id='premiumPlanGoal'>Não informado.</dd></div>
+      </dl>
     </header>
 
     <section id='contentCard' aria-live='polite'>
@@ -31,6 +36,9 @@
 
     const statusText = document.getElementById('statusText');
     const planContent = document.getElementById('planContent');
+    const premiumStudentName = document.getElementById('premiumStudentName');
+    const premiumPlanUpdatedAt = document.getElementById('premiumPlanUpdatedAt');
+    const premiumPlanGoal = document.getElementById('premiumPlanGoal');
 
     const nutritionRenderer = window.PortalNutritionPlanRenderer;
     const escapeHtml = nutritionRenderer.escapeHtml;
@@ -188,7 +196,16 @@
       });
     }
 
+    function formatPlanDate(value) {
+      if (!value) return '—';
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('pt-BR');
+    }
+
     function renderPlan(plan) {
+      premiumStudentName.textContent = localStorage.getItem('lm_student_name') || 'Aluno';
+      premiumPlanUpdatedAt.textContent = formatPlanDate(plan.updated_at || plan.published_at);
+      premiumPlanGoal.textContent = plan.goal || 'Não informado.';
       const mealsHtml = (plan.meals || []).map((meal, index) => {
         const content = renderMealContent(meal, { emptyHtml: '<p class="muted">Sem itens cadastrados.</p>' });
         const panelId = `meal-${index + 1}-equivalences`;
@@ -214,11 +231,9 @@
         supplementsHtml && `<div><h3>Suplementa&ccedil;&atilde;o</h3>${supplementsHtml}</div>`
       ].filter(Boolean).join('') || '<p class="muted">Sem observa&ccedil;&otilde;es.</p>';
       const supportSection = `
-        <p>Ficou com alguma d&uacute;vida?</p>
-        <p class='muted'>Entre em contato comigo pelo WhatsApp.</p>
-        <div class='nutrition-actions'>
-          <a class='primary-cta' href='https://wa.me/5514991174500?text=${message}' target='_blank' rel='noopener noreferrer'>Falar com Lucas sobre este plano</a>
-        </div>
+        <p class='support-document-title'>Dúvidas?</p>
+        <p>Entre em contato com seu consultor.</p>
+        <p class='support-whatsapp'>WhatsApp: <a href='https://wa.me/5514991174500?text=${message}' target='_blank' rel='noopener noreferrer'>+55 14 99117-4500</a></p>
       `;
 
       planContent.innerHTML = `
@@ -230,14 +245,14 @@
           <h2 id='notes-heading'>Observa&ccedil;&otilde;es</h2>
           <div class='nutrition-section-content'>${observationsSection}</div>
         </section>
-        <section class='card nutrition-section' aria-labelledby='tools-heading'>
+        <section class='card nutrition-section nutrition-tools-section' aria-labelledby='tools-heading'>
           <h2 id='tools-heading'>Ferramentas</h2>
           <div class='nutrition-section-content'>
             <div id='pdfActions' class='nutrition-actions' hidden><button id='downloadPdfBtn' type='button' class='primary-cta'>Baixar PDF completo</button></div>
             ${buildFoodConverterSection()}
           </div>
         </section>
-        <section class='card nutrition-section' aria-labelledby='support-heading'>
+        <section class='card nutrition-section nutrition-support-section' data-generated-at='${new Date().toLocaleDateString('pt-BR')}' aria-labelledby='support-heading'>
           <h2 id='support-heading'>Suporte</h2>
           <div class='nutrition-section-content'>${supportSection}</div>
         </section>
@@ -253,30 +268,7 @@
     }
 
     function downloadPlanPdf() {
-      const downloadPdfBtn = document.getElementById('downloadPdfBtn');
-      if (!downloadPdfBtn) return;
-      downloadPdfBtn.disabled = true;
-      const originalText = downloadPdfBtn.textContent;
-      downloadPdfBtn.textContent = 'Abrindo versão para impressão...';
-
-      try {
-        const printWindow = window.open(
-          'portal-plano-alimentar-print.html',
-          '_blank',
-          'noopener,noreferrer'
-        );
-
-        if (!printWindow) {
-          window.location.href = 'portal-plano-alimentar-print.html';
-        }
-      } catch (error) {
-        alert(error.message || 'Não foi possível abrir a versão de impressão.');
-      } finally {
-        window.setTimeout(() => {
-          downloadPdfBtn.disabled = false;
-          downloadPdfBtn.textContent = originalText;
-        }, 500);
-      }
+      window.print();
     }
 
     async function loadPlan() {

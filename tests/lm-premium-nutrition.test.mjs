@@ -18,7 +18,14 @@ test('Premium nutrition keeps the execution sections in the intended order', () 
   assert.match(nutrition, /observations \|\| plan\.notes/);
   assert.match(nutrition, /buildFoodConverterSection/);
   assert.match(nutrition, /supportSection/);
-  assert.match(nutrition, /Seu planejamento nutricional foi preparado especialmente para você\./);
+  for (const headerField of ['Consultoria LM', 'Plano Alimentar', 'premiumStudentName', 'premiumPlanUpdatedAt', 'premiumPlanGoal']) {
+    assert.match(nutrition, new RegExp(headerField));
+  }
+  assert.match(nutrition, /premiumStudentName\.textContent = localStorage\.getItem\('lm_student_name'\) \|\| 'Aluno'/);
+  assert.match(nutrition, /premiumPlanUpdatedAt\.textContent = formatPlanDate\(plan\.updated_at \|\| plan\.published_at\)/);
+  assert.match(nutrition, /premiumPlanGoal\.textContent = plan\.goal \|\| 'Não informado\.'/);
+  assert.match(nutrition, /window\.print\(\)/);
+  assert.doesNotMatch(nutrition, /Seu planejamento nutricional foi preparado especialmente para você\./);
   assert.doesNotMatch(nutrition, /nutrition-accordion|data-accordion|acc-meals/);
   assert.match(nutrition, /class='meal-list'/);
   assert.match(nutrition, /class='meal-equivalences'/);
