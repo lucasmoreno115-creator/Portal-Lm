@@ -27,8 +27,8 @@ test('minimal Workspace logs sanitized endpoint diagnostics and does not load pe
   assert.match(js, /endpoint_result/);
   assert.match(js, /aggregateCount/);
   assert.match(js, /diagnoseWorkspaceEndpoints/);
-  assert.match(js, /loadAnamnesisDashboard\(\)\.catch/);
-  assert.match(js, /loadCheckinDashboard\(\)\.catch/);
+  assert.match(js, /loadWorkspaceSummary\(\)\.catch\(handleWorkspaceSummaryError\)/);
+  assert.match(js, /renderSummary\(data\)/);
   assert.match(js, /loadStudents\(\)\.catch/);
   assert.doesNotMatch(js, /loadPending\(/);
   assert.doesNotMatch(js, /renderPlan|loadSaturdayReview|resolvePending/);

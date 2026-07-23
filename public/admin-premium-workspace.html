@@ -33,23 +33,23 @@
         <h2 id="workspaceDashboardHeading">O que precisa da sua atenção</h2>
       </div>
 
-      <div class="workspace-dashboard-grid" aria-live="polite" aria-busy="true">
+      <div id="workspaceDashboard" class="workspace-dashboard-grid" aria-live="polite" aria-busy="true">
         <article class="workspace-dashboard-card" data-dashboard-card="anamnesis-pending">
           <span class="workspace-dashboard-label">Anamneses pendentes</span>
-          <strong class="workspace-dashboard-value skeleton" aria-label="Carregando contagem">—</strong>
-          <span class="workspace-dashboard-hint">Carregando...</span>
+          <strong id="anamnesisPendingValue" class="workspace-dashboard-value skeleton" aria-label="Carregando contagem">—</strong>
+          <span id="anamnesisPendingHint" class="workspace-dashboard-hint">Carregando...</span>
         </article>
 
         <article class="workspace-dashboard-card" data-dashboard-card="checkins-answered">
           <span class="workspace-dashboard-label">Check-ins respondidos</span>
-          <strong class="workspace-dashboard-value skeleton" aria-label="Carregando contagem">—</strong>
-          <span class="workspace-dashboard-hint">Carregando...</span>
+          <strong id="checkinsAnsweredValue" class="workspace-dashboard-value skeleton" aria-label="Carregando contagem">—</strong>
+          <span id="checkinsAnsweredHint" class="workspace-dashboard-hint">Carregando...</span>
         </article>
 
         <article class="workspace-dashboard-card" data-dashboard-card="checkins-open">
           <span class="workspace-dashboard-label">Check-ins em aberto</span>
-          <strong class="workspace-dashboard-value skeleton" aria-label="Carregando contagem">—</strong>
-          <span class="workspace-dashboard-hint">Carregando...</span>
+          <strong id="checkinsOpenValue" class="workspace-dashboard-value skeleton" aria-label="Carregando contagem">—</strong>
+          <span id="checkinsOpenHint" class="workspace-dashboard-hint">Carregando...</span>
         </article>
       </div>
     </section>
