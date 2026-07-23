@@ -23,10 +23,11 @@ test('Workspace maps official summary fields to the three dashboard cards', asyn
 
 test('Workspace clears card skeletons on both success and summary error', async () => {
   const source = await workspaceScript();
-  assert.match(source, /function setDashboardCard[\s\S]*?classList\.toggle\('skeleton', loading\)/);
+  assert.match(source, /function setDashboardCard[\s\S]*?if \(valueElement\)[\s\S]*?classList\?\.toggle\?\.\('skeleton', loading\)/);
   assert.match(source, /renderDashboardCards[\s\S]*?false\); \}/);
   assert.match(source, /handleWorkspaceSummaryError[\s\S]*?'Não foi possível carregar'[\s\S]*?false\)/);
-  assert.match(source, /workspaceDashboard'\)\.setAttribute\('aria-busy', 'false'\)/);
+  assert.match(source, /function setDashboardBusy/);
+  assert.match(source, /workspaceDashboard'\)\?\.setAttribute\?\./);
 });
 
 test('Workspace markup provides stable identifiers for accessible card updates', async () => {

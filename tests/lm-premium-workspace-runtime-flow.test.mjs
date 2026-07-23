@@ -79,19 +79,28 @@ test('workspace bootstrap without session redirects and performs zero Workspace 
   assert.equal(result.calls.length, 0);
 });
 
-test('students list remains available when the anamnesis dashboard fails independently', async () => {
-  const result = await runWorkspace({
-    fetchImpl: async (url) => {
-      if (String(url).includes('/summary')) return new Response(JSON.stringify({ ok: false, error: 'SERVER_ERROR' }), { status: 500 });
-      return new Response(JSON.stringify({ ok: true, data: { items: [{ studentId: 's1', name: 'Aluno Teste', email: 'aluno@example.test', consultationStatusLabel: 'Ativo', accessStatusLabel: 'Acesso ativo' }], nextCursor: null } }), { status: 200 });
-    }
-  });
+test('partial Dashboard DOM handles summary failure without unhandled rejections and keeps students available', async () => {
+  const unhandled = [];
+  const onUnhandled = (error) => unhandled.push(error);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    const result = await runWorkspace({
+      fetchImpl: async (url) => {
+        if (String(url).includes('/summary')) return new Response(JSON.stringify({ ok: false, error: 'SERVER_ERROR' }), { status: 500 });
+        return new Response(JSON.stringify({ ok: true, data: { items: [{ studentId: 's1', name: 'Aluno Teste', email: 'aluno@example.test', consultationStatusLabel: 'Ativo', accessStatusLabel: 'Acesso ativo' }], nextCursor: null } }), { status: 200 });
+      }
+    });
+    await new Promise((resolve) => setImmediate(resolve));
 
-  assert.equal(result.calls.some((call) => String(call.url).includes('/summary')), true);
-  assert.equal(result.calls.some((call) => String(call.url).includes('/students')), true);
-  assert.match(result.nodes.get('studentList').textContent, /Aluno Teste/);
-  assert.equal(result.location.assigned, null);
-  assert.equal(result.clearCalls.length, 0);
+    assert.equal(result.calls.some((call) => String(call.url).includes('/summary')), true);
+    assert.equal(result.calls.some((call) => String(call.url).includes('/students')), true);
+    assert.match(result.nodes.get('studentList').textContent, /Aluno Teste/);
+    assert.equal(result.location.assigned, null);
+    assert.equal(result.clearCalls.length, 0);
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
 });
 
 test('Abrir Prontuário navega para o record Premium com o student_id oficial codificado', async () => {
