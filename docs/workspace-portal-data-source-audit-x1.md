@@ -4,7 +4,7 @@
 
 ## Resumo executivo
 
-O único conteúdo prescrito ponta a ponta e comprovadamente publicado no Portal é o **plano alimentar canônico**: o editor Premium grava rascunho em `nutrition_plans`, a publicação torna uma versão `PUBLISHED`/`is_active=1`, e `GET /api/portal/premium/nutrition-plan/current` entrega essa mesma versão pelo presenter público. A origem é forte (A), com duas ressalvas: o presenter ainda aceita plano legado sem `status`, e o renderer não exibe todos os campos públicos (B/E para esses campos).
+O conteúdo prescrito com cadeia Premium comprovada é o **plano alimentar canônico**: o editor Premium grava rascunho em `nutrition_plans`, a publicação torna uma versão `PUBLISHED`/`is_active=1`, e as duas rotas públicas (`GET /api/portal/nutrition-plan` e `GET /api/portal/premium/nutrition-plan/current`) consultam o mesmo use-case. Contudo, a superfície realmente ligada pela navegação é a primeira, que usa o mapper legado `publicNutritionPlan()`; a página de rota Premium usa `presentPublicNutritionPlan()`. Ambas chegam à mesma leitura, mas não têm o mesmo contrato público. Isto torna a apresentação A para a fonte publicada e B/E para o contrato/renderização.
 
 A Home e o “Plano da Semana” não são um agregador de prescrição. A Home apenas busca `student_checkins` e **um texto independente** de `weekly_plans`; treino/MFIT, cardio e nutrição exibidos são textos estáticos quando não há linha ativa. O endpoint de escrita de `weekly_plans` é legado (`/api/admin/weekly-plan`) e não foi encontrado no Workspace Premium; portanto os cards são C/E, não uma integração com o profissional. Não há página Premium de treino: o CTA abre o MFIT externo. A progressão é uma calculadora client-side e um diário do aluno, sem prescrição nem edição Workspace.
 
@@ -22,12 +22,14 @@ Há dois formulários de check-in para a mesma tabela (`student_checkins`): o le
 | Página / componente | Rótulos e campos visíveis | Vazio / erro / fallback | Classe |
 |---|---|---|---|
 | `portal-premium-home.html`, hero/cards | saudação, próxima ação, status (check-in/plano/treinos/cardio/foco), Missão da Semana, mensagem do consultor, Jornada, links | HTML inicial contém valores editoriais; erro de `Promise.all` é silencioso e preserva-os | B/C/D/E por campo |
-| `portal-premium-nutrition-plan.html` + `portal-premium-nutrition-plan.js` | título, objetivo, estratégia, atualização, refeições, horário, orientação, itens/quantidade/unidade/nota, substituições, notas e “Mensagem do Lucas” | `null`: “ainda não foi liberado”; falha: “Não foi possível carregar” | A/B/E |
+| `portal-plano-alimentar.html` + `premium-nutrition-plan-renderer.js` **(rota do menu)** | título/objetivo/estratégia, refeições, itens, equivalências, observações, hidratação/suplementos se fornecidos, conversor e WhatsApp | plano ausente/erro explícitos; conversor é constante client-side | A/B/C/D/E |
+| `portal-premium-nutrition-plan.html` + `portal-premium-nutrition-plan.js` **(rota alternativa)** | título, objetivo, estratégia, atualização, refeições, itens, substituições, notas e mensagem | `null`/falha explícitos | A/B/E |
+| `portal-plano-alimentar-print.html` **(aberta pelo PDF)** | versão imprimível do plano | confirmar separadamente no fluxo de impressão; não é chamada de API pela Home | F |
 | `portal-checkin.html` | formulário, histórico, resposta do Lucas/data | “Sem histórico”; resposta ausente informa que aparecerá depois; erro no submit visível | A/B |
 | `portal-premium-weekly-feedback.html` | adesões, peso/medidas, dificuldade/suporte/contexto, status, prazo, resposta profissional, histórico | `NOT_AVAILABLE`; desabilita envio em `ANALYZED`; erro em `#message` | A/B |
 | `portal-progressao.html` | exercício, faixa, carga, reps, qualidade, recomendação e histórico | “Sem histórico”; cálculo com regras fixas client-side | C/D |
 | `portal-biblioteca.html` | oito artigos educacionais | array inline, sem API/estado de erro | D |
-| navegação `portal-shared.js` | “Preciso de ajuda” aponta para `portal-checkin.html#supportNeeded` | não há superfície ou persistência própria | C/D |
+| menu efetivo `assets/js/lm-access.js` | “Preciso de ajuda” abre URL `wa.me` fixa; o fallback em `portal-shared.js` aponta para `#supportNeeded` | não há endpoint/persistência própria; os dois caminhos divergem | C/D/E |
 | treino | somente link externo “MFIT”; não há página/renderizador Premium de treino | sem estado de publicação/vazio | C |
 
 ## Matriz de rastreabilidade (uma unidade de informação por linha)
@@ -39,12 +41,13 @@ Há dois formulários de check-in para a mesma tabela (`student_checkins`): o le
 | Home | check-in enviado/pendente | IIFE → `GET /portal/checkins` | `student_checkins` via repositório Premium | aluno cria; profissional visualiza/revisa | qualquer histórico, não somente semana atual, marca “Enviado” | B (P2) |
 | Home | foco, treino, cardio, nutrição, risco, observação | IIFE → `GET /portal/weekly-plan` | `weekly_plans.training_focus`, `cardio_target`, `nutrition_focus`, `main_risk`, `coach_message` | Não no Workspace Premium encontrado; endpoint legado `POST /api/admin/weekly-plan` | cinco textos editoriais quando nulo; erro silencioso | C/E (P1) |
 | Home | mensagem do consultor / Jornada | HTML | constantes HTML | Não | n/a | D |
-| Plano alimentar | título/objetivo/estratégia/data | `render(plan)` → `GET /portal/premium/nutrition-plan/current` → `presentPublicNutritionPlan` | `nutrition_plans.title,goal,strategy,published_at/updated_at` | Sim; draft/create/PATCH/publish em endpoints Premium | defaults “Plano alimentar”/“Objetivo não informado” | A/B |
-| Plano alimentar | nome/ordem/hora/orientação da refeição | `render` percorre `plan.meals` | `nutrition_plans.meals_json` (array, ordem preservada) | Sim; editor serializa `meals` no PATCH de rascunho | nome “Refeição”; array vazio | A/B |
-| Plano alimentar | alimento, quantidade, unidade, nota | `render` → `meal.items` | `meals_json[].items[].food,quantity,unit,note` | Sim, pelo JSON do editor | `primary_text` substitui visualmente a lista | B |
-| Plano alimentar | substituições | `render` filtra `meal.substitutions[].text` | `meals_json[].substitutions` | Sim | substituições de nível de plano são entregues, mas não renderizadas | B (P1) |
+| Plano alimentar (rota menu) | título/objetivo/estratégia e data | `portal-plano-alimentar.html:renderPlan/loadPlan` → `GET /portal/nutrition-plan` → `publicNutritionPlan()` | `nutrition_plans.title,goal,strategy,updated_at` | Sim; draft/create/PATCH/publish em endpoints Premium | estratégia/observações vazias e erro explícito | A/B/E |
+| Plano alimentar (rota alternativa) | título/objetivo/estratégia/data | `portal-premium-nutrition-plan.js:render` → `GET /portal/premium/nutrition-plan/current` → `presentPublicNutritionPlan()` | `nutrition_plans.title,goal,strategy,published_at/updated_at` | Sim; mesma publicação | defaults “Plano alimentar”/“Objetivo não informado” | A/B/E |
+| Plano alimentar | nome/ordem/hora/orientação da refeição | `portal-plano-alimentar.html:renderPlan` + `PortalNutritionPlanRenderer.renderMealContent`; rota alternativa `render` | `nutrition_plans.meals_json` (array, ordem preservada) | Sim; editor serializa `meals` no PATCH de rascunho | nome “Refeição”; array vazio | A/B |
+| Plano alimentar | alimento, quantidade, unidade, nota | `formatStructuredItem`/`renderMealContent` (rota menu) e `render` (alternativa) → `meal.items` | `meals_json[].items[].food,quantity,unit,note` | Sim, pelo JSON do editor | `primary_text` substitui visualmente a lista | B |
+| Plano alimentar | substituições/equivalências | `renderMealContent` renderiza substituições por refeição; `renderFoodEquivalences` renderiza `plan.substitutions` na rota menu | `meals_json[].substitutions`; `nutrition_plans.substitutions_json` | Sim | rota alternativa não renderiza equivalências do plano | A na rota menu; B/P1 na alternativa |
 | Plano alimentar | observações | `plan.notes` | `nutrition_plans.notes` (alias `observations`) | Sim | omitido se vazio | A |
-| Plano alimentar | regras de adesão, hidratação, suplementos, equivalências/plano B | presenter entrega `adherence_rules`, `hydration`, `supplements`, `substitutions`; renderer não os usa | `adherence_rules_json`; não há colunas hydration/supplements no schema canônico auditado | regras: Sim; demais F | não renderizados; JSON do Projeto LM não é chamado por esta página | B/F |
+| Plano alimentar | regras de adesão, hidratação, suplementos, Plano B | rota menu renderiza hidratação/suplementos **se** mapper os entregar; `publicNutritionPlan()` não os entrega. Nenhuma rota renderiza `adherence_rules`/Plano B | `adherence_rules_json`; hydration/supplements não constam do schema canônico | regras: Sim; demais F | condicionais ocultam campos ausentes | B/F |
 | Plano alimentar | plano ativo/histórico/status | presenter filtra `PUBLISHED` + `is_active=1` | `nutrition_plans.status,is_active,version_number,archived_at,supersedes_plan_id` | Sim; publicação arquiva anterior | aceitar `status == null` se ativo | A/E |
 | Check-in legado | adesões, medidas, fome/sono/energia/estresse/dificuldade/suporte | `portal-checkin.html` → POST/GET `/portal/checkin(s)` | `student_checkins` colunas homônimas | aluno cria; admin legado pode responder | histórico vazio/“orientação aparecerá” | A |
 | Check-in legado | resposta do Lucas | `c.coach_reply` no GET | `student_checkins.coach_reply,coach_reply_at` | Não no Workspace Premium; `PATCH /api/admin/checkins/:id/reply` legado | mensagem de espera | C (P1) |
@@ -53,7 +56,7 @@ Há dois formulários de check-in para a mesma tabela (`student_checkins`): o le
 | Progressão | recomendação | `decide()` em `portal-progressao.html` | nenhum dado profissional; regra fixa | Não | defaults de faixa/decisão no POST | C/D |
 | Progressão | histórico do aluno | GET `/portal/progression` | `progression_logs` | aluno grava POST; Workspace não edita | “Sem histórico”; API persiste `decision`, UI envia `recommendation` (não `decision`) | B/C (P2) |
 | Biblioteca | textos | array `data` inline | arquivo HTML | Não | n/a | D |
-| Ajuda | CTA/formulário suporte | âncora `#supportNeeded` | `student_checkins.support_needed` no formulário legado | aluno cria; Workspace só vê feedback | não há canal dedicado | C |
+| Ajuda | CTA de suporte | menu efetivo → URL WhatsApp `wa.me`; fallback de nav → `#supportNeeded` | URL constante; alternativamente `student_checkins.support_needed` após envio do check-in | não há ação Workspace de suporte | dois caminhos incompatíveis | C/E |
 | Treino/exercícios/séries/reps/descanso/mídia/cardio prescrito | CTA MFIT | URL externa fixa em Home | fora do repositório/portal; `training_exercises` existe no schema mas sem consumidor Portal Premium encontrado | Não confirmado | n/a | F/C (P0 para expectativa de prescrição) |
 
 ## Matriz Workspace × Portal
@@ -68,13 +71,16 @@ Há dois formulários de check-in para a mesma tabela (`student_checkins`): o le
 | Responder check-in legado | `coach_reply,coach_reply_at,coach_status` | Histórico do check-in e feedback Premium | Sim / n/a | Integrado tecnicamente, fora do Workspace Premium |
 | Editar plano semanal | `weekly_plans.*`, `ACTIVE` | cards Home | Sim / aluno `ACTIVE` | Desconectado C: somente endpoint/admin legados encontrado |
 | Criar/editar treino, cardio prescrito, mídia | nenhuma rota/tela Workspace Premium encontrada | MFIT externo | Não confirmado | Não confirmado F |
-| Editar biblioteca/ajuda | nenhuma | conteúdo inline | n/a | Estático D |
+| Editar biblioteca | nenhuma | conteúdo inline | n/a | Estático D |
+| Acionar ajuda | URL WhatsApp fixa; fallback para campo legado de check-in | não há consumidor administrativo dedicado | n/a | Desconectado C/E |
 
 ## Auditorias específicas
 
 ### Plano alimentar
 
 **Fluxo provado.** `public/admin-premium-nutrition-plan.js` carrega o registro, cria `POST /api/admin/premium/students/:id/nutrition-plan/draft`, salva `PATCH /api/admin/premium/nutrition-plans/:id/draft` e publica `POST .../:id/publish`. `workers/api.js` encaminha aos use-cases; `d1-nutrition-plan-repository.js` atualiza `nutrition_plans.meals_json`, `substitutions_json`, `adherence_rules_json`, `notes` e metadados, e em `publish()` arquiva a publicação anterior. O Portal chama a rota pública, que usa `getNutritionPlan` e `presentPublicNutritionPlan`; portanto não é cópia derivada.
+
+**Dois consumidores públicos.** A navegação Premium comprovadamente abre `portal-plano-alimentar.html`, não `portal-premium-nutrition-plan.html`. A primeira chama `/portal/nutrition-plan` e usa `publicNutritionPlan()`; a segunda chama `/portal/premium/nutrition-plan/current` e usa `presentPublicNutritionPlan()`. A primeira renderiza equivalências de `substitutions_json`, mas seu mapper não expõe `hydration`, `supplements`, `observations` nem `published_at`; a segunda expõe vários desses campos, mas não renderiza equivalências do plano. Logo, publicação é integrada, enquanto a superfície depende da rota (B/P1).
 
 **Lacunas.** O schema canônico contém refeições no JSON e não tabelas `nutrition_plan_meals`; não se deve declarar tabela de itens. Não há campo/renderer de Plano B na cadeia Premium. Os arquivos `public/assets/js/project-lm-runtime/engines/nutrition/*.json` (incluindo `plan_b.json`, alimentos e substituições) pertencem ao runtime Projeto LM e não são importados pelo renderer Premium auditado: são legado fora do fluxo Premium, não fallback acionado pelo plano Premium.
 
@@ -94,7 +100,7 @@ A tabela única é `student_checkins`; o POST legado deixa `available_at/submitt
 
 ### Biblioteca e “Preciso de Ajuda”
 
-A biblioteca é conteúdo global intencional no array da página e não deve ser individualizada. “Preciso de ajuda” é somente uma âncora para um `<select>` de check-in legado; não há ticket, endpoint, estado ou notificação próprios. Portanto não há como o Workspace criar/publicar/liberar essa superfície.
+A biblioteca é conteúdo global intencional no array da página e não deve ser individualizada. O menu Premium efetivo, definido por `getMenuItemsForPlan()`, direciona “Preciso de ajuda” para WhatsApp com texto fixo; somente o fallback de `portal-shared.js` aponta para o `<select>` legado. Não há ticket, endpoint, estado, notificação ou ação Workspace próprios. Portanto não há como o Workspace criar/publicar/liberar essa superfície.
 
 ## Fallbacks e conteúdo legado
 
@@ -105,7 +111,8 @@ A biblioteca é conteúdo global intencional no array da página e não deve ser
 | Home, saudação | sem `localStorage` | “Aluno” | Sim | Não | P3 |
 | Gate Premium | sem `premium_students` | `LEGACY_COMPATIBLE`, released=true | Sim indiretamente | Sim | P1/P3: acesso não exige estado oficial |
 | Presenter nutrição | `status` nulo e ativo | trata como plano público legado | Sim | Sim | P1: plano anterior/legado pode aparecer |
-| Renderer nutrição | campos vazios | título/refeição/objetivo default; `primary_text` esconde itens | Sim | Parcial | P2/P1 |
+| Dois renderers nutricionais | menu e rota alternativa usam mappers/fields diferentes; `primary_text` prevalece sobre itens | Sim | Sim | P1: mesma publicação não tem a mesma apresentação |
+| Ajuda | menu efetivo versus fallback de `nav()` | WhatsApp fixo versus `#supportNeeded` | Sim | Sim | P2/P3 |
 | Home/weekly plan | erro de fetch | nenhum aviso; DOM inicial permanece | Sim | Sim | P1 |
 | Progressão | POST sem `decision` | Worker grava “Manter carga” porque UI envia `recommendation` | Sim no histórico | Sim | P2 |
 | Projeto LM JSONs | arquivos estáticos existem | não acionado pelo fluxo Premium | Não | Não nesta cadeia | P3/isolamento a monitorar |
@@ -117,7 +124,8 @@ A biblioteca é conteúdo global intencional no array da página e não deve ser
 | P0 | Prescrição de treino/MFIT não é Portal Premium | não há rota/renderizador/Workspace Premium para `training_exercises`; aluno recebe somente link externo. Não afirmar que MFIT persiste nesta base. |
 | P1 | Plano semanal não controlado pelo Workspace Premium | Home lê `weekly_plans`, mas a escrita achada é `/api/admin/weekly-plan`; textos estáticos passam por orientação se estiver ausente/erro. |
 | P1 | Resposta profissional ao check-in não sai da decisão Workspace | UI de decisão chama `.../weekly-feedbacks/:id/decision`; Portal só lê `coach_reply`; reply é rota admin legada. |
-| P1 | Plano nutricional legado ativo pode alcançar Portal | presenter aceita `status == null`; requer decisão explícita de migração/remoção na X2. |
+| P1 | Duas rotas nutricionais apresentam a mesma publicação com contratos distintos | rota menu usa `publicNutritionPlan`; alternativa usa `presentPublicNutritionPlan`; equivalências e metadados divergem. |
+| P1 | Plano nutricional legado ativo pode alcançar Portal | presenter alternativo aceita `status == null`; requer decisão explícita de migração/remoção na X2. |
 | P2 | Home usa qualquer histórico como check-in enviado | `hasCheckin` testa tamanho, não `week_ref`. |
 | P2 | Recomendação de progressão não persiste como exibida | payload usa `recommendation`, Worker espera `decision`. |
 | P3 | duplicação de superfícies de check-in | ambos escrevem a mesma tabela com regras de status diferentes. |
@@ -125,22 +133,24 @@ A biblioteca é conteúdo global intencional no array da página e não deve ser
 ## Recomendações para X2 (sem executar nesta X1)
 
 1. Definir contrato único de treino/MFIT: fonte oficial, ownership, publicação, adapter e estados vazios antes de expor promessa de treino no Portal.
-2. Transformar o Plano da Semana em read model explícito ou documentar que é conteúdo editorial; conectá-lo ao Workspace Premium, filtrar por `week_ref` e substituir fallback silencioso por estado de indisponibilidade.
-3. Unificar os dois formulários de check-in e fazer a ação profissional escolhida escrever o campo que o aluno vê, ou alterar o presenter/UI para exibir decisão aprovada.
-4. Remover ou tornar observável a compatibilidade de `premium_students` ausente e `nutrition_plans.status` nulo após migração verificada.
-5. Alinhar contrato de progressão (`recommendation` versus `decision`) e declarar claramente que é auto-registro, não prescrição.
-6. Explicitar quais campos nutricionais são renderizados; decidir plano B, equivalências, hidratação, suplementos e substituições de plano antes de prometer suporte Portal.
+2. Consolidar a rota/mapper nutricional público antes de ampliar campos: uma única página deve receber e renderizar o mesmo contrato publicado.
+3. Transformar o Plano da Semana em read model explícito ou documentar que é conteúdo editorial; conectá-lo ao Workspace Premium, filtrar por `week_ref` e substituir fallback silencioso por estado de indisponibilidade.
+4. Unificar os dois formulários de check-in e fazer a ação profissional escolhida escrever o campo que o aluno vê, ou alterar o presenter/UI para exibir decisão aprovada.
+5. Remover ou tornar observável a compatibilidade de `premium_students` ausente e `nutrition_plans.status` nulo após migração verificada.
+6. Alinhar contrato de progressão (`recommendation` versus `decision`) e declarar claramente que é auto-registro, não prescrição.
+7. Explicitar quais campos nutricionais são renderizados; decidir plano B, equivalências, hidratação, suplementos e substituições de plano antes de prometer suporte Portal.
 
 ## Itens não confirmados
 
 - Quem popula `localStorage.lm_student_name` e o valor de token usado pelo Portal; esta auditoria encontrou o consumo, mas não uma prova de escrita no fluxo Premium.
 - Sistema e persistência do MFIT, incluindo treino, mídia, cardio prescrito e publicação; estão fora desta base/fluxo rastreável.
 - Uma tela administrativa atualmente ligada a `POST /api/admin/weekly-plan`; a rota existe, mas nenhuma interface Premium auditada a chama.
+- Conteúdo e fetch completos de `portal-plano-alimentar-print.html`; ele é uma superfície aberta pelo botão PDF e deve ser rastreado separadamente se X2 tratar impressão como canal publicado.
 - Colunas `hydration_json`/`supplements_json`: o presenter as tolera, mas elas não constam de `database/expected/migration-schema.sql` para `nutrition_plans`; não é seguro afirmar persistência oficial.
 
 ## Evidências de arquivo/função/endpoint/persistência
 
-- Portal/Home: `public/portal-premium-home.html` (bootstrap, IIFE e fallback); `GET /api/portal/checkins`, `GET /api/portal/weekly-plan`; handlers e query em `workers/api.js`.
-- Nutrição: `public/admin-premium-nutrition-plan.js` (`createDraft`, `persistDraft`, publicação); `public/portal-premium-nutrition-plan.js` (`render`); `workers/premium/presenters/nutrition-plan-public-presenter.js` (`presentPublicNutritionPlan`); `workers/premium/repositories/d1-nutrition-plan-repository.js` (`updateDraft`, `publish`, `archive`); tabela `nutrition_plans`.
+- Portal/Home/menu: `public/portal-premium-home.html` (bootstrap, IIFE e fallback), `public/assets/js/lm-access.js` (`getMenuItemsForPlan`, URL de ajuda) e `public/portal-shared.js` (fallback de nav); `GET /api/portal/checkins`, `GET /api/portal/weekly-plan`; handlers e query em `workers/api.js`.
+- Nutrição: `public/portal-plano-alimentar.html` (`loadPlan`, `renderPlan`, `renderFoodEquivalences`), `public/assets/js/premium-nutrition-plan-renderer.js` (`formatStructuredItem`, `renderMealContent`), `public/portal-premium-nutrition-plan.js` (`render`), `workers/api.js` (`publicNutritionPlan`) e `workers/premium/presenters/nutrition-plan-public-presenter.js` (`presentPublicNutritionPlan`); `public/admin-premium-nutrition-plan.js` (`createDraft`, `persistDraft`, publicação); `workers/premium/repositories/d1-nutrition-plan-repository.js` (`updateDraft`, `publish`, `archive`); tabela `nutrition_plans`.
 - Feedback: `public/portal-checkin.html`, `public/portal-premium-weekly-feedback.js` (`load`); rotas Portal e admin em `workers/api.js`; tabela `student_checkins`; decisão em `premium_followup_entries` quando aplicável.
 - Plano semanal/progressão: handlers `workers/api.js`; tabelas `weekly_plans` e `progression_logs`; schema completo em `database/expected/migration-schema.sql`.
