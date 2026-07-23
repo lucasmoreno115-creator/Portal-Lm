@@ -9,8 +9,8 @@ const premiumRuntimeFiles = [
   'public/assets/js/portal-premium-nutrition-plan.js'
 ];
 
-test('premium print header identifies the student, update date, and objective', () => {
-  for (const value of ['Consultoria LM', 'Plano Alimentar', 'premiumStudentName', 'premiumPlanUpdatedAt', 'premiumPlanGoal', 'formatPlanDate', 'plan.updated_at || plan.published_at']) {
+test('premium print header identifies the student and retains the optional update date', () => {
+  for (const value of ['Consultoria LM', 'Planejamento Alimentar', 'premiumStudentName', 'premiumPlanUpdatedAt', 'formatPlanDate', 'plan.updated_at || plan.published_at', 'print-only']) {
     assert.match(portal, new RegExp(value));
   }
 });
@@ -35,6 +35,8 @@ test('print styles expand equivalences and keep meal blocks together', () => {
   assert.match(css, /\.meal-equivalences-toggle[^{]*\{\s*display: none !important/);
   assert.match(css, /\.meal-card \{[^}]*break-inside: avoid/);
   assert.match(css, /page-break-inside: avoid/);
+  assert.match(css, /\.nutrition-observations-panel,.nutrition-observations-panel\[hidden\]\{display:block !important;animation:none\}/);
+  assert.match(css, /\.nutrition-observations-toggle\{display:none !important\}/);
 });
 
 test('print hides application tools and formats document support and footer', () => {
