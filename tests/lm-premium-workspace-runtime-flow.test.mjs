@@ -12,6 +12,7 @@ class FakeNode {
     this.children = [];
     this.dataset = {};
     this.listeners = {};
+    this.attributes = {};
     this.className = '';
     this.classList = {
       toggle: () => {},
@@ -22,6 +23,8 @@ class FakeNode {
   append(...nodes) { this.children.push(...nodes); this.textContent += nodes.map((node) => node?.textContent || '').join(''); }
   replaceChildren(...nodes) { this.children = [...nodes]; this.textContent = nodes.map((node) => node?.textContent || '').join(''); }
   addEventListener(type, handler) { this.listeners[type] = handler; }
+  setAttribute(name, value) { this.attributes[name] = String(value); }
+  removeAttribute(name) { delete this.attributes[name]; }
   closest() { return null; }
   focus() { this.focused = true; }
 }
@@ -29,7 +32,7 @@ class FakeNode {
 async function runWorkspace({ sessionId = 'session-123', fetchImpl, auth = {} } = {}) {
   const source = await readFile('public/admin-premium-workspace.js', 'utf8');
   const nodes = new Map();
-  for (const id of ['studentList', 'errorText', 'error', 'loadMore', 'search', 'clearSearch', 'retry', 'adminLogoutBtn', 'contextBody', 'anamnesisDashboard', 'anamnesisItems', 'checkinDashboard', 'checkinItems', 'record', 'openCreate', 'createPanel', 'studentsNav', 'students', 'overview', 'closeRecord', 'createForm', 'createResult']) nodes.set(id, new FakeNode(id));
+  for (const id of ['studentList', 'errorText', 'error', 'loadMore', 'search', 'clearSearch', 'retry', 'adminLogoutBtn', 'contextBody', 'anamnesisDashboard', 'anamnesisItems', 'checkinDashboard', 'checkinItems', 'record', 'openCreate', 'createPanel', 'studentsNav', 'students', 'overview', 'closeRecord', 'createForm', 'createSubmit', 'createResult']) nodes.set(id, new FakeNode(id));
   const document = {
     getElementById(id) { return nodes.get(id) || null; },
     createElement(tag) { return new FakeNode('', tag); },
@@ -63,7 +66,8 @@ async function runWorkspace({ sessionId = 'session-123', fetchImpl, auth = {} } 
     Boolean,
     Array,
     RegExp,
-    Promise
+    Promise,
+    FormData: class FormData { constructor(form) { this.values = form.values || {}; } *[Symbol.iterator]() { yield* Object.entries(this.values); } }
   };
   sandbox.window.window = sandbox.window;
   vm.runInNewContext(source, sandbox);
@@ -185,4 +189,63 @@ test('workspace clears session only on explicit invalid or expired session 401',
   const generic = await runWorkspace({ fetchImpl: async () => new Response(JSON.stringify({ ok: false, error: 'TOKEN_REQUIRED' }), { status: 401 }) });
   assert.equal(generic.clearCalls.length, 0);
   assert.equal(generic.location.assigned, null);
+});
+
+
+test('cadastro desabilita o envio duplicado, anuncia processamento e restaura o formulário após sucesso', async () => {
+  let postCalls = 0;
+  let resolveCreate;
+  const result = await runWorkspace({
+    fetchImpl: async (url, options = {}) => {
+      if (options.method === 'POST') {
+        postCalls += 1;
+        return new Promise((resolve) => { resolveCreate = resolve; });
+      }
+      if (String(url).includes('/summary')) return new Response(JSON.stringify({ ok: false, error: 'SERVER_ERROR' }), { status: 500 });
+      return new Response(JSON.stringify({ ok: true, data: { items: [], nextCursor: null } }), { status: 200 });
+    }
+  });
+  const form = result.nodes.get('createForm');
+  const button = result.nodes.get('createSubmit');
+  form.values = { name: 'Ana', email: 'ana@example.test', whatsapp: '11999990000' };
+  const event = { target: form, preventDefault() { this.prevented = true; } };
+  const submission = form.onsubmit(event);
+
+  assert.equal(event.prevented, true);
+  assert.equal(postCalls, 1);
+  assert.equal(button.disabled, true);
+  assert.equal(button.textContent, 'Cadastrando...');
+  assert.equal(form.attributes['aria-busy'], 'true');
+  await form.onsubmit({ target: form, preventDefault() {} });
+  assert.equal(postCalls, 1);
+
+  resolveCreate(new Response(JSON.stringify({ ok: true, data: { studentId: 'ana', name: 'Ana' } }), { status: 201 }));
+  await submission;
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(button.disabled, false);
+  assert.equal(button.textContent, 'Cadastrar aluno');
+  assert.equal(form.attributes['aria-busy'], 'false');
+  assert.equal(result.nodes.get('errorText').textContent, 'Aluno cadastrado com sucesso.');
+});
+
+test('cadastro restaura o botão, preserva os dados e comunica erro padronizado', async () => {
+  const result = await runWorkspace({
+    fetchImpl: async (url, options = {}) => {
+      if (options.method === 'POST') return new Response(JSON.stringify({ ok: false, error: 'Erro interno' }), { status: 500 });
+      if (String(url).includes('/summary')) return new Response(JSON.stringify({ ok: false, error: 'SERVER_ERROR' }), { status: 500 });
+      return new Response(JSON.stringify({ ok: true, data: { items: [], nextCursor: null } }), { status: 200 });
+    }
+  });
+  const form = result.nodes.get('createForm');
+  const button = result.nodes.get('createSubmit');
+  form.values = { name: 'Ana', email: 'ana@example.test', whatsapp: '11999990000' };
+
+  await form.onsubmit({ target: form, preventDefault() {} });
+
+  assert.equal(button.disabled, false);
+  assert.equal(button.textContent, 'Cadastrar aluno');
+  assert.equal(form.attributes['aria-busy'], 'false');
+  assert.deepEqual(form.values, { name: 'Ana', email: 'ana@example.test', whatsapp: '11999990000' });
+  assert.equal(result.nodes.get('errorText').textContent, 'Não foi possível cadastrar o aluno.');
 });

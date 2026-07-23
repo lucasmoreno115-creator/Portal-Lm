@@ -75,11 +75,11 @@
 
     <section id="createPanel" class="panel" hidden>
       <h2>Cadastrar aluno</h2>
-      <form id="createForm">
+      <form id="createForm" aria-busy="false">
         <label>Nome<input name="name" required></label>
         <label>E-mail<input name="email" type="email" required></label>
         <label>WhatsApp<input name="whatsapp"></label>
-        <button>Cadastrar aluno</button>
+        <button id="createSubmit" type="submit">Cadastrar aluno</button>
       </form>
       <p id="createResult"></p>
     </section>
