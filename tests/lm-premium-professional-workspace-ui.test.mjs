@@ -13,6 +13,7 @@ test('READY_TO_RELEASE opens the record for release',()=>assert.deepEqual(nextAc
 test('workspace feedback has semantic variants, accessible live regions, and synchronized runtime copies',()=>{
   const html=readFileSync('public/admin-premium-workspace.html','utf8');
   assert.match(html,/<section id="error" class="panel workspace-feedback-error" role="alert" aria-live="assertive" hidden>/);
+  assert.match(html,/<form id="createForm" aria-busy="false">[\s\S]*?<button id="createSubmit" type="submit">Cadastrar aluno<\/button>/);
   const runtimePaths=['admin-premium-workspace.js','public/admin-premium-workspace.js','public/assets/js/admin-premium-workspace.js'];
   const runtimes=runtimePaths.map((path)=>readFileSync(path,'utf8'));
   assert.ok(runtimes.every((source)=>source===runtimes[0]));
@@ -25,6 +26,12 @@ test('workspace feedback has semantic variants, accessible live regions, and syn
     assert.match(source,/showWorkspaceFeedback\(\{ type: 'success', message: 'Mensagem de acesso copiada\.' \}\)/);
     assert.match(source,/showWorkspaceFeedback\(\{ type: 'warning', message \}\)/);
     assert.match(source,/function operationalError\(message\) \{ showWorkspaceFeedback\(\{ type: 'error', message \}\); \}/);
+    assert.match(source,/createSubmitting: false/);
+    assert.match(source,/function setCreateSubmitting\(form, submitting\)/);
+    assert.match(source,/if \(state\.createSubmitting\) return/);
+    assert.match(source,/button\.textContent = submitting \? 'Cadastrando\.\.\.' : 'Cadastrar aluno'/);
+    assert.match(source,/showWorkspaceFeedback\(\{ type: 'success', message: 'Aluno cadastrado com sucesso\.' \}\)/);
+    assert.match(source,/showWorkspaceFeedback\(\{ type: 'error', message: 'Não foi possível cadastrar o aluno\.' \}\)/);
   }
   const cssPaths=['admin-premium-workspace.css','public/admin-premium-workspace.css','public/assets/css/admin-premium-workspace.css'];
   const styles=cssPaths.map((path)=>readFileSync(path,'utf8'));
