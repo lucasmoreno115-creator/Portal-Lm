@@ -1522,4 +1522,34 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 @media (max-width:720px){
   .projeto-lm-planning-page .weekly-mission-grid{grid-template-columns:1fr}
 }
-.equivalence-reference{display:grid;gap:2px}.equivalence-reference p{margin:0}
+
+/* Premium home: direction, guidance, execution. DOM and visual order intentionally match. */
+.portal-home-v7 .planning,
+.portal-home-v7 .coach-message,
+.portal-home-v7 .primary-actions,
+.portal-home-v7 .secondary-actions{width:100%}
+.portal-home-v7 .planning{border-color:rgba(212,175,55,.58)}
+.portal-home-v7 .planning .weekly-plan-grid{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:28px;row-gap:0}
+.portal-home-v7 .planning .weekly-plan-grid .weekly-observation{grid-column:span 2}
+.portal-home-v7 .planning .weekly-plan-grid h3{margin:0 0 8px;font-size:.86rem;letter-spacing:.09em;color:#e7c96f}
+.portal-home-v7 .coach-message{padding:clamp(26px,4vw,38px);background:linear-gradient(140deg,#19160e,#151515 58%,#101010);border-color:rgba(212,175,55,.48)}
+.portal-home-v7 .coach-message h2{margin-bottom:16px}
+.portal-home-v7 .coach-message p:last-child{max-width:78ch;font-size:clamp(1.08rem,1.7vw,1.28rem);line-height:1.7}
+.portal-home-v7 .primary-actions,
+.portal-home-v7 .secondary-actions{display:grid;gap:12px}
+.portal-home-v7 .primary-actions h2,
+.portal-home-v7 .secondary-actions h2{margin:0;font-size:1rem;letter-spacing:.04em}
+.portal-home-v7 .secondary-actions h2{color:#c9c9c9}
+.portal-home-v7 .action-links{display:grid;gap:12px}
+.portal-home-v7 .primary-actions .action-links{grid-template-columns:repeat(2,minmax(0,1fr))}
+.portal-home-v7 .secondary-actions .action-links{grid-template-columns:repeat(3,minmax(0,1fr))}
+.portal-home-v7 .primary-action-link{display:inline-flex;align-items:center;justify-content:space-between;gap:12px;min-height:88px;padding:20px 22px;border:1px solid #f0d47a;border-radius:16px;background:linear-gradient(180deg,#ebd47f,#cfa53a);box-shadow:0 10px 24px rgba(212,175,55,.2);color:#191304;font-size:1.12rem;font-weight:800;text-decoration:none}
+.portal-home-v7 .primary-action-link::after{content:'›';font-size:1.3rem}
+.portal-home-v7 .primary-action-link:hover{filter:brightness(1.04);transform:translateY(-2px)}
+.portal-home-v7 .secondary-actions .secondary-link{min-height:64px;color:#dedede;font-weight:600}
+@media (max-width:720px){
+  .portal-home-v7 .planning .weekly-plan-grid{grid-template-columns:1fr}
+  .portal-home-v7 .planning .weekly-plan-grid .weekly-observation{grid-column:auto}
+  .portal-home-v7 .primary-actions .action-links,
+  .portal-home-v7 .secondary-actions .action-links{grid-template-columns:1fr}
+}
