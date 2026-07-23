@@ -55,3 +55,28 @@ test('the shared renderer preserves meal quantities and only renders equivalence
   assert.match(source, /renderMealEquivalences\(meal\)/);
   assert.match(source, /getMealPrimaryContent\(meal\)/);
 });
+
+test('premium nutrition uses reusable skeleton, empty, and retryable error states', () => {
+  for (const file of ['portal-plano-alimentar.html', 'public/portal-plano-alimentar.html']) {
+    const source = fs.readFileSync(file, 'utf8');
+    assert.match(source, /function renderLoadingState\(\)/);
+    assert.match(source, /portal-skeleton-hero/);
+    assert.match(source, /Array\.from\(\{ length: 4 \}/);
+    assert.match(source, /function renderStatusState\(type, title, body, actionLabel = ''\)/);
+    assert.match(source, /Ainda não existe um planejamento alimentar disponível\./);
+    assert.match(source, /Assim que seu consultor publicar a atualização, ela aparecerá aqui\./);
+    assert.match(source, /Não foi possível carregar seu planejamento\./);
+    assert.match(source, /Tentar novamente/);
+    assert.match(source, /async function loadPlan\(\) \{\s*renderLoadingState\(\);/);
+  }
+  const css = fs.readFileSync('portal.css', 'utf8');
+  for (const className of ['.portal-skeleton', '.portal-status-state', '.portal-empty-state', '.portal-error-state']) {
+    assert.match(css, new RegExp(className.replace('.', '\\.')));
+  }
+});
+
+test('premium nutrition omits an empty observations section while preserving optional equivalences', () => {
+  assert.match(nutrition, /observationsSection \? `<section class='card nutrition-section' aria-labelledby='notes-heading'>/);
+  assert.doesNotMatch(nutrition, /Sem observa&ccedil;&otilde;es\./);
+  assert.match(nutrition, /const substitutionsSection = substitutionsHtml \?/);
+});

@@ -10,7 +10,7 @@
   <div class='container'>
     <div id='nav'></div>
 
-    <header class='card hero nutrition-plan-hero premium-plan-header'>
+    <header id='nutritionPlanHero' class='card hero nutrition-plan-hero premium-plan-header'>
       <p class='premium-plan-brand'>Consultoria LM</p>
       <h1>Plano Alimentar</h1>
       <p id='premiumStudentName' class='premium-plan-student'>Aluno</p>
@@ -20,8 +20,8 @@
       </dl>
     </header>
 
-    <section id='contentCard' aria-live='polite'>
-      <p id='statusText' class='card muted'>Carregando seu plano alimentar...</p>
+    <section id='contentCard' aria-live='polite' aria-busy='true'>
+      <div id='statusText'></div>
       <div id='planContent' hidden></div>
     </section>
   </div>
@@ -34,6 +34,8 @@
     redirectIfNoAccess('plano-alimentar');
     document.getElementById('nav').innerHTML = nav();
 
+    const contentCard = document.getElementById('contentCard');
+    const nutritionPlanHero = document.getElementById('nutritionPlanHero');
     const statusText = document.getElementById('statusText');
     const planContent = document.getElementById('planContent');
     const premiumStudentName = document.getElementById('premiumStudentName');
@@ -179,6 +181,24 @@
       updateResult();
     }
 
+    function renderLoadingState() {
+      nutritionPlanHero.classList.add('is-loading');
+      contentCard.setAttribute('aria-busy', 'true');
+      statusText.className = 'nutrition-loading-state';
+      statusText.innerHTML = `<div class='portal-skeleton portal-skeleton-hero' aria-label='Carregando plano alimentar'><span class='portal-skeleton-line portal-skeleton-title'></span><span class='portal-skeleton-line portal-skeleton-subtitle'></span></div><div class='nutrition-skeleton-meals' aria-hidden='true'>${Array.from({ length: 4 }, () => `<article class='portal-skeleton portal-skeleton-meal'><span class='portal-skeleton-line portal-skeleton-meal-title'></span><span class='portal-skeleton-line'></span><span class='portal-skeleton-line portal-skeleton-short'></span></article>`).join('')}</div>`;
+      statusText.hidden = false;
+    }
+
+    function renderStatusState(type, title, body, actionLabel = '') {
+      nutritionPlanHero.classList.remove('is-loading');
+      contentCard.setAttribute('aria-busy', 'false');
+      statusText.className = `portal-status-state portal-${type}-state`;
+      statusText.innerHTML = `<div class='portal-status-state-content'><h2>${title}</h2><p>${body}</p>${actionLabel ? `<button id='nutritionRetryBtn' type='button' class='primary-cta'>${actionLabel}</button>` : ''}</div>`;
+      statusText.hidden = false;
+      planContent.hidden = true;
+      document.getElementById('nutritionRetryBtn')?.addEventListener('click', loadPlan);
+    }
+
     function renderEquivalencesToggle(panelId, content) {
       if (!content) return '';
       return `<button type='button' class='meal-equivalences-toggle' aria-expanded='false' aria-controls='${panelId}'>Ver equivalências <span class='meal-equivalences-icon' aria-hidden='true'>⌄</span></button><div id='${panelId}' class='meal-equivalences' hidden>${content}</div>`;
@@ -229,7 +249,7 @@
         observationsHtml,
         hydrationHtml && `<div><h3>Hidrata&ccedil;&atilde;o</h3>${hydrationHtml}</div>`,
         supplementsHtml && `<div><h3>Suplementa&ccedil;&atilde;o</h3>${supplementsHtml}</div>`
-      ].filter(Boolean).join('') || '<p class="muted">Sem observa&ccedil;&otilde;es.</p>';
+      ].filter(Boolean).join('');
       const supportSection = `
         <p class='support-document-title'>Dúvidas?</p>
         <p>Entre em contato com seu consultor.</p>
@@ -241,10 +261,10 @@
           <h2 id='meals-heading'>Refei&ccedil;&otilde;es</h2>
           ${mealsSection}
         </section>
-        <section class='card nutrition-section' aria-labelledby='notes-heading'>
+        ${observationsSection ? `<section class='card nutrition-section' aria-labelledby='notes-heading'>
           <h2 id='notes-heading'>Observa&ccedil;&otilde;es</h2>
           <div class='nutrition-section-content'>${observationsSection}</div>
-        </section>
+        </section>` : ''}
         <section class='card nutrition-section nutrition-tools-section' aria-labelledby='tools-heading'>
           <h2 id='tools-heading'>Ferramentas</h2>
           <div class='nutrition-section-content'>
@@ -258,6 +278,8 @@
         </section>
       `;
 
+      nutritionPlanHero.classList.remove('is-loading');
+      contentCard.setAttribute('aria-busy', 'false');
       statusText.hidden = true;
       planContent.hidden = false;
       const pdfActions = document.getElementById('pdfActions');
@@ -272,19 +294,18 @@
     }
 
     async function loadPlan() {
+      renderLoadingState();
       try {
         const response = await api('/portal/nutrition-plan');
 
         if (!response?.data) {
-          statusText.textContent = 'Seu plano alimentar ainda não foi liberado no portal. Assim que estiver disponível, ele aparecerá aqui.';
-          statusText.className = 'status muted';
+          renderStatusState('empty', 'Ainda não existe um planejamento alimentar disponível.', 'Assim que seu consultor publicar a atualização, ela aparecerá aqui.');
           return;
         }
 
         renderPlan(response.data);
       } catch (error) {
-        statusText.textContent = 'Não foi possível carregar seu plano alimentar agora. Tente novamente em instantes.';
-        statusText.className = 'status error';
+        renderStatusState('error', 'Não foi possível carregar seu planejamento.', 'Verifique sua conexão e tente novamente.', 'Tentar novamente');
       }
     }
 
