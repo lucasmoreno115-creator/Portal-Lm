@@ -35,18 +35,22 @@
 
       <div id="workspaceDashboard" class="workspace-dashboard-grid" aria-live="polite" aria-busy="true">
         <article class="workspace-dashboard-card" data-dashboard-card="anamnesis-pending">
-          <span class="workspace-dashboard-label">Anamneses pendentes</span>
-          <strong id="anamnesisPendingValue" class="workspace-dashboard-value skeleton" aria-label="Carregando contagem">—</strong>
-          <span id="anamnesisPendingHint" class="workspace-dashboard-hint">Carregando...</span>
+          <button id="anamnesisPendingCard" class="workspace-dashboard-card-button" type="button" aria-label="Ver anamneses pendentes no painel operacional" aria-describedby="anamnesisPendingHint" disabled>
+            <span class="workspace-dashboard-label">Anamneses pendentes</span>
+            <strong id="anamnesisPendingValue" class="workspace-dashboard-value skeleton" aria-label="Carregando contagem">—</strong>
+            <span id="anamnesisPendingHint" class="workspace-dashboard-hint">Carregando...</span>
+          </button>
         </article>
 
         <article class="workspace-dashboard-card" data-dashboard-card="checkins-answered">
-          <span class="workspace-dashboard-label">Check-ins respondidos</span>
-          <strong id="checkinsAnsweredValue" class="workspace-dashboard-value skeleton" aria-label="Carregando contagem">—</strong>
-          <span id="checkinsAnsweredHint" class="workspace-dashboard-hint">Carregando...</span>
+          <button id="checkinsAnsweredCard" class="workspace-dashboard-card-button" type="button" aria-label="Ver check-ins respondidos no painel operacional" aria-describedby="checkinsAnsweredHint" disabled>
+            <span class="workspace-dashboard-label">Check-ins respondidos</span>
+            <strong id="checkinsAnsweredValue" class="workspace-dashboard-value skeleton" aria-label="Carregando contagem">—</strong>
+            <span id="checkinsAnsweredHint" class="workspace-dashboard-hint">Carregando...</span>
+          </button>
         </article>
 
-        <article class="workspace-dashboard-card" data-dashboard-card="checkins-open">
+        <article class="workspace-dashboard-card is-unavailable" data-dashboard-card="checkins-open" aria-disabled="true">
           <span class="workspace-dashboard-label">Check-ins em aberto</span>
           <strong id="checkinsOpenValue" class="workspace-dashboard-value skeleton" aria-label="Carregando contagem">—</strong>
           <span id="checkinsOpenHint" class="workspace-dashboard-hint">Carregando...</span>
@@ -55,15 +59,15 @@
     </section>
 
     <!-- Painéis operacionais existentes preservados até a W2.2 conectar as contagens oficiais. -->
-    <section class="panel dashboard dashboard-current">
-      <h2>Anamneses</h2>
+    <section id="anamnesisOperationalPanel" class="panel dashboard dashboard-current">
+      <h2 id="anamnesisOperationalHeading" tabindex="-1">Anamneses</h2>
       <div id="anamnesisDashboard" class="dashboard-blocks">Carregando...</div>
       <h3>Prioridades</h3>
       <div id="anamnesisItems" class="list"></div>
     </section>
 
-    <section class="panel dashboard dashboard-current">
-      <h2>Check-ins</h2>
+    <section id="checkinsOperationalPanel" class="panel dashboard dashboard-current">
+      <h2 id="checkinsOperationalHeading" tabindex="-1">Check-ins</h2>
       <div id="checkinDashboard" class="dashboard-blocks">Carregando...</div>
       <p class="muted">“Sem resposta recente” aguarda uma frequência oficial de check-in e por isso não é contabilizado nesta versão.</p>
       <div id="checkinItems" class="list"></div>
