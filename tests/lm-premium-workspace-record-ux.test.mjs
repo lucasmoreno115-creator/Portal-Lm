@@ -8,7 +8,7 @@ const css = readFileSync('public/assets/css/admin-premium-workspace.css', 'utf8'
 
 test('Ver resumo aguarda renderização para fazer scroll e foco acessível', () => {
   assert.match(js, /renderRecord\(await api\([\s\S]*?state\.loadedRecordId = id; highlightAndFocusRecord\(\)/);
-  assert.match(js, /record\.scrollIntoView\?\.\(\{ behavior: 'smooth', block: 'start' \}\)/);
+  assert.match(js, /record\.scrollIntoView\?\.\(\{ behavior: prefersReducedMotion\(\) \? 'auto' : 'smooth', block: 'start' \}\)/);
   assert.match(js, /if \(!isFullyVisible\(record\)\)/);
   assert.match(js, /\$\('recordHeading'\)\?\.focus\?\.\(\{ preventScroll: true \}\)/);
   assert.match(html, /id="recordHeading" tabindex="-1"/);
@@ -34,7 +34,7 @@ test('aluno sem student_id não gera URL quebrada e o resumo permanece separado'
   assert.match(js, /if \(!target\) \{ button\.disabled = true; button\.dataset\.unavailable = 'true'; button\.title = 'Aluno sem identificador oficial\.'; return button; \}/);
   assert.match(js, /function summaryButton\(id\) \{ const button = node\('button', 'Ver resumo'\);/);
   assert.match(js, /function recordActions\(id\) \{ const actions = node\('div', null, 'record-actions'\);/);
-  assert.match(js, /button\.onclick = \(\) => openRecord\(id\)/);
+  assert.match(js, /button\.onclick = \(\) => \{ state\.recordTrigger = button; openRecord\(id\); \}/);
 });
 
 test('reabrir o mesmo resumo reutiliza os dados já carregados sem nova chamada', () => {
