@@ -9,3 +9,26 @@ test('UNDER_REVIEW only marks planning ready after a published plan exists',()=>
 ];for(const [student,expected] of cases)assert.deepEqual(nextAction(student,true),{title:'Recebidas / em preparação',...expected});});
 
 test('READY_TO_RELEASE opens the record for release',()=>assert.deepEqual(nextAction({consultation_status:'READY_TO_RELEASE'},true),{title:'Pronto para liberação',label:'Abrir Prontuário',action:'open-student',description:'Libere o acesso no Prontuário.'}));
+
+test('workspace feedback has semantic variants, accessible live regions, and synchronized runtime copies',()=>{
+  const html=readFileSync('public/admin-premium-workspace.html','utf8');
+  assert.match(html,/<section id="error" class="panel workspace-feedback-error" role="alert" aria-live="assertive" hidden>/);
+  const runtimePaths=['admin-premium-workspace.js','public/admin-premium-workspace.js','public/assets/js/admin-premium-workspace.js'];
+  const runtimes=runtimePaths.map((path)=>readFileSync(path,'utf8'));
+  assert.ok(runtimes.every((source)=>source===runtimes[0]));
+  for(const source of runtimes){
+    assert.match(source,/const workspaceFeedbackTypes = new Set\(\['success', 'warning', 'error'\]\)/);
+    assert.match(source,/function showWorkspaceFeedback\(\{ type, message \}\)/);
+    assert.match(source,/workspace-feedback-\$\{type\}/);
+    assert.match(source,/type === 'error' \? 'alert' : 'status'/);
+    assert.match(source,/type === 'error' \? 'assertive' : 'polite'/);
+    assert.match(source,/showWorkspaceFeedback\(\{ type: 'success', message: 'Mensagem de acesso copiada\.' \}\)/);
+    assert.match(source,/showWorkspaceFeedback\(\{ type: 'warning', message \}\)/);
+    assert.match(source,/function operationalError\(message\) \{ showWorkspaceFeedback\(\{ type: 'error', message \}\); \}/);
+  }
+  const cssPaths=['admin-premium-workspace.css','public/admin-premium-workspace.css','public/assets/css/admin-premium-workspace.css'];
+  const styles=cssPaths.map((path)=>readFileSync(path,'utf8'));
+  assert.ok(styles.every((source)=>source===styles[0]));
+  for(const selector of ['.workspace-feedback-success','.workspace-feedback-warning','.workspace-feedback-error'])assert.match(styles[0],new RegExp(`\\${selector}\\{`));
+  assert.doesNotMatch(styles[0],/\.error\{/);
+});
