@@ -13,7 +13,7 @@ test('minimal Workspace exposes only validated operational surface', async () =>
     /<section class="workspace-dashboard" aria-labelledby="workspaceDashboardHeading">/,
     /<article class="workspace-dashboard-card" data-dashboard-card="anamnesis-pending">[\s\S]*?Anamneses pendentes/,
     /<article class="workspace-dashboard-card" data-dashboard-card="checkins-answered">[\s\S]*?Check-ins respondidos/,
-    /<article class="workspace-dashboard-card" data-dashboard-card="checkins-open">[\s\S]*?Check-ins em aberto/,
+    /<article(?=[^>]*class="[^"]*\bworkspace-dashboard-card\b[^"]*")(?=[^>]*data-dashboard-card="checkins-open")(?=[^>]*(?:aria-disabled="true"|class="[^"]*\bis-unavailable\b[^"]*"))[^>]*>[\s\S]*?Check-ins em aberto/,
     /<section id="students" class="panel">[\s\S]*?<h2>Alunos Premium<\/h2>/,
     /<section id="record" class="panel context" hidden aria-labelledby="recordHeading">[\s\S]*?<h2 id="recordHeading" tabindex="-1">Prontuário LM<\/h2>/
   ]) assert.match(html, pattern);
