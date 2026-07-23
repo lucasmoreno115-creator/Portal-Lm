@@ -32,57 +32,58 @@
       </div>
       <div class='hero-content'>
         <h1 id='hello'>Olá, Aluno</h1>
-        <p id='heroTitle' class='hero-title'>Seu próximo passo está aqui.</p>
-        <p id='heroSubtext' class='hero-subtext'>Consistência antes da intensidade. Use esta área para acompanhar sua semana, enviar seu check-in e manter clareza sobre o próximo passo.</p>
-        <p id='planBadge' class='hero-badge'>Seu acompanhamento está ativo</p>
+        <p id='heroSubtext' class='hero-subtext'>Seu planejamento foi preparado especialmente para você.</p>
       </div>
   </section>
 
   <main class='container home-main'>
     <div id='nav' class='mobile-nav'></div>
 
-    <section class='premium-guidance'>
-      <section class='card dashboard-card mission-card-v6 weekly-plan-editorial' id='weekly-plan-section'>
-        <h2>🎯 Objetivos do planejamento</h2>
-        <div class='weekly-plan-grid'>
-          <article>
-            <h2>TREINO</h2>
-            <p id='weeklyPlanTraining'>Use o treino no MFIT como base da semana, priorizando técnica, controle e regularidade.</p>
-          </article>
-          <article>
-            <h2>CARDIO</h2>
-            <p id='weeklyPlanCardio'>Busque realizar o cardio combinado da forma mais sustentável possível dentro da sua rotina.</p>
-          </article>
-          <article>
-            <h2>NUTRIÇÃO</h2>
-            <p id='weeklyPlanNutrition'>Procure manter a alimentação alinhada ao plano, sem transformar pequenos desvios em culpa ou compensações exageradas.</p>
-          </article>
-          <article>
-            <h2>PRIORIDADE DA SEMANA</h2>
-            <p class='weekly-insight-copy'>Manter pequenas decisões bem feitas ao longo da semana.</p>
-          </article>
-          <article class='weekly-observation'>
-            <h2>OBSERVAÇÃO</h2>
-            <p id='weeklyPlanObservation'>Sua orientação estratégica aparecerá aqui sempre que houver uma atualização.</p>
-          </article>
-        </div>
-      </section>
-
-      <aside class='card dashboard-card consultant-card-v6 consultant-note'>
-        <h2>💬 Meu conselho para você</h2>
-        <p>Não precisa ser uma semana perfeita. O mais importante é manter direção, ajustar o que for necessário e seguir com constância.</p>
-      </aside>
+    <section class='planning card dashboard-card mission-card-v6 weekly-plan-editorial' id='weekly-plan-section' aria-labelledby='planning-title'>
+      <h2 id='planning-title'>🎯 Objetivos do planejamento</h2>
+      <div class='weekly-plan-grid'>
+        <article>
+          <h3>🏋️ Treino</h3>
+          <p id='weeklyPlanTraining'>Use o treino no MFIT como base da semana, priorizando técnica, controle e regularidade.</p>
+        </article>
+        <article>
+          <h3>❤️ Cardio</h3>
+          <p id='weeklyPlanCardio'>Busque realizar o cardio combinado da forma mais sustentável possível dentro da sua rotina.</p>
+        </article>
+        <article>
+          <h3>🥗 Alimentação</h3>
+          <p id='weeklyPlanNutrition'>Procure manter a alimentação alinhada ao plano, sem transformar pequenos desvios em culpa ou compensações exageradas.</p>
+        </article>
+        <article>
+          <h3>🎯 Objetivo principal</h3>
+          <p class='weekly-insight-copy'>Manter pequenas decisões bem feitas ao longo da semana.</p>
+        </article>
+        <article class='weekly-observation'>
+          <h3>Observação</h3>
+          <p id='weeklyPlanObservation'>Sua orientação estratégica aparecerá aqui sempre que houver uma atualização.</p>
+        </article>
+      </div>
     </section>
 
+    <section class='coach-message card dashboard-card consultant-card-v6 consultant-note' aria-labelledby='coach-message-title'>
+      <h2 id='coach-message-title'>💬 Meu conselho para você</h2>
+      <p>Não precisa ser uma semana perfeita. O mais importante é manter direção, ajustar o que for necessário e seguir com constância.</p>
+    </section>
 
-    <section class='card dashboard-card quick-access-v6 quick-access'>
-      <h2>🚀 Acesso rápido</h2>
-      <div id='quickLinks' class='quick-links'>
-        <a class='secondary-link' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'><span class='quick-icon'>🏋</span><span>MFIT</span></a>
-        <a class='secondary-link' href='portal-checkin.html' data-feature='checkin'><span class='quick-icon'>✅</span><span>Check-in semanal</span></a>
-        <a class='secondary-link' href='portal-progressao.html' data-feature='progressao'><span class='quick-icon'>📈</span><span>Progressão de carga</span></a>
-        <a class='secondary-link' href='portal-plano-alimentar.html' data-feature='plano-alimentar'><span class='quick-icon'>🥗</span><span>Plano Alimentar</span></a>
-        <a class='secondary-link' href='portal-biblioteca.html' data-feature='biblioteca'><span class='quick-icon'>📚</span><span>Biblioteca LM</span></a>
+    <section class='primary-actions' aria-labelledby='primary-actions-title'>
+      <h2 id='primary-actions-title'>Ações principais</h2>
+      <div class='action-links'>
+        <a class='primary-action-link' href='portal-plano-alimentar.html' data-feature='plano-alimentar'><span class='quick-icon'>🥗</span><span>Plano Alimentar</span></a>
+        <a class='primary-action-link' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'><span class='quick-icon'>🏋️</span><span>Treino</span></a>
+      </div>
+    </section>
+
+    <section class='secondary-actions' aria-labelledby='secondary-actions-title'>
+      <h2 id='secondary-actions-title'>Outras ações</h2>
+      <div class='action-links'>
+        <a class='secondary-link' href='portal-checkin.html' data-feature='checkin'><span class='quick-icon'>✅</span><span>Check-in</span></a>
+        <a class='secondary-link' href='portal-biblioteca.html' data-feature='biblioteca'><span class='quick-icon'>📚</span><span>Biblioteca</span></a>
+        <a class='secondary-link' href='https://wa.me/5514991174500?text=Olá%20Lucas,%20preciso%20de%20ajuda.' target='_blank' rel='noopener noreferrer' data-feature='suporte'><span class='quick-icon'>💬</span><span>Preciso de ajuda</span></a>
       </div>
     </section>
   </main>
@@ -100,21 +101,6 @@
     }
     document.getElementById('nav').innerHTML = nav();
     document.getElementById('hello').textContent = `Olá, ${localStorage.getItem('lm_student_name') || 'Aluno'}`;
-
-    const quickLinksEl = document.getElementById('quickLinks');
-
-    function renderQuickLinks() {
-      quickLinksEl.innerHTML = `
-        <a class='secondary-link' href='https://www.mfitpersonal.com.br/app.jsp' target='_blank' rel='noopener noreferrer'><span class='quick-icon'>🏋</span><span>MFIT</span></a>
-        <a class='secondary-link' href='portal-checkin.html'><span class='quick-icon'>✅</span><span>Check-in semanal</span></a>
-        <a class='secondary-link' href='portal-progressao.html'><span class='quick-icon'>📈</span><span>Progressão de carga</span></a>
-        <a class='secondary-link' href='portal-plano-alimentar.html'><span class='quick-icon'>🥗</span><span>Plano Alimentar</span></a>
-        <a class='secondary-link' href='portal-biblioteca.html'><span class='quick-icon'>📚</span><span>Biblioteca LM</span></a>
-      `;
-    }
-
-    renderQuickLinks();
-    document.getElementById('planBadge').textContent = 'CONSULTORIA PREMIUM LM · Acompanhamento completo.';
 
     (async () => {
       const weeklyPlanTrainingEl = document.querySelector('#weeklyPlanTraining');
