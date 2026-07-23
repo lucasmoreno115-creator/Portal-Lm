@@ -92,9 +92,10 @@ test('Student 360 route remains functional and protected instead of redirecting 
   assert.doesNotMatch(student360, /http-equiv="refresh"/i);
 });
 
-test('workspace loads dashboard blocks and student list independently', () => {
+test('workspace loads the central summary and student list independently', () => {
   const source = js();
-  for (const loader of ['loadAnamnesisDashboard', 'loadCheckinDashboard', 'loadStudents']) assert.match(source, new RegExp(`${loader}\\(\\)\\.catch`));
+  assert.match(source, /loadWorkspaceSummary\(\)\.catch\(handleWorkspaceSummaryError\)/);
+  assert.match(source, /loadStudents\(\)\.catch/);
   assert.doesNotMatch(source, /loadSaturdayReview|loadPending\(/);
   assert.match(source, /retryBlock\(\$\('anamnesisDashboard'\)/);
   assert.match(source, /retryBlock\(\$\('checkinDashboard'\)/);
