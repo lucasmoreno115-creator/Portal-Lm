@@ -87,9 +87,15 @@
     <section id="students" class="panel">
       <div class="section-head">
         <h2>Alunos Premium</h2>
-        <label>Buscar aluno<input id="search" placeholder="Nome ou e-mail"></label>
+        <div class="student-search">
+          <label for="search">Buscar aluno</label>
+          <div class="student-search-control">
+            <input id="search" type="search" placeholder="Nome ou e-mail" autocomplete="off" aria-controls="studentList">
+            <button id="clearSearch" type="button" aria-label="Limpar busca" title="Limpar busca" hidden>×</button>
+          </div>
+        </div>
       </div>
-      <div id="studentList" class="list">Carregando alunos... Nenhum aluno Premium encontrado.</div>
+      <div id="studentList" class="list" role="region" aria-label="Alunos Premium">Carregando alunos... Nenhum aluno Premium encontrado.</div>
       <button id="loadMore" hidden>Carregar mais</button>
     </section>
 
