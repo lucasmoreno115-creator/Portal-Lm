@@ -43,17 +43,15 @@ test('text and structured substitutions are normalized and malicious content is 
   assert.doesNotMatch(renderer.renderLines(substitutions[2]), /<img/);
 });
 
-test('portal and print pages share the renderer, preserve the established endpoint, and omit redundant plan blocks', () => {
-  const nutritionPages = [
-    'portal-plano-alimentar.html',
-    'public/portal-plano-alimentar.html',
-    'portal-plano-alimentar-print.html',
-    'public/portal-plano-alimentar-print.html'
-  ];
+test('portal page shares the renderer and preserves the established endpoint', () => {
+  const nutritionPages = ['portal-plano-alimentar.html', 'public/portal-plano-alimentar.html'];
   for (const file of nutritionPages) {
     const html = fs.readFileSync(file, 'utf8');
     assert.match(html, /premium-nutrition-plan-renderer\.js/);
     assert.match(html, /\/portal\/nutrition-plan/);
+    assert.match(html, /renderMealContent\(meal/);
+    assert.match(html, /content\.substitutionsHtml/);
+    assert.doesNotMatch(html, /portal-plano-alimentar-print/);
   }
   const portal = fs.readFileSync('public/portal-plano-alimentar.html', 'utf8');
   assert.doesNotMatch(portal, /plan\.strategy|acc-strategy/);
@@ -62,7 +60,7 @@ test('portal and print pages share the renderer, preserve the established endpoi
   assert.doesNotMatch(portal, /nutrition-accordion|acc-meals|data-accordion/);
   for (const html of nutritionPages.map((file) => fs.readFileSync(file, 'utf8'))) {
     assert.doesNotMatch(html, /Resumo do plano/);
-    assert.doesNotMatch(html, /Regras de adesão|Regras de ades&atilde;o/);
+    assert.doesNotMatch(html, /Regras de adesão|Regras de Adesão/);
     assert.doesNotMatch(html, /adherence_rules/);
   }
 });
@@ -86,25 +84,18 @@ test('meal rendering prioritizes primary text, safely falls back to legacy objec
   assert.doesNotMatch(fallback.primaryHtml, /\[object Object\]/);
 });
 
-test('portal and print pages render meal direction, scoped substitutions, general data, and separate general substitutions', () => {
+test('portal renders meal direction, scoped substitutions, general data, and separate general substitutions', () => {
   const portal = fs.readFileSync('public/portal-plano-alimentar.html', 'utf8');
-  const print = fs.readFileSync('public/portal-plano-alimentar-print.html', 'utf8');
-  for (const html of [portal, print]) {
-    assert.match(html, /Direção/);
-    assert.match(html, /renderMealContent\(meal/);
-    assert.match(html, /renderFoodEquivalences\(plan\?\.substitutions|renderFoodEquivalences\(plan\.substitutions/);
-    assert.match(html, /Hidrata/);
-    assert.match(html, /Suplement/);
-    assert.match(html, /observations.*notes|notes.*observations/);
-  }
+  assert.match(portal, /Direção/);
+  assert.match(portal, /renderMealContent\(meal/);
+  assert.match(portal, /renderFoodEquivalences\(plan\.substitutions/);
+  assert.match(portal, /Hidrata/);
+  assert.match(portal, /Suplement/);
+  assert.match(portal, /observations.*notes|notes.*observations/);
   assert.match(portal, /content\.substitutionsHtml/);
-  assert.match(print, /rendered\.substitutionsHtml/);
 });
-test('print omits the general equivalence section when its array is empty',()=>{const print=fs.readFileSync('public/portal-plano-alimentar-print.html','utf8');assert.match(print,/Array\.isArray\(plan\?\.substitutions\) && plan\.substitutions\.length/);});
-
-
-test('portal and print render a labeled reference only when a category provides one', () => {
-  for (const file of ['public/portal-plano-alimentar.html', 'portal-plano-alimentar.html', 'public/portal-plano-alimentar-print.html', 'portal-plano-alimentar-print.html']) {
+test('portal renders a labeled reference only when a category provides one', () => {
+  for (const file of ['public/portal-plano-alimentar.html', 'portal-plano-alimentar.html']) {
     const html = fs.readFileSync(file, 'utf8');
     assert.match(html, /Referência:/);
     assert.match(html, /reference \?/);
