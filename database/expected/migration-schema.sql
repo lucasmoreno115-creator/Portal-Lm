@@ -638,7 +638,7 @@ CREATE TABLE student_checkins (
   reviewed_at TEXT,
   reviewed_by TEXT,
   created_at TEXT NOT NULL
-, student_id TEXT, available_at TEXT, submitted_at TEXT, analyzed_at TEXT, decision_type TEXT, decision_note TEXT, decision_by TEXT, decision_at TEXT, updated_at TEXT);
+, student_id TEXT, available_at TEXT, submitted_at TEXT, analyzed_at TEXT, decision_type TEXT, decision_note TEXT, decision_by TEXT, decision_at TEXT, updated_at TEXT, followup_at TEXT);
 
 CREATE TABLE training_exercises (
   id TEXT PRIMARY KEY,

@@ -3602,6 +3602,13 @@
           "notnull": false,
           "dflt_value": null,
           "pk": 0
+        },
+        {
+          "name": "followup_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
         }
       ],
       "indexes": [
