@@ -14,12 +14,12 @@ class FakeNode {
   focus(options) { this.focusOptions = options; }
 }
 
-async function boot({ summaryFailure = false, ids } = {}) {
+async function boot({ summaryFailure = false, reduceMotion = false, hasMatchMedia = true, ids } = {}) {
   const source = await readFile('public/admin-premium-workspace.js', 'utf8');
   const nodes = new Map((ids || ['workspaceDashboard', 'anamnesisPendingCard', 'checkinsAnsweredCard', 'anamnesisPendingValue', 'anamnesisPendingHint', 'checkinsAnsweredValue', 'checkinsAnsweredHint', 'checkinsOpenValue', 'checkinsOpenHint', 'anamnesisOperationalPanel', 'anamnesisOperationalHeading', 'checkinsOperationalPanel', 'checkinsOperationalHeading', 'anamnesisDashboard', 'anamnesisItems', 'checkinDashboard', 'checkinItems', 'studentList', 'loadMore', 'error', 'errorText', 'adminLogoutBtn']).map((id) => [id, new FakeNode(id)]));
   const document = { getElementById: (id) => nodes.get(id) || null, createElement: (tag) => new FakeNode('', tag) };
   const timers = [];
-  const sandbox = { document, window: { location: { origin: 'https://portal.test', pathname: '/', assign() {} }, LMAdminAuth: { requireAdmin: () => true, attachLogout() {}, getAdminAuthHeaders: () => ({}) } }, fetch: async (url) => new Response(JSON.stringify(summaryFailure && String(url).includes('/summary') ? { ok: false, error: 'indisponível' } : { ok: true, data: String(url).includes('/summary') ? { anamnesis: { awaiting: 2, underReview: 0, readyToRelease: 0, items: [] }, checkins: { awaitingReview: 3, withoutRecentResponse: null, items: [] } } : { items: [], nextCursor: null } }), { status: summaryFailure && String(url).includes('/summary') ? 500 : 200 }), URL, console: { info() {} }, setTimeout: (fn) => { timers.push(fn); return timers.length; }, clearTimeout() {}, encodeURIComponent, Promise, Array, String, Boolean };
+  const sandbox = { document, window: { location: { origin: 'https://portal.test', pathname: '/', assign() {} }, matchMedia: hasMatchMedia ? () => ({ matches: reduceMotion }) : undefined, LMAdminAuth: { requireAdmin: () => true, attachLogout() {}, getAdminAuthHeaders: () => ({}) } }, fetch: async (url) => new Response(JSON.stringify(summaryFailure && String(url).includes('/summary') ? { ok: false, error: 'indisponível' } : { ok: true, data: String(url).includes('/summary') ? { anamnesis: { awaiting: 2, underReview: 0, readyToRelease: 0, items: [] }, checkins: { awaitingReview: 3, withoutRecentResponse: null, items: [] } } : { items: [], nextCursor: null } }), { status: summaryFailure && String(url).includes('/summary') ? 500 : 200 }), URL, console: { info() {} }, setTimeout: (fn) => { timers.push(fn); return timers.length; }, clearTimeout() {}, encodeURIComponent, Promise, Array, String, Boolean };
   sandbox.window.window = sandbox.window;
   vm.runInNewContext(source, sandbox);
   await new Promise((resolve) => setImmediate(resolve));
@@ -44,6 +44,23 @@ test('navigable cards scroll, focus and temporarily highlight their official ope
   assert.equal(nodes.get('checkinsOperationalPanel').classNames.has('operational-panel-highlight'), false);
 });
 
+test('operational navigation respects reduced motion and tolerates missing matchMedia', async () => {
+  const reduced = await boot({ reduceMotion: true });
+  reduced.nodes.get('anamnesisPendingCard').onclick();
+  assert.equal(reduced.nodes.get('anamnesisOperationalPanel').scrollOptions.behavior, 'auto');
+  assert.equal(reduced.nodes.get('anamnesisOperationalPanel').scrollOptions.block, 'start');
+  assert.equal(reduced.nodes.get('anamnesisOperationalHeading').focusOptions.preventScroll, true);
+  assert.equal(reduced.nodes.get('anamnesisOperationalPanel').classNames.has('operational-panel-highlight'), true);
+
+  const defaultMotion = await boot();
+  defaultMotion.nodes.get('anamnesisPendingCard').onclick();
+  assert.equal(defaultMotion.nodes.get('anamnesisOperationalPanel').scrollOptions.behavior, 'smooth');
+
+  const withoutMatchMedia = await boot({ hasMatchMedia: false });
+  assert.doesNotThrow(() => withoutMatchMedia.nodes.get('anamnesisPendingCard').onclick());
+  assert.equal(withoutMatchMedia.nodes.get('anamnesisOperationalPanel').scrollOptions.behavior, 'smooth');
+});
+
 test('cards remain inert during loading or summary error, and tolerate a partial dashboard DOM', async () => {
   const loading = await boot({ ids: ['workspaceDashboard', 'anamnesisPendingCard', 'checkinsAnsweredCard', 'studentList', 'loadMore', 'error', 'errorText', 'adminLogoutBtn', 'anamnesisDashboard', 'anamnesisItems', 'checkinDashboard', 'checkinItems'] });
   assert.equal(loading.nodes.get('anamnesisPendingCard').disabled, false, 'successful load enables the official card even when its destination is absent');
@@ -63,7 +80,9 @@ test('markup keeps native button keyboard semantics and does not give check-ins 
   assert.match(html, /id="anamnesisOperationalPanel"[\s\S]*?id="anamnesisOperationalHeading" tabindex="-1"/);
   assert.match(html, /id="checkinsOperationalPanel"[\s\S]*?id="checkinsOperationalHeading" tabindex="-1"/);
   const source = await readFile('public/admin-premium-workspace.js', 'utf8');
-  assert.match(source, /function focusOperationalPanel\(panelId, headingId\)[\s\S]*?scrollIntoView\?\.\(\{ behavior: 'smooth', block: 'start' \}\)[\s\S]*?focus\?\.\(\{ preventScroll: true \}\)/);
+  assert.match(source, /window\.matchMedia\?\.\('\(prefers-reduced-motion: reduce\)'\)\?\.matches === true/);
+  assert.match(source, /scrollIntoView\?\.\(\{ behavior: reduceMotion \? 'auto' : 'smooth', block: 'start' \}\)/);
+  assert.doesNotMatch(source, /operationalHighlightTimers/);
   assert.match(source, /typeof withoutRecentResponse === 'number' \? 'Aguardando definição' : 'Lista ainda não definida'/);
   assert.doesNotMatch(source, /checkinsOpen(?:Card)?.*focusOperationalPanel/);
   const copies = await Promise.all(['admin-premium-workspace.js', 'public/admin-premium-workspace.js', 'public/assets/js/admin-premium-workspace.js'].map((file) => readFile(file, 'utf8')));
