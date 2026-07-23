@@ -23,15 +23,17 @@ class FakeNode {
   replaceChildren(...nodes) { this.children = [...nodes]; this.textContent = nodes.map((node) => node?.textContent || '').join(''); }
   addEventListener(type, handler) { this.listeners[type] = handler; }
   closest() { return null; }
+  focus() { this.focused = true; }
 }
 
 async function runWorkspace({ sessionId = 'session-123', fetchImpl, auth = {} } = {}) {
   const source = await readFile('public/admin-premium-workspace.js', 'utf8');
   const nodes = new Map();
-  for (const id of ['studentList', 'errorText', 'error', 'loadMore', 'search', 'retry', 'adminLogoutBtn', 'contextBody', 'anamnesisDashboard', 'anamnesisItems', 'checkinDashboard', 'checkinItems', 'record', 'openCreate', 'createPanel', 'studentsNav', 'students', 'overview', 'closeRecord', 'createForm', 'createResult']) nodes.set(id, new FakeNode(id));
+  for (const id of ['studentList', 'errorText', 'error', 'loadMore', 'search', 'clearSearch', 'retry', 'adminLogoutBtn', 'contextBody', 'anamnesisDashboard', 'anamnesisItems', 'checkinDashboard', 'checkinItems', 'record', 'openCreate', 'createPanel', 'studentsNav', 'students', 'overview', 'closeRecord', 'createForm', 'createResult']) nodes.set(id, new FakeNode(id));
   const document = {
     getElementById(id) { return nodes.get(id) || null; },
     createElement(tag) { return new FakeNode('', tag); },
+    createTextNode(text) { const node = new FakeNode('', '#text'); node.textContent = String(text); return node; },
     addEventListener() {}
   };
   const location = { origin: 'https://portal.test', pathname: '/admin-premium-workspace.html', search: '', hash: '', assigned: null, assign(url) { this.assigned = url; } };
@@ -130,6 +132,37 @@ test('aluno sem student_id mantém Abrir Prontuário desabilitado sem URL quebra
   assert.equal(openRecord.disabled, true);
   assert.equal(openRecord.onclick, undefined);
   assert.equal(result.location.assigned, null);
+});
+
+test('busca filtra alunos carregados sem novo fetch e restaura a seleção ao limpar', async () => {
+  const students = [
+    { studentId: 'ana', name: 'Ana Maria', email: 'ana@example.test', operationalStatusLabel: 'Ativo', anamnesisStatusLabel: 'Respondida', weeklyFeedbackStatusLabel: 'Em dia' },
+    { studentId: 'bruno', name: 'Bruno', email: 'bruno@example.test', operationalStatusLabel: 'Ativo', anamnesisStatusLabel: 'Respondida', weeklyFeedbackStatusLabel: 'Em dia' }
+  ];
+  const result = await runWorkspace({
+    fetchImpl: async (url) => {
+      if (String(url).includes('/summary')) return new Response(JSON.stringify({ ok: false, error: 'SERVER_ERROR' }), { status: 500 });
+      if (String(url).endsWith('/ana')) return new Response(JSON.stringify({ ok: true, data: { identity: students[0], operationalStatus: { label: 'Ativo' }, nextAction: { title: 'Próxima', description: '—', label: 'Abrir Prontuário', action: 'open-student' }, anamnesis: null, checkins: { latest: null, history: [] } } }), { status: 200 });
+      return new Response(JSON.stringify({ ok: true, data: { items: students, nextCursor: null } }), { status: 200 });
+    }
+  });
+  const ana = result.nodes.get('studentList').children[0];
+  const summary = ana.children.flatMap((child) => child.children || []).find((child) => child.textContent === 'Ver resumo');
+  summary.onclick();
+  await new Promise((resolve) => setImmediate(resolve));
+  const callsBeforeSearch = result.calls.length;
+
+  const search = result.nodes.get('search');
+  search.value = 'bruno@example';
+  search.oninput();
+  assert.equal(result.calls.length, callsBeforeSearch);
+  assert.match(result.nodes.get('studentList').textContent, /Bruno/);
+  assert.doesNotMatch(result.nodes.get('studentList').textContent, /Ana Maria/);
+
+  result.nodes.get('clearSearch').onclick();
+  assert.equal(search.focused, true);
+  assert.equal(result.calls.length, callsBeforeSearch);
+  assert.equal(result.nodes.get('studentList').children[0].className, 'item student-item is-selected');
 });
 
 test('workspace keeps session on 500, 403 and network errors', async () => {

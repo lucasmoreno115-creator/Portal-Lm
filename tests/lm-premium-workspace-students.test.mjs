@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const js = readFileSync('public/admin-premium-workspace.js', 'utf8');
 const css = readFileSync('public/assets/css/admin-premium-workspace.css', 'utf8');
+const html = readFileSync('public/admin-premium-workspace.html', 'utf8');
 
 for (const runtime of ['admin-premium-workspace.js', 'public/admin-premium-workspace.js', 'public/assets/js/admin-premium-workspace.js']) {
   test(`${runtime} mantém o runtime operacional sincronizado`, () => {
@@ -28,4 +29,20 @@ test('aluno selecionado fica em atendimento e mantém Abrir Prontuário desabili
 
 test('estado vazio orienta o profissional sem criar CTA', () => {
   assert.match(js, /Nenhum aluno Premium encontrado\.', 'muted'\), node\('p', 'Cadastre um aluno para iniciar o acompanhamento\.', 'muted'/);
+});
+
+test('busca local filtra nome e e-mail imediatamente, sem endpoint ou debounce', () => {
+  assert.match(js, /\[student\.name, student\.email\]/);
+  assert.match(js, /on\('search', 'input', applyLocalSearch\)/);
+  assert.doesNotMatch(js, /workspace\/students\/search/);
+  assert.doesNotMatch(js, /searchTimer|setTimeout\(async/);
+});
+
+test('busca usa marcação segura, estado vazio e limpeza acessível', () => {
+  assert.match(js, /document\.createTextNode/);
+  assert.match(js, /node\('mark', text\.slice/);
+  assert.match(js, /Nenhum aluno encontrado\.', 'muted'\), node\('p', 'Verifique o nome ou e-mail informado\.', 'muted'/);
+  assert.match(html, /<label for="search">Buscar aluno<\/label>/);
+  assert.match(html, /id="clearSearch"[^>]*aria-label="Limpar busca"/);
+  assert.match(css, /\.student-search-highlight/);
 });
