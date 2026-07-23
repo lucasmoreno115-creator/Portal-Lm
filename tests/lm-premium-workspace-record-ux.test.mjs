@@ -31,7 +31,7 @@ test('Abrir Prontuário navega para o prontuário Premium com student_id codific
 });
 
 test('aluno sem student_id não gera URL quebrada e o resumo permanece separado', () => {
-  assert.match(js, /if \(!target\) \{ button\.disabled = true; button\.title = 'Aluno sem identificador oficial\.'; return button; \}/);
+  assert.match(js, /if \(!target\) \{ button\.disabled = true; button\.dataset\.unavailable = 'true'; button\.title = 'Aluno sem identificador oficial\.'; return button; \}/);
   assert.match(js, /function summaryButton\(id\) \{ const button = node\('button', 'Ver resumo'\);/);
   assert.match(js, /function recordActions\(id\) \{ const actions = node\('div', null, 'record-actions'\);/);
   assert.match(js, /button\.onclick = \(\) => openRecord\(id\)/);
