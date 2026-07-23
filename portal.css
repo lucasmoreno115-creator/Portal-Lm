@@ -1553,3 +1553,27 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
   .portal-home-v7 .primary-actions .action-links,
   .portal-home-v7 .secondary-actions .action-links{grid-template-columns:1fr}
 }
+
+/* Plano alimentar Premium: leitura sequencial e foco nas refeições. */
+.nutrition-plan-hero{margin-bottom:22px}
+.nutrition-plan-hero h1{margin-bottom:10px}
+#contentCard{display:grid;gap:22px}
+#planContent{gap:22px}
+.nutrition-section{display:grid;gap:16px}
+.nutrition-section h2{margin:0;font-size:1.2rem}
+.nutrition-section-content{display:grid;gap:16px}
+.nutrition-meals-section{gap:16px}
+.meal-list{display:grid;grid-template-columns:1fr;gap:18px}
+.meal-card{padding:20px;gap:14px;border-color:#3a3a3a}
+.meal-card h3{font-size:1.12rem}
+.meal-foods{display:grid;gap:8px}
+.meal-equivalences{padding-top:14px;border-top:1px solid #313131}
+.meal-equivalences h4{margin:0 0 8px}
+.plan-equivalences{display:grid;gap:12px;margin-top:4px}
+.plan-equivalences h3{margin:0;font-size:1rem}
+@media (max-width:720px){
+  .nutrition-plan-hero{margin-bottom:18px}
+  #contentCard,#planContent{gap:18px}
+  .meal-list{gap:16px}
+  .meal-card{padding:16px}
+}

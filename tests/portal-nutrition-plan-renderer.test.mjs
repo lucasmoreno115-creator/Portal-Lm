@@ -58,7 +58,8 @@ test('portal and print pages share the renderer, preserve the established endpoi
   const portal = fs.readFileSync('public/portal-plano-alimentar.html', 'utf8');
   assert.doesNotMatch(portal, /plan\.strategy|acc-strategy/);
   assert.match(portal, /meal\?\.guidance/);
-  assert.match(portal, /acc-meals/);
+  assert.match(portal, /nutrition-meals-section/);
+  assert.doesNotMatch(portal, /nutrition-accordion|acc-meals|data-accordion/);
   for (const html of nutritionPages.map((file) => fs.readFileSync(file, 'utf8'))) {
     assert.doesNotMatch(html, /Resumo do plano/);
     assert.doesNotMatch(html, /Regras de adesão|Regras de ades&atilde;o/);

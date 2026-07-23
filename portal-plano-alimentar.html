@@ -10,18 +10,14 @@
   <div class='container'>
     <div id='nav'></div>
 
-    <section class='card hero'>
-      <p class='eyebrow'>Consultoria LM</p>
+    <header class='card hero nutrition-plan-hero'>
       <h1>Plano Alimentar</h1>
-      <p class='hero-subtext'>Seu plano alimentar organizado de forma simples para facilitar a execução no dia a dia.</p>
-    </section>
+      <p class='hero-subtext'>Seu planejamento nutricional foi preparado especialmente para você.</p>
+    </header>
 
-    <section id='contentCard' class='card'>
-      <p id='statusText' class='muted'>Carregando seu plano alimentar...</p>
+    <section id='contentCard' aria-live='polite'>
+      <p id='statusText' class='card muted'>Carregando seu plano alimentar...</p>
       <div id='planContent' hidden></div>
-      <div id='pdfActions' hidden style='margin-top:16px;'>
-        <button id='downloadPdfBtn' type='button' class='primary-cta'>Baixar PDF completo</button>
-      </div>
     </section>
   </div>
 
@@ -35,8 +31,6 @@
 
     const statusText = document.getElementById('statusText');
     const planContent = document.getElementById('planContent');
-    const pdfActions = document.getElementById('pdfActions');
-    const downloadPdfBtn = document.getElementById('downloadPdfBtn');
 
     const nutritionRenderer = window.PortalNutritionPlanRenderer;
     const escapeHtml = nutritionRenderer.escapeHtml;
@@ -86,23 +80,6 @@
           ${renderList(Array.isArray(category.items) ? category.items : [])}
         </article>
       `).join('');
-    }
-
-    function sectionHtml(title, content) {
-      if (!content) return '';
-      return `<section class='card'><h2>${title}</h2>${content}</section>`;
-    }
-
-    function createAccordionSection(id, title, content, isOpen) {
-      return `
-        <section class='card nutrition-accordion ${isOpen ? 'is-open' : ''}' data-accordion>
-          <button type='button' class='nutrition-accordion-header' aria-expanded='${isOpen ? 'true' : 'false'}' aria-controls='${id}'>
-            <span>${title}</span>
-            <span class='accordion-chevron' aria-hidden='true'>⌄</span>
-          </button>
-          <div id='${id}' class='nutrition-accordion-content' ${isOpen ? '' : 'hidden'}>${content}</div>
-        </section>
-      `;
     }
 
     function buildFoodConverterSection() {
@@ -201,8 +178,8 @@
           <h3>${escapeHtml(meal?.name || 'Refeicao')}</h3>
           ${meal?.time ? `<p class='muted'>${escapeHtml(meal.time)}</p>` : ''}
           ${meal?.guidance ? `<div class='meal-guidance'><h4>Direção</h4><p class='muted' style='white-space: pre-wrap;'>${escapeHtml(meal.guidance)}</p></div>` : ''}
-          ${content.primaryHtml}
-          ${content.substitutionsHtml}
+          <div class='meal-foods'>${content.primaryHtml}</div>
+          ${content.substitutionsHtml ? `<div class='meal-equivalences'>${content.substitutionsHtml}</div>` : ''}
         </article>`;
       }).join('');
 
@@ -211,62 +188,52 @@
       const hydrationHtml = renderTextOrList(plan.hydration);
       const supplementsHtml = renderTextOrList(plan.supplements);
       const message = encodeURIComponent(plan.whatsapp_message || 'Ola, estou com duvida sobre meu plano alimentar no Portal LM.');
-      const substitutionsSection = substitutionsHtml ? `<div class='equivalence-grid'>${substitutionsHtml}</div><p class='equivalence-note'>${equivalenceNote}</p>` : '';
-      const mealsSection = `${mealsHtml ? `<div class='grid'>${mealsHtml}</div>` : '<p class="muted">Sem refei&ccedil;&otilde;es cadastradas.</p>'}${substitutionsSection}`;
+      const substitutionsSection = substitutionsHtml ? `<div class='plan-equivalences'><h3>Trocas disponíveis</h3><div class='equivalence-grid'>${substitutionsHtml}</div><p class='equivalence-note'>${equivalenceNote}</p></div>` : '';
+      const mealsSection = mealsHtml ? `<div class='meal-list'>${mealsHtml}</div>${substitutionsSection}` : '<p class="muted">Sem refei&ccedil;&otilde;es cadastradas.</p>';
+      const observationsSection = [
+        observationsHtml,
+        hydrationHtml && `<div><h3>Hidrata&ccedil;&atilde;o</h3>${hydrationHtml}</div>`,
+        supplementsHtml && `<div><h3>Suplementa&ccedil;&atilde;o</h3>${supplementsHtml}</div>`
+      ].filter(Boolean).join('') || '<p class="muted">Sem observa&ccedil;&otilde;es.</p>';
       const supportSection = `
-        <p class='muted'>Se surgiu qualquer d&uacute;vida na execu&ccedil;&atilde;o, pe&ccedil;a orienta&ccedil;&atilde;o antes de ajustar por conta pr&oacute;pria.</p>
+        <p>Ficou com alguma d&uacute;vida?</p>
+        <p class='muted'>Entre em contato comigo pelo WhatsApp.</p>
         <div class='nutrition-actions'>
           <a class='primary-cta' href='https://wa.me/5514991174500?text=${message}' target='_blank' rel='noopener noreferrer'>Falar com Lucas sobre este plano</a>
         </div>
       `;
 
       planContent.innerHTML = `
-        ${createAccordionSection('acc-meals', 'Refei&ccedil;&otilde;es', mealsSection, true)}
-        ${createAccordionSection('acc-notes', 'Observa&ccedil;&otilde;es', [
-          observationsHtml,
-          hydrationHtml && `<div><h3>Hidrata&ccedil;&atilde;o</h3>${hydrationHtml}</div>`,
-          supplementsHtml && `<div><h3>Suplementa&ccedil;&atilde;o</h3>${supplementsHtml}</div>`
-        ].filter(Boolean).join('') || '<p class="muted">Sem observa&ccedil;&otilde;es.</p>', false)}
-        ${createAccordionSection('acc-tools', 'Ferramentas', buildFoodConverterSection(), false)}
-        ${createAccordionSection('acc-support', 'Suporte', supportSection, false)}
+        <section class='nutrition-section nutrition-meals-section' aria-labelledby='meals-heading'>
+          <h2 id='meals-heading'>Refei&ccedil;&otilde;es</h2>
+          ${mealsSection}
+        </section>
+        <section class='card nutrition-section' aria-labelledby='notes-heading'>
+          <h2 id='notes-heading'>Observa&ccedil;&otilde;es</h2>
+          <div class='nutrition-section-content'>${observationsSection}</div>
+        </section>
+        <section class='card nutrition-section' aria-labelledby='tools-heading'>
+          <h2 id='tools-heading'>Ferramentas</h2>
+          <div class='nutrition-section-content'>
+            <div class='nutrition-actions'><button id='downloadPdfBtn' type='button' class='primary-cta'>Baixar PDF completo</button></div>
+            ${buildFoodConverterSection()}
+          </div>
+        </section>
+        <section class='card nutrition-section' aria-labelledby='support-heading'>
+          <h2 id='support-heading'>Suporte</h2>
+          <div class='nutrition-section-content'>${supportSection}</div>
+        </section>
       `;
 
       statusText.hidden = true;
       planContent.hidden = false;
-      bindAccordions();
-      setAccordionDefaultByViewport();
+      document.getElementById('downloadPdfBtn')?.addEventListener('click', downloadPlanPdf);
       setupFoodConverter();
     }
 
-    function toggleAccordion(section, shouldOpen) {
-      const header = section.querySelector('.nutrition-accordion-header');
-      const content = section.querySelector('.nutrition-accordion-content');
-      if (!header || !content) return;
-      section.classList.toggle('is-open', shouldOpen);
-      header.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
-      content.hidden = !shouldOpen;
-    }
-
-    function bindAccordions() {
-      document.querySelectorAll('[data-accordion]').forEach((section) => {
-        const header = section.querySelector('.nutrition-accordion-header');
-        if (!header) return;
-        header.onclick = () => {
-          const isOpen = section.classList.contains('is-open');
-          toggleAccordion(section, !isOpen);
-        };
-      });
-    }
-
-    function setAccordionDefaultByViewport() {
-      if (window.innerWidth > 720) return;
-      document.querySelectorAll('[data-accordion]').forEach((section) => {
-        const content = section.querySelector('.nutrition-accordion-content');
-        toggleAccordion(section, content?.id === 'acc-meals');
-      });
-    }
-
     function downloadPlanPdf() {
+      const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+      if (!downloadPdfBtn) return;
       downloadPdfBtn.disabled = true;
       const originalText = downloadPdfBtn.textContent;
       downloadPdfBtn.textContent = 'Abrindo versão para impressão...';
@@ -291,8 +258,6 @@
       }
     }
 
-    downloadPdfBtn.addEventListener('click', downloadPlanPdf);
-
     async function loadPlan() {
       try {
         const response = await api('/portal/nutrition-plan');
@@ -304,7 +269,6 @@
         }
 
         renderPlan(response.data);
-        pdfActions.hidden = false;
       } catch (error) {
         statusText.textContent = 'Não foi possível carregar seu plano alimentar agora. Tente novamente em instantes.';
         statusText.className = 'status error';
