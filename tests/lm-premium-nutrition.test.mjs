@@ -18,4 +18,10 @@ test('Premium nutrition keeps the execution sections in the intended order', () 
   assert.match(nutrition, /observations \|\| plan\.notes/);
   assert.match(nutrition, /buildFoodConverterSection/);
   assert.match(nutrition, /supportSection/);
+  assert.match(nutrition, /Seu planejamento nutricional foi preparado especialmente para você\./);
+  assert.doesNotMatch(nutrition, /nutrition-accordion|data-accordion|acc-meals/);
+  assert.match(nutrition, /class='meal-list'/);
+  assert.match(nutrition, /class='meal-equivalences'/);
+  assert.match(nutrition, /pdfActions\.hidden = false/);
+  assert.match(nutrition, /id='pdfActions' class='nutrition-actions' hidden><button id='downloadPdfBtn'/);
 });
