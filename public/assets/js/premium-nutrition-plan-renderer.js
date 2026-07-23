@@ -54,13 +54,29 @@
     return `<p${className} style='white-space: pre-wrap;'>${escapeHtml(lines.join('\n'))}</p>`;
   }
 
+  function renderMealEquivalences(meal) {
+    const substitutions = getMealSubstitutions(meal);
+    if (!substitutions.length) return '';
+
+    const categorized = (Array.isArray(meal && meal.substitutions) ? meal.substitutions : [])
+      .filter((substitution) => substitution && typeof substitution === 'object' && text(substitution.category));
+    if (!categorized.length) {
+      return `<section class='meal-substitutions'><h4 aria-label='Substituições'>Trocas disponíveis</h4>${substitutions.map((lines, index) => `<div class='meal-substitution'><strong>Alternativa ${index + 1}</strong>${renderLines(lines)}</div>`).join('')}</section>`;
+    }
+
+    return `<section class='meal-substitutions'><h4 aria-label='Substituições'>Trocas disponíveis</h4><div class='meal-equivalence-categories'>${categorized.map((category) => {
+      const lines = normalizeMealLines(category.items || category.text || category);
+      return `<section class='meal-equivalence-category'><h5>${escapeHtml(category.icon ? `${category.icon} ${category.category}` : category.category)}</h5>${category.reference ? `<p class='equivalence-reference'><strong>Referência:</strong> ${escapeHtml(category.reference)}</p>` : ''}${renderLines(lines)}</section>`;
+    }).join('')}</div></section>`;
+  }
+
   function renderMealContent(meal, options) {
     const primary = getMealPrimaryContent(meal);
     const primaryHtml = renderLines(primary.lines, { emptyHtml: options && options.emptyHtml });
     const substitutions = getMealSubstitutions(meal);
-    const substitutionsHtml = substitutions.length ? `<section class='meal-substitutions'><h4>Substituições</h4>${substitutions.map((lines, index) => `<div class='meal-substitution'><strong>Alternativa ${index + 1}</strong>${renderLines(lines)}</div>`).join('')}</section>` : '';
+    const substitutionsHtml = renderMealEquivalences(meal);
     return { primary, primaryHtml, substitutions, substitutionsHtml };
   }
 
-  global.PortalNutritionPlanRenderer = { escapeHtml, formatStructuredItem, normalizeMealLines, getMealPrimaryContent, getMealPrimaryLines, getMealSubstitutions, renderLines, renderMealContent };
+  global.PortalNutritionPlanRenderer = { escapeHtml, formatStructuredItem, normalizeMealLines, getMealPrimaryContent, getMealPrimaryLines, getMealSubstitutions, renderLines, renderMealEquivalences, renderMealContent };
 }(window));

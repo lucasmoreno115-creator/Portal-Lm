@@ -171,15 +171,33 @@
       updateResult();
     }
 
+    function renderEquivalencesToggle(panelId, content) {
+      if (!content) return '';
+      return `<button type='button' class='meal-equivalences-toggle' aria-expanded='false' aria-controls='${panelId}'>Ver equivalências <span class='meal-equivalences-icon' aria-hidden='true'>⌄</span></button><div id='${panelId}' class='meal-equivalences' hidden>${content}</div>`;
+    }
+
+    function setupEquivalencesToggles() {
+      planContent.addEventListener('click', (event) => {
+        const button = event.target.closest('.meal-equivalences-toggle');
+        if (!button || !planContent.contains(button)) return;
+        const panel = document.getElementById(button.getAttribute('aria-controls'));
+        if (!panel) return;
+        const expanded = button.getAttribute('aria-expanded') === 'true';
+        button.setAttribute('aria-expanded', String(!expanded));
+        panel.hidden = expanded;
+      });
+    }
+
     function renderPlan(plan) {
-      const mealsHtml = (plan.meals || []).map((meal) => {
+      const mealsHtml = (plan.meals || []).map((meal, index) => {
         const content = renderMealContent(meal, { emptyHtml: '<p class="muted">Sem itens cadastrados.</p>' });
+        const panelId = `meal-${index + 1}-equivalences`;
         return `<article class='meal-card'>
           <h3>${escapeHtml(meal?.name || 'Refeicao')}</h3>
           ${meal?.time ? `<p class='muted'>${escapeHtml(meal.time)}</p>` : ''}
           ${meal?.guidance ? `<div class='meal-guidance'><h4>Direção</h4><p class='muted' style='white-space: pre-wrap;'>${escapeHtml(meal.guidance)}</p></div>` : ''}
           <div class='meal-foods'>${content.primaryHtml}</div>
-          ${content.substitutionsHtml ? `<div class='meal-equivalences'>${content.substitutionsHtml}</div>` : ''}
+          ${renderEquivalencesToggle(panelId, content.substitutionsHtml)}
         </article>`;
       }).join('');
 
@@ -188,7 +206,7 @@
       const hydrationHtml = renderTextOrList(plan.hydration);
       const supplementsHtml = renderTextOrList(plan.supplements);
       const message = encodeURIComponent(plan.whatsapp_message || 'Ola, estou com duvida sobre meu plano alimentar no Portal LM.');
-      const substitutionsSection = substitutionsHtml ? `<div class='plan-equivalences'><h3>Trocas disponíveis</h3><div class='equivalence-grid'>${substitutionsHtml}</div><p class='equivalence-note'>${equivalenceNote}</p></div>` : '';
+      const substitutionsSection = substitutionsHtml ? `<div class='plan-equivalences'><h3>Trocas disponíveis</h3>${renderEquivalencesToggle('plan-equivalences', `<div class='equivalence-grid'>${substitutionsHtml}</div><p class='equivalence-note'>${equivalenceNote}</p>`)}</div>` : '';
       const mealsSection = mealsHtml ? `<div class='meal-list'>${mealsHtml}</div>${substitutionsSection}` : '<p class="muted">Sem refei&ccedil;&otilde;es cadastradas.</p>';
       const observationsSection = [
         observationsHtml,
@@ -231,6 +249,7 @@
       if (pdfActions) pdfActions.hidden = false;
       document.getElementById('downloadPdfBtn')?.addEventListener('click', downloadPlanPdf);
       setupFoodConverter();
+      setupEquivalencesToggles();
     }
 
     function downloadPlanPdf() {
