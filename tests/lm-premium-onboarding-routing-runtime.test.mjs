@@ -36,7 +36,7 @@ test('active Home guard keeps blocked states hidden and only releases ACTIVE', a
   assert.equal(underReview.body.style.visibility, 'hidden');
   assert.deepEqual(underReview.redirects, ['portal-premium-onboarding.html']);
   assert.deepEqual(underReview.calls, ['/portal/premium/access-state']);
-  assert.equal(home.includes("api('/portal/checkins')"), true);
+  assert.equal(home.includes("api('/portal/checkins')"), false);
   assert.equal(home.includes('window.lmPremiumAccessReady.then((allowed)'), true);
 
   const active = await runHome('PREMIUM_PORTAL');

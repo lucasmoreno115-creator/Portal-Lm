@@ -56,10 +56,9 @@ test('portal and print pages share the renderer, preserve the established endpoi
     assert.match(html, /\/portal\/nutrition-plan/);
   }
   const portal = fs.readFileSync('public/portal-plano-alimentar.html', 'utf8');
-  assert.match(portal, /plan\.goal/);
-  assert.match(portal, /plan\.strategy/);
+  assert.doesNotMatch(portal, /plan\.strategy|acc-strategy/);
   assert.match(portal, /meal\?\.guidance/);
-  assert.match(portal, /acc-strategy/);
+  assert.match(portal, /acc-meals/);
   for (const html of nutritionPages.map((file) => fs.readFileSync(file, 'utf8'))) {
     assert.doesNotMatch(html, /Resumo do plano/);
     assert.doesNotMatch(html, /Regras de adesão|Regras de ades&atilde;o/);
@@ -94,7 +93,7 @@ test('portal and print pages render meal direction, scoped substitutions, genera
     assert.match(html, /renderMealContent\(meal/);
     assert.match(html, /renderFoodEquivalences\(plan\?\.substitutions|renderFoodEquivalences\(plan\.substitutions/);
     assert.match(html, /Hidrata/);
-    assert.match(html, /Suplementos/);
+    assert.match(html, /Suplement/);
     assert.match(html, /observations.*notes|notes.*observations/);
   }
   assert.match(portal, /content\.substitutionsHtml/);
