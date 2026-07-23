@@ -215,7 +215,7 @@
         <section class='card nutrition-section' aria-labelledby='tools-heading'>
           <h2 id='tools-heading'>Ferramentas</h2>
           <div class='nutrition-section-content'>
-            <div class='nutrition-actions'><button id='downloadPdfBtn' type='button' class='primary-cta'>Baixar PDF completo</button></div>
+            <div id='pdfActions' class='nutrition-actions' hidden><button id='downloadPdfBtn' type='button' class='primary-cta'>Baixar PDF completo</button></div>
             ${buildFoodConverterSection()}
           </div>
         </section>
@@ -227,6 +227,8 @@
 
       statusText.hidden = true;
       planContent.hidden = false;
+      const pdfActions = document.getElementById('pdfActions');
+      if (pdfActions) pdfActions.hidden = false;
       document.getElementById('downloadPdfBtn')?.addEventListener('click', downloadPlanPdf);
       setupFoodConverter();
     }
