@@ -1044,7 +1044,7 @@ export default {
         if (decisionMatch && method === 'POST') {
           const premiumApp = createPremiumApplication(env, request);
           const body = await safeJson(request);
-          const result = await premiumApp.recordProfessionalDecision({ feedback_id: decodeURIComponent(decisionMatch[1]), decision_type: body?.decision_type, note: body?.note, created_by: request.headers.get('x-admin-user') || 'admin' });
+          const result = await premiumApp.recordProfessionalDecision({ feedback_id: decodeURIComponent(decisionMatch[1]), decision_type: body?.decision_type, note: nullableTrimmed(body?.note), coach_reply: nullableTrimmed(body?.coach_reply), followup_at: nullableTrimmed(body?.followup_at), created_by: request.headers.get('x-admin-user') || 'admin' });
           return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
         }
 
@@ -1875,7 +1875,7 @@ export default {
           const id = decodeURIComponent(parts[5] || '');
           const body = await safeJson(request);
           const premiumApp = createPremiumApplication(env, request);
-          const result = await premiumApp.recordProfessionalDecision({ feedback_id: id, decision_type: body?.decision_type, note: nullableTrimmed(body?.note), created_by: request.headers.get('x-admin-user') || 'admin' });
+          const result = await premiumApp.recordProfessionalDecision({ feedback_id: id, decision_type: body?.decision_type, note: nullableTrimmed(body?.note), coach_reply: nullableTrimmed(body?.coach_reply), followup_at: nullableTrimmed(body?.followup_at), created_by: request.headers.get('x-admin-user') || 'admin' });
           return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
         }
 
@@ -3098,6 +3098,7 @@ async function ensureSchemaUncached(db) {
   await ensureColumn(db, 'student_checkins', 'decision_note', 'TEXT');
   await ensureColumn(db, 'student_checkins', 'decision_by', 'TEXT');
   await ensureColumn(db, 'student_checkins', 'decision_at', 'TEXT');
+  await ensureColumn(db, 'student_checkins', 'followup_at', 'TEXT');
   await ensureColumn(db, 'student_checkins', 'updated_at', 'TEXT');
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS progression_logs (
