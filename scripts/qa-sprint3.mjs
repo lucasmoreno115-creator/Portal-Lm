@@ -139,8 +139,14 @@ function auditPageStateContracts() {
   assert(/requireAuth\(\)/.test(html), scope, 'Página exige autenticação antes do carregamento.');
   assert(/redirectIfNoAccess\(['"]plano-alimentar['"]\)/.test(html), scope, 'Página aplica permissão específica do plano alimentar.');
   assert(/api\(['"]\/portal\/nutrition-plan['"]\)/.test(html), scope, 'Página consome endpoint canônico do plano publicado.');
-  assert(html.includes('ainda não foi liberado no portal'), scope, 'Estado sem plano publicado possui mensagem explícita.');
-  assert(html.includes('Não foi possível carregar seu plano alimentar agora'), scope, 'Falha de carregamento possui estado de erro explícito.');
+  const emptyStateContract = /renderStatusState\(\s*'empty',\s*'Ainda não existe um planejamento alimentar disponível\.',\s*'Assim que seu consultor publicar a atualização, ela aparecerá aqui\.'\s*\)/;
+  const errorStateContract = /renderStatusState\(\s*'error',\s*'Não foi possível carregar seu planejamento\.',\s*'Verifique sua conexão e tente novamente\.',\s*'Tentar novamente'\s*\)/;
+  assert(emptyStateContract.test(html), scope, 'Estado sem plano publicado usa o contrato explícito reutilizável.', { contract: 'renderStatusState(empty, título, orientação)' });
+  assert(errorStateContract.test(html), scope, 'Falha de carregamento usa o contrato explícito reutilizável com retry.', { contract: 'renderStatusState(error, título, orientação, retry)' });
+  assert(/document\.getElementById\('nutritionRetryBtn'\)\?\.addEventListener\('click', loadPlan\)/.test(html), scope, 'Botão de retry reinicia o carregamento do plano.');
+  assert(/function renderLoadingState\(\) \{[\s\S]*?contentCard\.setAttribute\('aria-busy', 'true'\)/.test(html), scope, 'Loading marca a região do plano como ocupada.');
+  assert(/function renderStatusState\([\s\S]*?contentCard\.setAttribute\('aria-busy', 'false'\)/.test(html), scope, 'Estados finais liberam a região do plano.');
+  assert(/renderPlan\([\s\S]*?contentCard\.setAttribute\('aria-busy', 'false'\)/.test(html), scope, 'Sucesso libera a região do plano após renderizar.');
   assert(/if \(!response\?\.data\)/.test(html), scope, 'Resposta sem plano não é tratada como sucesso renderizável.');
   assert(/renderPlan\(response\.data\)/.test(html), scope, 'Resposta publicada é encaminhada para renderização.');
   assert(/pdfActions\.hidden = false/.test(html), scope, 'Ação de impressão só é liberada após plano válido.');
