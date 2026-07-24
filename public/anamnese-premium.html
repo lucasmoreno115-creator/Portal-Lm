@@ -1,6 +1,11 @@
 <!doctype html>
 <html lang='pt-BR'>
 <head>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0d0d0d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
   <meta charset='utf-8'>
   <meta name='viewport' content='width=device-width,initial-scale=1'>
   <title>Anamnese Premium LM V2.2</title>
@@ -48,4 +53,5 @@ async function submitPremium(){if(submitting)return;submitting=true;saveDraft();
 async function initialize(){const auth=getAuth();if(!auth.email||!auth.token)return location.replace('portal-login.html');try{const response=await api('/portal/premium/access-state'),state=response.data;if(state.experience==='PROJECT_LM')return location.replace('/projeto-lm/');if(!['NEW','AWAITING_ANAMNESIS'].includes(state.consultationStatus))return location.replace('portal-premium-onboarding.html');storageKey=await draftKey(auth.email);document.getElementById('identityName').textContent=state.name||'Aluno';document.getElementById('identityEmail').textContent=auth.email;document.getElementById('identityPhone').textContent=state.phone||'';restoreDraft();setStep(0);form.addEventListener('input',saveDraft)}catch(_){if(localStorage.getItem('lm_student_plan')==='projeto_lm')return location.replace('/projeto-lm/');location.replace('portal-login.html?message=session-expired')}}
 backBtn.addEventListener('click',()=>setStep(Math.max(0,current-1)));nextBtn.addEventListener('click',async()=>{if(current===lastInteractiveStep){try{await submitPremium()}catch(e){alert('Não foi possível enviar agora. Suas respostas continuam salvas neste dispositivo. Tente novamente.');submitting=false;nextBtn.disabled=false;nextBtn.textContent='Enviar avaliação'}return}setStep(Math.min(lastInteractiveStep,current+1))});initialize();
 </script>
+  <script src="/assets/js/pwa-register.js" defer></script>
 </body></html>
