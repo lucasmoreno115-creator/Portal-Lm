@@ -38,6 +38,32 @@
   <main class='container home-main'>
     <div id='nav' class='mobile-nav'></div>
 
+    <aside id='pwaInstallCard' class='pwa-install-card card' aria-labelledby='pwa-install-title' hidden>
+      <div class='pwa-install-card__icon' aria-hidden='true'>📲</div>
+      <div class='pwa-install-card__content'>
+        <h2 id='pwa-install-title'>Instale o Portal LM</h2>
+        <p>Tenha acesso mais rápido ao seu planejamento e prepare seu dispositivo para receber lembretes importantes.</p>
+        <div class='pwa-install-card__actions'>
+          <button id='pwaInstallButton' class='primary-cta' type='button'>Instalar agora</button>
+          <button id='pwaInstallDismiss' class='pwa-install-card__dismiss' type='button'>Agora não</button>
+        </div>
+      </div>
+    </aside>
+
+    <div id='pwaIosModal' class='pwa-install-modal' role='dialog' aria-modal='true' aria-labelledby='pwa-ios-title' hidden>
+      <div class='pwa-install-modal__backdrop' data-pwa-modal-close></div>
+      <section class='pwa-install-modal__panel'>
+        <button class='pwa-install-modal__close' type='button' aria-label='Fechar instruções' data-pwa-modal-close>×</button>
+        <span class='pwa-install-modal__icon' aria-hidden='true'>📲</span>
+        <h2 id='pwa-ios-title'>Instale no iPhone</h2>
+        <ol>
+          <li>Toque em <strong>Compartilhar</strong> no Safari.</li>
+          <li>Escolha <strong>Adicionar à Tela de Início</strong>.</li>
+          <li>Depois, abra o Portal pelo novo ícone.</li>
+        </ol>
+      </section>
+    </div>
+
     <section class='planning card dashboard-card mission-card-v6 weekly-plan-editorial' id='weekly-plan-section' aria-labelledby='planning-title'>
       <h2 id='planning-title'>🎯 Objetivos do planejamento</h2>
       <div class='weekly-plan-grid'>
@@ -135,5 +161,6 @@
     })();
     });
   </script>
+  <script src="public/assets/js/pwa-install.js" defer></script>
 </body>
 </html>
