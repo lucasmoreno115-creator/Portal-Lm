@@ -137,7 +137,7 @@
     if (['NEW', 'AWAITING_ANAMNESIS', 'UNDER_REVIEW'].includes(status)) {
       nodes.push(el('p', { className: 'muted', textContent: 'Acesso ainda não disponível.' }));
     } else if (status === 'READY_TO_RELEASE') {
-      nodes.push(el('button', { textContent: 'Liberar acesso', dataset: { releaseAccess: 'true' } }));
+      nodes.push(el('button', { textContent: 'Liberar acesso ao aluno', dataset: { releaseAccess: 'true' } }));
     } else if (status === 'ACTIVE') {
       nodes.push(el('p', { textContent: 'Acesso liberado' }), el('button', { textContent: 'Copiar acesso', dataset: { copyAccess: 'true' } }), el('a', { className: 'button', textContent: 'Abrir Portal', href: portalPremiumUrl() }));
     } else if (status === 'PAUSED') {
