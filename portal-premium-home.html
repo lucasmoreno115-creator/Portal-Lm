@@ -64,6 +64,16 @@
       </section>
     </div>
 
+    <aside id='pwaPushCard' class='pwa-push-card card' aria-labelledby='pwa-push-title' data-state='waiting'>
+      <div class='pwa-push-card__icon' aria-hidden='true'>🔔</div>
+      <div class='pwa-push-card__content'>
+        <h2 id='pwa-push-title'>Ative os lembretes</h2>
+        <p>Receba avisos importantes sobre check-in e atualizações do seu acompanhamento.</p>
+        <p id='pwaPushMessage' class='pwa-push-card__status' aria-live='polite'>Aguardando verificação do dispositivo.</p>
+        <button id='pwaPushButton' class='primary-cta' type='button'>Ativar notificações</button>
+      </div>
+    </aside>
+
     <section class='planning card dashboard-card mission-card-v6 weekly-plan-editorial' id='weekly-plan-section' aria-labelledby='planning-title'>
       <h2 id='planning-title'>🎯 Objetivos do planejamento</h2>
       <div class='weekly-plan-grid'>
@@ -162,5 +172,6 @@
     });
   </script>
   <script src="public/assets/js/pwa-install.js" defer></script>
+  <script src="public/assets/js/pwa-push-subscription.js" defer></script>
 </body>
 </html>

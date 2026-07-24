@@ -382,6 +382,54 @@ export default {
         }
 
         const studentEmail = auth.student.email;
+
+        if (url.pathname.startsWith('/api/portal/push/')) {
+          if (!isPremiumPortalStudent(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
+          const identity = await resolvePushStudentIdentity(env.DB, auth.student);
+          if (!identity.studentId) return json({ ok: false, error: 'Identidade Premium indisponível.' }, 409);
+
+          if (url.pathname === '/api/portal/push/config' && method === 'GET') {
+            const publicKey = String(env.VAPID_PUBLIC_KEY || '').trim();
+            if (!publicKey) return json({ ok: false, error: 'Notificações temporariamente indisponíveis.' }, 503);
+            return json({ ok: true, data: { publicKey } });
+          }
+
+          if (url.pathname === '/api/portal/push/subscriptions' && method === 'POST') {
+            const body = await safeJson(request);
+            const subscription = validatePushSubscription(body);
+            if (!subscription.ok) return json({ ok: false, error: subscription.error }, 400);
+            const now = new Date().toISOString();
+            const existing = await env.DB.prepare('SELECT id FROM portal_push_subscriptions WHERE endpoint=? LIMIT 1').bind(subscription.endpoint).first();
+            const id = existing?.id || crypto.randomUUID();
+            await env.DB.prepare(`INSERT INTO portal_push_subscriptions
+              (id, student_id, student_email, endpoint, p256dh, auth, user_agent, status, created_at, updated_at, last_success_at, failure_count, revoked_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?, NULL, 0, NULL)
+              ON CONFLICT(endpoint) DO UPDATE SET student_id=excluded.student_id, student_email=excluded.student_email,
+                p256dh=excluded.p256dh, auth=excluded.auth, user_agent=excluded.user_agent, status='ACTIVE',
+                updated_at=excluded.updated_at, failure_count=0, revoked_at=NULL`)
+              .bind(id, identity.studentId, identity.studentEmail, subscription.endpoint, subscription.p256dh, subscription.auth, request.headers.get('user-agent'), now, now).run();
+            return json({ ok: true, data: { id, active: true } }, existing ? 200 : 201);
+          }
+
+          if (url.pathname === '/api/portal/push/subscriptions/status' && method === 'GET') {
+            const { results = [] } = await env.DB.prepare(`SELECT id, endpoint, status, created_at, updated_at, revoked_at
+              FROM portal_push_subscriptions WHERE student_id=? ORDER BY updated_at DESC`).bind(identity.studentId).all();
+            return json({ ok: true, data: {
+              active: results.some((row) => row.status === 'ACTIVE'),
+              subscriptions: results.map(presentPushSubscriptionStatus)
+            } });
+          }
+
+          if (url.pathname === '/api/portal/push/subscriptions/current' && method === 'DELETE') {
+            const body = await safeJson(request);
+            const endpoint = normalizePushEndpoint(body?.endpoint);
+            if (!endpoint) return json({ ok: false, error: 'endpoint inválido.' }, 400);
+            const now = new Date().toISOString();
+            await env.DB.prepare(`UPDATE portal_push_subscriptions SET status='REVOKED', revoked_at=COALESCE(revoked_at, ?), updated_at=?
+              WHERE student_id=? AND endpoint=? AND status='ACTIVE'`).bind(now, now, identity.studentId, endpoint).run();
+            return json({ ok: true, data: { active: false } });
+          }
+        }
         if (url.pathname === '/api/portal/premium/access-state' && method === 'GET') {
           if (!isPremiumPortalStudent(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
           const gate = await getPremiumGate(env.DB, studentEmail);
@@ -2798,6 +2846,23 @@ async function ensureSchemaUncached(db) {
   await ensureColumn(db, 'student_access', 'plan', "TEXT DEFAULT 'premium'");
   await ensureColumn(db, 'student_access', 'student_id', 'TEXT');
 
+  await db.prepare(`CREATE TABLE IF NOT EXISTS portal_push_subscriptions (
+    id TEXT PRIMARY KEY,
+    student_id TEXT NOT NULL,
+    student_email TEXT NOT NULL,
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    user_agent TEXT,
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'REVOKED')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    last_success_at TEXT,
+    failure_count INTEGER NOT NULL DEFAULT 0,
+    revoked_at TEXT
+  )`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_portal_push_subscriptions_student_status ON portal_push_subscriptions(student_id, status)`).run();
+
   await db.prepare(`CREATE TABLE IF NOT EXISTS premium_students (
     student_id TEXT PRIMARY KEY,
     email TEXT NOT NULL,
@@ -4967,6 +5032,41 @@ function isProjectLmPlan(student) {
   const plan = normalizeStudentPlan(student?.plan);
   const planType = String(student?.planType || '').trim().toLowerCase();
   return plan === 'projeto_lm' || planType === 'projeto_lm' || planType === 'project_lm';
+}
+
+async function resolvePushStudentIdentity(db, student) {
+  const access = await db.prepare('SELECT student_id, email FROM student_access WHERE id=? LIMIT 1').bind(student.id).first();
+  if (access?.student_id) return { studentId: access.student_id, studentEmail: String(access.email || student.email).trim().toLowerCase() };
+  const premium = await db.prepare('SELECT student_id, email FROM premium_students WHERE normalized_email=? OR lower(trim(email))=? LIMIT 1')
+    .bind(String(student.email).trim().toLowerCase(), String(student.email).trim().toLowerCase()).first();
+  return { studentId: premium?.student_id || null, studentEmail: String(premium?.email || student.email).trim().toLowerCase() };
+}
+
+function normalizePushEndpoint(value) {
+  const endpoint = String(value || '').trim();
+  if (!endpoint || endpoint.length > 2048) return null;
+  try {
+    const url = new URL(endpoint);
+    return url.protocol === 'https:' ? endpoint : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function validatePushSubscription(body) {
+  const endpoint = normalizePushEndpoint(body?.endpoint);
+  const p256dh = String(body?.keys?.p256dh || '').trim();
+  const auth = String(body?.keys?.auth || '').trim();
+  if (!endpoint) return { ok: false, error: 'endpoint inválido.' };
+  if (!p256dh || p256dh.length > 512 || !auth || auth.length > 512) return { ok: false, error: 'Chaves da subscription inválidas.' };
+  if (!/^[A-Za-z0-9_-]+$/.test(p256dh) || !/^[A-Za-z0-9_-]+$/.test(auth)) return { ok: false, error: 'Chaves da subscription inválidas.' };
+  return { ok: true, endpoint, p256dh, auth };
+}
+
+function presentPushSubscriptionStatus(row) {
+  let endpointHost = null;
+  try { endpointHost = new URL(row.endpoint).host; } catch (_) { /* Dados legados inválidos não são expostos. */ }
+  return { id: row.id, endpointHost, status: row.status, createdAt: row.created_at, updatedAt: row.updated_at, revokedAt: row.revoked_at };
 }
 
 function isPremiumPortalStudent(student) {
