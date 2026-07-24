@@ -1609,3 +1609,11 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 @media (max-width:720px){
   .projeto-lm-planning-page .weekly-mission-grid{grid-template-columns:1fr}
 }
+
+/* Sprint U2.7: compact Premium home hero. */
+.portal-home-v7 .hero-app{min-height:120px;height:auto;margin:18px auto 0;width:min(calc(100% - 28px),1180px);border:1px solid rgba(212,175,55,.34);border-radius:22px;background:radial-gradient(circle at 88% 12%,rgba(212,175,55,.08),transparent 28%),linear-gradient(135deg,#171715,#111 64%,#13110c);box-shadow:0 14px 30px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.035)}
+.portal-home-v7 .hero-app::before{background:linear-gradient(100deg,rgba(0,0,0,.04),rgba(0,0,0,.16))}
+.portal-home-v7 .hero-app .hero-glow{background:radial-gradient(circle at 86% 18%,rgba(212,175,55,.07),transparent 30%);opacity:1}
+.portal-home-v7 .hero-app .hero-content{min-height:auto;padding:26px 32px;max-width:760px}
+.portal-home-v7 .hero-app .hero-logo-wrap{top:18px;right:20px}
+@media (max-width:720px){.portal-home-v7 .hero-app{min-height:auto;height:auto;width:calc(100% - 20px);margin-top:10px;border-radius:16px}.portal-home-v7 .hero-app .hero-content{min-height:auto;padding:20px}.portal-home-v7 .hero-app .hero-logo-wrap{top:13px;right:14px}.portal-home-v7 .hero-app .hero-subtext{max-width:32ch;font-size:.86rem}}

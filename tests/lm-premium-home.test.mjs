@@ -56,13 +56,27 @@ test('deployable Premium home preserves the same structural hierarchy', () => {
 });
 
 
-test('Premium home uses a concise greeting and compact mobile hero proportions', () => {
+test('Premium home uses a concise greeting and compact visual hero copy', () => {
   for (const source of [home, publicHome]) {
+    assert.match(source, /<h1 id='hello'>Olá, Aluno<\/h1>/);
+    assert.match(source, /<p id='heroSubtext' class='hero-subtext'>Seu planejamento está disponível\.<\/p>/);
+    assert.doesNotMatch(source, /Seu planejamento foi preparado especialmente para você\./);
     assert.match(source, /function shortGreetingName\(fullName\)/);
     assert.match(source, /return `\$\{parts\[0\]\} \$\{parts\.at\(-1\)\}`/);
     assert.match(source, /Olá, \$\{shortGreetingName\(localStorage\.getItem\('lm_student_name'\)\)\}/);
+
+    const heroMarkup = source.slice(source.indexOf("  <section class='hero hero-premium hero-app'>"), source.indexOf("  <main class='container home-main'>"));
+    assert.doesNotMatch(heroMarkup, /primary-cta|secondary-link|<a\b|<button\b|CTA/i);
   }
-  assert.match(css, /\.portal-home-v7 \.hero-app\{min-height:238px;height:clamp\(238px,64vw,280px\)\}/);
-  assert.match(css, /\.portal-home-v7 \.hero-app \.hero-content\{min-height:238px;padding:52px 18px 16px\}/);
-  assert.match(css, /max-width:19ch/);
+
+  assert.match(css, /\.portal-home-v7 \.hero-app\{[\s\S]*?min-height:120px;[\s\S]*?height:auto;[\s\S]*?border:1px solid rgba\(212,175,55,\.34\);[\s\S]*?rgba\(212,175,55,\.08\)/);
+  assert.match(css, /\.portal-home-v7 \.hero-app \.hero-content\{padding:26px 32px;max-width:760px\}/);
+  assert.match(css, /@media \(max-width:720px\)\{\.portal-home-v7 \.hero-app\{min-height:auto;height:auto;[\s\S]*?\.portal-home-v7 \.hero-app \.hero-content\{min-height:auto;padding:20px\}/);
+  assert.match(css, /@media \(prefers-reduced-motion:reduce\)\{\.nutrition-observations-panel\{animation:none\}\}/);
+});
+
+test('Premium home compact hero CSS is synchronized between canonical and public copies', () => {
+  const publicCss = fs.readFileSync('public/portal.css', 'utf8');
+  const blockPattern = /\/\* Sprint U2\.7: compact Premium home hero\. \*\/[\s\S]*?(?=\.nutrition-plan-hero)/;
+  assert.equal(css.match(blockPattern)?.[0], publicCss.match(blockPattern)?.[0]);
 });
