@@ -1666,3 +1666,32 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
   .nutrition-observations-toggle{display:none !important}
   .nutrition-observations-panel,.nutrition-observations-panel[hidden]{display:block !important;animation:none}
 }
+
+/* Sprint U2.6: visual cohesion for the Premium home and meal planning. */
+.portal-home-v7 .hero-app{
+  min-height:284px;
+  height:clamp(284px,30vw,356px);
+  margin:18px auto 0;
+  width:min(calc(100% - 28px),1180px);
+  border:1px solid rgba(212,175,55,.34);
+  border-radius:22px;
+  background:radial-gradient(circle at 82% 18%,rgba(212,175,55,.16),transparent 31%),radial-gradient(circle at 18% 100%,rgba(212,175,55,.07),transparent 38%),linear-gradient(135deg,#1a1813,#111 58%,#15120a);
+  box-shadow:0 14px 30px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.035);
+}
+.portal-home-v7 .hero-app::before{background:linear-gradient(100deg,rgba(0,0,0,.1),rgba(0,0,0,.25));}
+.portal-home-v7 .hero-app .hero-glow{background:radial-gradient(circle at 84% 22%,rgba(212,175,55,.12),transparent 33%);opacity:1}
+.portal-home-v7 .hero-app .hero-content{padding:42px clamp(22px,5vw,58px) 30px}
+.portal-home-v7 .hero-app .hero-logo-wrap{top:18px;right:20px}
+
+.nutrition-plan-hero{margin-bottom:16px;padding:18px 20px;border-color:rgba(212,175,55,.43);background:radial-gradient(circle at 92% 0%,rgba(212,175,55,.12),transparent 36%),linear-gradient(135deg,#191711,#121212 68%);box-shadow:0 10px 24px rgba(0,0,0,.2)}
+.premium-plan-brand{display:inline-flex;margin:0 0 8px;padding:4px 8px;border:1px solid rgba(212,175,55,.43);border-radius:999px;background:rgba(212,175,55,.09);color:#e6c96e;font-size:.68rem;font-weight:800;letter-spacing:.09em;line-height:1;text-transform:uppercase}
+.nutrition-plan-hero h1{margin:0 0 5px;font-size:clamp(1.45rem,4vw,2rem);line-height:1.12;letter-spacing:-.025em}
+.premium-plan-student{margin:0;color:#bdb9b0;font-size:.92rem;line-height:1.35}
+#contentCard,#planContent{gap:16px}.nutrition-section{gap:12px}.nutrition-section h2{font-size:1.08rem}.nutrition-section-content{gap:12px}.nutrition-meals-section{gap:12px}.meal-list{gap:12px}
+.meal-card{padding:16px;gap:10px;border:1px solid #343434;border-radius:15px;background:linear-gradient(145deg,#191919,#141414);box-shadow:0 6px 16px rgba(0,0,0,.12)}
+.meal-card h3{margin:0;font-size:1rem;line-height:1.25;color:#f0d47a}.meal-card .muted{margin:0;font-size:.86rem}.meal-foods{gap:5px;font-size:.94rem;line-height:1.5}.meal-foods ul{margin:4px 0;padding-left:18px}.meal-foods li{margin:3px 0}.meal-guidance{display:grid;gap:3px;padding:8px 10px;border-left:2px solid rgba(212,175,55,.45);background:rgba(255,255,255,.025);border-radius:0 8px 8px 0}.meal-guidance h4{margin:0;font-size:.76rem;letter-spacing:.06em;text-transform:uppercase;color:#d8bd62}
+.meal-equivalences-toggle{width:100%;padding:8px 10px;border-color:#3d3a32;border-radius:8px;background:#1a1916;font-size:.85rem;font-weight:700}.meal-equivalences{display:grid;gap:9px;margin-top:1px;padding:11px 0 0;border-top-color:rgba(212,175,55,.2);animation:meal-equivalences-open .18s ease-out}.meal-substitution,.meal-equivalence-category{padding:9px;background:#151412;border:1px solid rgba(255,255,255,.035)}.meal-equivalence-category h5{font-size:.82rem;color:#e6c96e}.meal-equivalence-categories{gap:7px}
+.plan-equivalences{gap:9px;margin-top:0}.plan-equivalences h3{font-size:.95rem;color:#e6c96e}
+.nutrition-observations-section{padding:0;gap:0;overflow:hidden}.nutrition-observations-section>h2{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.nutrition-observations-toggle{width:100%;max-width:none;padding:14px 16px;border:0;border-radius:inherit;background:linear-gradient(90deg,#191919,#15140f);font-size:0;text-align:left}.nutrition-observations-toggle::before{content:'Observações';font-size:.96rem}.nutrition-observations-toggle .meal-equivalences-icon{font-size:1rem}.nutrition-observations-panel{max-width:66ch;padding:0 16px 16px;gap:10px;font-size:.9rem;line-height:1.55}.nutrition-observations-panel ul{margin:0;padding-left:18px}.nutrition-observations-panel li{margin:6px 0}.nutrition-observations-panel h3{margin:6px 0 2px;font-size:.86rem;color:#e6c96e}.nutrition-observations-panel p{margin:0}
+.nutrition-tools-section,.nutrition-support-section{padding:16px;border-color:#343434;box-shadow:0 6px 16px rgba(0,0,0,.12)}.nutrition-tools-card{padding:0;border:0;background:transparent}.food-converter{display:grid;gap:10px}.food-converter h3{margin:0;font-size:1rem}.food-converter p{margin:0}.food-converter-grid{gap:9px}.food-converter-field{gap:5px}.food-converter-field label{font-size:.8rem}.food-converter-field select,.food-converter-field input{min-height:40px;padding:8px 10px}.food-converter-result{min-height:0;padding:10px 12px;margin:0;border-radius:9px;font-size:.9rem;line-height:1.4}.food-converter-note{font-size:.78rem;line-height:1.45}.nutrition-actions{margin:0}.nutrition-actions .primary-cta{padding:10px 14px;font-size:.85rem}.nutrition-support-section .nutrition-section-content{gap:8px}.nutrition-support-section .primary-cta{width:auto;min-width:0;padding:11px 16px;font-size:.9rem}.support-whatsapp-button::before{content:'Fale com seu consultor · ';font-weight:500}
+@media (max-width:720px){.portal-home-v7 .hero-app{min-height:224px;height:clamp(224px,62vw,254px);width:calc(100% - 20px);margin-top:10px;border-radius:16px}.portal-home-v7 .hero-app .hero-content{min-height:224px;padding:48px 18px 18px}.portal-home-v7 .hero-app .hero-logo-wrap{top:13px;right:14px}.portal-home-v7 .hero-app .hero-subtext{max-width:32ch;font-size:.86rem}.nutrition-plan-hero{padding:16px;margin-bottom:14px}.meal-card{padding:14px}.nutrition-tools-section,.nutrition-support-section{padding:14px}.food-converter-grid{grid-template-columns:1fr}.nutrition-support-section .primary-cta{width:100%}.nutrition-observations-toggle{padding:13px 14px}.nutrition-observations-panel{padding:0 14px 14px}}
