@@ -1004,21 +1004,22 @@ export default {
           if (!student) return json({ ok: false, error: 'Aluno Premium não encontrado.' }, 404);
           const weekRef = getWeekRef(new Date());
           if (method === 'GET') {
-            const objectives = await env.DB.prepare(`SELECT id, student_id, student_email, week_ref, training_focus, cardio_target, nutrition_focus, main_risk, status, updated_at FROM weekly_plans WHERE student_id=? AND week_ref=? AND status='ACTIVE' ORDER BY updated_at DESC LIMIT 1`).bind(student.student_id, weekRef).first();
-            return json({ ok: true, data: objectives || { student_id: student.student_id, student_email: student.email, week_ref: weekRef, training_focus: '', cardio_target: '', nutrition_focus: '', main_risk: '', status: 'EMPTY' } });
+            const objectives = await env.DB.prepare(`SELECT id, student_id, student_email, week_ref, training_focus, cardio_target, nutrition_focus, main_risk, coach_message, status, updated_at FROM weekly_plans WHERE student_id=? AND week_ref=? AND status='ACTIVE' ORDER BY updated_at DESC LIMIT 1`).bind(student.student_id, weekRef).first();
+            return json({ ok: true, data: objectives || { student_id: student.student_id, student_email: student.email, week_ref: weekRef, training_focus: '', cardio_target: '', nutrition_focus: '', main_risk: '', coach_message: '', status: 'EMPTY' } });
           }
           const body = await safeJson(request);
-          const existing = await env.DB.prepare(`SELECT id, training_focus, cardio_target, nutrition_focus, main_risk FROM weekly_plans WHERE student_id=? AND week_ref=? LIMIT 1`).bind(student.student_id, weekRef).first();
+          const existing = await env.DB.prepare(`SELECT id, training_focus, cardio_target, nutrition_focus, main_risk, coach_message FROM weekly_plans WHERE student_id=? AND week_ref=? LIMIT 1`).bind(student.student_id, weekRef).first();
           const objectiveValue = (field) => Object.prototype.hasOwnProperty.call(body || {}, field) ? nullableTrimmed(body?.[field]) : existing?.[field] || null;
           const trainingFocus = objectiveValue('training_focus');
           const cardioTarget = objectiveValue('cardio_target');
           const nutritionFocus = objectiveValue('nutrition_focus');
           const mainRisk = objectiveValue('main_risk');
+          const coachMessage = objectiveValue('coach_message');
           const now = new Date().toISOString();
           const id = existing?.id || crypto.randomUUID();
-          if (existing) await env.DB.prepare(`UPDATE weekly_plans SET student_email=?, training_focus=?, cardio_target=?, nutrition_focus=?, main_risk=?, status='ACTIVE', updated_at=? WHERE id=?`).bind(student.email, trainingFocus, cardioTarget, nutritionFocus, mainRisk, now, id).run();
-          else await env.DB.prepare(`INSERT INTO weekly_plans (id, student_id, student_email, week_ref, training_focus, cardio_target, nutrition_focus, main_risk, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)`).bind(id, student.student_id, student.email, weekRef, trainingFocus, cardioTarget, nutritionFocus, mainRisk, now, now).run();
-          const saved = await env.DB.prepare(`SELECT id, student_id, student_email, week_ref, training_focus, cardio_target, nutrition_focus, main_risk, status, updated_at FROM weekly_plans WHERE id=?`).bind(id).first();
+          if (existing) await env.DB.prepare(`UPDATE weekly_plans SET student_email=?, training_focus=?, cardio_target=?, nutrition_focus=?, main_risk=?, coach_message=?, status='ACTIVE', updated_at=? WHERE id=?`).bind(student.email, trainingFocus, cardioTarget, nutritionFocus, mainRisk, coachMessage, now, id).run();
+          else await env.DB.prepare(`INSERT INTO weekly_plans (id, student_id, student_email, week_ref, training_focus, cardio_target, nutrition_focus, main_risk, coach_message, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)`).bind(id, student.student_id, student.email, weekRef, trainingFocus, cardioTarget, nutritionFocus, mainRisk, coachMessage, now, now).run();
+          const saved = await env.DB.prepare(`SELECT id, student_id, student_email, week_ref, training_focus, cardio_target, nutrition_focus, main_risk, coach_message, status, updated_at FROM weekly_plans WHERE id=?`).bind(id).first();
           return json({ ok: true, data: saved });
         }
 
