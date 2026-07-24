@@ -6,6 +6,7 @@
   const studentId = params.get('student_id');
   const state = document.getElementById('state');
   const root = document.getElementById('record');
+  let lastStudent = {};
   const statusLabels = { NEW:'Novo', AWAITING_ANAMNESIS:'Aguardando anamnese', UNDER_REVIEW:'Em análise', READY_TO_RELEASE:'Pronto para liberação', ACTIVE:'Ativo', PAUSED:'Pausado', ENDED:'Encerrado' };
 
   const byId = (id) => document.getElementById(id);
@@ -46,7 +47,7 @@
     );
   }
 
-  function renderCareStatus(data) { const student=data.student||{}, summary=data.summary||{}, root=byId('careStatusContent'); if (!root) return; const status=student.consultation_status; const action=status==='UNDER_REVIEW'?{label:'Marcar planejamento como pronto',to:'READY_TO_RELEASE',confirmation:'O planejamento deste aluno está concluído e pronto para liberação?'}:status==='READY_TO_RELEASE'?{label:'Liberar acesso ao aluno',to:'ACTIVE',confirmation:'Ao liberar, o aluno poderá acessar os módulos publicados no Portal.'}:null; const description=status==='ACTIVE'?'Acompanhamento ativo. Acesso ao Portal liberado.':status==='READY_TO_RELEASE'?'O planejamento está pronto para liberação.':'Acompanhe as pendências e o próximo passo permitido.'; const last=(data.followup_entries||[]).find(x=>x.entry_type==='CONSULTATION_STATUS_CHANGE'); root.replaceChildren(field('Status atual',statusLabels[status]||status),field('Descrição',description),field('Próxima ação permitida',action?.label||(status==='ACTIVE'?'Acompanhamento ativo':summary.next_operational_action)),field('Pendências',`${summary.open_pending_items_count||0} abertas`),field('Última mudança',last?`${fmt(last.created_at)} — ${text(last.content)}`:'Sem mudança registrada')); if(action)root.append(el('button',{textContent:action.label,dataset:{transition:action.to,confirmation:action.confirmation}})); }
+  function renderCareStatus(data) { const student=data.student||{}, summary=data.summary||{}, root=byId('careStatusContent'); if (!root) return; const status=student.consultation_status; const action=status==='UNDER_REVIEW'?{label:'Marcar planejamento como pronto',to:'READY_TO_RELEASE',confirmation:'O planejamento deste aluno está concluído e pronto para liberação?'}:null; const description=status==='ACTIVE'?'Acompanhamento ativo. Acesso ao Portal liberado.':status==='READY_TO_RELEASE'?'O planejamento está pronto para liberação.':'Acompanhe as pendências e o próximo passo permitido.'; const last=(data.followup_entries||[]).find(x=>x.entry_type==='CONSULTATION_STATUS_CHANGE'); root.replaceChildren(field('Status atual',statusLabels[status]||status),field('Descrição',description),field('Próxima ação permitida',action?.label||(status==='ACTIVE'?'Acompanhamento ativo':summary.next_operational_action)),field('Pendências',`${summary.open_pending_items_count||0} abertas`),field('Última mudança',last?`${fmt(last.created_at)} — ${text(last.content)}`:'Sem mudança registrada')); if(action)root.append(el('button',{textContent:action.label,dataset:{transition:action.to,confirmation:action.confirmation}})); }
 
   function renderPending(items) {
     const list = byId('pendingList');
@@ -99,6 +100,53 @@
     const url = new URL('/admin-premium-planning-objectives.html', location.origin || 'http://localhost');
     url.searchParams.set('student_id', studentId);
     return `${url.pathname}${url.search}`;
+  }
+
+  function portalPremiumUrl() {
+    return new URL('/portal-login.html', location.origin || 'http://localhost').href;
+  }
+
+  function accessMessage(student) {
+    const name = student.name || student.display_name || 'aluno(a)';
+    return `Olá, ${name}! Seu acesso à Consultoria LM foi liberado.\n\nE-mail: ${student.email || '—'}\nPortal: ${portalPremiumUrl()}`;
+  }
+
+  async function copyAccessMessage(message) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(message);
+      return;
+    }
+    const area = document.createElement('textarea');
+    area.value = message;
+    area.setAttribute('readonly', '');
+    if (area.style) { area.style.position = 'fixed'; area.style.opacity = '0'; }
+    document.body?.append(area);
+    area.select?.();
+    const copied = document.execCommand?.('copy');
+    area.remove?.();
+    if (!copied) throw new Error('Não foi possível copiar a mensagem de acesso.');
+  }
+
+  function renderStudentAccess(student) {
+    const target = byId('studentAccess');
+    if (!target) return;
+    const status = student.consultation_status;
+    const feedback = el('p', { className: 'muted', textContent: '' });
+    feedback.setAttribute('role', 'status');
+    const nodes = [field('Status do acesso', statusLabels[status] || status || '—'), field('E-mail oficial', student.email)];
+    if (['NEW', 'AWAITING_ANAMNESIS', 'UNDER_REVIEW'].includes(status)) {
+      nodes.push(el('p', { className: 'muted', textContent: 'Acesso ainda não disponível.' }));
+    } else if (status === 'READY_TO_RELEASE') {
+      nodes.push(el('button', { textContent: 'Liberar acesso ao aluno', dataset: { releaseAccess: 'true' } }));
+    } else if (status === 'ACTIVE') {
+      nodes.push(el('p', { textContent: 'Acesso liberado' }), el('button', { textContent: 'Copiar acesso', dataset: { copyAccess: 'true' } }), el('a', { className: 'button', textContent: 'Abrir Portal', href: portalPremiumUrl() }));
+    } else if (status === 'PAUSED') {
+      nodes.push(el('p', { className: 'muted', textContent: 'Acesso pausado.' }));
+    } else if (status === 'ENDED') {
+      nodes.push(el('p', { className: 'muted', textContent: 'Acesso encerrado.' }));
+    }
+    nodes.push(feedback);
+    target.replaceChildren(...nodes);
   }
 
   function renderPlanningObjectives(student) {
@@ -163,6 +211,7 @@
     state.hidden = true;
     root.hidden = false;
     const student = data.student || {};
+    lastStudent = student;
     const summary = data.summary || {};
     byId('studentName').textContent = student.name || student.display_name || 'Aluno Premium';
     byId('contact').textContent = [student.email, student.phone].filter(Boolean).join(' • ');
@@ -171,6 +220,7 @@
     renderCareStatus(data);
     renderPending(data.pending_items || []);
     renderAnamnesis(data.anamnesis || null);
+    renderStudentAccess(student);
     renderPlanningObjectives(student);
     renderPlan(data.nutrition_plan || null, student);
     renderFeedbacks(data.feedbacks || []);
@@ -178,6 +228,17 @@
   }
 
   document.addEventListener('click', async (event) => {
+    if (event.target?.dataset?.releaseAccess) {
+      event.target.disabled = true;
+      try { await api(`/api/admin/premium/students/${encodeURIComponent(studentId)}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'ACTIVE' }) }); await load(); } catch (error) { alert(error.message); event.target.disabled = false; }
+      return;
+    }
+    if (event.target?.dataset?.copyAccess) {
+      const feedback = byId('studentAccess')?.querySelector?.('[role="status"]');
+      event.target.disabled = true;
+      try { await copyAccessMessage(accessMessage(lastStudent)); if (feedback) feedback.textContent = 'Mensagem de acesso copiada.'; } catch (error) { if (feedback) feedback.textContent = error.message; } finally { event.target.disabled = false; }
+      return;
+    }
     const transition = event.target?.dataset?.transition;
     if (transition) { if (!confirm(event.target.dataset.confirmation)) return; event.target.disabled=true; try { await api(`/api/admin/premium/students/${encodeURIComponent(studentId)}/status`, { method:'PATCH', body:JSON.stringify({status:transition}) }); await load(); } catch(error) { alert(error.message); event.target.disabled=false; } return; }
     if (event.target?.dataset?.releasePlanning) {
