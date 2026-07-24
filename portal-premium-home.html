@@ -102,7 +102,12 @@
       document.querySelector('.home-main')?.prepend(notice);
     }
     document.getElementById('nav').innerHTML = nav();
-    document.getElementById('hello').textContent = `Olá, ${localStorage.getItem('lm_student_name') || 'Aluno'}`;
+    function shortGreetingName(fullName) {
+      const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+      if (parts.length < 2) return parts[0] || 'Aluno';
+      return `${parts[0]} ${parts.at(-1)}`;
+    }
+    document.getElementById('hello').textContent = `Olá, ${shortGreetingName(localStorage.getItem('lm_student_name'))}`;
 
     (async () => {
       const weeklyPlanTrainingEl = document.querySelector('#weeklyPlanTraining');

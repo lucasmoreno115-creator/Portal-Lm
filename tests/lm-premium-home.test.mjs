@@ -54,3 +54,15 @@ test('deployable Premium home preserves the same structural hierarchy', () => {
     home.slice(home.indexOf("    <section class='planning"), home.indexOf('  </main>')),
   );
 });
+
+
+test('Premium home uses a concise greeting and compact mobile hero proportions', () => {
+  for (const source of [home, publicHome]) {
+    assert.match(source, /function shortGreetingName\(fullName\)/);
+    assert.match(source, /return `\$\{parts\[0\]\} \$\{parts\.at\(-1\)\}`/);
+    assert.match(source, /Olá, \$\{shortGreetingName\(localStorage\.getItem\('lm_student_name'\)\)\}/);
+  }
+  assert.match(css, /\.portal-home-v7 \.hero-app\{min-height:238px;height:clamp\(238px,64vw,280px\)\}/);
+  assert.match(css, /\.portal-home-v7 \.hero-app \.hero-content\{min-height:238px;padding:52px 18px 16px\}/);
+  assert.match(css, /max-width:19ch/);
+});

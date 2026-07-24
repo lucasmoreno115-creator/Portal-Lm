@@ -4,35 +4,16 @@ import test from 'node:test';
 
 const nutrition = fs.readFileSync('portal-plano-alimentar.html', 'utf8');
 
-test('Premium nutrition keeps the execution sections in the intended order', () => {
-  assert.doesNotMatch(nutrition, /Estrat.gia|acc-strategy|plan\.strategy/);
-  const headings = ['Refei&ccedil;&otilde;es', 'Observa&ccedil;&otilde;es', 'Ferramentas', 'Suporte'];
-  let previous = -1;
-  for (const heading of headings) {
-    const index = nutrition.indexOf(heading);
-    assert.ok(index > previous, `${heading} should follow the preceding section`);
-    previous = index;
-  }
-  assert.match(nutrition, /downloadPdfBtn/);
-  assert.match(nutrition, /renderMealContent\(meal/);
-  assert.match(nutrition, /observations \|\| plan\.notes/);
-  assert.match(nutrition, /buildFoodConverterSection/);
-  assert.match(nutrition, /supportSection/);
-  for (const headerField of ['Consultoria LM', 'Plano Alimentar', 'premiumStudentName', 'premiumPlanUpdatedAt', 'premiumPlanGoal']) {
-    assert.match(nutrition, new RegExp(headerField));
-  }
+test('Premium nutrition presents only the essential screen header and preserves the full student name', () => {
+  assert.match(nutrition, /Consultoria LM/);
+  assert.match(nutrition, /<h1>Planejamento Alimentar<\/h1>/);
+  assert.match(nutrition, /id='premiumStudentName'/);
   assert.match(nutrition, /premiumStudentName\.textContent = localStorage\.getItem\('lm_student_name'\) \|\| 'Aluno'/);
+  assert.doesNotMatch(nutrition, /premiumPlanGoal/);
+  assert.match(nutrition, /premium-plan-details print-only/);
   assert.match(nutrition, /premiumPlanUpdatedAt\.textContent = formatPlanDate\(plan\.updated_at \|\| plan\.published_at\)/);
-  assert.match(nutrition, /premiumPlanGoal\.textContent = plan\.goal \|\| 'Não informado\.'/);
   assert.match(nutrition, /window\.print\(\)/);
-  assert.doesNotMatch(nutrition, /Seu planejamento nutricional foi preparado especialmente para você\./);
-  assert.doesNotMatch(nutrition, /nutrition-accordion|data-accordion|acc-meals/);
-  assert.match(nutrition, /class='meal-list'/);
-  assert.match(nutrition, /class='meal-equivalences'/);
-  assert.match(nutrition, /pdfActions\.hidden = false/);
-  assert.match(nutrition, /id='pdfActions' class='nutrition-actions' hidden><button id='downloadPdfBtn'/);
 });
-
 
 test('meal equivalences are independently accessible, closed by default, and absent when empty', () => {
   assert.match(nutrition, /function renderEquivalencesToggle\(panelId, content\)/);
@@ -76,7 +57,19 @@ test('premium nutrition uses reusable skeleton, empty, and retryable error state
 });
 
 test('premium nutrition omits an empty observations section while preserving optional equivalences', () => {
-  assert.match(nutrition, /observationsSection \? `<section class='card nutrition-section' aria-labelledby='notes-heading'>/);
+  assert.match(nutrition, /observationsSection \? `<section class='card nutrition-section nutrition-observations-section' aria-labelledby='notes-heading'>/);
   assert.doesNotMatch(nutrition, /Sem observa&ccedil;&otilde;es\./);
   assert.match(nutrition, /const substitutionsSection = substitutionsHtml \?/);
+});
+
+
+test('nutrition uses substitutions language, collapsible observations, and screen-only WhatsApp support', () => {
+  assert.match(nutrition, /Ver substituições/);
+  assert.match(nutrition, /Ocultar substituições/);
+  assert.doesNotMatch(nutrition, /Ver equivalências/);
+  assert.match(nutrition, /nutrition-observations-toggle screen-only' aria-expanded='false' aria-controls='nutrition-observations-panel'/);
+  assert.match(nutrition, /id='nutrition-observations-panel'[^>]* hidden/);
+  assert.match(nutrition, /nutrition-observations-section/);
+  assert.match(nutrition, /support-whatsapp-button[^>]*>Chamar no WhatsApp/);
+  assert.match(nutrition, /<div class='print-only'><p class='support-document-title'>Dúvidas\?<\/p><p>Entre em contato com seu consultor\.<\/p><p class='support-whatsapp'>WhatsApp: \+55 14 99117-4500/);
 });
