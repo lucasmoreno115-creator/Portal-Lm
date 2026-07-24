@@ -68,6 +68,21 @@ test('card opcional de objetivos recebe descrição e CTA quando seu container e
   assert.ok(action, 'CTA de objetivos deve ser criada quando o container existe');
 });
 
+
+test('Objetivos do planejamento expõe main_risk opcional e mantém as cópias JavaScript sincronizadas', () => {
+  const html = readFileSync(new URL('../public/admin-premium-planning-objectives.html', import.meta.url), 'utf8');
+  const publicJs = readFileSync(new URL('../public/admin-premium-planning-objectives.js', import.meta.url), 'utf8');
+  const assetJs = readFileSync(new URL('../public/assets/js/admin-premium-planning-objectives.js', import.meta.url), 'utf8');
+  const home = readFileSync(new URL('../public/portal-premium-home.html', import.meta.url), 'utf8');
+  assert.match(html, /<label>Objetivo principal<textarea name="main_risk" rows="4"><\/textarea><\/label>/);
+  assert.doesNotMatch(html, /<textarea[^>]*required/);
+  assert.match(publicJs, /form\.elements\.main_risk\.value=data\.main_risk\|\|''/);
+  assert.match(publicJs, /Object\.fromEntries\(new FormData\(form\)\)/);
+  assert.doesNotMatch(publicJs, /localStorage/);
+  assert.equal(publicJs, assetJs);
+  assert.match(home, /weeklyPlan\.main_risk/);
+});
+
 test('HTML seguro: Prontuário não usa innerHTML nem interpolação HTML dinâmica', () => {
   const publicJs = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
   const assetJs = readFileSync(new URL('../public/assets/js/admin-premium-student-record.js', import.meta.url), 'utf8');
