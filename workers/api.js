@@ -995,6 +995,31 @@ export default {
           return json(result.ok ? { ok: true, data: presentStudentRecord(result.data) } : { ok: false, error: result.error }, result.status || 200);
         }
 
+        // `weekly_plans` already supplies the Premium Home card. This editor
+        // writes that established read model instead of creating a second source.
+        const planningObjectivesMatch = url.pathname.match(/^\/api\/admin\/premium\/students\/([^/]+)\/planning-objectives$/);
+        if (planningObjectivesMatch && (method === 'GET' || method === 'PUT')) {
+          const identifier = decodeURIComponent(planningObjectivesMatch[1]);
+          const student = await env.DB.prepare(`SELECT student_id, email FROM premium_students WHERE student_id=? OR normalized_email=lower(trim(?)) LIMIT 1`).bind(identifier, identifier).first();
+          if (!student) return json({ ok: false, error: 'Aluno Premium não encontrado.' }, 404);
+          const weekRef = getWeekRef(new Date());
+          if (method === 'GET') {
+            const objectives = await env.DB.prepare(`SELECT id, student_id, student_email, week_ref, training_focus, cardio_target, nutrition_focus, status, updated_at FROM weekly_plans WHERE student_id=? AND week_ref=? AND status='ACTIVE' ORDER BY updated_at DESC LIMIT 1`).bind(student.student_id, weekRef).first();
+            return json({ ok: true, data: objectives || { student_id: student.student_id, student_email: student.email, week_ref: weekRef, training_focus: '', cardio_target: '', nutrition_focus: '', status: 'EMPTY' } });
+          }
+          const body = await safeJson(request);
+          const trainingFocus = nullableTrimmed(body?.training_focus);
+          const cardioTarget = nullableTrimmed(body?.cardio_target);
+          const nutritionFocus = nullableTrimmed(body?.nutrition_focus);
+          const now = new Date().toISOString();
+          const existing = await env.DB.prepare(`SELECT id FROM weekly_plans WHERE student_id=? AND week_ref=? LIMIT 1`).bind(student.student_id, weekRef).first();
+          const id = existing?.id || crypto.randomUUID();
+          if (existing) await env.DB.prepare(`UPDATE weekly_plans SET student_email=?, training_focus=?, cardio_target=?, nutrition_focus=?, status='ACTIVE', updated_at=? WHERE id=?`).bind(student.email, trainingFocus, cardioTarget, nutritionFocus, now, id).run();
+          else await env.DB.prepare(`INSERT INTO weekly_plans (id, student_id, student_email, week_ref, training_focus, cardio_target, nutrition_focus, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)`).bind(id, student.student_id, student.email, weekRef, trainingFocus, cardioTarget, nutritionFocus, now, now).run();
+          const saved = await env.DB.prepare(`SELECT id, student_id, student_email, week_ref, training_focus, cardio_target, nutrition_focus, status, updated_at FROM weekly_plans WHERE id=?`).bind(id).first();
+          return json({ ok: true, data: saved });
+        }
+
         const followupEntryMatch = url.pathname.match(/^\/api\/admin\/premium\/students\/([^/]+)\/followup-entries$/);
         if (followupEntryMatch && method === 'POST') {
           const premiumApp = createPremiumApplication(env, request);
