@@ -26,14 +26,14 @@ test('Prontuário LM renderiza estrutura, empty states e não expõe token', () 
   assert.match(js, /admin-premium-student-record\.html/);
 });
 
-test('renderização do prontuário permanece operacional sem o container opcional de status', async () => {
+test('renderização do prontuário permanece operacional sem containers opcionais', async () => {
   const html = readFileSync(new URL('../public/admin-premium-student-record.html', import.meta.url), 'utf8');
   const source = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
   assert.doesNotMatch(html, /careStatusContent/);
   assert.match(source, /const student=data\.student\|\|\{\}, summary=data\.summary\|\|\{\}, root=byId\('careStatusContent'\); if \(!root\) return;/);
   assert.match(source, /renderCareStatus\(data\);[\s\S]*renderPlan\(data\.nutrition_plan \|\| null, student\);/);
 
-  const dom = createFakeDocument({ includeCareStatus: false });
+  const dom = createFakeDocument({ includeCareStatus: false, includePlanningObjectives: false });
   const location = { search: '?student_id=student-1', origin: 'https://admin.example', assign(url) { this.assigned = url; } };
   const context = { document: dom.document, window: { location, LMAdminAuth: { requireAdmin(){}, attachLogout(){}, getAdminAuthHeaders(headers){ return headers; } } }, location, URLSearchParams, URL, FormData: class {}, fetch: async () => ({ ok: true, json: async () => ({ ok: true, data: { student: { student_id: 'student-1', name: 'Ana' }, summary: {}, nutrition_plan: { current: null, draft: null }, pending_items: [], feedbacks: [], followup_entries: [] } }) }) };
   vm.runInNewContext(source, context);
@@ -48,6 +48,24 @@ test('renderização do prontuário permanece operacional sem o container opcion
   let prevented = false;
   card.onkeydown({ key: ' ', preventDefault() { prevented = true; } });
   assert.equal(prevented, true);
+  assert.match(dom.document.getElementById('plan').textContent, /Nenhum plano criado/);
+});
+
+test('card opcional de objetivos recebe descrição e CTA quando seu container existe', async () => {
+  const source = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
+  const dom = createFakeDocument({ includePlanningObjectives: true });
+  const context = {
+    document: dom.document,
+    window: { LMAdminAuth: { requireAdmin(){}, attachLogout(){}, getAdminAuthHeaders(headers){ return headers; } } },
+    location: { search: '?student_id=student-1', origin: 'https://admin.example' }, URLSearchParams, URL, FormData: class {},
+    fetch: async () => ({ ok: true, json: async () => ({ ok: true, data: { student: { student_id: 'student-1', name: 'Ana' }, summary: {}, nutrition_plan: { current: null, draft: null }, pending_items: [], feedbacks: [], followup_entries: [] } }) })
+  };
+  vm.runInNewContext(source, context);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const objectives = dom.document.getElementById('planningObjectives');
+  assert.match(objectives.textContent, /Defina os focos de treino, cardio e alimentação/);
+  const action = dom.created.find((node) => node.attributes.href === '/admin-premium-planning-objectives.html?student_id=student-1');
+  assert.ok(action, 'CTA de objetivos deve ser criada quando o container existe');
 });
 
 test('HTML seguro: Prontuário não usa innerHTML nem interpolação HTML dinâmica', () => {
@@ -138,7 +156,7 @@ function maliciousRecord() {
   };
 }
 
-function createFakeDocument({ includeCareStatus = true } = {}) {
+function createFakeDocument({ includeCareStatus = true, includePlanningObjectives = false } = {}) {
   const created = [];
   class Element {
     constructor(tagName, id = '') {
@@ -161,7 +179,7 @@ function createFakeDocument({ includeCareStatus = true } = {}) {
     addEventListener() {}
     reset() {}
   }
-  const ids = ['state','record','studentName','contact','status','summary','pendingList','planejamento-alimentar','anamnesis','plan','feedbacks','entries','entryForm','adminLogoutBtn','primaryAction', ...(includeCareStatus ? ['careStatusContent'] : [])];
+  const ids = ['state','record','studentName','contact','status','summary','pendingList','planejamento-alimentar','anamnesis','plan','feedbacks','entries','entryForm','adminLogoutBtn','primaryAction', ...(includeCareStatus ? ['careStatusContent'] : []), ...(includePlanningObjectives ? ['planningObjectives'] : [])];
   const elements = new Map(ids.map((id) => [id, new Element(id === 'entryForm' ? 'form' : 'div', id)]));
   const document = {
     getElementById(id) { return elements.get(id) || null; },

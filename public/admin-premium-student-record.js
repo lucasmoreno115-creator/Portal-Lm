@@ -103,6 +103,7 @@
 
   function renderPlanningObjectives(student) {
     const target = byId('planningObjectives');
+    if (!target || !student?.student_id) return;
     target.replaceChildren(
       el('p', { className: 'muted', textContent: 'Defina os focos de treino, cardio e alimentação exibidos na Home Premium.' }),
       el('a', { className: 'button', textContent: 'Editar objetivos', href: planningObjectivesLink(student.student_id) })
