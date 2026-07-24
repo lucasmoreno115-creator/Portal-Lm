@@ -17,6 +17,12 @@ test('endpoints administrativos do Prontuário exigem admin e preservam contrato
   const record=await api(db,'GET','/api/admin/premium/students/student-1/record');
   assert.equal(record.status,200); assert.equal(record.body.ok,true); assert.equal(record.body.data.student.student_id,'student-1'); assert.equal(record.body.data.feedbacks.length,2); assert.equal(JSON.stringify(record.body).includes('access_token'),false); assert.ok(record.body.data.pending_items.length>=2);
   assert.deepEqual(record.body.data.nutrition_plan, { current: null, draft: null, hasPublished: false, hasDraft: false, status: 'EMPTY', label: 'Nenhum plano criado', description: 'Crie o primeiro planejamento alimentar deste aluno.', actionLabel: 'Criar planejamento alimentar', action: 'open-nutrition-plan' });
+  const emptyObjectives = await api(db,'GET','/api/admin/premium/students/student-1/planning-objectives');
+  assert.equal(emptyObjectives.status,200); assert.equal(emptyObjectives.body.data.status,'EMPTY');
+  const savedObjectives = await api(db,'PUT','/api/admin/premium/students/student-1/planning-objectives',{training_focus:'Técnica',cardio_target:'Caminhar',nutrition_focus:'Seguir o plano'});
+  assert.equal(savedObjectives.status,200); assert.equal(savedObjectives.body.data.training_focus,'Técnica');
+  const portalObjectives = await worker.fetch(new Request('https://portal.test/api/portal/weekly-plan',{headers:{'x-student-email':'student@example.com','x-student-token':'tok'}}),{DB:db,ADMIN_TOKEN:'admin-token'});
+  const portalObjectivesBody=await portalObjectives.json(); assert.equal(portalObjectivesBody.data.nutrition_focus,'Seguir o plano');
   const entry=await api(db,'POST','/api/admin/premium/students/student-1/followup-entries',{entry_type:'PROFESSIONAL_NOTE',title:'Nota',content:'Ok'}); assert.equal(entry.status,201);
   const pending=await api(db,'POST','/api/admin/premium/students/student-1/pending-items',{type:'CUSTOM',title:'Contato'}); assert.equal(pending.status,201);
   const resolved=await api(db,'PATCH',`/api/admin/premium/pending-items/${pending.body.data.id}/resolve`); assert.equal(resolved.body.data.status,'RESOLVED');

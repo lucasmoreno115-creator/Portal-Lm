@@ -95,6 +95,20 @@
     return `${editor.pathname}${editor.search}`;
   }
 
+  function planningObjectivesLink(studentId) {
+    const url = new URL('/admin-premium-planning-objectives.html', location.origin || 'http://localhost');
+    url.searchParams.set('student_id', studentId);
+    return `${url.pathname}${url.search}`;
+  }
+
+  function renderPlanningObjectives(student) {
+    const target = byId('planningObjectives');
+    target.replaceChildren(
+      el('p', { className: 'muted', textContent: 'Defina os focos de treino, cardio e alimentação exibidos na Home Premium.' }),
+      el('a', { className: 'button', textContent: 'Editar objetivos', href: planningObjectivesLink(student.student_id) })
+    );
+  }
+
   function makeNutritionPlanCardNavigable(studentId) { const card=byId('planejamento-alimentar'); if (!card || !studentId) return; card.setAttribute('role', 'link'); card.setAttribute('tabindex', '0'); const navigate=()=>window.location.assign(nutritionPlanLink(studentId)); card.onclick=(event)=>{if(event.target?.closest?.('a, button'))return;navigate();}; card.onkeydown=(event)=>{if(event.key!=='Enter'&&event.key!==' ')return;event.preventDefault();navigate();}; }
 
   function renderPlan(workflow, student) {
@@ -156,6 +170,7 @@
     renderCareStatus(data);
     renderPending(data.pending_items || []);
     renderAnamnesis(data.anamnesis || null);
+    renderPlanningObjectives(student);
     renderPlan(data.nutrition_plan || null, student);
     renderFeedbacks(data.feedbacks || []);
     renderEntries(data.followup_entries || []);
