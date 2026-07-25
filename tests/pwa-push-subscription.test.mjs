@@ -71,3 +71,14 @@ test('Sprint N2.0 has no Push sending or service-worker notification listeners',
   assert.doesNotMatch(worker, /webpush|sendNotification|showNotification/i);
   assert.doesNotMatch(worker, /VAPID_PRIVATE_KEY/);
 });
+
+test('hotfix N2.2.1 oculta o card sem reservar espaço nas cópias de CSS', async () => {
+  const [canonicalCss, publicCss] = await Promise.all([
+    readFile('portal.css', 'utf8'),
+    readFile('public/portal.css', 'utf8'),
+  ]);
+  const hiddenRule = /\.pwa-push-card\[hidden\]\{display:none !important\}/;
+  assert.match(canonicalCss, hiddenRule);
+  assert.match(publicCss, hiddenRule);
+  assert.equal(canonicalCss.match(hiddenRule)?.[0], publicCss.match(hiddenRule)?.[0]);
+});
