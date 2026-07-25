@@ -8,6 +8,11 @@
   const isStandalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
   const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 
+  function announce(state) {
+    if (typeof window.CustomEvent !== 'function' || typeof window.dispatchEvent !== 'function') return;
+    window.dispatchEvent(new window.CustomEvent('portal-push-statechange', { detail: { state, enabled: state === 'enabled' } }));
+  }
+
   function render(state) {
     card.dataset.state = state;
     const states = {
@@ -22,6 +27,8 @@
     message.textContent = copy;
     button.textContent = label;
     button.disabled = disabled;
+    card.hidden = state === 'enabled';
+    announce(state);
   }
 
   function applicationServerKey(value) {
@@ -57,6 +64,12 @@
     render('waiting');
   }
 
+  async function disableCurrent() {
+    const subscription = await currentSubscription();
+    if (!subscription) { render('waiting'); return; }
+    await disable(subscription);
+  }
+
   async function recover(subscription) {
     const serialized = subscription.toJSON();
     await api('/portal/push/subscriptions', { method: 'POST', body: JSON.stringify(serialized) });
@@ -67,11 +80,16 @@
     button.disabled = true;
     try {
       const subscription = await currentSubscription();
-      if (subscription && card.dataset.state === 'enabled') await disable(subscription);
+      if (subscription && card.dataset.state === 'enabled') await disableCurrent();
       else await register();
     } catch (_) {
       render('error');
     }
+  });
+
+  window.PortalPushNotifications = Object.freeze({
+    disableCurrent,
+    getState: () => ({ state: card.dataset.state, enabled: card.dataset.state === 'enabled' }),
   });
 
   if (!supported) { render('unsupported'); return; }

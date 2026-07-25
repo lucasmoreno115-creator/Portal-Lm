@@ -6,6 +6,7 @@ await import('../public/assets/js/portal-notifications.js');
 const notifications = globalThis.PortalNotifications;
 const source = await readFile(new URL('../public/assets/js/portal-notifications.js', import.meta.url), 'utf8');
 const home = await readFile(new URL('../public/portal-premium-home.html', import.meta.url), 'utf8');
+const styles = await readFile(new URL('../public/assets/css/portal-notifications.css', import.meta.url), 'utf8');
 
 test('badge oculta zero e limita contagens acima de 99', () => {
   assert.equal(notifications.badgeText(0), '');
@@ -43,7 +44,7 @@ test('Home carrega módulo isolado e módulo usa somente endpoints N2.1', () => 
 });
 
 test('drawer contempla estados, leitura, navegação e acessibilidade por teclado', () => {
-  for (const phrase of ['Carregando notificações', 'Você ainda não tem notificações', 'Não foi possível carregar', 'Marcar todas como lidas']) {
+  for (const phrase of ['Carregando notificações', 'Você está em dia.', 'Quando houver novidades', 'elas aparecerão aqui.', 'Não foi possível carregar', 'Marcar todas como lidas']) {
     assert.ok(source.includes(phrase), `texto ausente: ${phrase}`);
   }
   assert.match(source, /global\.location\.assign\(notification\.action_url\)/);
@@ -51,4 +52,18 @@ test('drawer contempla estados, leitura, navegação e acessibilidade por teclad
   assert.match(source, /returnFocus\.focus\(\)/);
   assert.match(source, /aria-modal/);
   assert.match(source, /event\.key !== 'Tab'/);
+});
+
+test('polish N2.2.1 posiciona sino no header e oferece configuração de push no drawer', () => {
+  assert.match(home, /<header class='hero hero-premium hero-app'>/);
+  assert.match(source, /⚙️ Configurações/);
+  assert.match(source, /✓ Notificações ativadas/);
+  assert.match(source, /Desativar neste dispositivo/);
+  assert.match(source, /PortalPushNotifications\?\.disableCurrent/);
+  assert.match(source, /closeDrawer\(\)/);
+  assert.match(styles, /min-width:44px/);
+  assert.match(styles, /min-height:44px/);
+  assert.match(styles, /\.notification-panel\{width:94%/);
+  assert.match(styles, /notification-badge-in/);
+  assert.match(styles, /transition:background-color \.25s ease,opacity \.25s ease,transform \.25s ease/);
 });

@@ -16,11 +16,12 @@ function browserHarness({ permission = 'default', supported = true, iphone = fal
   let requestPermissionCalls = 0;
   const registration = { pushManager: { getSubscription: async () => subscription } };
   const navigator = { userAgent: iphone ? 'iPhone Safari' : 'Chrome', standalone, serviceWorker: { ready: Promise.resolve(registration) } };
+  const calls = [];
   const window = { matchMedia: () => ({ matches: standalone }), Notification: { permission, async requestPermission() { requestPermissionCalls += 1; return 'granted'; } } };
   if (supported) window.PushManager = function PushManager() {};
   else delete navigator.serviceWorker;
-  vm.runInNewContext(source, { window, document: { getElementById: (id) => elements.get(id) }, navigator, Notification: window.Notification, Uint8Array, atob, api: async () => ({ data: {} }) });
-  return { button: elements.get('pwaPushButton'), card: elements.get('pwaPushCard'), calls: () => requestPermissionCalls };
+  vm.runInNewContext(source, { window, document: { getElementById: (id) => elements.get(id) }, navigator, Notification: window.Notification, Uint8Array, atob, api: async (path, options) => { calls.push([path, options]); return { data: {} }; } });
+  return { button: elements.get('pwaPushButton'), card: elements.get('pwaPushCard'), permissionCalls: () => requestPermissionCalls, apiCalls: calls, window };
 }
 
 test('Premium Home contains the compact opt-in UI and isolated module', () => {
@@ -32,9 +33,21 @@ test('Premium Home contains the compact opt-in UI and isolated module', () => {
 test('permission is never requested during initialization and only follows a click', async () => {
   const app = browserHarness();
   await Promise.resolve();
-  assert.equal(app.calls(), 0);
+  assert.equal(app.permissionCalls(), 0);
   await app.button.listeners.get('click')();
-  assert.equal(app.calls(), 1);
+  assert.equal(app.permissionCalls(), 1);
+});
+
+test('subscription ativa oculta o card e a desativação compartilhada o reapresenta', async () => {
+  const subscription = { endpoint: 'https://push.test/device', toJSON: () => ({ endpoint: 'https://push.test/device', keys: { p256dh: 'key', auth: 'auth' } }), unsubscribe: async () => true };
+  const app = browserHarness({ permission: 'granted', subscription });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(app.card.dataset.state, 'enabled');
+  assert.equal(app.card.hidden, true);
+  await app.window.PortalPushNotifications.disableCurrent();
+  assert.equal(app.card.dataset.state, 'waiting');
+  assert.equal(app.card.hidden, false);
+  assert.ok(app.apiCalls.some(([path, options]) => path === '/portal/push/subscriptions/current' && options.method === 'DELETE'));
 });
 
 test('unsupported browsers and non-installed iPhones receive safe fallbacks', () => {

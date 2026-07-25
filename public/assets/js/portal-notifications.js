@@ -74,10 +74,17 @@
     const close = createElement('button', { className: 'notification-close', type: 'button', textContent: '×', 'aria-label': 'Fechar notificações' });
     const markAll = createElement('button', { className: 'notification-read-all', type: 'button', textContent: 'Marcar todas como lidas' });
     const content = createElement('div', { className: 'notification-content', 'aria-live': 'polite' });
+    const pushStatus = createElement('span', { className: 'notification-settings__status', textContent: 'Notificações desativadas' });
+    const disablePush = createElement('button', { className: 'notification-settings__disable', type: 'button', textContent: 'Desativar neste dispositivo' });
+    const settings = createElement('footer', { className: 'notification-settings' }, [
+      createElement('strong', { className: 'notification-settings__title', textContent: '⚙️ Configurações' }),
+      pushStatus,
+      disablePush,
+    ]);
     const panel = createElement('section', { className: 'notification-panel', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'notificationTitle', tabIndex: -1 }, [
       createElement('header', { className: 'notification-header' }, [
         createElement('h2', { id: 'notificationTitle', textContent: 'Notificações' }), markAll, close,
-      ]), content,
+      ]), content, settings,
     ]);
     const backdrop = createElement('button', { className: 'notification-backdrop', type: 'button', tabIndex: -1, 'aria-label': 'Fechar notificações' });
     const drawer = createElement('div', { id: 'notificationDrawer', className: 'notification-drawer', hidden: true }, [backdrop, panel]);
@@ -93,6 +100,13 @@
       markAll.disabled = unreadCount === 0;
     }
 
+    function updatePushSettings(detail = global.PortalPushNotifications?.getState?.()) {
+      const enabled = detail?.enabled === true;
+      pushStatus.textContent = enabled ? '✓ Notificações ativadas' : 'Notificações desativadas';
+      disablePush.hidden = !enabled;
+      disablePush.disabled = false;
+    }
+
     function status(message, modifier, retry) {
       content.replaceChildren(createElement('div', { className: `notification-state notification-state--${modifier}`, role: modifier === 'error' ? 'alert' : 'status' }, [
         createElement('p', { textContent: message }),
@@ -102,7 +116,7 @@
 
     function render() {
       if (!notifications.length) {
-        status('Você ainda não tem notificações.', 'empty');
+        status('Você está em dia.\n\nQuando houver novidades,\nelas aparecerão aqui.', 'empty');
         return;
       }
       const fragment = document.createDocumentFragment();
@@ -160,6 +174,13 @@
         const wasUnread = notification.status === 'UNREAD';
         Object.assign(notification, response?.data || {}, { status: 'READ' });
         if (wasUnread) updateCount(unreadCount - 1);
+        button.classList.remove('notification-item--unread');
+        const unreadDot = button.querySelector('.notification-unread-dot');
+        if (unreadDot) {
+          unreadDot.style.opacity = '0';
+          unreadDot.style.transform = 'scale(.4)';
+          await new Promise((resolve) => global.setTimeout(resolve, 180));
+        }
         render();
         if (notification.action_url) global.location.assign(notification.action_url);
       } catch (_) {
@@ -186,6 +207,7 @@
       document.body.classList.add('notification-drawer-open');
       trigger.setAttribute('aria-expanded', 'true');
       close.focus();
+      updatePushSettings();
       load();
     }
 
@@ -200,6 +222,18 @@
     close.addEventListener('click', closeDrawer);
     backdrop.addEventListener('click', closeDrawer);
     markAll.addEventListener('click', readAll);
+    disablePush.addEventListener('click', async () => {
+      disablePush.disabled = true;
+      try {
+        await global.PortalPushNotifications?.disableCurrent();
+        updatePushSettings({ enabled: false });
+        closeDrawer();
+      } catch (_) {
+        disablePush.disabled = false;
+        pushStatus.textContent = 'Não foi possível desativar agora.';
+      }
+    });
+    global.addEventListener('portal-push-statechange', (event) => updatePushSettings(event.detail));
     drawer.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') { event.preventDefault(); closeDrawer(); }
       if (event.key !== 'Tab') return;
@@ -212,6 +246,7 @@
     });
     updateCount(0);
     refreshCount();
+    updatePushSettings();
   }
 
   const publicApi = { ICONS, GROUP_ORDER, badgeText, groupForDate, groupNotifications, iconFor, mount };
