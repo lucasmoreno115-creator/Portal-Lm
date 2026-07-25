@@ -27,6 +27,7 @@ import { createResolvePendingItemUseCase } from './premium/application/resolve-p
 import { createUpdateConsultationStatusUseCase } from './premium/application/update-consultation-status.js';
 import { createReleaseLegacyPlanningUseCase } from './premium/application/release-legacy-planning.js';
 import { createImportLegacyNutritionPlanUseCase } from './premium/application/import-legacy-nutrition-plan.js';
+import { createNutritionLibrary } from './premium/application/nutrition-library.js';
 import { createRecordProfessionalDecisionUseCase } from './premium/application/record-professional-decision.js';
 import { presentStudentRecord } from './premium/presenters/student-record-presenter.js';
 import { createD1FeedbackReminderRepository } from './premium/repositories/d1-feedback-reminder-repository.js';
@@ -997,6 +998,16 @@ export default {
             message: 'Tentativa admin não autorizada.'
           });
           return json({ ok: false, error: 'Unauthorized', code: adminAuth.code || 'ADMIN_SESSION_INVALID' }, 401);
+        }
+
+        const nutritionLibraryDetailMatch = url.pathname.match(/^\/api\/admin\/premium\/nutrition-library\/([^/]+)$/);
+        if (nutritionLibraryDetailMatch && method === 'GET') {
+          const result = await createNutritionLibrary({ db: env.DB }).detail(decodeURIComponent(nutritionLibraryDetailMatch[1]));
+          return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
+        }
+        if (url.pathname === '/api/admin/premium/nutrition-library' && method === 'GET') {
+          const result = await createNutritionLibrary({ db: env.DB }).list(Object.fromEntries(url.searchParams.entries()));
+          return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
         }
 
 

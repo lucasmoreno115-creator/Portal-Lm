@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Biblioteca de Planejamentos Alimentares | LM Premium</title>
+  <link rel="stylesheet" href="public/assets/css/admin-premium-nutrition-library.css">
+</head>
+<body>
+  <main class="library-shell">
+    <header class="library-header screen-only">
+      <a href="/admin-premium-workspace.html" class="back-link">← Voltar ao workspace</a>
+      <p class="eyebrow">LM Premium · Administração</p>
+      <h1>Biblioteca de Planejamentos Alimentares</h1>
+      <p>Consulte planejamentos anteriores e atuais em modo somente leitura.</p>
+    </header>
+
+    <section class="library-controls screen-only" aria-label="Busca e filtros">
+      <form id="searchForm" class="search-form">
+        <label for="search">Buscar por nome, e-mail ou plano</label>
+        <div class="search-row"><input id="search" name="q" type="search" autocomplete="off"><button type="submit">Buscar</button></div>
+      </form>
+      <fieldset><legend>Tipo</legend><div class="filter-row" id="typeFilters">
+        <label><input type="radio" name="type" value="" checked> Todos</label>
+        <label><input type="radio" name="type" value="LEGACY"> Legados</label>
+        <label><input type="radio" name="type" value="PREMIUM"> Premium</label>
+      </div></fieldset>
+      <label for="statusFilter">Status</label>
+      <select id="statusFilter"><option value="">Todos os status</option><option value="PUBLISHED">Publicado</option><option value="DRAFT">Rascunho</option><option value="ARCHIVED">Arquivado</option></select>
+    </section>
+
+    <p id="libraryStatus" class="notice screen-only" role="status" aria-live="polite"></p>
+    <section id="resultsSection" class="screen-only" aria-labelledby="resultsTitle">
+      <div class="results-heading"><h2 id="resultsTitle">Planejamentos</h2><span id="resultCount"></span></div>
+      <div id="results" class="result-list"></div>
+      <nav class="pagination" aria-label="Paginação"><button id="previousPage" type="button">Anterior</button><span id="pageInfo"></span><button id="nextPage" type="button">Próxima</button></nav>
+    </section>
+
+    <section id="detail" class="plan-detail" hidden aria-labelledby="detailTitle">
+      <div class="detail-actions screen-only"><button id="closeDetail" type="button" class="secondary">← Voltar à biblioteca</button><button id="printPlan" type="button">Imprimir / Salvar em PDF</button></div>
+      <header class="detail-header"><div><p class="eyebrow">Biblioteca de Planejamentos Alimentares</p><h2 id="detailTitle"></h2><p id="detailStudent"></p></div><span class="readonly-badge">Somente leitura</span></header>
+      <dl id="detailMetadata" class="metadata"></dl>
+      <div id="detailOverview" class="overview"></div>
+      <section><h3>Refeições</h3><div id="detailMeals" class="meal-list"></div></section>
+      <section id="substitutionsSection"><h3>Substituições</h3><div id="detailSubstitutions"></div></section>
+      <section id="rulesSection"><h3>Regras de adesão</h3><div id="detailRules"></div></section>
+      <section id="notesSection"><h3>Observações</h3><div id="detailNotes"></div></section>
+    </section>
+  </main>
+  <script src="admin-auth.js"></script>
+  <script src="public/assets/js/premium-nutrition-plan-renderer.js"></script>
+  <script type="module" src="public/assets/js/admin-premium-nutrition-library.js"></script>
+</body>
+</html>
