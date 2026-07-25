@@ -58,6 +58,8 @@ import { presentWorkspaceSummary } from './premium/presenters/professional-works
 import { presentWorkspaceStudentSummary, presentWorkspaceStudentContext } from './premium/presenters/professional-workspace-student-presenter.js';
 import { presentWorkspacePendingItems } from './premium/presenters/professional-workspace-pending-presenter.js';
 import { presentSaturdayReview } from './premium/presenters/professional-workspace-saturday-presenter.js';
+import { presentPortalNotification } from './premium/presenters/portal-notification-presenter.js';
+import { createPortalNotification, PortalNotificationValidationError } from './services/portal-notification-service.js';
 
 
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
@@ -382,6 +384,48 @@ export default {
         }
 
         const studentEmail = auth.student.email;
+
+        if (url.pathname === '/api/portal/notifications' || url.pathname.startsWith('/api/portal/notifications/')) {
+          if (!isPremiumPortalStudent(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
+          const identity = await resolvePushStudentIdentity(env.DB, auth.student);
+          if (!identity.studentId) return json({ ok: false, error: 'Identidade Premium indisponível.' }, 409);
+
+          if (url.pathname === '/api/portal/notifications' && method === 'GET') {
+            const requestedLimit = Number(url.searchParams.get('limit') || 20);
+            const requestedOffset = Number(url.searchParams.get('offset') || 0);
+            const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 50) : 20;
+            const offset = Number.isFinite(requestedOffset) ? Math.max(Math.trunc(requestedOffset), 0) : 0;
+            const { results = [] } = await env.DB.prepare(`SELECT * FROM portal_notifications
+              WHERE student_id=? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`)
+              .bind(identity.studentId, limit + 1, offset).all();
+            const hasMore = results.length > limit;
+            return json({ ok: true, data: { items: results.slice(0, limit).map(presentPortalNotification), pagination: { limit, offset, has_more: hasMore, next_offset: hasMore ? offset + limit : null } } });
+          }
+
+          if (url.pathname === '/api/portal/notifications/unread-count' && method === 'GET') {
+            const row = await env.DB.prepare(`SELECT COUNT(*) AS count FROM portal_notifications
+              WHERE student_id=? AND status='UNREAD'`).bind(identity.studentId).first();
+            return json({ ok: true, data: { count: Number(row?.count || 0) } });
+          }
+
+          const notificationReadMatch = url.pathname.match(/^\/api\/portal\/notifications\/([^/]+)\/read$/);
+          if (notificationReadMatch && method === 'PATCH') {
+            const id = decodeURIComponent(notificationReadMatch[1]);
+            const now = new Date().toISOString();
+            await env.DB.prepare(`UPDATE portal_notifications SET status='READ', read_at=COALESCE(read_at, ?), updated_at=?
+              WHERE id=? AND student_id=?`).bind(now, now, id, identity.studentId).run();
+            const row = await env.DB.prepare('SELECT * FROM portal_notifications WHERE id=? AND student_id=? LIMIT 1').bind(id, identity.studentId).first();
+            if (!row) return json({ ok: false, error: 'Notificação não encontrada.' }, 404);
+            return json({ ok: true, data: presentPortalNotification(row) });
+          }
+
+          if (url.pathname === '/api/portal/notifications/read-all' && method === 'PATCH') {
+            const now = new Date().toISOString();
+            const result = await env.DB.prepare(`UPDATE portal_notifications SET status='READ', read_at=COALESCE(read_at, ?), updated_at=?
+              WHERE student_id=? AND status='UNREAD'`).bind(now, now, identity.studentId).run();
+            return json({ ok: true, data: { updated: Number(result?.meta?.changes ?? result?.changes ?? 0) } });
+          }
+        }
 
         if (url.pathname.startsWith('/api/portal/push/')) {
           if (!isPremiumPortalStudent(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
@@ -1037,6 +1081,21 @@ export default {
 
 
         const premiumRecordMatch = url.pathname.match(/^\/api\/admin\/premium\/students\/([^/]+)\/record$/);
+        const notificationCreateMatch = url.pathname.match(/^\/api\/admin\/premium\/students\/([^/]+)\/notifications$/);
+        if (notificationCreateMatch && method === 'POST') {
+          const studentId = decodeURIComponent(notificationCreateMatch[1]);
+          const student = await env.DB.prepare('SELECT student_id, email FROM premium_students WHERE student_id=? LIMIT 1').bind(studentId).first();
+          if (!student) return json({ ok: false, error: 'Aluno Premium não encontrado.' }, 404);
+          const body = await safeJson(request);
+          try {
+            const notification = await createPortalNotification(env, { ...body, student_id: student.student_id, student_email: student.email });
+            return json({ ok: true, data: presentPortalNotification(notification) }, 201);
+          } catch (error) {
+            if (error instanceof PortalNotificationValidationError) return json({ ok: false, error: error.message }, 400);
+            throw error;
+          }
+        }
+
         if (premiumRecordMatch && method === 'GET') {
           const premiumApp = createPremiumApplication(env, request);
           const result = await premiumApp.getStudentRecord({ student_id: decodeURIComponent(premiumRecordMatch[1]) });
@@ -2862,6 +2921,16 @@ async function ensureSchemaUncached(db) {
     revoked_at TEXT
   )`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_portal_push_subscriptions_student_status ON portal_push_subscriptions(student_id, status)`).run();
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS portal_notifications (
+    id TEXT PRIMARY KEY, student_id TEXT NOT NULL, student_email TEXT NOT NULL, type TEXT NOT NULL,
+    title TEXT NOT NULL, body TEXT NOT NULL, action_url TEXT, reference_key TEXT,
+    status TEXT NOT NULL DEFAULT 'UNREAD' CHECK (status IN ('UNREAD', 'READ')),
+    created_at TEXT NOT NULL, read_at TEXT, updated_at TEXT NOT NULL
+  )`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_portal_notifications_student_status_created ON portal_notifications(student_id, status, created_at DESC)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_portal_notifications_student_created ON portal_notifications(student_id, created_at DESC)`).run();
+  await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_portal_notifications_student_type_reference ON portal_notifications(student_id, type, reference_key) WHERE reference_key IS NOT NULL`).run();
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS premium_students (
     student_id TEXT PRIMARY KEY,
