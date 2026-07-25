@@ -6,6 +6,7 @@ await import('../public/assets/js/portal-notifications.js');
 const notifications = globalThis.PortalNotifications;
 const source = await readFile(new URL('../public/assets/js/portal-notifications.js', import.meta.url), 'utf8');
 const home = await readFile(new URL('../public/portal-premium-home.html', import.meta.url), 'utf8');
+const canonicalHome = await readFile(new URL('../portal-premium-home.html', import.meta.url), 'utf8');
 const styles = await readFile(new URL('../public/assets/css/portal-notifications.css', import.meta.url), 'utf8');
 
 test('badge oculta zero e limita contagens acima de 99', () => {
@@ -66,4 +67,20 @@ test('polish N2.2.1 posiciona sino no header e oferece configuração de push no
   assert.match(styles, /\.notification-panel\{width:94%/);
   assert.match(styles, /notification-badge-in/);
   assert.match(styles, /transition:background-color \.25s ease,opacity \.25s ease,transform \.25s ease/);
+});
+
+test('hotfix N2.2.1 monta o sino no contêiner dedicado e mantém as Homes sincronizadas', () => {
+  const actionsMarkup = "<div id='premiumHomeHeaderActions' class='premium-home-header-actions'></div>";
+  assert.ok(home.includes(actionsMarkup));
+  assert.ok(canonicalHome.includes(actionsMarkup));
+  assert.equal(home.match(/<div id='premiumHomeHeaderActions'[^>]*><\/div>/)?.[0], canonicalHome.match(/<div id='premiumHomeHeaderActions'[^>]*><\/div>/)?.[0]);
+  assert.match(source, /document\.getElementById\('premiumHomeHeaderActions'\)/);
+  assert.match(source, /headerActions\.append\(trigger\)/);
+  assert.doesNotMatch(source, /querySelector\('\.hero-app'\)|hero\.append\(trigger\)/);
+});
+
+test('hotfix N2.2.1 preserva toque mobile de 44 px acima dos overlays e separado da logo', () => {
+  assert.match(styles, /\.premium-home-header-actions\{[^}]*z-index:7[^}]*pointer-events:auto/);
+  assert.match(styles, /\.notification-trigger\{[^}]*min-width:44px[^}]*min-height:44px/);
+  assert.match(styles, /@media\(max-width:720px\)\{\.premium-home-header-actions\{top:10px;right:104px\}\.notification-trigger\{width:44px;height:44px\}/);
 });

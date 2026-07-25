@@ -1669,6 +1669,7 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 
 /* Sprint U2.7: compact Premium home hero. */
 .pwa-push-card{display:grid;grid-template-columns:auto 1fr;align-items:start;gap:14px;padding:16px 18px;border-color:rgba(212,175,55,.3)}
+.pwa-push-card[hidden]{display:none !important}
 .pwa-push-card__icon{font-size:1.4rem;line-height:1.2}.pwa-push-card__content{display:grid;gap:7px}.pwa-push-card h2,.pwa-push-card p{margin:0}.pwa-push-card h2{font-size:1rem}.pwa-push-card p{color:#c9c9c9;font-size:.88rem;line-height:1.45}.pwa-push-card .pwa-push-card__status{color:#aaa;font-size:.78rem}.pwa-push-card .primary-cta{width:max-content;margin-top:3px;padding:9px 13px}.pwa-push-card[data-state='enabled']{border-color:rgba(76,175,80,.45)}
 @media(max-width:720px){.pwa-push-card{padding:14px}.pwa-push-card .primary-cta{width:100%}}
 

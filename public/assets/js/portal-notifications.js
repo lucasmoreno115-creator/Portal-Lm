@@ -59,8 +59,8 @@
   }
 
   function mount() {
-    const hero = document.querySelector('.hero-app');
-    if (!hero || document.querySelector('#notificationButton')) return;
+    const headerActions = document.getElementById('premiumHomeHeaderActions');
+    if (!headerActions || document.querySelector('#notificationButton')) return;
 
     let notifications = [];
     let unreadCount = 0;
@@ -88,7 +88,7 @@
     ]);
     const backdrop = createElement('button', { className: 'notification-backdrop', type: 'button', tabIndex: -1, 'aria-label': 'Fechar notificações' });
     const drawer = createElement('div', { id: 'notificationDrawer', className: 'notification-drawer', hidden: true }, [backdrop, panel]);
-    hero.append(trigger);
+    headerActions.append(trigger);
     document.body.append(drawer);
 
     function updateCount(count) {
