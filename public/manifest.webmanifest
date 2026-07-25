@@ -1,6 +1,8 @@
 {
   "name": "Portal LM",
   "short_name": "Portal LM",
+  "description": "Portal do aluno da Consultoria LM",
+  "id": "/portal.html",
   "start_url": "/portal.html",
   "scope": "/",
   "display": "standalone",
@@ -9,10 +11,20 @@
   "theme_color": "#0d0d0d",
   "icons": [
     {
-      "src": "/assets/logo-lm-gold.png",
-      "sizes": "1000x1000",
+      "src": "/assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/icons/maskable-512.png",
+      "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "maskable"
     }
   ]
 }
