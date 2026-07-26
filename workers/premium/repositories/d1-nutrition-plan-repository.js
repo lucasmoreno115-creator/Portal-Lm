@@ -94,7 +94,7 @@ export function createD1NutritionPlanRepository(db) {
               archived_at = CASE WHEN id <> ? THEN ? ELSE archived_at END,
               updated_at = ?
           WHERE student_id = ?
-            AND (id = ? OR status = 'PUBLISHED')
+            AND (id = ? OR status = 'PUBLISHED' OR (status IS NULL AND is_active = 1))
             AND EXISTS (SELECT 1 FROM nutrition_plans WHERE id = ? AND student_id = ? AND status = 'DRAFT')`).bind(id, id, id, version, id, now, id, published_by, id, previous?.id ?? null, id, now, now, draft.student_id, id, id, draft.student_id),
         db.prepare(`INSERT OR IGNORE INTO premium_followup_entries (id, student_id, entry_type, title, content, source, related_entity_type, related_entity_id, created_by, created_at, updated_at) SELECT ?, ?, 'PLAN_CHANGE', 'Plano alimentar publicado', ?, 'admin', 'nutrition_plans', ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM nutrition_plans WHERE id = ? AND status = 'PUBLISHED' AND is_active = 1)`).bind(`plan-change:${id}`, draft.student_id, content, id, published_by, now, now, id),
       ];
