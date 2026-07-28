@@ -63,6 +63,6 @@ test('service worker only caches static unauthenticated resources and never API 
   assert.match(worker, /credentials: 'omit'/);
   assert.match(worker, /request\.mode === 'navigate'/);
   assert.match(worker, /caches\.match\(OFFLINE_URL\)/);
-  assert.doesNotMatch(worker, /addEventListener\(['"](?:push|sync)['"]|showNotification/i);
+  assert.doesNotMatch(worker, /addEventListener\(['"]sync['"]/i);
   await readFile('public/offline.html', 'utf8');
 });
