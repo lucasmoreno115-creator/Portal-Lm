@@ -65,11 +65,12 @@ test('backend contract authenticates, validates, upserts multiple devices, redac
   assert.match(migration, /ON portal_push_subscriptions\(student_id, status\)/);
 });
 
-test('Sprint N2.0 has no Push sending or service-worker notification listeners', async () => {
+test('Sprint N2.3 adds Push listeners without exposing the private key in the browser', async () => {
   const serviceWorker = await readFile('public/sw.js', 'utf8');
-  assert.doesNotMatch(serviceWorker, /addEventListener\(['"](?:push|notificationclick|sync)['"]|showNotification/i);
-  assert.doesNotMatch(worker, /webpush|sendNotification|showNotification/i);
-  assert.doesNotMatch(worker, /VAPID_PRIVATE_KEY/);
+  assert.match(serviceWorker, /addEventListener\('push'/);
+  assert.match(serviceWorker, /addEventListener\('notificationclick'/);
+  assert.match(serviceWorker, /showNotification/);
+  assert.doesNotMatch(serviceWorker, /VAPID_PRIVATE_KEY/);
 });
 
 test('hotfix N2.2.1 oculta o card sem reservar espaço nas cópias de CSS', async () => {
