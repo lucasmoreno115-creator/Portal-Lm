@@ -69,3 +69,37 @@ self.addEventListener('fetch', (event) => {
     return response;
   })());
 });
+
+function safePushPayload(event) {
+  try { return event.data ? event.data.json() : {}; } catch { return {}; }
+}
+
+function internalActionUrl(value) {
+  return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') && !value.includes('\\');
+}
+
+self.addEventListener('push', (event) => {
+  const payload = safePushPayload(event);
+  const actionUrl = internalActionUrl(payload.action_url) ? payload.action_url : '/portal-premium-home.html';
+  event.waitUntil(self.registration.showNotification(payload.title || 'Portal LM', {
+    body: payload.body || 'Você tem uma nova notificação.',
+    icon: '/assets/logo-lm-gold.png', badge: '/assets/logo-lm-gold.png',
+    tag: payload.notification_id ? `portal-notification-${payload.notification_id}` : undefined,
+    data: { notification_id: payload.notification_id || null, type: payload.type || 'CUSTOM', action_url: actionUrl },
+  }));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const requested = event.notification?.data?.action_url;
+  const actionUrl = internalActionUrl(requested) ? requested : '/portal-premium-home.html';
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const existing = windows.find((client) => new URL(client.url).origin === self.location.origin);
+    if (existing) {
+      if ('navigate' in existing) await existing.navigate(actionUrl);
+      return existing.focus();
+    }
+    return self.clients.openWindow(actionUrl);
+  })());
+});

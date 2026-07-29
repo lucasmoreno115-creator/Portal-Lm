@@ -50,6 +50,10 @@ function normalizeInput(input = {}) {
 }
 
 export async function createPortalNotification(env, input) {
+  return (await createPortalNotificationResult(env, input)).notification;
+}
+
+export async function createPortalNotificationResult(env, input) {
   if (!env?.DB) throw new Error('DB binding is required.');
   const value = normalizeInput(input);
 
@@ -57,7 +61,7 @@ export async function createPortalNotification(env, input) {
     const existing = await env.DB.prepare(`SELECT * FROM portal_notifications
       WHERE student_id=? AND type=? AND reference_key=? LIMIT 1`)
       .bind(value.studentId, value.type, value.referenceKey).first();
-    if (existing) return existing;
+    if (existing) return { notification: existing, created: false };
   }
 
   const now = new Date().toISOString();
@@ -69,10 +73,12 @@ export async function createPortalNotification(env, input) {
       value.actionUrl, value.referenceKey, now, now).run();
 
   if (value.referenceKey) {
-    return env.DB.prepare(`SELECT * FROM portal_notifications
+    const notification = await env.DB.prepare(`SELECT * FROM portal_notifications
       WHERE student_id=? AND type=? AND reference_key=? LIMIT 1`)
       .bind(value.studentId, value.type, value.referenceKey).first();
+    return { notification, created: notification?.id === id };
   }
-  return env.DB.prepare('SELECT * FROM portal_notifications WHERE id=? AND student_id=? LIMIT 1')
+  const notification = await env.DB.prepare('SELECT * FROM portal_notifications WHERE id=? AND student_id=? LIMIT 1')
     .bind(id, value.studentId).first();
+  return { notification, created: true };
 }

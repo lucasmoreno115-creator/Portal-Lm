@@ -60,7 +60,8 @@ import { presentWorkspaceStudentSummary, presentWorkspaceStudentContext } from '
 import { presentWorkspacePendingItems } from './premium/presenters/professional-workspace-pending-presenter.js';
 import { presentSaturdayReview } from './premium/presenters/professional-workspace-saturday-presenter.js';
 import { presentPortalNotification } from './premium/presenters/portal-notification-presenter.js';
-import { createPortalNotification, PortalNotificationValidationError } from './services/portal-notification-service.js';
+import { createPortalNotification, createPortalNotificationResult, PortalNotificationValidationError } from './services/portal-notification-service.js';
+import { deliverPortalPush } from './services/portal-push-delivery-service.js';
 
 
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
@@ -1099,8 +1100,13 @@ export default {
           if (!student) return json({ ok: false, error: 'Aluno Premium não encontrado.' }, 404);
           const body = await safeJson(request);
           try {
-            const notification = await createPortalNotification(env, { ...body, student_id: student.student_id, student_email: student.email });
-            return json({ ok: true, data: presentPortalNotification(notification) }, 201);
+            const { notification, created } = await createPortalNotificationResult(env, { ...body, student_id: student.student_id, student_email: student.email });
+            let delivery = { subscriptions: 0, sent: 0, failed: 0, expired: 0, deduplicated: 0 };
+            if (created) {
+              try { delivery = await deliverPortalPush(env, notification); }
+              catch { delivery = { ...delivery, failed: 1, error: 'PUSH_DELIVERY_FAILED' }; }
+            }
+            return json({ ok: true, data: { notification: presentPortalNotification(notification), delivery, deduplicated: !created } }, created ? 201 : 200);
           } catch (error) {
             if (error instanceof PortalNotificationValidationError) return json({ ok: false, error: error.message }, 400);
             throw error;
@@ -2942,6 +2948,14 @@ async function ensureSchemaUncached(db) {
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_portal_notifications_student_status_created ON portal_notifications(student_id, status, created_at DESC)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_portal_notifications_student_created ON portal_notifications(student_id, created_at DESC)`).run();
   await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_portal_notifications_student_type_reference ON portal_notifications(student_id, type, reference_key) WHERE reference_key IS NOT NULL`).run();
+
+  await db.prepare(`CREATE TABLE IF NOT EXISTS portal_push_deliveries (
+    id TEXT PRIMARY KEY, notification_id TEXT NOT NULL, subscription_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('PENDING', 'SENT', 'FAILED', 'EXPIRED')),
+    provider_status INTEGER, error_code TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+    UNIQUE(notification_id, subscription_id)
+  )`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_portal_push_deliveries_notification ON portal_push_deliveries(notification_id, status)`).run();
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS premium_students (
     student_id TEXT PRIMARY KEY,

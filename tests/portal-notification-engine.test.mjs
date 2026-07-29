@@ -102,20 +102,25 @@ test('isola alunos, lista em ordem, conta e lê individualmente e em lote', () =
 test('endpoint administrativo autentica, deriva identidade e reutiliza o serviço', () => fixture(async (db) => {
   const created = await admin(db, 'student-1', input('student-2'));
   assert.equal(created.status, 201);
-  assert.equal(created.body.data.status, 'UNREAD');
+  assert.equal(created.body.data.notification.status, 'UNREAD');
+  assert.deepEqual(created.body.data.delivery, { subscriptions: 0, sent: 0, failed: 0, expired: 0, deduplicated: 0 });
   assert.equal(JSON.stringify(created.body).includes('student_id'), false);
-  const persisted = await db.prepare('SELECT student_id, student_email FROM portal_notifications WHERE id=?').bind(created.body.data.id).first();
+  assert.equal(JSON.stringify(created.body).includes('VAPID_PRIVATE_KEY'), false);
+  const persisted = await db.prepare('SELECT student_id, student_email FROM portal_notifications WHERE id=?').bind(created.body.data.notification.id).first();
   assert.deepEqual(persisted, { student_id: 'student-1', student_email: 'one@example.com' });
   assert.equal((await admin(db, 'missing', input())).status, 404);
 }));
 
-test('Notification Engine não adiciona entrega Push ou listeners', async () => {
-  const [workerSource, serviceWorker, migration] = await Promise.all([
-    readFile('workers/services/portal-notification-service.js', 'utf8'),
+test('Web Push permanece canal separado da fonte oficial e tem listeners seguros', async () => {
+  const [pushService, serviceWorker, migration] = await Promise.all([
+    readFile('workers/services/portal-push-delivery-service.js', 'utf8'),
     readFile('public/sw.js', 'utf8'),
-    readFile('migrations/0039_create_portal_notifications.sql', 'utf8'),
+    readFile('migrations/0040_create_portal_push_deliveries.sql', 'utf8'),
   ]);
-  assert.doesNotMatch(workerSource, /webpush|sendNotification|showNotification|portal_push_subscriptions/i);
-  assert.doesNotMatch(serviceWorker, /addEventListener\(['"](?:push|notificationclick)['"]|showNotification/i);
-  assert.doesNotMatch(migration, /CREATE TABLE[^;]*(?:deliveries|portal_push_subscriptions)/i);
+  assert.match(pushService, /WHERE student_id=\? AND status='ACTIVE'/);
+  assert.doesNotMatch(pushService, /UPDATE portal_notifications|read_at/);
+  assert.match(serviceWorker, /addEventListener\('push'/);
+  assert.match(serviceWorker, /addEventListener\('notificationclick'/);
+  assert.match(serviceWorker, /showNotification/);
+  assert.match(migration, /UNIQUE\(notification_id, subscription_id\)/);
 });
