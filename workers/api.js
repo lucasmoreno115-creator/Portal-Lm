@@ -62,6 +62,7 @@ import { presentSaturdayReview } from './premium/presenters/professional-workspa
 import { presentPortalNotification } from './premium/presenters/portal-notification-presenter.js';
 import { createPortalNotification, createPortalNotificationResult, PortalNotificationValidationError } from './services/portal-notification-service.js';
 import { deliverPortalPush } from './services/portal-push-delivery-service.js';
+import { runWeeklyCheckinReminder } from './services/weekly-checkin-reminder-service.js';
 
 
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
@@ -2872,6 +2873,11 @@ Me responde aqui para ajustarmos o próximo passo e evitar que sua semana fique 
         detail: String(err?.message || err)
       }, 500);
     }
+  },
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(runWeeklyCheckinReminder(env, {
+      scheduledTime: controller.scheduledTime,
+    }));
   }
 };
 
