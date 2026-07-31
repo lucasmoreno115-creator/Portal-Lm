@@ -43,3 +43,59 @@ test('nutrition editor preserves populated legacy goal and strategy for the upda
 test('nutrition editor runtime copies stay synchronized', () => {
   assert.equal(source, fs.readFileSync(assetPath, 'utf8'));
 });
+
+const htmlPath = 'public/admin-premium-nutrition-plan.html';
+const html = fs.readFileSync(htmlPath, 'utf8');
+
+function addMealButtonHarness(promptValue = 'Almoço') {
+  const listeners = [{}, {}];
+  const buttons = listeners.map(events => ({ addEventListener(type, listener) { events[type] = listener; } }));
+  const elements = new Map(['status', 'current', 'history', 'draftForm', 'createDraft', 'duplicateDraft', 'saveDraft', 'publishDraft', 'backToRecord'].map(id => [id, { className: '', setAttribute() {} }]));
+  const context = {
+    URLSearchParams,
+    URL,
+    location: { search: '?student_id=student-1', origin: 'https://admin.example' },
+    document: {
+      getElementById: id => elements.get(id),
+      querySelectorAll: selector => selector === '[data-add-meal]' ? buttons : []
+    },
+    prompt: () => promptValue,
+    fetch: async () => { throw new Error('offline'); }
+  };
+  vm.runInNewContext(`${source}\nstate.model=blankModel();markDirty=()=>{};renderMealsEditor=()=>{globalThis.renderCount=(globalThis.renderCount||0)+1;};`, context);
+  return { context, listeners };
+}
+
+test('nutrition editor renders matching meal actions above and below the meal list', () => {
+  const matches = [...html.matchAll(/<button\b[^>]*data-add-meal[^>]*>\+ Adicionar refeição<\/button>/g)];
+  assert.equal(matches.length, 2);
+  for (const match of matches) assert.match(match[0], /type="button"/);
+  const listPosition = html.indexOf('id="mealsEditor"');
+  assert.ok(matches[0].index < listPosition);
+  assert.ok(matches[1].index > listPosition);
+  assert.match(html.slice(listPosition, matches[1].index), /<footer class="meals-footer">/);
+  assert.doesNotMatch(matches.map(match => match[0]).join(''), /\bid=/);
+});
+
+test('both meal actions share the handler and add through the same state flow', () => {
+  const { context, listeners } = addMealButtonHarness();
+  assert.equal(listeners[0].click, listeners[1].click);
+
+  listeners[0].click();
+  assert.equal(context.renderCount, 1);
+  assert.equal(vm.runInNewContext('state.model.meals.length', context), 1);
+  assert.equal(vm.runInNewContext('state.model.meals[0].name', context), 'Almoço');
+
+  listeners[1].click();
+  assert.equal(context.renderCount, 2);
+  assert.equal(vm.runInNewContext('state.model.meals.length', context), 2);
+  assert.equal(vm.runInNewContext('state.model.meals[1].name', context), 'Almoço');
+});
+
+test('bottom meal action is static outside the rendered list and survives empty or refreshed lists', () => {
+  const listStart = html.indexOf('<div id="mealsEditor"></div>');
+  const footerStart = html.indexOf('<footer class="meals-footer">');
+  assert.ok(listStart >= 0 && footerStart > listStart);
+  assert.match(source, /function renderMealsEditor\(\)\{\$\('mealsEditor'\)\.replaceChildren\(/);
+  assert.doesNotMatch(source, /meals-footer/);
+});
