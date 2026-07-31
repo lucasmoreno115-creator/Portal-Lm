@@ -47,7 +47,7 @@ test('nutrition editor runtime copies stay synchronized', () => {
 const htmlPath = 'public/admin-premium-nutrition-plan.html';
 const html = fs.readFileSync(htmlPath, 'utf8');
 
-function addMealButtonHarness(promptValue = 'Almoço') {
+function addMealButtonHarness(mealName = 'Almoço') {
   const listeners = [{}, {}];
   const buttons = listeners.map(events => ({ addEventListener(type, listener) { events[type] = listener; } }));
   const elements = new Map(['status', 'current', 'history', 'draftForm', 'createDraft', 'duplicateDraft', 'saveDraft', 'publishDraft', 'backToRecord'].map(id => [id, { className: '', setAttribute() {} }]));
@@ -59,10 +59,9 @@ function addMealButtonHarness(promptValue = 'Almoço') {
       getElementById: id => elements.get(id),
       querySelectorAll: selector => selector === '[data-add-meal]' ? buttons : []
     },
-    prompt: () => promptValue,
     fetch: async () => { throw new Error('offline'); }
   };
-  vm.runInNewContext(`${source}\nstate.model=blankModel();markDirty=()=>{};renderMealsEditor=()=>{globalThis.renderCount=(globalThis.renderCount||0)+1;};`, context);
+  vm.runInNewContext(`${source}\nstate.model=blankModel();openMealSelector=async()=>${JSON.stringify(mealName)};markDirty=()=>{};renderMealsEditor=()=>{globalThis.renderCount=(globalThis.renderCount||0)+1;};`, context);
   return { context, listeners };
 }
 
@@ -77,19 +76,42 @@ test('nutrition editor renders matching meal actions above and below the meal li
   assert.doesNotMatch(matches.map(match => match[0]).join(''), /\bid=/);
 });
 
-test('both meal actions share the handler and add through the same state flow', () => {
+test('both meal actions share the handler and add through the same state flow', async () => {
   const { context, listeners } = addMealButtonHarness();
   assert.equal(listeners[0].click, listeners[1].click);
 
-  listeners[0].click();
+  await listeners[0].click();
   assert.equal(context.renderCount, 1);
   assert.equal(vm.runInNewContext('state.model.meals.length', context), 1);
   assert.equal(vm.runInNewContext('state.model.meals[0].name', context), 'Almoço');
 
-  listeners[1].click();
+  await listeners[1].click();
   assert.equal(context.renderCount, 2);
   assert.equal(vm.runInNewContext('state.model.meals.length', context), 2);
   assert.equal(vm.runInNewContext('state.model.meals[1].name', context), 'Almoço');
+});
+
+test('meal selector exposes the nine choices in the natural meal-plan order', () => {
+  assert.match(source, /const MEAL_NAMES = \['Café da manhã','Lanche da manhã','Almoço','Lanche da tarde','Jantar','Ceia','Pré-treino','Pós-treino','Refeição personalizada'\]/);
+  assert.match(source, /MEAL_NAMES\.map\(\(name,index\)=>/);
+  assert.match(source, /options\.querySelector\('button'\)\?\.focus\(\)/);
+});
+
+test('selector is a keyboard-accessible modal that supports cancel, backdrop and focus restoration', () => {
+  assert.match(html, /id="mealSelectorModal"[^>]*role="dialog"[^>]*aria-modal="true"/);
+  assert.match(source, /dialog\.addEventListener\('cancel',cancel\)/);
+  assert.match(source, /if\(event\.target===dialog\)cancel\(event\)/);
+  assert.match(source, /opener\?\.focus\?\.\(\)/);
+  assert.match(source, /const mealName=await openMealSelector\(\);if\(!mealName\)return;createMeal\(mealName\)/);
+});
+
+test('custom meal uses a small named form and keeps creation centralized', () => {
+  assert.match(html, /<form id="customMealForm">/);
+  assert.match(html, /<label for="customMealName">Nome da refeição<\/label>/);
+  assert.match(source, /form\.addEventListener\('submit',submit\)/);
+  assert.match(source, /const meal=blankMeal\(name\)/);
+  assert.match(source, /meal\.customName=mealName/);
+  assert.doesNotMatch(source, /\bprompt\(/);
 });
 
 test('bottom meal action is static outside the rendered list and survives empty or refreshed lists', () => {
