@@ -26,6 +26,45 @@ test('Prontuário LM renderiza estrutura, empty states e não expõe token', () 
   assert.match(js, /admin-premium-student-record\.html/);
 });
 
+test('Copiar acesso usa somente a senha temporária em memória e envia a mensagem canônica exata ao Clipboard', async () => {
+  const source = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
+  const dom = createFakeDocument();
+  const clipboardWrites = [];
+  let active = false;
+  const student = { student_id: 'student-1', name: 'Ana Lima', email: 'ana@example.com', consultation_status: 'READY_TO_RELEASE' };
+  const record = () => ({ student: { ...student, consultation_status: active ? 'ACTIVE' : student.consultation_status }, summary: {}, nutrition_plan: {}, pending_items: [], feedbacks: [], followup_entries: [] });
+  const fetch = async (url, options = {}) => {
+    if (url.endsWith('/status')) { active = true; return response({ student_id: student.student_id }); }
+    if (url === '/api/admin/student-access/token') return response({ email: student.email, token: 'Temp#5482' });
+    return response(record());
+  };
+  const location = { search: '?student_id=student-1', origin: 'https://admin.example' };
+  const context = { document: dom.document, navigator: { clipboard: { writeText: async (value) => clipboardWrites.push(value) } }, window: { LMAdminAuth: { requireAdmin(){}, attachLogout(){}, getAdminAuthHeaders(headers){ return headers; } } }, location, URLSearchParams, URL, FormData: class {}, fetch };
+  vm.runInNewContext(source, context);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await dom.listeners.click({ target: dom.created.find((node) => node.dataset.releaseAccess) });
+  const copyButton = dom.created.findLast((node) => node.dataset.copyAccess);
+  await dom.listeners.click({ target: copyButton });
+  assert.deepEqual(clipboardWrites, ['Portal LM\n\nAluno: Ana Lima\nE-mail: ana@example.com\nSenha: Temp#5482\nLink: https://portal.lucasmorenopersonal.com.br/portal-login.html']);
+  assert.doesNotMatch(clipboardWrites[0], /undefined|null/);
+  assert.equal(dom.document.getElementById('studentAccess').querySelector('[role="status"]').textContent, '✓ Acesso copiado');
+});
+
+test('Copiar acesso sem senha bloqueia o Clipboard, orienta redefinição e funciona sem Clipboard API', async () => {
+  const source = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
+  const dom = createFakeDocument();
+  const location = { search: '?student_id=student-1', origin: 'https://admin.example' };
+  const context = { document: dom.document, navigator: {}, window: { LMAdminAuth: { requireAdmin(){}, attachLogout(){}, getAdminAuthHeaders(headers){ return headers; } } }, location, URLSearchParams, URL, FormData: class {}, fetch: async () => response({ student: { student_id: 'student-1', name: 'Ana', email: 'ana@example.com', consultation_status: 'ACTIVE' }, summary: {}, nutrition_plan: {}, pending_items: [], feedbacks: [], followup_entries: [] }) };
+  vm.runInNewContext(source, context);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await dom.listeners.click({ target: dom.created.find((node) => node.dataset.copyAccess) });
+  assert.match(dom.document.getElementById('studentAccess').textContent, /A senha não está mais disponível para cópia\. Gere uma nova senha de acesso\./);
+  assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB|console\.(?:log|info|warn|error).*temporary/i);
+  assert.match(source, /lastStudent\.student_id !== student\.student_id\) temporaryAccessCredentials = null/);
+  assert.match(source, /\/api\/admin\/student-access\/token', \{ method: 'POST'/);
+  assert.doesNotMatch(source, /\/api\/admin\/student-access\/token', \{ method: 'GET'/);
+});
+
 test('renderização do prontuário permanece operacional sem containers opcionais', async () => {
   const html = readFileSync(new URL('../public/admin-premium-student-record.html', import.meta.url), 'utf8');
   const source = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
@@ -173,6 +212,7 @@ function maliciousRecord() {
 
 function createFakeDocument({ includeCareStatus = true, includePlanningObjectives = false } = {}) {
   const created = [];
+  const listeners = {};
   class Element {
     constructor(tagName, id = '') {
       this.tagName = tagName.toLowerCase();
@@ -191,18 +231,22 @@ function createFakeDocument({ includeCareStatus = true, includePlanningObjective
     append(...nodes) { this.children.push(...nodes.filter(Boolean)); }
     replaceChildren(...nodes) { this.children = nodes.filter(Boolean); this._text = ''; }
     setAttribute(name, value) { this.attributes[name] = String(value); }
+    querySelector(selector) { if (selector === '[role="status"]') return this.children.find((child) => child.attributes?.role === 'status') || null; return null; }
     addEventListener() {}
     reset() {}
   }
-  const ids = ['state','record','studentName','contact','status','summary','pendingList','planejamento-alimentar','anamnesis','plan','feedbacks','entries','entryForm','adminLogoutBtn','primaryAction', ...(includeCareStatus ? ['careStatusContent'] : []), ...(includePlanningObjectives ? ['planningObjectives'] : [])];
+  const ids = ['state','record','studentName','contact','status','summary','pendingList','planejamento-alimentar','anamnesis','plan','feedbacks','entries','entryForm','studentAccess','adminLogoutBtn','primaryAction', ...(includeCareStatus ? ['careStatusContent'] : []), ...(includePlanningObjectives ? ['planningObjectives'] : [])];
   const elements = new Map(ids.map((id) => [id, new Element(id === 'entryForm' ? 'form' : 'div', id)]));
   const document = {
     getElementById(id) { return elements.get(id) || null; },
     createElement(tagName) { return new Element(tagName); },
-    addEventListener() {},
+    addEventListener(type, listener) { listeners[type] = listener; },
+    execCommand() { return false; },
   };
-  return { document, elements, created, text: () => [...elements.values()].map((node) => node.textContent).join('\n') };
+  return { document, elements, created, listeners, text: () => [...elements.values()].map((node) => node.textContent).join('\n') };
 }
+
+function response(data) { return { ok: true, json: async () => ({ ok: true, data }) }; }
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
