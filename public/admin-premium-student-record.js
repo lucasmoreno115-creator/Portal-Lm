@@ -7,6 +7,7 @@
   const state = document.getElementById('state');
   const root = document.getElementById('record');
   let lastStudent = {};
+  let temporaryAccessCredentials = null;
   const statusLabels = { NEW:'Novo', AWAITING_ANAMNESIS:'Aguardando anamnese', UNDER_REVIEW:'Em análise', READY_TO_RELEASE:'Pronto para liberação', ACTIVE:'Ativo', PAUSED:'Pausado', ENDED:'Encerrado' };
 
   const byId = (id) => document.getElementById(id);
@@ -106,9 +107,25 @@
     return new URL('/portal-login.html', location.origin || 'http://localhost').href;
   }
 
+  function buildStudentAccessMessage({ studentName, email, temporaryPassword, loginUrl }) {
+    if (!temporaryPassword) throw new Error('ACCESS_PASSWORD_UNAVAILABLE');
+    return [
+      'Portal LM',
+      '',
+      `Aluno: ${studentName || ''}`,
+      `E-mail: ${email || ''}`,
+      `Senha: ${temporaryPassword}`,
+      `Link: ${loginUrl || ''}`
+    ].join('\n');
+  }
+
   function accessMessage(student) {
-    const name = student.name || student.display_name || 'aluno(a)';
-    return `Olá, ${name}! Seu acesso à Consultoria LM foi liberado.\n\nE-mail: ${student.email || '—'}\nPortal: ${portalPremiumUrl()}`;
+    return buildStudentAccessMessage({
+      studentName: student.name || student.display_name || 'aluno(a)',
+      email: student.email,
+      temporaryPassword: temporaryAccessCredentials?.temporaryPassword,
+      loginUrl: 'https://portal.lucasmorenopersonal.com.br/portal-login.html'
+    });
   }
 
   async function copyAccessMessage(message) {
@@ -140,6 +157,8 @@
       nodes.push(el('button', { textContent: 'Liberar acesso ao aluno', dataset: { releaseAccess: 'true' } }));
     } else if (status === 'ACTIVE') {
       nodes.push(el('p', { textContent: 'Acesso liberado' }), el('button', { textContent: 'Copiar acesso', dataset: { copyAccess: 'true' } }), el('a', { className: 'button', textContent: 'Abrir Portal', href: portalPremiumUrl() }));
+      if (!temporaryAccessCredentials?.temporaryPassword) nodes.push(el('p', { className: 'muted', textContent: 'A senha não está mais disponível para cópia. Gere uma nova senha de acesso.' }));
+      nodes.push(el('button', { textContent: 'Gerar nova senha de acesso', dataset: { resetAccessPassword: 'true' } }));
     } else if (status === 'PAUSED') {
       nodes.push(el('p', { className: 'muted', textContent: 'Acesso pausado.' }));
     } else if (status === 'ENDED') {
@@ -211,6 +230,7 @@
     state.hidden = true;
     root.hidden = false;
     const student = data.student || {};
+    if (lastStudent.student_id && lastStudent.student_id !== student.student_id) temporaryAccessCredentials = null;
     lastStudent = student;
     const summary = data.summary || {};
     byId('studentName').textContent = student.name || student.display_name || 'Aluno Premium';
@@ -230,13 +250,28 @@
   document.addEventListener('click', async (event) => {
     if (event.target?.dataset?.releaseAccess) {
       event.target.disabled = true;
-      try { await api(`/api/admin/premium/students/${encodeURIComponent(studentId)}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'ACTIVE' }) }); await load(); } catch (error) { alert(error.message); event.target.disabled = false; }
+      try {
+        await api(`/api/admin/premium/students/${encodeURIComponent(studentId)}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'ACTIVE' }) });
+        const credentials = await api('/api/admin/student-access/token', { method: 'POST', body: JSON.stringify({ email: lastStudent.email }) });
+        temporaryAccessCredentials = { temporaryPassword: credentials.token };
+        await load();
+      } catch (error) { alert(error.message); event.target.disabled = false; }
+      return;
+    }
+    if (event.target?.dataset?.resetAccessPassword) {
+      event.target.disabled = true;
+      const feedback = byId('studentAccess')?.querySelector?.('[role="status"]');
+      try {
+        const credentials = await api('/api/admin/student-access/token', { method: 'POST', body: JSON.stringify({ email: lastStudent.email }) });
+        temporaryAccessCredentials = { temporaryPassword: credentials.token };
+        renderStudentAccess(lastStudent);
+      } catch (error) { if (feedback) feedback.textContent = error.message; event.target.disabled = false; }
       return;
     }
     if (event.target?.dataset?.copyAccess) {
       const feedback = byId('studentAccess')?.querySelector?.('[role="status"]');
       event.target.disabled = true;
-      try { await copyAccessMessage(accessMessage(lastStudent)); if (feedback) feedback.textContent = 'Mensagem de acesso copiada.'; } catch (error) { if (feedback) feedback.textContent = error.message; } finally { event.target.disabled = false; }
+      try { await copyAccessMessage(accessMessage(lastStudent)); if (feedback) feedback.textContent = '✓ Acesso copiado'; } catch (error) { if (feedback) feedback.textContent = error.message === 'ACCESS_PASSWORD_UNAVAILABLE' ? 'A senha não está mais disponível para cópia. Gere uma nova senha de acesso.' : 'Não foi possível copiar o acesso.'; } finally { event.target.disabled = false; }
       return;
     }
     const transition = event.target?.dataset?.transition;
