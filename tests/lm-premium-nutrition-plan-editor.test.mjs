@@ -121,3 +121,44 @@ test('bottom meal action is static outside the rendered list and survives empty 
   assert.match(source, /function renderMealsEditor\(\)\{\$\('mealsEditor'\)\.replaceChildren\(/);
   assert.doesNotMatch(source, /meals-footer/);
 });
+
+test('new nutrition plan starts with independent default equivalence categories', async () => {
+  const elements = new Map(['status', 'current', 'history', 'draftForm', 'createDraft', 'duplicateDraft', 'saveDraft', 'publishDraft', 'backToRecord'].map(id => [id, { className: '', setAttribute() {} }]));
+  const context = {
+    URLSearchParams,
+    URL,
+    location: { search: '?student_id=student-1', origin: 'https://admin.example' },
+    document: { getElementById: id => elements.get(id) },
+    fetch: async () => { throw new Error('offline'); }
+  };
+  vm.runInNewContext(`${source}\napi=async(path,options)=>{globalThis.request={path,options};return {id:'draft-1',updated_at:'2026-07-31',...JSON.parse(options.body).plan};};adoptDraft=draft=>{globalThis.adopted=draft;};`, context);
+
+  const defaults = JSON.parse(JSON.stringify(vm.runInNewContext('defaultEquivalenceCategories()', context)));
+  assert.deepEqual(defaults, [
+    { id: null, category: 'Proteínas', icon: '🥩', reference: '', items: [] },
+    { id: null, category: 'Carboidratos', icon: '🍚', reference: '', items: [] },
+    { id: null, category: 'Frutas', icon: '🍎', reference: '', items: [] }
+  ]);
+  assert.equal(vm.runInNewContext('const a=defaultEquivalenceCategories(),b=defaultEquivalenceCategories();a!==b&&a.every((entry,index)=>entry!==b[index]&&entry.items!==b[index].items)', context), true);
+
+  await vm.runInNewContext('createDraft()', context);
+  const request = context.request;
+  assert.equal(request.options.method, 'POST');
+  assert.deepEqual(JSON.parse(request.options.body).plan.substitutions, defaults);
+});
+
+test('hydration preserves old empty plans and version duplication does not apply defaults', () => {
+  const elements = new Map(['status', 'current', 'history', 'draftForm', 'createDraft', 'duplicateDraft', 'saveDraft', 'publishDraft', 'backToRecord'].map(id => [id, { className: '', setAttribute() {} }]));
+  const context = { URLSearchParams, URL, location: { search: '?student_id=student-1', origin: 'https://admin.example' }, document: { getElementById: id => elements.get(id) }, fetch: async () => { throw new Error('offline'); } };
+  vm.runInNewContext(source, context);
+  assert.deepEqual(JSON.parse(JSON.stringify(vm.runInNewContext("hydrateDraft({title:'Legado',meals:[],substitutions:[]}).substitutions", context))), []);
+  assert.match(source, /duplicate-as-draft/);
+  assert.doesNotMatch(source.match(/async function duplicatePublished[\s\S]*?async function replaceDraftFromConflict/)[0], /defaultEquivalenceCategories/);
+});
+
+test('default equivalences keep using existing add, delete, save and reopen flows', () => {
+  assert.match(source, /function addEquivalenceCategory\(\)\{state\.model\.substitutions\.push\(blankEquivalence\(\)\)/);
+  assert.match(source, /state\.model\.substitutions\.splice\(index,1\)/);
+  assert.match(source, /substitutions:m\.substitutions\.map\(serializeEquivalence\)\.filter\(Boolean\)/);
+  assert.match(source, /state\.model=hydrateDraft\(saved\)/);
+});
