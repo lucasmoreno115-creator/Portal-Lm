@@ -9,10 +9,15 @@ import worker, { initializeSchemaForTests } from '../workers/api.js';
 async function withDb(fn) {
   const dir = await mkdtemp(join(tmpdir(), 'portal-lm-durable-admin-'));
   const db = new SqliteD1(join(dir, 'test.db'));
+  let testError;
   try {
     await initializeSchemaForTests(db);
     await fn(db);
+  } catch (error) {
+    testError = error;
+    throw error;
   } finally {
+    try { db.close(); } catch (closeError) { if (!testError) throw closeError; }
     await rm(dir, { recursive: true, force: true });
   }
 }

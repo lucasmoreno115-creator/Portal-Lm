@@ -10,6 +10,7 @@ import { createPortalNotification, PORTAL_NOTIFICATION_TYPES, PortalNotification
 async function fixture(run) {
   const directory = await mkdtemp(join(tmpdir(), 'notification-engine-'));
   const db = new SqliteD1(join(directory, 'test.db'));
+  let testError;
   try {
     await initializeSchemaForTests(db);
     for (const [id, email, token] of [['student-1', 'one@example.com', 'token-one'], ['student-2', 'two@example.com', 'token-two']]) {
@@ -19,7 +20,13 @@ async function fixture(run) {
         .bind(id, email, email, id, '2026-07-24T00:00:00.000Z', '2026-07-24T00:00:00.000Z').run();
     }
     await run(db);
-  } finally { await rm(directory, { recursive: true, force: true }); }
+  } catch (error) {
+    testError = error;
+    throw error;
+  } finally {
+    try { db.close(); } catch (closeError) { if (!testError) throw closeError; }
+    await rm(directory, { recursive: true, force: true });
+  }
 }
 
 const input = (studentId = 'student-1', overrides = {}) => ({

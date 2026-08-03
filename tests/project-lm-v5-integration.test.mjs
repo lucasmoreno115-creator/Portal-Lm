@@ -130,9 +130,18 @@ test('V5 endpoints are isolated from Premium users', async () => {
 async function withMigratedDb(fn) {
   const dir = await mkdtemp(join(tmpdir(), 'portal-lm-v5-'));
   const file = join(dir, 'test.db');
+  let testError;
   try {
     executeSql(file, 'PRAGMA foreign_keys=ON;\n' + migrationSql + `\nCREATE TABLE student_access (\n  id TEXT PRIMARY KEY,\n  name TEXT NOT NULL,\n  email TEXT NOT NULL UNIQUE,\n  access_token TEXT NOT NULL,\n  status TEXT NOT NULL DEFAULT 'ACTIVE',\n  plan_type TEXT,\n  plan TEXT DEFAULT 'premium',\n  whatsapp TEXT,\n  created_at TEXT NOT NULL\n);`);
-    await fn(new SqliteD1(file));
+    const db = new SqliteD1(file);
+    try {
+      await fn(db);
+    } catch (error) {
+      testError = error;
+      throw error;
+    } finally {
+      try { db.close(); } catch (closeError) { if (!testError) throw closeError; }
+    }
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
