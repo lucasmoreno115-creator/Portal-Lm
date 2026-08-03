@@ -1,28 +1,8 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { SqliteD1 } from './helpers/sqlite-d1.mjs';
 import test from 'node:test';
 import { initializeSchemaForTests } from '../workers/api.js';
 import { replayMigrations } from '../scripts/db-tool.mjs';
-
-class SqliteD1 {
-  constructor(file) { this.file = file; }
-  prepare(sql) { return new Statement(this.file, sql); }
-}
-
-class Statement {
-  constructor(file, sql, params = []) { this.file = file; this.sql = sql; this.params = params; }
-  bind(...params) { return new Statement(this.file, this.sql, params); }
-  sqlWithParams() { let index = 0; return this.sql.replace(/\?/g, () => sqlValue(this.params[index++])); }
-  async run() { execFileSync('sqlite3', [this.file], { input: `${this.sqlWithParams()};` }); return { meta: { changes: 1 } }; }
-  async all() { const output = execFileSync('sqlite3', ['-json', this.file, this.sqlWithParams()], { encoding: 'utf8' }).trim(); return { results: output ? JSON.parse(output) : [] }; }
-  async first() { return (await this.all()).results[0] ?? null; }
-}
-
-function sqlValue(value) {
-  if (value == null) return 'NULL';
-  if (typeof value === 'number') return String(value);
-  return `'${String(value).replaceAll("'", "''")}'`;
-}
 
 test('ensureSchema preserves migration 0036 legacy-only active email uniqueness', async () => {
   const replay = replayMigrations();

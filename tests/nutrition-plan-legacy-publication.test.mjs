@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { executeSql, SqliteD1 } from './helpers/sqlite-d1.mjs';
 import { mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -12,28 +12,11 @@ function sqlValue(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
 
-class SqliteD1Statement {
-  constructor(file, sql, params = []) { this.file = file; this.sql = sql; this.params = params; }
-  bind(...params) { return new SqliteD1Statement(this.file, this.sql, params); }
-  render() { let index = 0; return this.sql.replace(/\?/g, () => sqlValue(this.params[index++])); }
-  async run() { execFileSync('sqlite3', [this.file], { input: `${this.render()};` }); return { meta: { changes: 1 } }; }
-  async all() { const output = execFileSync('sqlite3', ['-json', this.file, this.render()], { encoding: 'utf8' }).trim(); return { results: output ? JSON.parse(output) : [] }; }
-  async first() { return (await this.all()).results[0] ?? null; }
-}
-
-class SqliteD1 {
-  constructor(file) { this.file = file; }
-  prepare(sql) { return new SqliteD1Statement(this.file, sql); }
-  async batch(statements) {
-    execFileSync('sqlite3', [this.file], { input: `.bail on\nBEGIN;\n${statements.map((statement) => `${statement.render()};`).join('\n')}\nCOMMIT;` });
-  }
-}
-
 async function withDatabase(run) {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'nutrition-plan-legacy-publication-'));
   const file = path.join(dir, 'test.sqlite');
   try {
-    execFileSync('sqlite3', [file], { input: `
+    executeSql(file, `
       CREATE TABLE nutrition_plans (
         id TEXT PRIMARY KEY, student_id TEXT, student_email TEXT, title TEXT, goal TEXT,
         strategy TEXT, meals_json TEXT, substitutions_json TEXT, adherence_rules_json TEXT,
@@ -54,7 +37,7 @@ async function withDatabase(run) {
         id TEXT PRIMARY KEY, student_id TEXT, type TEXT, status TEXT, related_entity_id TEXT,
         resolved_at TEXT, updated_at TEXT
       );
-    ` });
+    `);
     await run({ db: new SqliteD1(file), file });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
@@ -62,7 +45,7 @@ async function withDatabase(run) {
 test('publishing archives an associated active legacy plan without touching ineligible records', async () => {
   await withDatabase(async ({ db, file }) => {
     const meal = JSON.stringify([{ name: 'Café', items: [{ food: 'Ovos', quantity: '2' }] }]);
-    execFileSync('sqlite3', [file], { input: `
+    executeSql(file, `
       INSERT INTO nutrition_plans (id,student_id,student_email,title,meals_json,status,version_number,is_active,created_at,updated_at)
         VALUES ('previous','student-1','ana@example.com','Anterior',${sqlValue(meal)},NULL,NULL,1,'old','old');
       INSERT INTO nutrition_plans (id,student_id,student_email,title,meals_json,status,is_active,created_at,updated_at)
@@ -73,7 +56,7 @@ test('publishing archives an associated active legacy plan without touching inel
         VALUES ('other-student','student-2','other@example.com','Outro',${sqlValue(meal)},NULL,1,'old','old');
       INSERT INTO nutrition_plans (id,student_id,student_email,title,meals_json,status,is_active,created_at,updated_at)
         VALUES ('unassociated',NULL,'ana@example.com','Sem associação',${sqlValue(meal)},NULL,1,'old','old');
-    ` });
+    `);
 
     const published = await createD1NutritionPlanRepository(db).publish('draft', { published_by: 'admin', now: '2026-07-26T12:00:00.000Z' });
 

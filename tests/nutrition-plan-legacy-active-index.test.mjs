@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { executeSql, querySql } from './helpers/sqlite-d1.mjs';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,7 +11,7 @@ function withDatabase(run) {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'nutrition-plan-index-'));
   const database = path.join(dir, 'test.sqlite');
   try {
-    execFileSync('sqlite3', [database], { input: `
+    executeSql(database, `
       CREATE TABLE nutrition_plans (
         id TEXT PRIMARY KEY,
         student_id TEXT,
@@ -33,14 +33,14 @@ function withDatabase(run) {
         ON nutrition_plans(student_id) WHERE status = 'DRAFT' AND student_id IS NOT NULL;
       CREATE UNIQUE INDEX idx_nutrition_plans_student_version_unique
         ON nutrition_plans(student_id, version_number) WHERE student_id IS NOT NULL AND version_number IS NOT NULL;
-    ` });
-    execFileSync('sqlite3', [database], { input: readFileSync(migration, 'utf8') });
+    `);
+    executeSql(database, readFileSync(migration, 'utf8'));
     run(database);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 
-function execute(database, sql) { return execFileSync('sqlite3', [database], { input: sql, encoding: 'utf8' }); }
-function query(database, sql) { return JSON.parse(execFileSync('sqlite3', ['-json', database, sql], { encoding: 'utf8' })); }
+function execute(database, sql) { return executeSql(database, sql); }
+function query(database, sql) { return querySql(database, sql); }
 function mustFail(database, sql, message) { assert.throws(() => execute(database, sql), /UNIQUE constraint failed/, message); }
 
 test('migration documents the legacy conflict audit before replacing the index', () => {

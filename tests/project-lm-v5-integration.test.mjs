@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { executeSql, SqliteD1 } from './helpers/sqlite-d1.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../workers/api.js';
@@ -131,7 +131,7 @@ async function withMigratedDb(fn) {
   const dir = await mkdtemp(join(tmpdir(), 'portal-lm-v5-'));
   const file = join(dir, 'test.db');
   try {
-    execFileSync('sqlite3', [file], { input: 'PRAGMA foreign_keys=ON;\n' + migrationSql + `\nCREATE TABLE student_access (\n  id TEXT PRIMARY KEY,\n  name TEXT NOT NULL,\n  email TEXT NOT NULL UNIQUE,\n  access_token TEXT NOT NULL,\n  status TEXT NOT NULL DEFAULT 'ACTIVE',\n  plan_type TEXT,\n  plan TEXT DEFAULT 'premium',\n  whatsapp TEXT,\n  created_at TEXT NOT NULL\n);` });
+    executeSql(file, 'PRAGMA foreign_keys=ON;\n' + migrationSql + `\nCREATE TABLE student_access (\n  id TEXT PRIMARY KEY,\n  name TEXT NOT NULL,\n  email TEXT NOT NULL UNIQUE,\n  access_token TEXT NOT NULL,\n  status TEXT NOT NULL DEFAULT 'ACTIVE',\n  plan_type TEXT,\n  plan TEXT DEFAULT 'premium',\n  whatsapp TEXT,\n  created_at TEXT NOT NULL\n);`);
     await fn(new SqliteD1(file));
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -167,32 +167,4 @@ async function assertDbIntegrity(db, journeyId) {
   for (const table of ['project_lm_stage1_actions', 'project_lm_victories', 'project_lm_maintenance_goals']) {
     assert.equal((await db.prepare(`SELECT COUNT(*) total FROM ${table} WHERE journey_id<>?`).bind(journeyId).first()).total, 0);
   }
-}
-
-class SqliteD1 {
-  constructor(file) { this.file = file; }
-  prepare(sql) { return new SqliteD1Statement(this.file, sql); }
-  async batch(statements) { const results = []; for (const statement of statements) results.push(await statement.run()); return results; }
-}
-
-class SqliteD1Statement {
-  constructor(file, sql, params = []) { this.file = file; this.sql = sql; this.params = params; }
-  bind(...params) { return new SqliteD1Statement(this.file, this.sql, params); }
-  async run() { execFileSync('sqlite3', [this.file], { input: render(this.sql, this.params) }); return { meta: { changes: 0 } }; }
-  async first() { return (await this.all()).results[0] || null; }
-  async all() {
-    const output = execFileSync('sqlite3', ['-json', this.file], { input: render(this.sql, this.params) }).toString().trim();
-    return { results: output ? JSON.parse(output) : [] };
-  }
-}
-
-function render(sql, params) {
-  let index = 0;
-  return 'PRAGMA foreign_keys=ON;\n' + sql.replaceAll('?', () => literal(params[index++])) + ';';
-}
-
-function literal(value) {
-  if (value === null || value === undefined) return 'NULL';
-  if (typeof value === 'number') return String(value);
-  return `'${String(value).replaceAll("'", "''")}'`;
 }
