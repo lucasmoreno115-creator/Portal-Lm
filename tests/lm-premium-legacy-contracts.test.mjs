@@ -1,44 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { execFileSync } from 'node:child_process';
+import { SqliteD1 } from './helpers/sqlite-d1.mjs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import worker, { initializeSchemaForTests } from '../workers/api.js';
-
-class SqliteD1 {
-  constructor(file) { this.file = file; }
-  prepare(sql) { return new SqliteD1Statement(this.file, sql); }
-  async batch(statements) { const results = []; for (const statement of statements) results.push(await statement.run()); return results; }
-}
-
-class SqliteD1Statement {
-  constructor(file, sql, params = []) { this.file = file; this.sql = sql; this.params = params; }
-  bind(...params) { return new SqliteD1Statement(this.file, this.sql, params); }
-  sqlWithParams() {
-    let index = 0;
-    return this.sql.replace(/\?/g, () => sqlValue(this.params[index++]));
-  }
-  async run() {
-    execFileSync('sqlite3', [this.file], { input: this.sqlWithParams() + ';' });
-    const readonly = /^\s*(CREATE|ALTER|DROP|PRAGMA|INSERT OR IGNORE)/i.test(this.sql);
-    return { meta: { changes: readonly ? 0 : 1 } };
-  }
-  async all() {
-    const out = execFileSync('sqlite3', ['-json', this.file, this.sqlWithParams()], { encoding: 'utf8' }).trim();
-    return { results: out ? JSON.parse(out) : [] };
-  }
-  async first() {
-    const { results } = await this.all();
-    return results[0] ?? null;
-  }
-}
-
-function sqlValue(value) {
-  if (value == null) return 'NULL';
-  if (typeof value === 'number') return String(value);
-  return `'${String(value).replaceAll("'", "''")}'`;
-}
 
 async function withDb(fn) {
   const dir = await mkdtemp(join(tmpdir(), 'portal-lm-premium-contract-'));

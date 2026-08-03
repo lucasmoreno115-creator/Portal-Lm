@@ -1,34 +1,11 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { SqliteD1 } from './helpers/sqlite-d1.mjs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
 import worker, { initializeSchemaForTests } from '../workers/api.js';
 import { createPortalNotification, PORTAL_NOTIFICATION_TYPES, PortalNotificationValidationError } from '../workers/services/portal-notification-service.js';
-
-class SqliteD1 {
-  constructor(file) { this.file = file; }
-  prepare(sql) { return new Statement(this.file, sql); }
-  async batch(statements) { return Promise.all(statements.map((statement) => statement.run())); }
-}
-class Statement {
-  constructor(file, sql, params = []) { this.file = file; this.sql = sql; this.params = params; }
-  bind(...params) { return new Statement(this.file, this.sql, params); }
-  interpolate() { let index = 0; return this.sql.replace(/\?/g, () => sqlValue(this.params[index++])); }
-  async run() {
-    const output = execFileSync('sqlite3', [this.file, `SELECT total_changes(); ${this.interpolate()}; SELECT changes();`], { encoding: 'utf8' }).trim().split('\n');
-    const changes = Number(output.at(-1) || 0);
-    return { changes, meta: { changes } };
-  }
-  async all() { const output = execFileSync('sqlite3', ['-json', this.file, this.interpolate()], { encoding: 'utf8' }).trim(); return { results: output ? JSON.parse(output) : [] }; }
-  async first() { return (await this.all()).results[0] ?? null; }
-}
-function sqlValue(value) {
-  if (value == null) return 'NULL';
-  if (typeof value === 'number') return String(value);
-  return `'${String(value).replaceAll("'", "''")}'`;
-}
 
 async function fixture(run) {
   const directory = await mkdtemp(join(tmpdir(), 'notification-engine-'));
