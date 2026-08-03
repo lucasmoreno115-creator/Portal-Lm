@@ -44,6 +44,39 @@ test('nutrition editor runtime copies stay synchronized', () => {
   assert.equal(source, fs.readFileSync(assetPath, 'utf8'));
 });
 
+test('smart action bar derives every visual mode from one state', () => {
+  assert.match(source, /const actionBarState = \{ dirty:false, saving:false, savedAt:null, version:null, published:false/);
+  assert.match(source, /'● Alterações não salvas'/);
+  assert.match(source, /'⏳ Salvando\.\.\.'/);
+  assert.match(source, /`✓ Alterações salvas às \$\{formatSavedTime\(actionBarState\.savedAt\)\}`/);
+  assert.match(source, /'✓ Tudo salvo'/);
+  assert.match(source, /textContent:'Salvar alterações'/);
+  assert.match(source, /textContent:'Cancelar'/);
+  assert.match(source, /textContent:'Publicar'/);
+  assert.match(source, /`Versão \$\{actionBarState\.version\?\?'—'\}\$\{actionBarState\.published\?'':' \(Rascunho\)'\}`/);
+});
+
+test('smart save reuses persistDraft and returns to the clean state after three seconds', () => {
+  const saveFlow = source.match(/async function saveDraft\(\)[\s\S]*?\n\}/)[0];
+  assert.match(saveFlow, /persistDraft\(\)/);
+  assert.match(saveFlow, /setTimeout\(\(\)=>\{actionBarState\.recentlySaved=false/);
+  assert.match(saveFlow, /,3000\)/);
+  assert.doesNotMatch(saveFlow, /location\.(reload|assign|replace)/);
+});
+
+test('smart save keeps the editing surface mounted and preserves UI context', () => {
+  const saveFlow = source.match(/async function saveDraft\(\)[\s\S]*?\n\}/)[0];
+  for (const renderer of ['renderDirectionForm', 'renderMealsEditor', 'renderEquivalenceEditor']) assert.doesNotMatch(saveFlow, new RegExp(renderer));
+  assert.match(source, /function reconcileSavedModel\(saved\)/);
+  assert.match(source, /Object\.assign\(existing,meal,\{uiId,substitutions\}\)/);
+});
+
+test('smart save keeps existing update and publish contracts', () => {
+  assert.match(source, /nutrition-plans\/\$\{encodeURIComponent\(draftId\)\}\/draft`,\{method:'PATCH',body:JSON\.stringify\(payload\)\}/);
+  assert.match(source, /if\(state\.isDirty\)await persistDraft\(\)/);
+  assert.match(source, /nutrition-plans\/\$\{encodeURIComponent\(reviewedDraftId\)\}\/publish`,\{method:'POST',body:JSON\.stringify\(\{student_id:studentId\}\)\}/);
+});
+
 const htmlPath = 'public/admin-premium-nutrition-plan.html';
 const html = fs.readFileSync(htmlPath, 'utf8');
 
@@ -160,5 +193,5 @@ test('default equivalences keep using existing add, delete, save and reopen flow
   assert.match(source, /function addEquivalenceCategory\(\)\{state\.model\.substitutions\.push\(blankEquivalence\(\)\)/);
   assert.match(source, /state\.model\.substitutions\.splice\(index,1\)/);
   assert.match(source, /substitutions:m\.substitutions\.map\(serializeEquivalence\)\.filter\(Boolean\)/);
-  assert.match(source, /state\.model=hydrateDraft\(saved\)/);
+  assert.match(source, /reconcileSavedModel\(saved\)/);
 });
