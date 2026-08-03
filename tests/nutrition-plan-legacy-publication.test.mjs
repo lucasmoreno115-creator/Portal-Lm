@@ -38,7 +38,16 @@ async function withDatabase(run) {
         resolved_at TEXT, updated_at TEXT
       );
     `);
-    await run({ db: new SqliteD1(file), file });
+    const db = new SqliteD1(file);
+    let testError;
+    try {
+      await run({ db, file });
+    } catch (error) {
+      testError = error;
+      throw error;
+    } finally {
+      try { db.close(); } catch (closeError) { if (!testError) throw closeError; }
+    }
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 

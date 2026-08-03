@@ -10,10 +10,15 @@ async function withDb(fn) {
   const dir = await mkdtemp(join(tmpdir(), 'portal-lm-premium-contract-'));
   const file = join(dir, 'test.db');
   const db = new SqliteD1(file);
+  let testError;
   try {
     await initializeSchemaForTests(db);
     await fn(db);
+  } catch (error) {
+    testError = error;
+    throw error;
   } finally {
+    try { db.close(); } catch (closeError) { if (!testError) throw closeError; }
     await rm(dir, { recursive: true, force: true });
   }
 }
