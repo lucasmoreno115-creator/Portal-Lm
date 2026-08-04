@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportSchemaVersion": "1.0.0",
+  "metrics": {
+    "ensureSchemaRuntimeReferences": { "maximum": 3, "severity": "error" },
+    "largestPublicAssetBytes": { "maximum": 800000, "severity": "error" },
+    "publicBytes": { "maximum": 17005000, "severity": "warning" },
+    "publicCssBytes": { "maximum": 251600, "severity": "error" },
+    "publicHtmlBytes": { "maximum": 281500, "severity": "error" },
+    "publicJavaScriptBytes": { "maximum": 453500, "severity": "error" },
+    "selectStarInWorkers": { "maximum": 0, "severity": "error" },
+    "workerApiBytes": { "maximum": 293000, "severity": "error" }
+  },
+  "baselines": {
+    "approximateWorkerRoutes": 148,
+    "migrations": 37,
+    "rootPublicComparisons": { "DIVERGENT": 19, "DUPLICATE": 14 },
+    "testsExecuted": 875
+  }
+}

@@ -3,6 +3,8 @@
   "scripts": {
     "test": "node --test",
     "baseline:technical": "node scripts/generate-technical-baseline.mjs",
+    "baseline:budget": "node scripts/check-technical-regression-budget.mjs",
+    "baseline:check": "npm run baseline:technical && npm run baseline:budget",
     "qa:lm": "node scripts/qa-agent.mjs",
     "qa:lm:sprint1": "node scripts/qa-sprint1.mjs",
     "qa:lm:sprint2": "node scripts/qa-sprint2.mjs",
