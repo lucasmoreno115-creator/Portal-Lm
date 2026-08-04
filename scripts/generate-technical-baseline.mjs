@@ -69,13 +69,54 @@ function publicComparison(root, files) {
 function sourceOccurrences(root, files, expression) {
   return files.map(file => ({ path: file, occurrences: countMatches(read(root, file), expression) })).filter(item => item.occurrences > 0).sort((a, b) => a.path.localeCompare(b.path));
 }
+function apiCallsIn(source) {
+  return [...source.matchAll(/(?:fetch\s*\(|axios(?:\.[a-z]+)?\s*\()\s*[`'"]([^`'"]*\/api\/[^`'"]*)/gi)]
+    .map(match => match[1].replace(/\$\{[^}]+\}/g, '{dynamic}'));
+}
+function localScriptPath(root, htmlFile, source) {
+  const withoutSuffix = source.split(/[?#]/, 1)[0].trim();
+  if (!withoutSuffix || /^(?:[a-z][a-z\d+.-]*:)?\/\//i.test(withoutSuffix) || /^(?:data|blob):/i.test(withoutSuffix)) return { kind: 'REMOTE_OR_EMBEDDED' };
+  let decoded;
+  try { decoded = decodeURIComponent(withoutSuffix).replaceAll('\\', '/'); }
+  catch { return { kind: 'UNRESOLVED', source: withoutSuffix, reason: 'INVALID_PATH' }; }
+  const publicRoot = path.resolve(root, 'public');
+  const htmlDirectory = path.dirname(path.resolve(root, htmlFile));
+  const target = decoded.startsWith('/') ? path.resolve(publicRoot, `.${decoded}`) : path.resolve(htmlDirectory, decoded);
+  const relative = path.relative(publicRoot, target);
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return { kind: 'UNRESOLVED', source: withoutSuffix, reason: 'OUTSIDE_PUBLIC' };
+  const repositoryPath = posix(path.relative(root, target));
+  try {
+    if (!existsSync(target) || !statSync(target).isFile()) return { kind: 'UNRESOLVED', source: repositoryPath, reason: 'NOT_FOUND' };
+  } catch { return { kind: 'UNRESOLVED', source: repositoryPath, reason: 'READ_FAILED' }; }
+  return { kind: 'LOCAL', path: repositoryPath };
+}
 function pageInventory(root, page) {
   const candidates = [`public/${page}.html`, `${page}.html`];
   const file = candidates.find(candidate => existsSync(path.join(root, candidate)));
-  if (!file) return { page, status: NOT_EXECUTED, path: NOT_EXECUTED, apiCalls: NOT_EXECUTED };
-  const html = read(root, file);
-  const apiCalls = [...html.matchAll(/(?:fetch\s*\(|axios(?:\.[a-z]+)?\s*\()\s*[`'"]([^`'"]*\/api\/[^`'"]*)/gi)].map(match => match[1].replace(/\$\{[^}]+\}/g, '{dynamic}'));
-  return { page, status: 'OBSERVED', path: file, apiCalls: [...new Set(apiCalls)].sort() };
+  if (!file) return { page, status: NOT_EXECUTED, path: NOT_EXECUTED, apiCalls: NOT_EXECUTED, sourcesScanned: [], unresolvedSources: [] };
+  let html;
+  try { html = read(root, file); }
+  catch { return { page, status: NOT_EXECUTED, path: file, apiCalls: NOT_EXECUTED, sourcesScanned: [], unresolvedSources: [] }; }
+  const sourcesScanned = [file];
+  const unresolvedSources = [];
+  const sourceTexts = [html];
+  const scriptSources = [...html.matchAll(/<script\b[^>]*\bsrc\s*=\s*(?:["']([^"']+)["']|([^\s>]+))/gi)].map(match => match[1] ?? match[2]);
+  for (const source of [...new Set(scriptSources)].sort()) {
+    const resolved = localScriptPath(root, file, source);
+    if (resolved.kind === 'LOCAL') {
+      if (!sourcesScanned.includes(resolved.path)) {
+        sourcesScanned.push(resolved.path);
+        try { sourceTexts.push(read(root, resolved.path)); }
+        catch { sourcesScanned.pop(); unresolvedSources.push({ source: resolved.path, reason: 'READ_FAILED' }); }
+      }
+    } else if (resolved.kind === 'UNRESOLVED') unresolvedSources.push({ source: resolved.source, reason: resolved.reason });
+  }
+  const uniqueUnresolved = [...new Map(unresolvedSources.map(item => [`${item.source}\0${item.reason}`, item])).values()].sort((a, b) => a.source.localeCompare(b.source) || a.reason.localeCompare(b.reason));
+  return {
+    page, path: file, status: uniqueUnresolved.length ? 'PARTIAL' : 'OBSERVED',
+    apiCalls: [...new Set(sourceTexts.flatMap(apiCallsIn))].sort(),
+    sourcesScanned: sourcesScanned.sort(), unresolvedSources: uniqueUnresolved
+  };
 }
 function homeResources(root) {
   const file = existsSync(path.join(root, 'public/portal-premium-home.html')) ? 'public/portal-premium-home.html' : 'portal-premium-home.html';

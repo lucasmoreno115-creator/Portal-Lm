@@ -87,3 +87,51 @@ test('Markdown renders unavailable values honestly', () => {
   try { const report = collectBaseline({ root: f.root, runner: f.runner }); report.verdicts.testSuite.executed = NOT_EXECUTED; assert.match(renderMarkdown(report), /NOT_EXECUTED run/); }
   finally { f.cleanup(); }
 });
+
+test('critical page scans inline and local external scripts deterministically', () => {
+  const f = fixture();
+  try {
+    mkdirSync(path.join(f.root, 'public/assets'), { recursive: true });
+    writeFileSync(path.join(f.root, 'public/assets/page.js'), "fetch('/api/external'); fetch('/api/shared')");
+    writeFileSync(path.join(f.root, 'public/portal-premium-home.html'), [
+      '<script>fetch("/api/inline"); fetch("/api/shared")</script>',
+      '<script src="/assets/page.js?v=2#cache"></script>',
+      '<script src="assets/page.js?v=3"></script>'
+    ].join(''));
+    const page = collectBaseline({ root: f.root, runner: f.runner }).observations.criticalPages.find(item => item.page === 'portal-premium-home');
+    assert.equal(page.status, 'OBSERVED');
+    assert.deepEqual(page.apiCalls, ['/api/external', '/api/inline', '/api/shared']);
+    assert.deepEqual(page.sourcesScanned, ['public/assets/page.js', 'public/portal-premium-home.html']);
+    assert.deepEqual(page.unresolvedSources, []);
+  } finally { f.cleanup(); }
+});
+
+test('missing local scripts make page inventory PARTIAL', () => {
+  const f = fixture();
+  try {
+    writeFileSync(path.join(f.root, 'public/portal-premium-home.html'), '<script src="missing.js?version=1#x"></script>');
+    const page = collectBaseline({ root: f.root, runner: f.runner }).observations.criticalPages.find(item => item.page === 'portal-premium-home');
+    assert.equal(page.status, 'PARTIAL');
+    assert.deepEqual(page.unresolvedSources, [{ source: 'public/missing.js', reason: 'NOT_FOUND' }]);
+  } finally { f.cleanup(); }
+});
+
+test('remote scripts are never scanned and do not make inventory partial', () => {
+  const f = fixture();
+  try {
+    writeFileSync(path.join(f.root, 'public/portal-premium-home.html'), '<script src="https://example.invalid/remote.js"></script><script src="//cdn.example.invalid/x.js"></script>');
+    const page = collectBaseline({ root: f.root, runner: f.runner }).observations.criticalPages.find(item => item.page === 'portal-premium-home');
+    assert.equal(page.status, 'OBSERVED'); assert.deepEqual(page.sourcesScanned, ['public/portal-premium-home.html']); assert.deepEqual(page.unresolvedSources, []);
+  } finally { f.cleanup(); }
+});
+
+test('path traversal outside public is blocked and reported once', () => {
+  const f = fixture();
+  try {
+    writeFileSync(path.join(f.root, 'private.js'), "fetch('/api/must-not-be-read')");
+    writeFileSync(path.join(f.root, 'public/portal-premium-home.html'), '<script src="../private.js"></script><script src="%2e%2e/private.js#again"></script>');
+    const page = collectBaseline({ root: f.root, runner: f.runner }).observations.criticalPages.find(item => item.page === 'portal-premium-home');
+    assert.equal(page.status, 'PARTIAL'); assert.deepEqual(page.apiCalls, []);
+    assert.deepEqual(page.unresolvedSources, [{ source: '../private.js', reason: 'OUTSIDE_PUBLIC' }, { source: '%2e%2e/private.js', reason: 'OUTSIDE_PUBLIC' }]);
+  } finally { f.cleanup(); }
+});
