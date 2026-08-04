@@ -116,6 +116,26 @@ test('rejects NOT_EXECUTED critical pages and duplicate configured pages', () =>
   assert.match(validateBudget(configured).join(' '), /duplicates/);
 });
 
+test('rejects an empty required critical-page contract while the real nine-page policy stays valid', () => {
+  assert.deepEqual(validateBudget(budget), []);
+  assert.equal(budget.requiredCriticalPages.length, 9);
+  const configured = copy(budget); configured.requiredCriticalPages = [];
+  assert.ok(validateBudget(configured).includes('requiredCriticalPages must not be empty'));
+  const input = report(); input.observations.criticalPages = [];
+  assert.equal(compareTechnicalBudget(input, configured).status, 'FAILED');
+});
+
+test('CLI exits nonzero for an empty required critical-page contract', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'lm-budget-empty-pages-'));
+  try {
+    const reportPath = path.join(root, 'report.json'); const budgetPath = path.join(root, 'budget.json');
+    const input = report(); input.observations.criticalPages = [];
+    const configured = copy(budget); configured.requiredCriticalPages = [];
+    writeFileSync(reportPath, JSON.stringify(input)); writeFileSync(budgetPath, JSON.stringify(configured));
+    assert.notEqual(spawnSync(process.execPath, [path.resolve('scripts/check-technical-regression-budget.mjs'), reportPath, budgetPath]).status, 0);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test('blocks PARTIAL precache and unresolved entries', () => {
   const input = report(); input.observations.serviceWorker = { status: 'PARTIAL', unresolvedEntries: [{ index: 1 }] };
   const output = compareTechnicalBudget(input, budget);

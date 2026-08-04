@@ -34,6 +34,7 @@ export function validateBudget(value) {
   if (typeof value.baselineSha !== 'string' || !FULL_GIT_SHA.test(value.baselineSha)) errors.push('baselineSha must be a full 40-character hexadecimal Git SHA');
   if (!Array.isArray(value.requiredCriticalPages)) errors.push('requiredCriticalPages must be an array');
   else {
+    if (value.requiredCriticalPages.length === 0) errors.push('requiredCriticalPages must not be empty');
     if (value.requiredCriticalPages.some(page => typeof page !== 'string' || page.trim() !== page || page.length === 0)) errors.push('requiredCriticalPages must contain non-empty trimmed strings');
     if (new Set(value.requiredCriticalPages).size !== value.requiredCriticalPages.length) errors.push('requiredCriticalPages must not contain duplicates');
   }
