@@ -135,3 +135,39 @@ test('path traversal outside public is blocked and reported once', () => {
     assert.deepEqual(page.unresolvedSources, [{ source: '../private.js', reason: 'OUTSIDE_PUBLIC' }, { source: '%2e%2e/private.js', reason: 'OUTSIDE_PUBLIC' }]);
   } finally { f.cleanup(); }
 });
+
+test('critical page recognizes literal and dynamic api wrapper routes only', () => {
+  const f = fixture();
+  try {
+    writeFileSync(path.join(f.root, 'public/portal-premium-home.html'), `<script>
+      api('/api/admin/students');
+      api('/portal/checkin');
+      api(\`/api/admin/students/\${studentId}\`);
+      api('/not-a-route'); api(variable); other('/api/ignored');
+    </script>`);
+    const page = collectBaseline({ root: f.root, runner: f.runner }).observations.criticalPages.find(item => item.page === 'portal-premium-home');
+    assert.deepEqual(page.apiCalls, ['/api/admin/students', '/api/admin/students/{dynamic}', '/api/portal/checkin']);
+  } finally { f.cleanup(); }
+});
+
+test('service worker resolves simple string constants in precache', () => {
+  const f = fixture();
+  try {
+    writeFileSync(path.join(f.root, 'public/sw.js'), "const CACHE_NAME='lm-v2'; const OFFLINE_URL='/offline.html'; const PRECACHE_URLS=['/', OFFLINE_URL, '/app.js'];");
+    const sw = collectBaseline({ root: f.root, runner: f.runner }).observations.serviceWorker;
+    assert.equal(sw.status, 'OBSERVED');
+    assert.deepEqual(sw.precache, ['/', '/app.js', '/offline.html']);
+    assert.deepEqual(sw.unresolvedEntries, []);
+  } finally { f.cleanup(); }
+});
+
+test('service worker reports unresolved precache expressions as PARTIAL', () => {
+  const f = fixture();
+  try {
+    writeFileSync(path.join(f.root, 'public/sw.js'), "const OFFLINE_URL='/offline.html'; const PRECACHE_URLS=[OFFLINE_URL, buildAssetUrl()];");
+    const sw = collectBaseline({ root: f.root, runner: f.runner }).observations.serviceWorker;
+    assert.equal(sw.status, 'PARTIAL');
+    assert.deepEqual(sw.precache, ['/offline.html']);
+    assert.deepEqual(sw.unresolvedEntries, [{ index: 1, reason: 'UNRESOLVED_EXPRESSION' }]);
+  } finally { f.cleanup(); }
+});

@@ -70,8 +70,13 @@ function sourceOccurrences(root, files, expression) {
   return files.map(file => ({ path: file, occurrences: countMatches(read(root, file), expression) })).filter(item => item.occurrences > 0).sort((a, b) => a.path.localeCompare(b.path));
 }
 function apiCallsIn(source) {
-  return [...source.matchAll(/(?:fetch\s*\(|axios(?:\.[a-z]+)?\s*\()\s*[`'"]([^`'"]*\/api\/[^`'"]*)/gi)]
+  const direct = [...source.matchAll(/(?:fetch\s*\(|axios(?:\.[a-z]+)?\s*\()\s*[`'"]([^`'"]*\/api\/[^`'"]*)/gi)]
     .map(match => match[1].replace(/\$\{[^}]+\}/g, '{dynamic}'));
+  const wrapped = [...source.matchAll(/\bapi\s*\(\s*([`'"])([\s\S]*?)\1/g)]
+    .map(match => match[2].replace(/\$\{[^}]+\}/g, '{dynamic}'))
+    .filter(route => route.startsWith('/api/') || route.startsWith('/portal/'))
+    .map(route => route.startsWith('/portal/') ? `/api${route}` : route);
+  return [...direct, ...wrapped];
 }
 function localScriptPath(root, htmlFile, source) {
   const withoutSuffix = source.split(/[?#]/, 1)[0].trim();
@@ -130,12 +135,22 @@ function homeResources(root) {
 }
 function serviceWorker(root) {
   const file = 'public/sw.js';
-  if (!existsSync(path.join(root, file))) return { status: NOT_EXECUTED, path: NOT_EXECUTED, cacheName: NOT_EXECUTED, precache: NOT_EXECUTED };
+  if (!existsSync(path.join(root, file))) return { status: NOT_EXECUTED, path: NOT_EXECUTED, cacheName: NOT_EXECUTED, precache: NOT_EXECUTED, unresolvedEntries: [] };
   const text = read(root, file);
   const cacheName = text.match(/(?:CACHE_NAME|CACHE_VERSION|CACHE)\s*=\s*['"]([^'"]+)/)?.[1] ?? NOT_EXECUTED;
   const block = text.match(/(?:PRECACHE_URLS|STATIC_ASSETS|ASSETS_TO_CACHE|urlsToCache)\s*=\s*\[([\s\S]*?)\]/i)?.[1];
-  const precache = block ? [...block.matchAll(/['"]([^'"]+)['"]/g)].map(match => match[1]).sort() : NOT_EXECUTED;
-  return { status: 'OBSERVED', path: file, cacheName, precache };
+  if (block === undefined) return { status: 'PARTIAL', path: file, cacheName, precache: NOT_EXECUTED, unresolvedEntries: [{ index: NOT_EXECUTED, reason: 'PRECACHE_NOT_FOUND' }] };
+  const constants = new Map([...text.matchAll(/\b(?:const|let|var)\s+([A-Z_$][\w$]*)\s*=\s*(['"])(.*?)\2\s*;/g)].map(match => [match[1], match[3]]));
+  const entries = block.split(',').map(entry => entry.replace(/\/\*[\s\S]*?\*\/|\/\/[^\r\n]*/g, '').trim()).filter(Boolean);
+  const precache = [];
+  const unresolvedEntries = [];
+  entries.forEach((entry, index) => {
+    const literal = entry.match(/^(['"])(.*?)\1$/);
+    if (literal) precache.push(literal[2]);
+    else if (/^[A-Z_$][\w$]*$/.test(entry) && constants.has(entry)) precache.push(constants.get(entry));
+    else unresolvedEntries.push({ index, reason: 'UNRESOLVED_EXPRESSION' });
+  });
+  return { status: unresolvedEntries.length ? 'PARTIAL' : 'OBSERVED', path: file, cacheName, precache: [...new Set(precache)].sort(), unresolvedEntries };
 }
 
 export function collectBaseline({ root, runner = execFileSync, now = () => new Date() } = {}) {
