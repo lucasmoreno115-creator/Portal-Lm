@@ -69,14 +69,84 @@ function publicComparison(root, files) {
 function sourceOccurrences(root, files, expression) {
   return files.map(file => ({ path: file, occurrences: countMatches(read(root, file), expression) })).filter(item => item.occurrences > 0).sort((a, b) => a.path.localeCompare(b.path));
 }
+function skipQuoted(source, start, quote) {
+  for (let index = start + 1; index < source.length; index++) {
+    if (source[index] === '\\') index++;
+    else if (source[index] === quote) return index + 1;
+  }
+  return NOT_EXECUTED;
+}
+function skipTemplate(source, start) {
+  for (let index = start + 1; index < source.length;) {
+    if (source[index] === '\\') { index += 2; continue; }
+    if (source[index] === '`') return index + 1;
+    if (source[index] === '$' && source[index + 1] === '{') {
+      const end = skipExpression(source, index + 2);
+      if (end === NOT_EXECUTED) return NOT_EXECUTED;
+      index = end; continue;
+    }
+    index++;
+  }
+  return NOT_EXECUTED;
+}
+function skipExpression(source, start) {
+  let depth = 1;
+  for (let index = start; index < source.length;) {
+    const character = source[index];
+    if (character === "'" || character === '"') {
+      const end = skipQuoted(source, index, character);
+      if (end === NOT_EXECUTED) return NOT_EXECUTED;
+      index = end; continue;
+    }
+    if (character === '`') {
+      const end = skipTemplate(source, index);
+      if (end === NOT_EXECUTED) return NOT_EXECUTED;
+      index = end; continue;
+    }
+    if (character === '/' && source[index + 1] === '/') { const end = source.indexOf('\n', index + 2); index = end === -1 ? source.length : end + 1; continue; }
+    if (character === '/' && source[index + 1] === '*') { const end = source.indexOf('*/', index + 2); index = end === -1 ? source.length : end + 2; continue; }
+    if (character === '{') depth++;
+    else if (character === '}' && --depth === 0) return index + 1;
+    index++;
+  }
+  return NOT_EXECUTED;
+}
+function readApiLiteral(source, start, quote) {
+  let value = '';
+  for (let index = start + 1; index < source.length;) {
+    const character = source[index];
+    if (character === '\\') {
+      if (index + 1 >= source.length) return { end: NOT_EXECUTED };
+      value += source[index + 1]; index += 2; continue;
+    }
+    if (character === quote) return { end: index + 1, value };
+    if (quote === '`' && character === '$' && source[index + 1] === '{') {
+      const end = skipExpression(source, index + 2);
+      if (end === NOT_EXECUTED) return { end };
+      value += '{dynamic}'; index = end; continue;
+    }
+    value += character; index++;
+  }
+  return { end: NOT_EXECUTED };
+}
+function apiWrapperCalls(source) {
+  const routes = [];
+  const call = /\bapi\s*\(\s*/g;
+  for (const match of source.matchAll(call)) {
+    const start = match.index + match[0].length;
+    const quote = source[start];
+    if (quote !== "'" && quote !== '"' && quote !== '`') continue;
+    const literal = readApiLiteral(source, start, quote);
+    if (literal.end === NOT_EXECUTED) continue;
+    if (literal.value.startsWith('/api/')) routes.push(literal.value);
+    else if (literal.value.startsWith('/portal/')) routes.push(`/api${literal.value}`);
+  }
+  return routes;
+}
 function apiCallsIn(source) {
   const direct = [...source.matchAll(/(?:fetch\s*\(|axios(?:\.[a-z]+)?\s*\()\s*[`'"]([^`'"]*\/api\/[^`'"]*)/gi)]
     .map(match => match[1].replace(/\$\{[^}]+\}/g, '{dynamic}'));
-  const wrapped = [...source.matchAll(/\bapi\s*\(\s*([`'"])([\s\S]*?)\1/g)]
-    .map(match => match[2].replace(/\$\{[^}]+\}/g, '{dynamic}'))
-    .filter(route => route.startsWith('/api/') || route.startsWith('/portal/'))
-    .map(route => route.startsWith('/portal/') ? `/api${route}` : route);
-  return [...direct, ...wrapped];
+  return [...direct, ...apiWrapperCalls(source)];
 }
 function localScriptPath(root, htmlFile, source) {
   const withoutSuffix = source.split(/[?#]/, 1)[0].trim();

@@ -171,3 +171,16 @@ test('service worker reports unresolved precache expressions as PARTIAL', () => 
     assert.deepEqual(sw.unresolvedEntries, [{ index: 1, reason: 'UNRESOLVED_EXPRESSION' }]);
   } finally { f.cleanup(); }
 });
+
+test('api wrapper scanner balances nested templates and redacts the entire expression', () => {
+  const f = fixture();
+  try {
+    writeFileSync(path.join(f.root, 'public/portal-premium-home.html'), `<script>
+      api(\`/api/admin/premium/workspace/students?limit=25\${state.cursor ? \`&cursor=\${state.cursor}\` : ''}\`);
+    </script>`);
+    const page = collectBaseline({ root: f.root, runner: f.runner }).observations.criticalPages.find(item => item.page === 'portal-premium-home');
+    assert.deepEqual(page.apiCalls, ['/api/admin/premium/workspace/students?limit=25{dynamic}']);
+    const serialized = JSON.stringify(page.apiCalls);
+    assert.doesNotMatch(serialized, /\$\{|state\.cursor|cursor=|\?\s*$/);
+  } finally { f.cleanup(); }
+});
