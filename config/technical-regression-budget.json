@@ -1,6 +1,18 @@
 {
   "schemaVersion": "1.0.0",
   "reportSchemaVersion": "1.0.0",
+  "baselineSha": "f7b0ba3190e5a421dbd7d8857485481fd1716132",
+  "requiredCriticalPages": [
+    "admin-premium-student-record",
+    "admin-premium-weekly-feedbacks",
+    "admin-premium-workspace",
+    "portal-checkin",
+    "portal-login",
+    "portal-plano-alimentar",
+    "portal-premium-home",
+    "portal-premium-weekly-feedback",
+    "portal-progressao"
+  ],
   "metrics": {
     "ensureSchemaRuntimeReferences": { "maximum": 3, "severity": "error" },
     "largestPublicAssetBytes": { "maximum": 800000, "severity": "error" },

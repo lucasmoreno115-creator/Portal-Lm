@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 export const BUDGET_SCHEMA_VERSION = '1.0.0';
 const NOT_EXECUTED = 'NOT_EXECUTED';
+const FULL_GIT_SHA = /^[0-9a-f]{40}$/i;
 const METRICS = {
   ensureSchemaRuntimeReferences: r => sumOccurrences(r.observations.ensureSchemaRuntimeReferences),
   largestPublicAssetBytes: r => r.repository.largestPublicAssets[0]?.bytes,
@@ -30,6 +31,12 @@ export function validateBudget(value) {
   if (!isObject(value)) return ['configuration must be an object'];
   if (value.schemaVersion !== BUDGET_SCHEMA_VERSION) errors.push('unsupported configuration schemaVersion');
   if (value.reportSchemaVersion !== '1.0.0') errors.push('unsupported reportSchemaVersion');
+  if (typeof value.baselineSha !== 'string' || !FULL_GIT_SHA.test(value.baselineSha)) errors.push('baselineSha must be a full 40-character hexadecimal Git SHA');
+  if (!Array.isArray(value.requiredCriticalPages)) errors.push('requiredCriticalPages must be an array');
+  else {
+    if (value.requiredCriticalPages.some(page => typeof page !== 'string' || page.trim() !== page || page.length === 0)) errors.push('requiredCriticalPages must contain non-empty trimmed strings');
+    if (new Set(value.requiredCriticalPages).size !== value.requiredCriticalPages.length) errors.push('requiredCriticalPages must not contain duplicates');
+  }
   if (!isObject(value.metrics) || Object.keys(value.metrics).sort().join(',') !== Object.keys(METRICS).sort().join(',')) errors.push('metrics must contain exactly the required metric names');
   else for (const [name, item] of Object.entries(value.metrics)) {
     if (!isObject(item) || !finiteNonnegative(item.maximum) || !['error', 'warning'].includes(item.severity) || Object.keys(item).some(key => !['maximum', 'severity'].includes(key))) errors.push(`invalid metric configuration: ${name}`);
@@ -47,19 +54,33 @@ export function validateReport(value) {
   const errors = [];
   if (!isObject(value)) return ['report must be an object'];
   if (value.schemaVersion !== '1.0.0') errors.push('unsupported report schemaVersion');
-  for (const key of ['repository', 'observations', 'verdicts']) if (!isObject(value[key])) errors.push(`missing object: ${key}`);
+  for (const key of ['source', 'repository', 'observations', 'verdicts']) if (!isObject(value[key])) errors.push(`missing object: ${key}`);
+  if (isObject(value.source) && (typeof value.source.sha !== 'string' || !FULL_GIT_SHA.test(value.source.sha))) errors.push('source.sha must be a full 40-character hexadecimal Git SHA');
+  if (isObject(value.observations)) {
+    if (!Array.isArray(value.observations.criticalPages)) errors.push('observations.criticalPages must be an array');
+    else if (value.observations.criticalPages.some(page => !isObject(page) || typeof page.page !== 'string' || page.page.trim() !== page.page || page.page.length === 0 || typeof page.status !== 'string')) errors.push('observations.criticalPages contains an invalid entry');
+  }
   return errors.sort();
 }
 
 export function compareTechnicalBudget(report, budget) {
   const validation = [...validateBudget(budget).map(detail => `configuration: ${detail}`), ...validateReport(report).map(detail => `report: ${detail}`)];
-  if (validation.length) return finalize(validation.map((detail, index) => result(`validation.${index + 1}`, null, null, 'error', 'ERROR', detail)));
+  const identities = { baselineSha: FULL_GIT_SHA.test(budget?.baselineSha ?? '') ? budget.baselineSha : null, currentSha: FULL_GIT_SHA.test(report?.source?.sha ?? '') ? report.source.sha : null };
+  if (validation.length) return finalize(validation.map((detail, index) => result(`validation.${index + 1}`, null, null, 'error', 'ERROR', detail)), identities);
   const results = [];
   if (report.verdicts.requiredCommands !== 'PASSED') results.push(result('requiredCommands', report.verdicts.requiredCommands, 'PASSED', 'error', 'ERROR', 'Required commands must pass'));
   const pages = report.observations.criticalPages;
-  if (!Array.isArray(pages) || pages.length === 0) results.push(result('criticalPages', pages === NOT_EXECUTED ? NOT_EXECUTED : null, 'OBSERVED', 'error', 'ERROR', 'Critical pages are missing'));
-  else pages.forEach((page, index) => {
-    if (!isObject(page) || page.status !== 'OBSERVED') results.push(result(`criticalPage.${clean(page?.page ?? index)}`, page?.status, 'OBSERVED', 'error', 'ERROR', 'Critical page must be OBSERVED'));
+  const expectedPages = [...budget.requiredCriticalPages].sort();
+  const pageCounts = new Map();
+  pages.forEach(page => pageCounts.set(page.page, (pageCounts.get(page.page) ?? 0) + 1));
+  for (const page of expectedPages) if (!pageCounts.has(page)) results.push(result(`criticalPages.missing.${page}`, 0, 1, 'error', 'ERROR', 'Required critical page is missing'));
+  for (const page of [...pageCounts.keys()].sort()) {
+    const count = pageCounts.get(page);
+    if (!expectedPages.includes(page)) results.push(result(`criticalPages.unexpected.${clean(page)}`, count, 0, 'error', 'ERROR', 'Unexpected critical page'));
+    if (count > 1) results.push(result(`criticalPages.duplicate.${clean(page)}`, count, 1, 'error', 'ERROR', 'Critical page is duplicated'));
+  }
+  pages.forEach(page => {
+    if (page.status !== 'OBSERVED' && !results.some(item => item.id === `criticalPage.${clean(page.page)}`)) results.push(result(`criticalPage.${clean(page.page)}`, page.status, 'OBSERVED', 'error', 'ERROR', 'Critical page must be OBSERVED'));
   });
   const sw = report.observations.serviceWorker;
   if (!isObject(sw) || sw.status !== 'OBSERVED') results.push(result('serviceWorker.status', sw?.status, 'OBSERVED', 'error', 'ERROR', 'Service Worker must be OBSERVED'));
@@ -87,18 +108,18 @@ export function compareTechnicalBudget(report, budget) {
     comparisons.forEach(item => counts[item.observation]++);
     for (const kind of Object.keys(counts).sort()) results.push(result(`rootPublicComparisons.${kind}`, counts[kind], budget.baselines.rootPublicComparisons[kind], 'warning', counts[kind] === budget.baselines.rootPublicComparisons[kind] ? 'PASSED' : 'WARNING', 'Root/public duplication count'));
   }
-  return finalize(results);
+  return finalize(results, identities);
 }
 
-function finalize(results) {
+function finalize(results, { baselineSha = null, currentSha = null } = {}) {
   results.sort((a, b) => a.id.localeCompare(b.id));
   const summary = { errors: results.filter(item => item.status === 'ERROR').length, passed: results.filter(item => item.status === 'PASSED').length, warnings: results.filter(item => item.status === 'WARNING').length };
-  return { results, schemaVersion: BUDGET_SCHEMA_VERSION, status: summary.errors ? 'FAILED' : 'PASSED', summary };
+  return { baselineSha, currentSha, results, schemaVersion: BUDGET_SCHEMA_VERSION, status: summary.errors ? 'FAILED' : 'PASSED', summary };
 }
 
 export function renderBudgetMarkdown(output) {
   const cell = value => value === null || value === undefined ? 'N/A' : clean(typeof value === 'object' ? JSON.stringify(value) : value);
-  return `# Technical regression budget\n\nStatus: **${output.status}**\n\n| Metric | Actual | Baseline / maximum | Delta | Severity | Status | Detail |\n|---|---:|---:|---:|---|---|---|\n${output.results.map(item => `| ${clean(item.id)} | ${cell(item.actual)} | ${cell(item.baselineOrMaximum)} | ${cell(item.delta)} | ${item.severity} | ${item.status} | ${clean(item.detail)} |`).join('\n')}\n`;
+  return `# Technical regression budget\n\n- Baseline SHA: ${cell(output.baselineSha)}\n- Current SHA: ${cell(output.currentSha)}\n- Status: **${output.status}**\n\n| Metric | Actual | Baseline / maximum | Delta | Severity | Status | Detail |\n|---|---:|---:|---:|---|---|---|\n${output.results.map(item => `| ${clean(item.id)} | ${cell(item.actual)} | ${cell(item.baselineOrMaximum)} | ${cell(item.delta)} | ${item.severity} | ${item.status} | ${clean(item.detail)} |`).join('\n')}\n`;
 }
 
 export function runCli({ argv = process.argv.slice(2), root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..') } = {}) {

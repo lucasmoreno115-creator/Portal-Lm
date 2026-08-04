@@ -19,7 +19,7 @@ Generated reports are intentionally not committed because their timestamp and su
 
 ## S0.3 — deterministic regression budget
 
-The versioned policy is `config/technical-regression-budget.json`. After generating a report, run `npm run baseline:budget`; for the complete quality gate, run `npm run baseline:check`. The latter generates the S0.2 inventory once (including the full test suite and Project LM runtime check) and then compares it without repeating either command. The comparator uses only Node built-ins, reads JSON data without importing or evaluating repository source, performs no network, D1, or production access, never changes the policy, and writes deterministic JSON and Markdown results beside the baseline report.
+The versioned policy is `config/technical-regression-budget.json`. After generating a report, run `npm run baseline:budget`; for the complete quality gate, run `npm run baseline:check`. A Node orchestrator generates the S0.2 inventory once (including one execution each of the full test suite and Project LM runtime check) and then **always** invokes the comparator. This remains true when a required command fails: the valid failed baseline is evidence, and skipping its comparison would hide `requiredCommands` and unrelated regressions. The comparator uses only Node built-ins, reads JSON data without importing or evaluating repository source, performs no network, D1, or production access, never changes the policy, and writes deterministic JSON and Markdown results beside the baseline report.
 
 The initial policy was calibrated from the repository's exact initial commit `f7b0ba3190e5a421dbd7d8857485481fd1716132` using Node `v22.22.2` on 2026-08-04. The clean measurement produced:
 
@@ -35,5 +35,11 @@ The initial policy was calibrated from the repository's exact initial commit `f7
 | `ensureSchema` runtime references | 3 | 3 | error |
 
 The suggested maxima accommodate that clean measurement, so no adjustment was necessary. Warning baselines record 875 executed tests, approximately 148 Worker routes, 37 migrations, and the root/public comparison split (14 duplicate and 19 divergent). A reduced test count or a changed route, migration, or duplication count is visible but does not block by itself.
+
+The nine critical pages are an exact versioned contract: missing, unexpected, duplicated, `PARTIAL`, or `NOT_EXECUTED` inventory entries block the gate. Comparing only the number of pages is deliberately insufficient.
+
+`baselineSha` identifies the clean commit used to calibrate the versioned policy. `currentSha` is copied exclusively from `baseline-report.json`'s `source.sha`; it identifies the commit being checked and need not equal `baselineSha`. Both must be complete 40-character hexadecimal Git SHAs, are propagated to JSON and Markdown, and are never reconstructed with Git by the comparator.
+
+The final orchestrator exit code is zero only when baseline generation and budget comparison both exit successfully. A missing or invalid report, failed required command, or any `ERROR` makes it nonzero; warnings alone remain successful. Both stages run regardless of the generation exit code so that both reports are retained whenever the generator produced valid evidence. The policy and `baselineSha` are never updated automatically.
 
 The gate blocks invalid configuration or reports, missing/`NOT_EXECUTED` mandatory metrics, mandatory command failures, critical pages or the Service Worker not marked `OBSERVED`, unresolved precache entries, and exceeded `error` limits. Exceeded `warning` limits and inventory drift produce warnings and exit successfully when there are no errors. Every comparison reports the exact unrounded `actual`, baseline or maximum, delta, severity, and status, sorted by metric identifier.
