@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { validateProfile, assertLocalUrl, sanitizeUrl, resourceType, aggregateBytes, aggregateRuns, nullable, classifyRun, reportStatus, sortReport, safeWrite, withCleanup, exitCodeForStatus } from './lib/portal-performance-core.mjs';
 import { startLocalServer } from './lib/portal-performance-server.mjs';
-import { launchChrome, pageSocket } from './lib/portal-performance-chrome.mjs';
+import { launchChrome, pageSocket, waitForPageLoad } from './lib/portal-performance-chrome.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, 'artifacts/performance');
@@ -100,13 +100,10 @@ export async function measure(cdp, page, scenario, run, port, activeProfile = pr
     }
     await safeSend('Page.addScriptToEvaluateOnNewDocument', { source: `localStorage.setItem('lm_student_email','student@example.invalid');localStorage.setItem('lm_student_token','LAB_ONLY');localStorage.setItem('lm_student_name','Aluno Fictício');localStorage.setItem('lm_student_plan','premium');window.__perf={lcp:null,cls:0,longTasks:[]};try{new PerformanceObserver(x=>{const e=x.getEntries().at(-1);if(e)window.__perf.lcp=e.startTime}).observe({type:'largest-contentful-paint',buffered:true});new PerformanceObserver(x=>{for(const e of x.getEntries())if(!e.hadRecentInput)window.__perf.cls+=e.value}).observe({type:'layout-shift',buffered:true});new PerformanceObserver(x=>window.__perf.longTasks.push(...x.getEntries().map(e=>e.duration))).observe({type:'longtask',buffered:true})}catch{}` });
     const expected = `http://127.0.0.1:${port}${page}`;
-    const loaded = new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(Error('Timeout de carregamento')), 30000);
-      const off = cdp.on('Page.loadEventFired', () => { off(); clearTimeout(timer); resolve(); });
-      unsubscribers.push(() => { clearTimeout(timer); off(); });
-    });
+    const loaded = waitForPageLoad(cdp, { timeoutMs: 30000, label: `${scenario}:${page}:${run}` });
+    unsubscribers.push(loaded.cleanup);
     await safeSend('Page.navigate', { url: expected });
-    await loaded;
+    await loaded.promise;
     await new Promise(resolve => setTimeout(resolve, 500));
     let evalResult;
     try {

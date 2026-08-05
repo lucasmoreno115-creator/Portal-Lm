@@ -10,6 +10,55 @@ const CANDIDATES = process.platform === 'win32'
     ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium']
     : ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
 
+
+export class TargetOperationError extends Error {
+  constructor(code, message, details = {}) {
+    super(message);
+    this.name = 'TargetOperationError';
+    this.code = code;
+    Object.assign(this, details);
+  }
+}
+
+async function fetchJsonWithTimeout(url, { method = 'GET', timeoutMs = 5000, timeoutCode, invalidCode, failedCode }) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { method, signal: controller.signal });
+    if (!response.ok) throw new TargetOperationError(failedCode || invalidCode, `Endpoint CDP retornou HTTP ${response.status}`, { status: response.status });
+    return await response.json();
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new TargetOperationError(timeoutCode, `Endpoint CDP excedeu ${timeoutMs} ms`, { timeoutMs });
+    if (error instanceof TargetOperationError) throw error;
+    throw new TargetOperationError(invalidCode, 'Endpoint CDP retornou payload inválido', { causeMessage: error.message });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export function waitForPageLoad(cdp, { timeoutMs = 10000, label = 'page_load' } = {}) {
+  let timer;
+  let unsubscribe = () => {};
+  let settled = false;
+  const cleanup = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    unsubscribe();
+    unsubscribe = () => {};
+  };
+  const promise = new Promise((resolve, reject) => {
+    const finish = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      fn(value);
+    };
+    unsubscribe = cdp.on('Page.loadEventFired', () => finish(resolve));
+    timer = setTimeout(() => finish(reject, Object.assign(new Error(`${label}: Page.loadEventFired não ocorreu em ${timeoutMs} ms`), { code: 'PAGE_LOAD_TIMEOUT', label, timeoutMs })), timeoutMs);
+  });
+  return { promise, cleanup };
+}
+
 export class ChromeLaunchError extends Error {
   constructor(code, message, details = {}) {
     super(message);
@@ -185,23 +234,42 @@ export class CDP {
   }
 }
 
-export async function createPageTarget(debugPort) {
-  const response = await fetch(`http://127.0.0.1:${debugPort}/json/new?about:blank`, { method: 'PUT' });
-  if (!response.ok) throw new Error(`Falha ao criar target CDP: HTTP ${response.status}`);
-  const target = await response.json();
-  if (!target.id || !target.webSocketDebuggerUrl) throw new Error('Target CDP inválido');
+export async function createPageTarget(debugPort, { timeoutMs = 5000 } = {}) {
+  const target = await fetchJsonWithTimeout(`http://127.0.0.1:${debugPort}/json/new?about:blank`, {
+    method: 'PUT', timeoutMs, timeoutCode: 'TARGET_CREATE_TIMEOUT', invalidCode: 'TARGET_CREATE_INVALID', failedCode: 'TARGET_CREATE_INVALID'
+  });
+  if (!target || typeof target.id !== 'string' || typeof target.webSocketDebuggerUrl !== 'string' || !target.webSocketDebuggerUrl.startsWith('ws://')) {
+    throw new TargetOperationError('TARGET_CREATE_INVALID', 'Target CDP inválido');
+  }
   return target;
 }
 
-export async function closePageTarget(debugPort, targetId) {
-  if (!targetId) return;
-  await fetch(`http://127.0.0.1:${debugPort}/json/close/${encodeURIComponent(targetId)}`).catch(() => null);
+export async function closePageTarget(debugPort, targetId, { timeoutMs = 5000 } = {}) {
+  if (!targetId) return { closed: false, reason: 'missing_target' };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`http://127.0.0.1:${debugPort}/json/close/${encodeURIComponent(targetId)}`, { signal: controller.signal });
+    if (!response.ok) throw new TargetOperationError('TARGET_CLOSE_FAILED', `Fechamento do target CDP retornou HTTP ${response.status}`, { status: response.status });
+    return { closed: true };
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new TargetOperationError('TARGET_CLOSE_TIMEOUT', `Fechamento do target CDP excedeu ${timeoutMs} ms`, { timeoutMs });
+    if (error instanceof TargetOperationError) throw error;
+    throw new TargetOperationError('TARGET_CLOSE_FAILED', 'Falha ao fechar target CDP', { causeMessage: error.message });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-export async function pageSocket(debugPort) {
-  const target = await createPageTarget(debugPort);
+export async function pageSocket(debugPort, options = {}) {
+  const target = await createPageTarget(debugPort, options);
   const cdp = new CDP(target.webSocketDebuggerUrl);
   cdp.targetId = target.id;
-  cdp.closeTarget = async () => { cdp.close(); await closePageTarget(debugPort, target.id); };
+  cdp.closeTargetError = null;
+  cdp.closeTarget = async ({ throwOnError = false } = {}) => {
+    cdp.close();
+    try { return await closePageTarget(debugPort, target.id, options); }
+    catch (error) { cdp.closeTargetError = error; if (throwOnError) throw error; return { closed: false, error }; }
+  };
   return cdp;
 }

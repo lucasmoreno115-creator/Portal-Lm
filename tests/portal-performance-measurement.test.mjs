@@ -17,7 +17,7 @@ test('request externo bloqueado é evidência explícita',()=>assert.throws(()=>
 test('smoke real de Chrome fica fora da suíte unitária',()=>{assert.equal(JSON.parse('{"script":"performance:portal:smoke"}').script,'performance:portal:smoke')});
 import { EventEmitter } from 'node:events';
 import { chmod } from 'node:fs/promises';
-import { validateChromeBinary, waitForDevToolsPort, sanitizeChromeStderr, readChromeVersion, CDP } from '../scripts/lib/portal-performance-chrome.mjs';
+import { validateChromeBinary, waitForDevToolsPort, sanitizeChromeStderr, readChromeVersion, CDP, waitForPageLoad, createPageTarget, closePageTarget } from '../scripts/lib/portal-performance-chrome.mjs';
 import { classifyRun, exitCodeForStatus } from '../scripts/lib/portal-performance-core.mjs';
 
 function fakeChild() { const c = new EventEmitter(); c.exitCode = null; c.signalCode = null; c.kill = () => { c.exitCode = 0; c.emit('exit', 0, null); }; return c; }
@@ -146,4 +146,102 @@ test('bytes de transferência, encoded e decoded preservam null e zero real', ()
   const agg = aggregateRuns([{ metrics: { decodedBodyBytes: null } }, { metrics: { decodedBodyBytes: 0 } }, { metrics: { decodedBodyBytes: 30 } }]);
   assert.equal(agg.decodedBodyBytes.median, 15);
   assert.equal(agg.decodedBodyBytes.p75, 30);
+});
+
+function fakeCdpForLoad() {
+  const cdp = Object.create(CDP.prototype);
+  cdp.listeners = new Map();
+  cdp.closed = false;
+  cdp.send = async method => {
+    if (method === 'Page.navigate') {
+      for (const handler of [...(cdp.listeners.get('Page.loadEventFired') || [])]) handler({});
+    }
+    return {};
+  };
+  return cdp;
+}
+
+test('waitForPageLoad registra antes da navegação e resolve evento imediato', async () => {
+  const cdp = fakeCdpForLoad();
+  const load = waitForPageLoad(cdp, { timeoutMs: 100, label: 'immediate' });
+  await cdp.send('Page.navigate');
+  await load.promise;
+  assert.equal(cdp.listenerCount('Page.loadEventFired'), 0);
+  load.cleanup();
+  assert.equal(cdp.listenerCount('Page.loadEventFired'), 0);
+});
+
+test('waitForPageLoad cobre evento antes do await de Page.navigate retornar', async () => {
+  const cdp = fakeCdpForLoad();
+  const load = waitForPageLoad(cdp, { timeoutMs: 100, label: 'before_await' });
+  const navigation = cdp.send('Page.navigate');
+  await load.promise;
+  await navigation;
+  assert.equal(cdp.listenerCount('Page.loadEventFired'), 0);
+});
+
+test('waitForPageLoad rejeita determinístico e limpa listener/timer no timeout', async () => {
+  const cdp = Object.create(CDP.prototype); cdp.listeners = new Map();
+  const load = waitForPageLoad(cdp, { timeoutMs: 10, label: 'no_event' });
+  await assert.rejects(load.promise, error => error.code === 'PAGE_LOAD_TIMEOUT' && error.label === 'no_event');
+  assert.equal(cdp.listenerCount('Page.loadEventFired'), 0);
+  load.cleanup();
+  assert.equal(cdp.listenerCount('Page.loadEventFired'), 0);
+});
+
+async function withTargetServer(handler, work) {
+  const http = await import('node:http');
+  const server = http.createServer(handler);
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try { return await work(server.address().port, server); }
+  finally {
+    server.closeAllConnections?.();
+    await new Promise(resolve => server.close(resolve));
+  }
+}
+
+test('/json/new responde, timeout e payload inválido são classificados', async () => {
+  await withTargetServer((req, res) => { res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ id: 'target-1', webSocketDebuggerUrl: 'ws://127.0.0.1/devtools/page/1' })); }, async port => {
+    assert.deepEqual(await createPageTarget(port, { timeoutMs: 100 }), { id: 'target-1', webSocketDebuggerUrl: 'ws://127.0.0.1/devtools/page/1' });
+  });
+  await withTargetServer((req, res) => { res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ id: 'target-1' })); }, async port => {
+    await assert.rejects(createPageTarget(port, { timeoutMs: 100 }), error => error.code === 'TARGET_CREATE_INVALID');
+  });
+  await withTargetServer(() => {}, async (port, server) => {
+    await assert.rejects(createPageTarget(port, { timeoutMs: 20 }), error => error.code === 'TARGET_CREATE_TIMEOUT');
+    server.closeAllConnections?.();
+  });
+});
+
+test('/json/close responde, timeout é classificado e cleanup continua', async () => {
+  await withTargetServer((req, res) => { res.end('Target is closing'); }, async port => {
+    assert.deepEqual(await closePageTarget(port, 'target-1', { timeoutMs: 100 }), { closed: true });
+  });
+  await withTargetServer(() => {}, async (port, server) => {
+    await assert.rejects(closePageTarget(port, 'target-1', { timeoutMs: 20 }), error => error.code === 'TARGET_CLOSE_TIMEOUT');
+    const calls = [];
+    const cdp = { close() { calls.push('ws'); }, async closeTarget() { this.close(); try { await closePageTarget(port, 'target-1', { timeoutMs: 20 }); } catch (error) { calls.push(error.code); return { closed: false, error }; } } };
+    const result = await cdp.closeTarget();
+    calls.push('chrome_close', 'server_close');
+    assert.equal(result.error.code, 'TARGET_CLOSE_TIMEOUT');
+    assert.deepEqual(calls, ['ws', 'TARGET_CLOSE_TIMEOUT', 'chrome_close', 'server_close']);
+    server.closeAllConnections?.();
+  });
+});
+
+test('cleanup subsequente roda quando cada etapa do smoke falha', async () => {
+  for (const failAt of ['target_create_cold', 'navigate_cold', 'target_close_cold', 'target_create_warm', 'navigate_warm', 'target_close_warm']) {
+    const calls = [];
+    try {
+      for (const step of ['target_create_cold', 'navigate_cold', 'target_close_cold', 'target_create_warm', 'navigate_warm', 'target_close_warm']) {
+        calls.push(step);
+        if (step === failAt) throw new Error(step);
+      }
+    } catch {
+      calls.push('chrome_close', 'server_close', 'tmp_rm');
+    }
+    assert.ok(calls.includes('chrome_close'), failAt);
+    assert.ok(calls.includes('server_close'), failAt);
+    assert.ok(calls.includes('tmp_rm'), failAt);
+  }
 });
