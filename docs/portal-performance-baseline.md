@@ -1,34 +1,70 @@
-# S0.4 — baseline de performance do Portal do Aluno
+# Baseline de performance do Portal do Aluno — S0.4
 
-Esta sprint cria **diagnóstico**, não otimização. Ela não calcula score, não aprova/reprova páginas, não define budget e não altera a baseline/budgets da S0.3. Os dados observados poderão orientar hipóteses e budgets discutidos na S0.5, sem os criar automaticamente.
+A S0.4 mede diagnóstico sintético local do Portal do Aluno em Chrome headless via Chrome DevTools Protocol (CDP). Ela não cria score, não aprova/reprova performance, não otimiza páginas e não altera budgets da S0.3.
 
-## Ambientes e limites
+## Ambientes
 
-- **LAB_LOCAL** serve somente os arquivos estáticos locais, sem API ou identidade simulada.
-- **LAB_STUBBED** (o ambiente desta medição) acrescenta respostas mínimas, confirmadas nos contratos usados pelas páginas, para um aluno inteiramente fictício. Não representa dados, autenticação, D1, latência ou comportamento de produção.
-- **STAGING_AUTHENTICATED** seria uma medição autorizada em staging com identidade de teste; não é usada por esta infraestrutura offline.
-- **Produção** é o tráfego e a infraestrutura reais; esta ferramenta jamais a acessa.
+- `LAB_LOCAL`: medição offline com arquivos de `public/` e APIs locais reais quando não há stubs.
+- `LAB_STUBBED`: medição offline com contratos mínimos confirmados no repositório para APIs usadas pelas páginas. Dados são fictícios, não representam produção e não usam conta real.
+- `STAGING_AUTHENTICATED`: futuro ambiente autenticado controlado; não é usado nesta sprint.
+- Produção: nunca é acessada pela infraestrutura S0.4 ou pelo workflow.
 
-A medição sintética é sensível ao host, versão do Chrome, agendamento do sistema e implementação do headless. Ela não substitui RUM nem representa diversidade de dispositivos. LCP pode ficar indisponível quando não há candidato elegível antes da coleta; CLS pode ficar indisponível quando a API/observer não é suportada. Ausência é `null`, nunca zero.
+## Perfil sintético
 
-## Perfil e páginas
+O perfil versionado usa schema `1.0.0`, 5 runs, viewport mobile 390×844, `deviceScaleFactor` 2, rede com 150 ms de latência, 200000 B/s de download, 93750 B/s de upload e CPU 4× mais lenta. As páginas autorizadas são `/portal-login.html`, `/portal-premium-home.html`, `/portal-checkin.html`, `/portal-plano-alimentar.html` e `/portal-progressao.html`.
 
-O perfil versionado executa cinco repetições em viewport mobile 390 × 844, DPR 2, CPU 4×, latência de 150 ms, download de 200.000 B/s e upload de 93.750 B/s. Mede `/portal-login.html`, `/portal-premium-home.html`, `/portal-checkin.html`, `/portal-plano-alimentar.html` e `/portal-progressao.html`.
+## COLD versus WARM
 
-**COLD** limpa cache e storage, desabilita cache e ignora Service Worker. **WARM** preserva o perfil do Chrome, habilita cache e faz uma segunda navegação controlada. Os grupos nunca são agregados juntos. Mediana é o centro da amostra ordenada (média dos dois centrais para tamanho par); p75 usa o nearest-rank determinístico. Dados brutos não são arredondados.
+- `COLD`: cache desabilitado, storage limpo e Service Worker bypassado antes da navegação.
+- `WARM`: cache permitido em target/sessão CDP isolado. Os resultados não são misturados com COLD.
 
-## Execução
+Cada execução abre um target CDP próprio, registra listeners apenas durante a medição e fecha a sessão/target no `finally`, evitando acúmulo de handlers entre COLD, WARM e runs sucessivos.
 
-Requer Node 22 e Chrome/Chromium:
+## Status e códigos de saída
 
-```sh
+Cada run contém `completionStatus`, `errors`, `warnings`, `mainDocumentStatus`, `mainDocumentLoaded` e `externalRequestAttempted`.
+
+- `MEASURED`: todas as cinco páginas, COLD/WARM e cinco runs por cenário foram medidas, documento principal 2xx, load event observado, sem request externo e contrato estrutural completo.
+- `INCOMPLETE`: a navegação terminou com evidência parcial, como asset secundário falho ou API local 4xx/5xx. A CLI retorna 0 para preservar o relatório diagnóstico sem criar budget bloqueante.
+- `FAILED`: infraestrutura, Chrome, servidor ou CDP falhou; documento principal não carregou; houve request externo proibido; página/cenário/run faltou; ou o relatório estrutural ficou inválido. A CLI retorna 1.
+
+## Métricas e bytes
+
+As métricas brutas não são arredondadas. `null` representa ausência real e nunca é convertido para zero. Mediana e p75 ignoram `null` deterministicamente.
+
+Bytes são separados por semântica CDP:
+
+- `transferBytes`: `Network.loadingFinished.encodedDataLength`, isto é bytes transferidos/encoded observados no fim do request.
+- `encodedBodyBytes`: soma de `Network.dataReceived.encodedDataLength` quando o navegador disponibiliza essa métrica.
+- `decodedBodyBytes`: soma de `Network.dataReceived.dataLength` quando observável.
+
+`Network.getResponseBody` não é usado para medir tamanho porque mudaria custo, memória e comportamento da medição. LCP e CLS podem ficar `null` quando o navegador não produz entradas elegíveis antes da coleta, especialmente em páginas simples, redirects ou falhas parciais.
+
+## Segurança e privacidade
+
+O servidor escuta apenas em `127.0.0.1`, porta dinâmica, serve exclusivamente `public/`, bloqueia path traversal e registra somente URL sanitizada, status e bytes. O CDP bloqueia requests externos por padrão. O relatório não grava bodies, cookies, headers, Authorization, tokens, localStorage ou dados pessoais; o aluno usado é fictício.
+
+## Execução local
+
+```bash
 npm ci
 npm run performance:portal:test
+npm run performance:portal:smoke
 npm run performance:portal
 ```
 
-A descoberta consulta `CHROME_BIN` e caminhos conhecidos de Linux, macOS e Windows. Exemplo: `CHROME_BIN=/usr/bin/google-chrome npm run performance:portal`. A ausência produz erro explícito; no workflow Chrome estável é obrigatório.
+Para indicar Chrome explicitamente:
 
-O servidor Node escuta em `127.0.0.1` e porta dinâmica, serve apenas `public/`, e responde aos contratos mínimos `/api/portal/premium/access-state`, `/api/portal/weekly-plan`, `/api/portal/checkins`, `/api/portal/progression` e `/api/portal/nutrition-plan`. Nenhum body, header de autenticação, cookie, storage, e-mail ou token é incluído no relatório. URLs têm queries sanitizadas; requests externos são bloqueados e tornam a execução inválida.
+```bash
+CHROME_BIN=/usr/bin/google-chrome npm run performance:portal
+```
 
-Os relatórios JSON e Markdown ficam em `artifacts/performance/` (ignorado pelo Git). Eles separam dados brutos/agregados COLD/WARM, redirects, URL final, falhas, cache, protocolo, status e bytes. `MEASURED` indica conclusão da infraestrutura; `INCOMPLETE`, medições parciais; `FAILED`, impossibilidade de medir — nunca julgamento de performance.
+`performance:portal:test` é determinístico e não exige Chrome. `performance:portal:smoke` é o smoke real obrigatório no workflow dedicado; se Chrome estiver ausente, falha explicitamente em vez de pular silenciosamente.
+
+## Workflow dedicado
+
+O workflow `portal-performance-baseline.yml` usa Node 22 e Chrome estável, executa `npm ci`, testes unitários determinísticos, smoke real e medição completa, e faz upload de `artifacts/performance/` com `if: always()`.
+
+## Próximos passos para S0.5
+
+A S0.5 poderá usar medianas, p75, requests falhos, cache observável e bytes por tipo para priorizar otimizações. A S0.4 ainda não possui budgets bloqueantes porque seu objetivo é estabilizar a medição e produzir evidência confiável antes de definir limites.

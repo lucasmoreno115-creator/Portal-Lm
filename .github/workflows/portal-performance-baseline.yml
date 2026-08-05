@@ -7,6 +7,7 @@ on:
       - 'scripts/measure-portal-performance.mjs'
       - 'scripts/lib/portal-performance-*.mjs'
       - 'tests/portal-performance-measurement.test.mjs'
+      - 'tests/portal-performance-smoke.mjs'
       - 'public/**'
 jobs:
   measure:
@@ -23,6 +24,9 @@ jobs:
           chrome-version: stable
       - run: npm ci
       - run: npm run performance:portal:test
+      - run: npm run performance:portal:smoke
+        env:
+          CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
       - run: npm run performance:portal
         env:
           CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}

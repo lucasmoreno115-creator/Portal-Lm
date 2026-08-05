@@ -33,6 +33,7 @@
     "db:restore:staging": "node scripts/db-tool.mjs restore --environment staging",
     "db:provision:staging": "node scripts/db-tool.mjs provision-staging",
     "db:catalog": "node scripts/db-tool.mjs catalog",
-    "deploy:production:plan": "node scripts/db-tool.mjs production-plan"
+    "deploy:production:plan": "node scripts/db-tool.mjs production-plan",
+    "performance:portal:smoke": "node --test tests/portal-performance-smoke.mjs"
   }
 }
