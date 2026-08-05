@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {mkdtemp,writeFile,readFile,rm,mkdir} from 'node:fs/promises';import os from 'node:os';import path from 'node:path';
 import {AUTHORIZED_PAGES,validateProfile,median,p75,nullable,sanitizeUrl,assertLocalUrl,aggregateBytes,aggregateRuns,reportStatus,sortReport,safeWrite,withCleanup} from '../scripts/lib/portal-performance-core.mjs';
-import {resolvePublicPath,mimeType,startLocalServer} from '../scripts/lib/portal-performance-server.mjs';
+import {resolvePublicPath,mimeType,startLocalServer,closeServer} from '../scripts/lib/portal-performance-server.mjs';
 const profile={schemaVersion:'1.0.0',runs:5,viewport:{width:390,height:844,deviceScaleFactor:2,mobile:true},network:{latencyMs:150,downloadBytesPerSecond:200000,uploadBytesPerSecond:93750},cpuSlowdownMultiplier:4,scenarios:['COLD','WARM'],pages:[...AUTHORIZED_PAGES]};
 test('valida estritamente o perfil versionado',()=>{assert.deepEqual(validateProfile(structuredClone(profile)),profile);for(const mutation of [p=>p.runs=2,p=>p.network.latencyMs=-1,p=>p.pages[0]='https://example.com',p=>p.pages.push(p.pages[0]),p=>p.extra=true]){const p=structuredClone(profile);mutation(p);assert.throws(()=>validateProfile(p))}});
 test('mediana e p75 são determinísticos; ausência é null',()=>{assert.equal(median([9,1,3]),3);assert.equal(median([4,2]),3);assert.equal(p75([4,1,3,2]),3);assert.equal(median([]),null);assert.equal(nullable(undefined),null);assert.equal(nullable(0),0)});
@@ -17,8 +17,8 @@ test('request externo bloqueado é evidência explícita',()=>assert.throws(()=>
 test('smoke real de Chrome fica fora da suíte unitária',()=>{assert.equal(JSON.parse('{"script":"performance:portal:smoke"}').script,'performance:portal:smoke')});
 import { EventEmitter } from 'node:events';
 import { chmod } from 'node:fs/promises';
-import { validateChromeBinary, waitForDevToolsPort, sanitizeChromeStderr, readChromeVersion, CDP, waitForPageLoad, createPageTarget, closePageTarget, findChrome, formatChromeLaunchDiagnostic, ChromeLaunchError } from '../scripts/lib/portal-performance-chrome.mjs';
-import { classifyRun, exitCodeForStatus } from '../scripts/lib/portal-performance-core.mjs';
+import { validateChromeBinary, waitForDevToolsPort, sanitizeChromeStderr, readChromeVersion, CDP, waitForPageLoad, createPageTarget, closePageTarget, findChrome, formatChromeLaunchDiagnostic, ChromeLaunchError, waitForProcessExit, removeChromeProfile } from '../scripts/lib/portal-performance-chrome.mjs';
+import { classifyRun, exitCodeForStatus, runLabeledCleanup, throwPreservingPrimary, sanitizeCleanupError } from '../scripts/lib/portal-performance-core.mjs';
 
 function fakeChild() { const c = new EventEmitter(); c.exitCode = null; c.signalCode = null; c.kill = () => { c.exitCode = 0; c.emit('exit', 0, null); }; return c; }
 
@@ -278,4 +278,72 @@ test('findChrome respeita CHROME_BIN explícito e só faz fallback quando ausent
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test('waitForProcessExit cobre SIGTERM, SIGKILL, timeout e corridas de exit', async () => {
+  const term = fakeChild();
+  setTimeout(() => { term.exitCode = 0; term.emit('exit', 0, null); }, 5);
+  assert.deepEqual(await waitForProcessExit(term, 50), { exitCode: 0, signal: null });
+  const already = fakeChild(); already.exitCode = 0;
+  assert.deepEqual(await waitForProcessExit(already, 50), { exitCode: 0, signal: null });
+  const never = fakeChild();
+  await assert.rejects(waitForProcessExit(never, 5, 'CHROME_KILL_TIMEOUT'), error => error.code === 'CHROME_KILL_TIMEOUT');
+});
+
+test('removeChromeProfile remove após exit e classifica falha persistente/transitória', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'portal-performance-remove-'));
+  await writeFile(path.join(dir, 'x'), 'x');
+  await removeChromeProfile(dir);
+  await assert.rejects(readFile(path.join(dir, 'x'), 'utf8'));
+  const transient = await mkdtemp(path.join(os.tmpdir(), 'portal-performance-remove-'));
+  let calls = 0;
+  await removeChromeProfile(transient, { rmImpl: async () => { calls++; } });
+  assert.equal(calls, 1);
+  const persistent = await mkdtemp(path.join(os.tmpdir(), 'portal-performance-remove-'));
+  await assert.rejects(removeChromeProfile(persistent, { rmImpl: async () => { const e = new Error('busy'); e.code = 'EBUSY'; throw e; } }), error => error.code === 'CHROME_PROFILE_REMOVE_FAILED' && error.fsCode === 'EBUSY');
+  await rm(persistent, { recursive: true, force: true });
+  await assert.rejects(removeChromeProfile('/tmp/not-owned-by-launcher'), error => error.code === 'CHROME_PROFILE_REMOVE_FAILED');
+});
+
+test('launchChrome.close é idempotente e remove perfil depois do exit confirmado', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'portal-performance-close-'));
+  const child = fakeChild();
+  const order = [];
+  const chrome = { child, dir, close: null };
+  chrome.close = async function close() {
+    if (this.closed) return;
+    this.closed = true;
+    child.kill = signal => { order.push(signal); setTimeout(() => { child.exitCode = 0; child.emit('exit', 0, null); }, 1); };
+    if (child.exitCode === null) { child.kill('SIGTERM'); await waitForProcessExit(child, 50); }
+    order.push('rm');
+    await removeChromeProfile(dir);
+  };
+  await chrome.close();
+  await chrome.close();
+  assert.deepEqual(order, ['SIGTERM', 'rm']);
+});
+
+test('runLabeledCleanup identifica falhas sem mascarar erro primário', async () => {
+  const results = await runLabeledCleanup([
+    ['chrome_close', async () => { throw Object.assign(new Error('token=abc falhou'), { code: 'CHROME_KILL_TIMEOUT' }); }],
+    ['server_close', async () => { throw Object.assign(new Error('secret=xyz falhou'), { code: 'SERVER_CLOSE_TIMEOUT' }); }]
+  ]);
+  assert.deepEqual(results.map(r => [r.step, r.status, r.code]), [['chrome_close', 'rejected', 'CHROME_KILL_TIMEOUT'], ['server_close', 'rejected', 'SERVER_CLOSE_TIMEOUT']]);
+  assert.doesNotMatch(JSON.stringify(results), /abc|xyz/);
+  assert.throws(() => throwPreservingPrimary(null, results), AggregateError);
+  const primary = new Error('navigate failed');
+  assert.throws(() => throwPreservingPrimary(primary, results), error => error instanceof AggregateError && error.primaryError === primary && error.cleanupErrors.length === 2);
+  assert.throws(() => throwPreservingPrimary(primary, []), /navigate failed/);
+  assert.equal(sanitizeCleanupError(Object.assign(new Error('password=123'), { code: 'X' })).message.includes('123'), false);
+});
+
+test('closeServer possui timeout finito para conexão persistente controlada', async () => {
+  const calls = [];
+  const fakeServer = {
+    closeIdleConnections() { calls.push('idle'); },
+    closeAllConnections() { calls.push('all'); },
+    close() { calls.push('close'); }
+  };
+  await assert.rejects(closeServer(fakeServer, { timeoutMs: 10 }), error => error.code === 'SERVER_CLOSE_TIMEOUT');
+  assert.deepEqual(calls, ['idle', 'close', 'all']);
 });

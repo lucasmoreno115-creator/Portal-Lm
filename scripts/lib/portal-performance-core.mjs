@@ -53,3 +53,29 @@ export function exitCodeForStatus(status){return status==='FAILED'?1:0;}
 export function sortReport(report){report.pages.sort((a,b)=>a.page.localeCompare(b.page));for(const p of report.pages){p.scenarios.sort((a,b)=>a.scenario.localeCompare(b.scenario));for(const s of p.scenarios)for(const r of s.runs)r.resources.sort((a,b)=>a.url.localeCompare(b.url));}report.warnings.sort();return report;}
 export async function safeWrite(root,name,data){await mkdir(root,{recursive:true});const canonical=await realpath(root);const target=path.resolve(canonical,name);if(path.dirname(target)!==canonical)throw Error('Escrita fora de artifacts/performance bloqueada');await writeFile(target,data);return target;}
 export async function withCleanup(work,cleanups){try{return await work();}finally{for(const fn of [...cleanups].reverse())await fn();}}
+export function sanitizeCleanupError(error) {
+  return {
+    code: error?.code ?? error?.name ?? 'ERROR',
+    message: String(error?.message ?? 'cleanup failed').replace(/(token|authorization|cookie|password|secret)=([^\s&]+)/gi, '$1=[REDACTED]').slice(0, 500)
+  };
+}
+export async function runLabeledCleanup(steps) {
+  const results = [];
+  for (const [step, fn] of steps) {
+    if (!fn) continue;
+    try { await fn(); results.push({ step, status: 'fulfilled' }); }
+    catch (error) { results.push({ step, status: 'rejected', ...sanitizeCleanupError(error) }); }
+  }
+  return results;
+}
+export function throwPreservingPrimary(primaryError, cleanupResults) {
+  const cleanupErrors = cleanupResults.filter(result => result.status === 'rejected');
+  if (!primaryError && !cleanupErrors.length) return;
+  if (!cleanupErrors.length) throw primaryError;
+  const message = `Falhas de cleanup: ${cleanupErrors.map(error => error.step).join(', ')}`;
+  if (!primaryError) throw new AggregateError(cleanupErrors.map(error => Object.assign(new Error(error.message), error)), message);
+  const aggregate = new AggregateError([primaryError, ...cleanupErrors.map(error => Object.assign(new Error(error.message), error))], `${primaryError.message}; ${message}`, { cause: primaryError });
+  aggregate.primaryError = primaryError;
+  aggregate.cleanupErrors = cleanupErrors;
+  throw aggregate;
+}

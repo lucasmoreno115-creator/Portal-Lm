@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { findChrome, launchChrome, pageSocket, waitForPageLoad, formatChromeLaunchDiagnostic, ChromeLaunchError } from '../scripts/lib/portal-performance-chrome.mjs';
 import { startLocalServer } from '../scripts/lib/portal-performance-server.mjs';
+import { runLabeledCleanup, throwPreservingPrimary } from '../scripts/lib/portal-performance-core.mjs';
 
 async function withGlobalSmokeTimeout(work, getStep, timeoutMs = 60000) {
   let timer;
@@ -37,6 +38,8 @@ test('smoke real obrigatório: Chrome, CDP, COLD/WARM isolados e cleanup', { tim
     let chrome;
     await mkdir(pub);
     await writeFile(path.join(pub, 'simple.html'), '<!doctype html><title>ok</title><h1>ok</h1>');
+    let primaryError = null;
+    let cleanupResults = [];
     try {
       server = await startLocalServer(pub);
       try {
@@ -68,14 +71,17 @@ test('smoke real obrigatório: Chrome, CDP, COLD/WARM isolados e cleanup', { tim
           assert.notEqual(closeResult.error?.code, 'TARGET_CLOSE_TIMEOUT');
         }
       }
+    } catch (error) {
+      primaryError = error;
     } finally {
-      const cleanupResults = [];
-      step = 'chrome_close';
-      if (chrome) cleanupResults.push(await Promise.allSettled([chrome.close()]));
-      step = 'server_close';
-      if (server) cleanupResults.push(await Promise.allSettled([server.close()]));
-      await rm(base, { recursive: true, force: true });
-      assert.ok(cleanupResults.flat().every(result => result.status === 'fulfilled'), 'cleanup de Chrome/servidor deve concluir');
+      cleanupResults = await runLabeledCleanup([
+        ['chrome_close', chrome ? () => chrome.close() : null],
+        ['server_close', server ? () => server.close() : null],
+        ['temp_dir_remove', () => rm(base, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 })]
+      ]);
+      const rejected = cleanupResults.filter(result => result.status === 'rejected');
+      for (const result of rejected) console.error(JSON.stringify(result));
     }
+    throwPreservingPrimary(primaryError, cleanupResults);
   }, () => step);
 });

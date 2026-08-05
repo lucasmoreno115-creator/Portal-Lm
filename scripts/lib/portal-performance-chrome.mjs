@@ -113,6 +113,28 @@ export async function findChrome(candidates = CANDIDATES, env = process.env) {
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+export async function waitForProcessExit(child, timeoutMs, code = 'CHROME_TERM_TIMEOUT') {
+  if (!child || child.exitCode !== null) return { exitCode: child?.exitCode ?? null, signal: child?.signalCode ?? null };
+  return new Promise((resolve, reject) => {
+    let timer;
+    const cleanup = () => { clearTimeout(timer); child.off?.('exit', onExit); };
+    const onExit = (exitCode, signal) => { cleanup(); resolve({ exitCode, signal }); };
+    child.once('exit', onExit);
+    if (child.exitCode !== null) { onExit(child.exitCode, child.signalCode); return; }
+    timer = setTimeout(() => { cleanup(); reject(new ChromeLaunchError(code, `Chrome não encerrou em ${timeoutMs} ms`, { exitCode: child.exitCode, signal: child.signalCode, waitedMs: timeoutMs })); }, timeoutMs);
+  });
+}
+
+export async function removeChromeProfile(dir, { rmImpl = rm, maxRetries = 3, retryDelay = 100 } = {}) {
+  if (!path.basename(dir).startsWith('portal-performance-')) throw new ChromeLaunchError('CHROME_PROFILE_REMOVE_FAILED', 'Diretório temporário fora do prefixo esperado', { profileDir: dir });
+  try {
+    await rmImpl(dir, { recursive: true, force: true, maxRetries, retryDelay });
+  } catch (error) {
+    throw new ChromeLaunchError('CHROME_PROFILE_REMOVE_FAILED', 'Falha ao remover perfil temporário do Chrome', { profileDir: dir, fsCode: error?.code ?? null });
+  }
+}
+
+
 export async function waitForDevToolsPort({ child, dir, binary, timeoutMs, pollMs, stderrChunks }) {
   const started = Date.now();
   let exitInfo = null;
@@ -165,12 +187,21 @@ export async function launchChrome(options = {}) {
   const close = async () => {
     if (closed) return;
     closed = true;
+    let closeError = null;
     if (child && child.exitCode === null) {
       child.kill('SIGTERM');
-      await Promise.race([new Promise(resolve => child.once('exit', resolve)), delay(2000)]);
-      if (child.exitCode === null) child.kill('SIGKILL');
+      try { await waitForProcessExit(child, options.termTimeoutMs ?? 2000, 'CHROME_TERM_TIMEOUT'); }
+      catch {
+        if (child.exitCode === null) child.kill('SIGKILL');
+        try { await waitForProcessExit(child, options.killTimeoutMs ?? 2000, 'CHROME_KILL_TIMEOUT'); }
+        catch (error) { closeError = error; }
+      }
     }
-    await rm(dir, { recursive: true, force: true });
+    child?.removeAllListeners?.('exit');
+    child?.stderr?.removeAllListeners?.('data');
+    try { await removeChromeProfile(dir, { rmImpl: options.rmImpl }); }
+    catch (error) { closeError ??= error; if (closeError !== error) closeError.cleanupError = error; }
+    if (closeError) throw closeError;
   };
   try {
     child = spawn(bin, [
