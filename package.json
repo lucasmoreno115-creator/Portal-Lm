@@ -2,6 +2,8 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
+    "performance:portal": "node scripts/measure-portal-performance.mjs",
+    "performance:portal:test": "node --test tests/portal-performance-measurement.test.mjs",
     "baseline:technical": "node scripts/generate-technical-baseline.mjs",
     "baseline:budget": "node scripts/check-technical-regression-budget.mjs",
     "baseline:check": "node scripts/run-technical-baseline-check.mjs",

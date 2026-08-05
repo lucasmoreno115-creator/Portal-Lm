@@ -1,0 +1,35 @@
+name: Portal performance baseline
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'config/portal-performance-profile.json'
+      - 'scripts/measure-portal-performance.mjs'
+      - 'scripts/lib/portal-performance-*.mjs'
+      - 'tests/portal-performance-measurement.test.mjs'
+      - 'public/**'
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - id: setup-chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+      - run: npm ci
+      - run: npm run performance:portal:test
+      - run: npm run performance:portal
+        env:
+          CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
+      - name: Upload diagnostic reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-performance-baseline
+          path: artifacts/performance/
+          if-no-files-found: warn
