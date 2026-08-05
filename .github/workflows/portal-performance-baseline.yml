@@ -22,14 +22,45 @@ jobs:
         uses: browser-actions/setup-chrome@v1
         with:
           chrome-version: stable
+      - id: resolve-chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidates=()
+          for command_name in google-chrome google-chrome-stable chromium chromium-browser; do
+            if command_path="$(command -v "$command_name" 2>/dev/null)"; then
+              candidates+=("$command_path")
+            fi
+          done
+          if [ -n "${{ steps.setup-chrome.outputs.chrome-path }}" ]; then
+            candidates+=("${{ steps.setup-chrome.outputs.chrome-path }}")
+          fi
+          printf '%s\n' 'Chrome candidates:'
+          for candidate in "${candidates[@]}"; do
+            printf '  %s\n' "$candidate"
+          done
+          selected=""
+          for candidate in "${candidates[@]}"; do
+            if [ -f "$candidate" ] && [ -x "$candidate" ]; then
+              "$candidate" --version
+              selected="$candidate"
+              break
+            fi
+          done
+          if [ -z "$selected" ]; then
+            echo 'No executable Chrome candidate found.' >&2
+            exit 1
+          fi
+          printf 'Selected Chrome: %s\n' "$selected"
+          printf 'chrome_bin=%s\n' "$selected" >> "$GITHUB_OUTPUT"
       - run: npm ci
       - run: npm run performance:portal:test
       - run: npm run performance:portal:smoke
         env:
-          CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
+          CHROME_BIN: ${{ steps.resolve-chrome.outputs.chrome_bin }}
       - run: npm run performance:portal
         env:
-          CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
+          CHROME_BIN: ${{ steps.resolve-chrome.outputs.chrome_bin }}
       - name: Upload diagnostic reports
         if: always()
         uses: actions/upload-artifact@v4

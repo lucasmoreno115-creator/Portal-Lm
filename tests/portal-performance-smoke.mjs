@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { findChrome, launchChrome, pageSocket, waitForPageLoad } from '../scripts/lib/portal-performance-chrome.mjs';
+import { findChrome, launchChrome, pageSocket, waitForPageLoad, formatChromeLaunchDiagnostic, ChromeLaunchError } from '../scripts/lib/portal-performance-chrome.mjs';
 import { startLocalServer } from '../scripts/lib/portal-performance-server.mjs';
 
 async function withGlobalSmokeTimeout(work, getStep, timeoutMs = 60000) {
@@ -23,7 +23,13 @@ async function withGlobalSmokeTimeout(work, getStep, timeoutMs = 60000) {
 test('smoke real obrigatório: Chrome, CDP, COLD/WARM isolados e cleanup', { timeout: 65000 }, async () => {
   let step = 'chrome_start';
   await withGlobalSmokeTimeout(async () => {
-    const bin = await findChrome();
+    let bin;
+    try {
+      bin = await findChrome();
+    } catch (error) {
+      if (error instanceof ChromeLaunchError) console.error(formatChromeLaunchDiagnostic(error));
+      throw error;
+    }
     assert.ok(bin, 'CHROME_REQUIRED: instale Chrome/Chromium ou defina CHROME_BIN para executar performance:portal:smoke');
     const base = await mkdtemp(path.join(os.tmpdir(), 'perf-smoke-'));
     const pub = path.join(base, 'public');
@@ -33,7 +39,12 @@ test('smoke real obrigatório: Chrome, CDP, COLD/WARM isolados e cleanup', { tim
     await writeFile(path.join(pub, 'simple.html'), '<!doctype html><title>ok</title><h1>ok</h1>');
     try {
       server = await startLocalServer(pub);
-      chrome = await launchChrome({ timeoutMs: 25000 });
+      try {
+        chrome = await launchChrome({ timeoutMs: 25000 });
+      } catch (error) {
+        if (error instanceof ChromeLaunchError) console.error(formatChromeLaunchDiagnostic(error));
+        throw error;
+      }
       for (const scenario of ['COLD', 'WARM']) {
         const lower = scenario.toLowerCase();
         step = `target_create_${lower}`;

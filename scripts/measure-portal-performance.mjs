@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { validateProfile, assertLocalUrl, sanitizeUrl, resourceType, aggregateBytes, aggregateRuns, nullable, classifyRun, reportStatus, sortReport, safeWrite, withCleanup, exitCodeForStatus } from './lib/portal-performance-core.mjs';
 import { startLocalServer } from './lib/portal-performance-server.mjs';
-import { launchChrome, pageSocket, waitForPageLoad } from './lib/portal-performance-chrome.mjs';
+import { launchChrome, pageSocket, waitForPageLoad, formatChromeLaunchDiagnostic, ChromeLaunchError } from './lib/portal-performance-chrome.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, 'artifacts/performance');
@@ -146,7 +146,12 @@ try {
   await withCleanup(async () => {
     server = await startLocalServer(path.join(root, 'public'));
     cleanups.push(() => server.close());
-    chrome = await launchChrome();
+    try {
+      chrome = await launchChrome();
+    } catch (error) {
+      if (error instanceof ChromeLaunchError) console.error(formatChromeLaunchDiagnostic(error));
+      throw error;
+    }
     cleanups.push(() => chrome.close());
     const pages = [];
     for (const page of profile.pages) {

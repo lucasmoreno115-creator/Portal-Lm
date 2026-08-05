@@ -17,7 +17,7 @@ test('request externo bloqueado é evidência explícita',()=>assert.throws(()=>
 test('smoke real de Chrome fica fora da suíte unitária',()=>{assert.equal(JSON.parse('{"script":"performance:portal:smoke"}').script,'performance:portal:smoke')});
 import { EventEmitter } from 'node:events';
 import { chmod } from 'node:fs/promises';
-import { validateChromeBinary, waitForDevToolsPort, sanitizeChromeStderr, readChromeVersion, CDP, waitForPageLoad, createPageTarget, closePageTarget } from '../scripts/lib/portal-performance-chrome.mjs';
+import { validateChromeBinary, waitForDevToolsPort, sanitizeChromeStderr, readChromeVersion, CDP, waitForPageLoad, createPageTarget, closePageTarget, findChrome, formatChromeLaunchDiagnostic, ChromeLaunchError } from '../scripts/lib/portal-performance-chrome.mjs';
 import { classifyRun, exitCodeForStatus } from '../scripts/lib/portal-performance-core.mjs';
 
 function fakeChild() { const c = new EventEmitter(); c.exitCode = null; c.signalCode = null; c.kill = () => { c.exitCode = 0; c.emit('exit', 0, null); }; return c; }
@@ -243,5 +243,39 @@ test('cleanup subsequente roda quando cada etapa do smoke falha', async () => {
     assert.ok(calls.includes('chrome_close'), failAt);
     assert.ok(calls.includes('server_close'), failAt);
     assert.ok(calls.includes('tmp_rm'), failAt);
+  }
+});
+
+test('diagnóstico de ChromeLaunchError é estruturado, sanitizado e limitado', () => {
+  const error = new ChromeLaunchError('CHROME_EXITED_BEFORE_CDP', 'x', {
+    binary: '/opt/chrome', waitedMs: 1200, exitCode: 1, signal: null,
+    stderr: `token=secret user@example.com ${'x'.repeat(3000)}`
+  });
+  const parsed = JSON.parse(formatChromeLaunchDiagnostic(error));
+  assert.equal(parsed.code, 'CHROME_EXITED_BEFORE_CDP');
+  assert.equal(parsed.binary, '/opt/chrome');
+  assert.equal(parsed.waitedMs, 1200);
+  assert.equal(parsed.exitCode, 1);
+  assert.equal(parsed.signal, null);
+  assert.ok(parsed.stderr.length <= 1600);
+  assert.doesNotMatch(parsed.stderr, /secret|user@example\.com/i);
+});
+
+test('findChrome respeita CHROME_BIN explícito e só faz fallback quando ausente', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'perf-findchrome-'));
+  const executable = path.join(dir, 'chrome-ok');
+  const noexec = path.join(dir, 'chrome-noexec');
+  try {
+    await writeFile(executable, '#!/bin/sh\necho ok\n');
+    await chmod(executable, 0o700);
+    await writeFile(noexec, '#!/bin/sh\necho no\n');
+    await chmod(noexec, 0o600);
+    assert.equal(await findChrome([], { CHROME_BIN: executable }), executable);
+    await assert.rejects(findChrome([executable], { CHROME_BIN: path.join(dir, 'missing') }), error => error.code === 'CHROME_NOT_FOUND');
+    await assert.rejects(findChrome([executable], { CHROME_BIN: noexec }), error => error.code === 'CHROME_NOT_EXECUTABLE');
+    assert.equal(await findChrome([path.join(dir, 'missing'), executable], {}), executable);
+    assert.equal(await findChrome([path.join(dir, 'missing')], {}), null);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
   }
 });

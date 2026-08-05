@@ -88,8 +88,24 @@ export async function validateChromeBinary(bin) {
   return bin;
 }
 
-export async function findChrome() {
-  for (const p of [process.env.CHROME_BIN, ...CANDIDATES].filter(Boolean)) {
+export function chromeLaunchDiagnostic(error) {
+  return {
+    code: error?.code ?? error?.name ?? 'UNKNOWN',
+    binary: error?.binary ?? null,
+    waitedMs: Number.isFinite(error?.waitedMs) ? error.waitedMs : null,
+    exitCode: Number.isInteger(error?.exitCode) ? error.exitCode : null,
+    signal: error?.signal ?? null,
+    stderr: sanitizeChromeStderr(error?.stderr ?? '')
+  };
+}
+
+export function formatChromeLaunchDiagnostic(error) {
+  return JSON.stringify(chromeLaunchDiagnostic(error));
+}
+
+export async function findChrome(candidates = CANDIDATES, env = process.env) {
+  if (env.CHROME_BIN) return validateChromeBinary(env.CHROME_BIN);
+  for (const p of candidates.filter(Boolean)) {
     try { return await validateChromeBinary(p); } catch {}
   }
   return null;
