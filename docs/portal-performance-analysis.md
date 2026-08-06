@@ -21,6 +21,8 @@ O workflow compara `checkoutSha` com `git rev-parse HEAD`. Não há fallback par
 
 O workflow dedicado executa smoke, cinquenta runs reais (cinco páginas × COLD/WARM × cinco runs) e análise. Ele exige status `MEASURED`, Home sem request falho, P0 vazio e cinco páginas nos rankings; caso contrário falha. Os valores reais, incluindo rankings por transferência, LCP, CLS e requests, e o ranking global agregado de recursos separado por cenário, são publicados em `portal-performance-analysis.json` e `portal-performance-analysis.md`. Isso evita apresentar números da S0.4 como se fossem uma nova medição.
 
+Todo HTTP 4xx/5xx local é consolidado entre `failedRequests` e `resources` em `observedHttpFailures`, com deduplicação e origem explícita. Documento inválido é `FAILED`; API ou recurso estático inválido é, no mínimo, `INCOMPLETE`. A S0.5 exige a coleção vazia. Como `public/` não contém favicon, o servidor exclusivamente laboratorial responde `/favicon.ico` com 204, sem alterar produção e sem criar allowlist.
+
 ## Evidência e limitações
 
 - `STRONG_LAB`: recurso, request, erro ou cache observado diretamente e repetido.

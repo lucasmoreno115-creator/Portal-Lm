@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { validateProfile, assertLocalUrl, sanitizeUrl, resourceType, aggregateBytes, aggregateRuns, nullable, classifyRun, reportStatus, sortReport, safeWrite, withCleanup, exitCodeForStatus } from './lib/portal-performance-core.mjs';
+import { validateProfile, assertLocalUrl, sanitizeUrl, resourceType, aggregateBytes, aggregateRuns, nullable, classifyRun, normalizeRunHttpFailures, reportStatus, sortReport, safeWrite, withCleanup, exitCodeForStatus } from './lib/portal-performance-core.mjs';
 import { startLocalServer } from './lib/portal-performance-server.mjs';
 import { launchChrome, pageSocket, waitForPageLoad, formatChromeLaunchDiagnostic, ChromeLaunchError } from './lib/portal-performance-chrome.mjs';
 import { buildPerformanceSource } from './lib/portal-performance-analysis.mjs';
@@ -20,6 +20,7 @@ export async function measure(cdp, page, scenario, run, port, activeProfile = pr
   const resources = [];
   const byId = new Map();
   const failedRequests = [];
+  const failedRequestIds = new Set();
   const externalBlocked = [];
   const redirects = [];
   const errors = [];
@@ -67,8 +68,9 @@ export async function measure(cdp, page, scenario, run, port, activeProfile = pr
         mainDocumentStatus = event.response.status;
         mainDocumentLoaded = event.response.status >= 200 && event.response.status < 300;
       }
-      if ((item.url.startsWith('/api/') || item.url.startsWith('/portal/')) && event.response.status >= 400) {
-        failedRequests.push({ url: item.url, reason: `HTTP ${event.response.status}`, status: event.response.status, resourceType: event.type, isLocalApi: item.url.startsWith('/api/') || item.url.startsWith('/portal/') });
+      if (event.response.status >= 400 && !failedRequestIds.has(event.requestId)) {
+        failedRequestIds.add(event.requestId);
+        failedRequests.push({ url: item.url, reason: `HTTP ${event.response.status}`, status: event.response.status, resourceType: event.type, isMainDocument: event.type === 'Document', isLocalApi: item.url.startsWith('/api/') || item.url.startsWith('/portal/') });
       }
     });
     on('Network.dataReceived', event => {
@@ -84,7 +86,10 @@ export async function measure(cdp, page, scenario, run, port, activeProfile = pr
     on('Network.loadingFailed', event => {
       const item = byId.get(event.requestId);
       if (item) item.failed = true;
-      failedRequests.push({ url: item?.url || '[unknown]', reason: event.blockedReason || event.errorText, resourceType: item?.resourceType || null, isMainDocument: item?.resourceType === 'Document', isLocalApi: item?.url?.startsWith('/api/') || item?.url?.startsWith('/portal/') || false });
+      if (!failedRequestIds.has(event.requestId)) {
+        failedRequestIds.add(event.requestId);
+        failedRequests.push({ url: item?.url || '[unknown]', reason: event.blockedReason || event.errorText, resourceType: item?.resourceType || null, isMainDocument: item?.resourceType === 'Document', isLocalApi: item?.url?.startsWith('/api/') || item?.url?.startsWith('/portal/') || false });
+      }
       if (item?.resourceType === 'Document') mainDocumentLoaded = false;
     });
     on('Page.loadEventFired', () => { loadEventFired = true; });
@@ -119,11 +124,12 @@ export async function measure(cdp, page, scenario, run, port, activeProfile = pr
     const transferValues = resources.map(r => r.transferBytes).filter(Number.isFinite);
     const encodedValues = resources.map(r => r.encodedBodyBytes).filter(Number.isFinite);
     const decodedValues = resources.map(r => r.decodedBodyBytes).filter(Number.isFinite);
+    const observedHttpFailures = normalizeRunHttpFailures({ page, scenario, run, resources, failedRequests });
     const metrics = {
       ...base,
       requestCount: resources.length,
       apiRequestCount: resources.filter(r => r.url.startsWith('/api/') || r.url.startsWith('/portal/')).length,
-      failedRequestCount: failedRequests.length,
+      failedRequestCount: new Set([...failedRequests.map(x=>`${x.url}\0${x.status??x.reason}`),...observedHttpFailures.map(x=>`${x.url}\0${x.status}`)]).size,
       transferBytes: transferValues.length ? transferValues.reduce((a, b) => a + b, 0) : null,
       encodedBodyBytes: encodedValues.length ? encodedValues.reduce((a, b) => a + b, 0) : null,
       decodedBodyBytes: decodedValues.length ? decodedValues.reduce((a, b) => a + b, 0) : null
