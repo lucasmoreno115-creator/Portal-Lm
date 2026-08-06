@@ -2,6 +2,8 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
+    "performance:portal": "node scripts/measure-portal-performance.mjs",
+    "performance:portal:test": "node --test tests/portal-performance-measurement.test.mjs",
     "baseline:technical": "node scripts/generate-technical-baseline.mjs",
     "baseline:budget": "node scripts/check-technical-regression-budget.mjs",
     "baseline:check": "node scripts/run-technical-baseline-check.mjs",
@@ -31,6 +33,7 @@
     "db:restore:staging": "node scripts/db-tool.mjs restore --environment staging",
     "db:provision:staging": "node scripts/db-tool.mjs provision-staging",
     "db:catalog": "node scripts/db-tool.mjs catalog",
-    "deploy:production:plan": "node scripts/db-tool.mjs production-plan"
+    "deploy:production:plan": "node scripts/db-tool.mjs production-plan",
+    "performance:portal:smoke": "node --test tests/portal-performance-smoke.mjs"
   }
 }

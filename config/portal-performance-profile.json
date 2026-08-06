@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "runs": 5,
+  "viewport": { "width": 390, "height": 844, "deviceScaleFactor": 2, "mobile": true },
+  "network": { "latencyMs": 150, "downloadBytesPerSecond": 200000, "uploadBytesPerSecond": 93750 },
+  "cpuSlowdownMultiplier": 4,
+  "scenarios": ["COLD", "WARM"],
+  "pages": [
+    "/portal-login.html",
+    "/portal-premium-home.html",
+    "/portal-checkin.html",
+    "/portal-plano-alimentar.html",
+    "/portal-progressao.html"
+  ]
+}
