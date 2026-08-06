@@ -58,10 +58,23 @@ jobs:
           printf 'Selected Chrome: %s\n' "$selected"
           printf 'chrome_bin=%s\n' "$selected" >> "$GITHUB_OUTPUT"
       - run: npm ci
+      - name: S0.6 unit tests
+        run: node --test tests/portal-home-layout-stability.test.mjs
       - run: npm run performance:portal:test
+      - name: Existing suite
+        run: npm test
       - run: npm run performance:portal:smoke
         env:
           CHROME_BIN: ${{ steps.resolve-chrome.outputs.chrome_bin }}
+      - name: Measure immutable S0.6 before
+        env:
+          CHROME_BIN: ${{ steps.resolve-chrome.outputs.chrome_bin }}
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/s06-before" 9fcbc86fa63ca9c0792b789d774de8cf13d2b366
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/s06-before/node_modules"
+          (cd "$RUNNER_TEMP/s06-before" && npm run performance:portal)
+          mkdir -p artifacts/performance/s0.6/before
+          cp "$RUNNER_TEMP/s06-before"/artifacts/performance/portal-performance-report.{json,md} artifacts/performance/s0.6/before/
       - id: checkout-sha
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - run: npm run performance:portal
@@ -72,6 +85,11 @@ jobs:
           PERFORMANCE_CHECKOUT_SHA: ${{ steps.checkout-sha.outputs.sha }}
           PERFORMANCE_EVENT_NAME: ${{ github.event_name }}
           PERFORMANCE_REF: ${{ github.ref }}
+      - name: Preserve after and compare S0.6
+        run: |
+          mkdir -p artifacts/performance/s0.6/after
+          cp artifacts/performance/portal-performance-report.{json,md} artifacts/performance/s0.6/after/
+          npm run performance:portal:compare
       - name: Analyze parseable report
         if: always()
         run: |
@@ -80,6 +98,7 @@ jobs:
           test -s artifacts/performance/portal-performance-analysis.json
           test -s artifacts/performance/portal-performance-analysis.md
           node -e "const fs=require('fs');const r=JSON.parse(fs.readFileSync('artifacts/performance/portal-performance-report.json'));const a=JSON.parse(fs.readFileSync('artifacts/performance/portal-performance-analysis.json'));if(r.status!=='MEASURED'||a.status!=='MEASURED'||a.validity.pages!==5||a.validity.scenarios!==10||a.validity.runs!==50)process.exit(1);const all=r.pages.flatMap(p=>p.scenarios.flatMap(s=>s.runs));const h=r.pages.find(p=>p.page==='/portal-premium-home.html');const home=h?.scenarios.flatMap(s=>s.runs)||[];if(all.length!==50||all.some(x=>x.completionStatus!=='MEASURED'||x.metrics.failedRequestCount!==0||x.externalRequestAttempted||x.resources.some(y=>Number.isInteger(y.status)&&y.status>=400)))process.exit(1);if(home.length!==10||!home.every(x=>x.resources.some(y=>y.url==='/api/portal/notifications/unread-count'&&y.status===200)))process.exit(1);if(a.observedHttpFailures.length||a.findings.some(x=>x.priority==='P0')||a.pageRanking.pages.length!==5||a.optimizationAuthorized!==false)process.exit(1)"
+          node -e "const c=JSON.parse(require('fs').readFileSync('artifacts/performance/s0.6/comparison.json'));if(c.runs.before!==50||c.runs.after!==50)process.exit(1);const h=c.pages.find(p=>p.page==='/portal-premium-home.html').scenarios.find(s=>s.scenario==='COLD');if(h.metrics.cls.after.p75>0.10||h.metrics.cls.p75Delta.absolute>=0||h.metrics.lcp.p75Delta.percentage>10||h.metrics.transferBytes.p75Delta.percentage>5||h.metrics.requestCount.p75Delta.percentage>5)process.exit(1)"
       - name: Upload diagnostic reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -90,4 +109,5 @@ jobs:
             artifacts/performance/portal-performance-report.md
             artifacts/performance/portal-performance-analysis.json
             artifacts/performance/portal-performance-analysis.md
+            artifacts/performance/s0.6/
           if-no-files-found: warn

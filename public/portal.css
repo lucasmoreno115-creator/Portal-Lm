@@ -1673,6 +1673,15 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 .pwa-push-card__icon{font-size:1.4rem;line-height:1.2}.pwa-push-card__content{display:grid;gap:7px}.pwa-push-card h2,.pwa-push-card p{margin:0}.pwa-push-card h2{font-size:1rem}.pwa-push-card p{color:#c9c9c9;font-size:.88rem;line-height:1.45}.pwa-push-card .pwa-push-card__status{color:#aaa;font-size:.78rem}.pwa-push-card .primary-cta{width:max-content;margin-top:3px;padding:9px 13px}.pwa-push-card[data-state='enabled']{border-color:rgba(76,175,80,.45)}
 @media(max-width:720px){.pwa-push-card{padding:14px}.pwa-push-card .primary-cta{width:100%}}
 
+/* Home Premium: asynchronous cards keep their flow slot throughout resolution. */
+.portal-home-v7 #pwaPushCard{min-block-size:174px}
+.portal-home-v7 #pwaPushCard[hidden]{display:grid !important;visibility:hidden;pointer-events:none}
+.portal-home-v7 #weekly-plan-section{min-block-size:438px}
+@media(max-width:720px){
+  .portal-home-v7 #pwaPushCard{min-block-size:230px}
+  .portal-home-v7 #weekly-plan-section{min-block-size:770px}
+}
+
 .portal-home-v7 .hero-app{
   min-height:120px;
   height:auto;

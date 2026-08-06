@@ -5,6 +5,7 @@
     "performance:portal": "node scripts/measure-portal-performance.mjs",
     "performance:portal:test": "node --test tests/portal-performance-measurement.test.mjs tests/portal-performance-analysis.test.mjs",
     "performance:portal:analyze": "node scripts/analyze-portal-performance.mjs",
+    "performance:portal:compare": "node scripts/compare-portal-performance.mjs",
     "baseline:technical": "node scripts/generate-technical-baseline.mjs",
     "baseline:budget": "node scripts/check-technical-regression-budget.mjs",
     "baseline:check": "node scripts/run-technical-baseline-check.mjs",

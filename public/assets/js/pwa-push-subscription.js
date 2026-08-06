@@ -15,6 +15,7 @@
 
   function render(state) {
     card.dataset.state = state;
+    card.setAttribute?.('aria-busy', 'false');
     const states = {
       unsupported: ['Notificações não são compatíveis com este navegador.', 'Indisponível', true],
       install: ['No iPhone, instale o Portal na Tela de Início para ativar os lembretes.', 'Instalação necessária', true],
