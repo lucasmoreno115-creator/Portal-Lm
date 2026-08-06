@@ -26,6 +26,25 @@ export function resourceType(type='Other'){const x=type.toLowerCase();return TYP
 export function aggregateBytes(resources, field='transferBytes'){const out=Object.fromEntries(TYPES.map(t=>[t,0]));for(const r of resources){const value=r[field];if(Number.isFinite(value))out[resourceType(r.type)]+=value;}return out;}
 export function aggregateRuns(runs){const names=['ttfb','fcp','lcp','cls','domContentLoaded','load','longTaskCount','longTaskDuration','requestCount','apiRequestCount','failedRequestCount','transferBytes','encodedBodyBytes','decodedBodyBytes'];return Object.fromEntries(names.map(n=>[n,{median:median(runs.map(r=>r.metrics?.[n])),p75:p75(runs.map(r=>r.metrics?.[n]))}]));}
 
+export function normalizeRunHttpFailures(run, context = {}) {
+  const failures = new Map();
+  const add = (item, source) => {
+    const status = Number(item?.status);
+    if (!Number.isInteger(status) || status < 400 || status > 599 || typeof item?.url !== 'string') return;
+    const key = `${item.url}\0${status}`;
+    const current = failures.get(key);
+    failures.set(key, {
+      page: context.page ?? run.page ?? null, scenario: context.scenario ?? run.scenario ?? null,
+      run: context.run ?? run.run ?? null, url: item.url, status,
+      resourceType: item.resourceType ?? item.type ?? current?.resourceType ?? null,
+      source: current && current.source !== source ? 'both' : current?.source ?? source
+    });
+  };
+  for (const item of run.failedRequests || []) add(item, 'failedRequests');
+  for (const item of run.resources || []) add(item, 'resources');
+  return [...failures.values()].sort((a,b)=>String(a.page).localeCompare(String(b.page))||String(a.scenario).localeCompare(String(b.scenario))||(a.run??0)-(b.run??0)||a.url.localeCompare(b.url)||a.status-b.status);
+}
+
 export function classifyRun(run) {
   const errors = [...(run.errors || [])];
   const warnings = [...(run.warnings || [])];
@@ -40,6 +59,11 @@ export function classifyRun(run) {
   if ((run.failedRequests || []).some(r => r.resourceType === 'Document' || r.isMainDocument)) errors.push('main_document_network_failed');
   const localApiFailures = (run.failedRequests || []).filter(r => r.isLocalApi || r.url?.startsWith('/api/'));
   if (localApiFailures.length) warnings.push('local_api_request_failed');
+  const observedHttpFailures = normalizeRunHttpFailures(run);
+  if (observedHttpFailures.some(r => r.url.startsWith('/api/') || r.url.startsWith('/portal/'))) warnings.push('local_api_request_failed');
+  const staticHttpFailures = observedHttpFailures.filter(r => !r.url.startsWith('/api/') && !r.url.startsWith('/portal/') && r.resourceType?.toLowerCase() !== 'document');
+  if (staticHttpFailures.length) warnings.push('local_resource_http_failed');
+  if (observedHttpFailures.some(r => r.resourceType?.toLowerCase() === 'document')) errors.push('main_document_http_failed');
   const secondaryFailures = (run.failedRequests || []).filter(r => !(r.resourceType === 'Document' || r.isMainDocument) && !(r.isLocalApi || r.url?.startsWith('/api/')));
   if (secondaryFailures.length) warnings.push('secondary_resource_failed');
   const uniqueErrors = [...new Set(errors)].sort();

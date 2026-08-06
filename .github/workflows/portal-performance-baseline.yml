@@ -3,11 +3,15 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - '.github/workflows/portal-performance-baseline.yml'
+      - 'package.json'
       - 'config/portal-performance-profile.json'
+      - 'scripts/analyze-portal-performance.mjs'
       - 'scripts/measure-portal-performance.mjs'
       - 'scripts/lib/portal-performance-*.mjs'
       - 'tests/portal-performance-measurement.test.mjs'
       - 'tests/portal-performance-smoke.mjs'
+      - 'tests/portal-performance-analysis.test.mjs'
       - 'public/**'
 jobs:
   measure:
@@ -58,13 +62,32 @@ jobs:
       - run: npm run performance:portal:smoke
         env:
           CHROME_BIN: ${{ steps.resolve-chrome.outputs.chrome_bin }}
+      - id: checkout-sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - run: npm run performance:portal
         env:
           CHROME_BIN: ${{ steps.resolve-chrome.outputs.chrome_bin }}
+          PERFORMANCE_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          PERFORMANCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PERFORMANCE_CHECKOUT_SHA: ${{ steps.checkout-sha.outputs.sha }}
+          PERFORMANCE_EVENT_NAME: ${{ github.event_name }}
+          PERFORMANCE_REF: ${{ github.ref }}
+      - name: Analyze parseable report
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD)" = "$(node -p "JSON.parse(require('fs').readFileSync('artifacts/performance/portal-performance-report.json')).source.checkoutSha")"
+          npm run performance:portal:analyze
+          test -s artifacts/performance/portal-performance-analysis.json
+          test -s artifacts/performance/portal-performance-analysis.md
+          node -e "const fs=require('fs');const r=JSON.parse(fs.readFileSync('artifacts/performance/portal-performance-report.json'));const a=JSON.parse(fs.readFileSync('artifacts/performance/portal-performance-analysis.json'));if(r.status!=='MEASURED'||a.status!=='MEASURED'||a.validity.pages!==5||a.validity.scenarios!==10||a.validity.runs!==50)process.exit(1);const all=r.pages.flatMap(p=>p.scenarios.flatMap(s=>s.runs));const h=r.pages.find(p=>p.page==='/portal-premium-home.html');const home=h?.scenarios.flatMap(s=>s.runs)||[];if(all.length!==50||all.some(x=>x.completionStatus!=='MEASURED'||x.metrics.failedRequestCount!==0||x.externalRequestAttempted||x.resources.some(y=>Number.isInteger(y.status)&&y.status>=400)))process.exit(1);if(home.length!==10||!home.every(x=>x.resources.some(y=>y.url==='/api/portal/notifications/unread-count'&&y.status===200)))process.exit(1);if(a.observedHttpFailures.length||a.findings.some(x=>x.priority==='P0')||a.pageRanking.pages.length!==5||a.optimizationAuthorized!==false)process.exit(1)"
       - name: Upload diagnostic reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: portal-performance-baseline
-          path: artifacts/performance/
+          path: |
+            artifacts/performance/portal-performance-report.json
+            artifacts/performance/portal-performance-report.md
+            artifacts/performance/portal-performance-analysis.json
+            artifacts/performance/portal-performance-analysis.md
           if-no-files-found: warn
