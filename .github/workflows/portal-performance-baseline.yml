@@ -8,6 +8,7 @@ on:
       - 'scripts/lib/portal-performance-*.mjs'
       - 'tests/portal-performance-measurement.test.mjs'
       - 'tests/portal-performance-smoke.mjs'
+      - 'tests/portal-performance-analysis.test.mjs'
       - 'public/**'
 jobs:
   measure:
@@ -61,10 +62,18 @@ jobs:
       - run: npm run performance:portal
         env:
           CHROME_BIN: ${{ steps.resolve-chrome.outputs.chrome_bin }}
+      - name: Analyze parseable report
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('artifacts/performance/portal-performance-report.json'))"
+          npm run performance:portal:analyze
       - name: Upload diagnostic reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: portal-performance-baseline
-          path: artifacts/performance/
+          path: |
+            artifacts/performance/portal-performance-report.json
+            artifacts/performance/portal-performance-report.md
+            artifacts/performance/portal-performance-analysis.json
+            artifacts/performance/portal-performance-analysis.md
           if-no-files-found: warn
