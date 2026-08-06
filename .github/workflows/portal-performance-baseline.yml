@@ -3,7 +3,10 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - '.github/workflows/portal-performance-baseline.yml'
+      - 'package.json'
       - 'config/portal-performance-profile.json'
+      - 'scripts/analyze-portal-performance.mjs'
       - 'scripts/measure-portal-performance.mjs'
       - 'scripts/lib/portal-performance-*.mjs'
       - 'tests/portal-performance-measurement.test.mjs'
