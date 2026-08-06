@@ -1,28 +1,41 @@
 # S0.5 — análise objetiva de performance do Portal
 
-## Baseline oficial
+## Estado da baseline
 
-A S0.5 parte da `main` pós-merge `a4c7e6e49a2f0c6df3a6ffb884934da156fe240a`. O artefato aprovado anterior foi executado no merge ref `04741d6d7a1848e11afecee2f132fa92283ff1a5`; ele é evidência da PR, não o SHA canônico da `main`. O relatório agora distingue `repositorySha`, `workflowSha`, `measuredSha`, `ref` e `eventName`, inclusive para `pull_request`, `workflow_dispatch` e execução local.
+A base de código da S0.5 é a `main` pós-S0.4 `a4c7e6e49a2f0c6df3a6ffb884934da156fe240a`. Uma execução de `pull_request` mede o merge ref da PR e **não é baseline oficial da main**. A baseline só pode ser chamada oficial depois de um `workflow_dispatch` verde em `refs/heads/main`; nesse caso, `canonicalMainSha` é preenchido. Os resultados reais de cada execução ficam nos quatro artefatos do workflow, não são copiados da S0.4 nem fixados neste documento.
 
-A observação aprovada tinha cinco páginas e cinco runs por cenário COLD/WARM. A Home estava `INCOMPLETE` devido ao 404 de `GET /api/portal/notifications/unread-count`. O contrato real retorna `{ ok: true, data: { count: número } }`; o LAB_STUBBED usa `count: 0`, sem identidade pessoal. Uma nova execução pode produzir valores diferentes.
+## Proveniência
 
-## Validade e limitações
+O relatório diferencia:
 
-O analisador exige cinco páginas, dez cenários e cinquenta runs, métricas brutas, agregações, recursos, requests falhos e estados coerentes. Métrica opcional `null` não invalida a baseline. LAB_STUBBED mede um Chrome e servidor controlados: não mede autenticação, API, Worker/D1, rede ou cache de produção. Tamanho transferido local não prova custo em produção.
+- `baseSha`: base da PR; em dispatch na main, o próprio checkout; localmente, `null`;
+- `headSha`: head da PR ou ref selecionado; localmente, o checkout;
+- `checkoutSha`: resultado exato de `git rev-parse HEAD` e código efetivamente medido;
+- `workflowSha`: SHA informado pelo Actions, que em PR pode ser o merge ref;
+- `canonicalMainSha`: preenchido somente em `workflow_dispatch` comprovado em `refs/heads/main`;
+- `ref` e `eventName`: contexto explícito da execução.
 
-`COLD` desabilita/limpa cache e `WARM` observa reutilização no fluxo repetido. A diferença é evidência laboratorial, não um budget. Como os runs observados não indicaram long tasks, não há gargalo confirmado nessa categoria. Cache também não é prioridade automática: a diferença COLD/WARM já demonstra reutilização, enquanto impacto real depende de staging.
+O workflow compara `checkoutSha` com `git rev-parse HEAD`. Não há fallback para o antigo `source.sha`, SHA abreviado ou `NOT_EXECUTED`.
 
-## Evidência e prioridade
+## Resultado real e rankings
 
-* `STRONG_LAB`: recurso, request, erro ou cache observado diretamente e repetido.
-* `MODERATE_LAB`: FCP, LCP ou CLS sintético repetível no Chrome controlado.
-* `WEAK_PRODUCTION`: hipótese extrapolada do laboratório.
-* `INSUFFICIENT`: dado ausente, incompleto ou contraditório.
+O workflow dedicado executa smoke, cinquenta runs reais (cinco páginas × COLD/WARM × cinco runs) e análise. Ele exige status `MEASURED`, Home sem request falho, P0 vazio e cinco páginas nos rankings; caso contrário falha. Os valores reais, incluindo rankings por transferência, LCP, CLS e requests, e o ranking global agregado de recursos separado por cenário, são publicados em `portal-performance-analysis.json` e `portal-performance-analysis.md`. Isso evita apresentar números da S0.4 como se fossem uma nova medição.
 
-P0 preserva integridade da medição; P1 investiga experiência visual repetível; P2 investiga custo observado de recursos; P3 reúne hipóteses que exigem staging. Não existe score 0–100 nem limiar convertido em budget.
+## Evidência e limitações
 
-O CLS COLD da Home foi repetível na baseline aprovada. A instrumentação registra eventos e retângulos com seletores sanitizados, nunca texto, inputs ou HTML. Quando `sources` não é exposto pelo navegador, registra `null` e não atribui causa. Coverage CSS/JS ficou como próximo experimento: representa apenas o fluxo executado e não autoriza remoção.
+- `STRONG_LAB`: recurso, request, erro ou cache observado diretamente e repetido.
+- `MODERATE_LAB`: FCP, LCP ou CLS sintético repetível no Chrome controlado.
+- `WEAK_PRODUCTION`: hipótese extrapolada do laboratório.
+- `INSUFFICIENT`: dado ausente, incompleto ou contraditório.
+
+P0 preserva integridade; P1 investiga experiência visual; P2 investiga custo de recursos; P3 depende de staging. Não existe score ou budget novo.
+
+COLD desabilita/limpa cache; WARM observa reutilização no fluxo repetido. Ausência de long tasks não prova ausência em produção. Cache não é prioridade automática. Bytes locais não comprovam custo real porque LAB_STUBBED não mede autenticação, API, Worker/D1, CDN ou rede de produção. Um staging autenticado com identidade fictícia continua necessário.
+
+## CLS e privacidade
+
+Eventos de LayoutShift registram tempo, valor, `hadRecentInput`, retângulos e seletores limitados. O produtor e o analisador sanitizam os seletores. O relatório contabiliza eventos com e sem sources, sources aceitas e descartadas. `null` ou lista vazia permanece indisponibilidade explícita e não autoriza inferir causa. Texto, HTML, input, e-mail, token, nome e identificadores de aluno não são publicados.
 
 ## Decisão
 
-É necessário um experimento futuro em staging autenticado, usando identidade fictícia, para latência real, autenticação e Worker/D1. A S0.5 melhora observação e prioriza investigação; **não otimiza UI, CSS, JavaScript, API ou cache e não autoriza otimização**.
+A S0.5 melhora observação e prioriza investigações. **Nenhuma otimização de UI, CSS, JavaScript, API, imagem ou cache foi autorizada ou implementada.**

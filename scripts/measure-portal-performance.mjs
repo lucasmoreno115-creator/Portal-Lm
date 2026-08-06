@@ -6,15 +6,12 @@ import { fileURLToPath } from 'node:url';
 import { validateProfile, assertLocalUrl, sanitizeUrl, resourceType, aggregateBytes, aggregateRuns, nullable, classifyRun, reportStatus, sortReport, safeWrite, withCleanup, exitCodeForStatus } from './lib/portal-performance-core.mjs';
 import { startLocalServer } from './lib/portal-performance-server.mjs';
 import { launchChrome, pageSocket, waitForPageLoad, formatChromeLaunchDiagnostic, ChromeLaunchError } from './lib/portal-performance-chrome.mjs';
+import { buildPerformanceSource } from './lib/portal-performance-analysis.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, 'artifacts/performance');
 const profile = validateProfile(JSON.parse(await readFile(path.join(root, 'config/portal-performance-profile.json'), 'utf8')));
-const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
-const workflowSha = process.env.GITHUB_SHA || null;
-const repositorySha = process.env.GITHUB_HEAD_SHA || sha;
-const eventName = process.env.GITHUB_EVENT_NAME || 'local';
-const ref = process.env.GITHUB_REF || execFileSync('git', ['branch', '--show-current'], { cwd: root, encoding: 'utf8' }).trim();
+const checkoutSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 let chrome;
 let server;
 const cleanups = [];
@@ -141,7 +138,7 @@ export async function measure(cdp, page, scenario, run, port, activeProfile = pr
 }
 
 function buildReport(pages, status = null) {
-  const report = sortReport({ schemaVersion: '1.0.0', environment: 'LAB_STUBBED', source: { sha, repositorySha, workflowSha, measuredSha: sha, ref, eventName, nodeVersion: process.version, chromeVersion: chrome?.version ?? null }, profile, pages, warnings: ['LCP, CLS e sources ficam null quando o navegador não produz entradas elegíveis antes da coleta. O ambiente usa contratos locais mínimos e não representa produção.', 'INCOMPLETE retorna código 0 para preservar diagnóstico; FAILED retorna código 1 porque indica falha estrutural ou request externo proibido.'], status: status ?? 'MEASURED' });
+  const report = sortReport({ schemaVersion: '1.0.0', environment: 'LAB_STUBBED', source: buildPerformanceSource({ checkoutSha, chromeVersion: chrome?.version }), profile, pages, warnings: ['LCP, CLS e sources ficam null quando o navegador não produz entradas elegíveis antes da coleta. O ambiente usa contratos locais mínimos e não representa produção.', 'A S0.5 exige MEASURED; INCOMPLETE e FAILED retornam código diferente de zero.'], status: status ?? 'MEASURED' });
   report.status = status ?? reportStatus(report.pages, false, profile);
   return report;
 }
@@ -172,7 +169,7 @@ try {
     const report = buildReport(pages);
     await safeWrite(out, 'portal-performance-report.json', JSON.stringify(report, null, 2) + '\n');
     await safeWrite(out, 'portal-performance-report.md', markdown(report));
-    process.exitCode = exitCodeForStatus(report.status);
+    process.exitCode = report.status === 'MEASURED' ? 0 : 1;
     if (process.exitCode) console.error(`Falha na medição: status ${report.status}`);
   }, cleanups);
 } catch (error) {
@@ -185,7 +182,7 @@ try {
 }
 
 export function markdown(r) {
-  const lines = ['# Baseline de performance do Portal do Aluno', '', `**Estado:** ${r.status}  `, `**Ambiente:** ${r.environment}  `, `**SHA:** \`${r.source.sha}\``, '', '> Diagnóstico sintético, sem score, budget, aprovação ou reprovação. LAB_STUBBED não representa produção.', '', ...r.warnings.sort().map(w => `- Aviso: ${w}`), ''];
+  const lines = ['# Baseline de performance do Portal do Aluno', '', `**Estado:** ${r.status}  `, `**Ambiente:** ${r.environment}  `, `**SHA:** \`${r.source.checkoutSha}\``, '', '> Diagnóstico sintético, sem score, budget, aprovação ou reprovação. LAB_STUBBED não representa produção.', '', ...r.warnings.sort().map(w => `- Aviso: ${w}`), ''];
   for (const p of r.pages) {
     lines.push(`## ${p.page}`);
     for (const s of p.scenarios) {
