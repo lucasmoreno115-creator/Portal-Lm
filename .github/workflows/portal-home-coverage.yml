@@ -42,8 +42,10 @@ jobs:
       - run: npm run coverage:portal-home:smoke
       - run: npm test
       - run: npm run coverage:portal-home
-      - run: npm run coverage:portal-home:analyze
+      - if: always()
+        run: npm run coverage:portal-home:analyze
       - name: Validate analysis
+        if: always()
         run: test -s artifacts/performance/s0.7/portal-home-coverage-analysis.json
       - uses: actions/upload-artifact@v4
         if: always()

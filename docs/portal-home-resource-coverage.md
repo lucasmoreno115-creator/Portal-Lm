@@ -6,6 +6,8 @@ Esta Sprint mede exclusivamente `/portal-premium-home.html` em `LAB_STUBBED`. É
 
 O laboratório usa somente Node built-ins e Chrome DevTools Protocol. O servidor local entrega os arquivos existentes e contratos mínimos confirmados para acesso Premium, planejamento anulável e notificações. A pessoa do laboratório é inteiramente fictícia; não há D1, produção, credenciais, bodies ou headers nos artefatos. `WEEKLY_PLAN_ERROR` é um stub explícito com HTTP 200 e envelope de erro controlado, de modo que testa o estado funcional sem criar uma falha HTTP inesperada.
 
+As APIs mínimas de Push são instaladas antes dos scripts da página: o estado padrão recebe `serviceWorker.ready` e `registration.pushManager.getSubscription()` controlados e conclui em `waiting`; no estado unsupported, `PushManager` é removido com `delete` e a ausência é verificada como precondição. Para `WEEKLY_PLAN_ERROR`, o fetch local ainda observa HTTP 200, mas a instrumentação rejeita exclusivamente a Promise do cliente após a resposta, exercitando o `catch` real sem transformar vazio em erro nem criar HTTP 4xx/5xx.
+
 Cada estado é aceito somente após inspeção do DOM: URL e documento, visibilidade, `data-state`, `aria-busy`, dimensões e transições são comparados com o contrato. O estado observado nunca é copiado do solicitado. A interação completa exige alvo existente, visível e habilitado, abertura, fechamento e restauração de foco comprovados. Uma falha produz `NOT_OBSERVED` e impede `MEASURED`.
 
 `Fetch.requestPaused` intercepta toda URL antes do envio e admite somente a origem exata `http://127.0.0.1:<porta-da-execução>`. Outra origem recebe `BlockedByClient`, é registrada de forma sanitizada e promove a execução e o relatório a `FAILED`; Network é evidência secundária.
@@ -13,6 +15,8 @@ Cada estado é aceito somente após inspeção do DOM: URL e documento, visibili
 A matriz cobre `HOME_DEFAULT`, instalação disponível, Push habilitado/bloqueado/indisponível, planejamento vazio/com erro e interação completa. A interação autorizada abre e fecha apenas controles locais do cartão PWA; não concede permissão, envia dados ou navega. COLD limpa cache/storage e ignora Service Worker; WARM preserva o cache do par. Mobile é 390×844 e desktop é controlado em 1440×900, sempre registrados separadamente.
 
 Coverage começa antes da navegação. Ranges CDP são offsets em **unidades de código UTF-16**, não bytes. Ranges inválidos falham; ranges são limitados ao source length, ordenados e unidos quando sobrepostos ou adjacentes. Assim, funções aninhadas e regras CSS sobrepostas não contam uma unidade duas vezes. Ausência ou denominador zero resulta em `null`, nunca em zero inventado. O source completo nunca é persistido.
+
+JavaScript precise coverage usa segmentos disjuntos e o range hierárquico mais específico, preservando filhos com `count: 0` dentro de pais executados. Ranges cruzados são inválidos. CSS mantém sua semântica própria de união de regras `used`; o algoritmo hierárquico de JavaScript não é aplicado ao CSS.
 
 Transferência, corpo codificado/decodificado e source code units são unidades distintas e não são somadas. `TaskDuration`, `ScriptDuration`, layout, recálculo de estilo, heap, long tasks, FCP/LCP/CLS e totais de rede são globais da página. Em particular, `ScriptDuration` não é atribuído a arquivo algum. Scripts internos/eval/Chrome são classificados à parte e excluídos dos rankings do Portal.
 
