@@ -20,7 +20,7 @@ Uma `source` de Layout Instability identifica nós cujo retângulo mudou; ela n�
 
 ## Solução
 
-Os componentes agora começam explicitamente em `loading`/`aria-busy`, terminam em estados observáveis e reservam um **mínimo**, restrito por `.portal-home-v7`, compatível com as variações conhecidas em desktop e 390 × 844. `min-block-size`, em vez de `height`, permite crescimento com textos longos e não corta ações. O estado semanticamente oculto continua com `hidden`, mas mantém seu slot de fluxo invisível e sem interação; portanto a resolução assíncrona não puxa conteúdo já pintado para cima.
+Os componentes agora começam explicitamente em `loading`/`aria-busy`, terminam em estados observáveis e reservam um **mínimo**, restrito por `.portal-home-v7`, compatível com as variações conhecidas em desktop e 390 × 844. `min-block-size`, em vez de `height`, permite crescimento com textos longos e não corta ações. Quando a inscrição já confirmada está persistida, o card recebe `hidden` durante o parsing e não cria slot nem participa da árvore de acessibilidade; nos demais estados, a reserva compatibiliza as cópias assíncronas.
 
 Foram preservados no card: carregando, disponível (`waiting`), concedido (`enabled`/oculto), negado (`blocked`), navegador sem suporte (`unsupported`), instalação necessária e erro. No planejamento: carregando, conteúdo disponível, vazio/aluno sem planejamento (fallback editorial) e erro (fallback editorial). Conteúdo, ações, autenticação e contratos permanecem iguais.
 
@@ -34,5 +34,5 @@ Nesta execução local, o Chrome não estava disponível e a instalação pelo r
 
 - Conteúdo editorial excepcionalmente maior que a reserva pode crescer (sem corte) e ainda produzir deslocamento; a comparação de cinco runs detecta o efeito no contrato LAB_STUBBED.
 - Fontes, traduções e dados reais de produção podem ter geometria diferente do stub.
-- A área vazia preservada quando Push já está habilitado é o custo explícito de estabilidade, sem esconder informação nem remover funcionalidade.
+- O estado `enabled` é persistido somente após confirmação real da inscrição. Em visitas seguintes, um script inline marca o card como `hidden` durante o parsing, antes de conteúdo posterior e da primeira pintura; assim o card permanece fora do layout e da árvore de acessibilidade, sem o antigo vazio móvel de 230 px. A primeira ativação nasce de interação do usuário e a recuperação de instalações legadas sem a marca persistida continua como risco transitório, sem atrasar a janela de CLS.
 - CSS, JavaScript, imagens e APIs não foram otimizados porque S0.6 isola CLS; essas frentes só podem ser avaliadas em Sprint posterior após evidência conclusiva e aprovação.

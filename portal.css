@@ -1684,7 +1684,6 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 
 /* Home Premium: asynchronous cards keep their flow slot throughout resolution. */
 .portal-home-v7 #pwaPushCard{min-block-size:174px}
-.portal-home-v7 #pwaPushCard[hidden]{display:grid !important;visibility:hidden;pointer-events:none}
 .portal-home-v7 #weekly-plan-section{min-block-size:438px}
 @media(max-width:720px){
   .portal-home-v7 #pwaPushCard{min-block-size:230px}

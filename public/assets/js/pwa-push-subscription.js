@@ -29,6 +29,10 @@
     button.textContent = label;
     button.disabled = disabled;
     card.hidden = state === 'enabled';
+    try {
+      if (state === 'enabled') localStorage.setItem('lm_portal_push_enabled', 'true');
+      else if (state === 'waiting') localStorage.removeItem('lm_portal_push_enabled');
+    } catch (_) {}
     announce(state);
   }
 

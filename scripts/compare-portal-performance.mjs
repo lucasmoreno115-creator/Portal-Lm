@@ -2,71 +2,130 @@
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { EXPECTED_PAGES } from './lib/portal-performance-analysis.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const base = path.join(root, 'artifacts/performance/s0.6');
-export const comparableMetrics = ['cls', 'lcp', 'fcp', 'transferBytes', 'requestCount', 'failedRequestCount'];
+const outputDirectory = path.join(root, 'artifacts/performance/s0.6');
+const SHA = /^[0-9a-f]{40}$/;
+const SCENARIOS = ['COLD', 'WARM'];
+export const REQUIRED_METRICS = ['cls', 'lcp', 'fcp', 'transferBytes', 'requestCount', 'failedRequestCount'];
 
 export function metricDelta(before, after) {
-  if (!Number.isFinite(before) || !Number.isFinite(after)) return { absolute: null, percentage: null };
+  if (!Number.isFinite(before) || !Number.isFinite(after)) throw new Error('DELTA_OPERAND_INVALID: operandos obrigatórios devem ser números finitos');
   return { absolute: after - before, percentage: before === 0 ? null : ((after - before) / before) * 100 };
 }
 
-const eventCounts = runs => ({
-  total: runs.reduce((n, run) => n + run.layoutShiftEvents.length, 0),
-  withSources: runs.reduce((n, run) => n + run.layoutShiftEvents.filter(event => Array.isArray(event.sources) && event.sources.length).length, 0),
-  withoutSources: runs.reduce((n, run) => n + run.layoutShiftEvents.filter(event => !Array.isArray(event.sources) || !event.sources.length).length, 0),
-});
-
-export function compareReports(before, after) {
-  const byPage = report => new Map(report.pages.map(page => [page.page, page]));
-  const beforePages = byPage(before), afterPages = byPage(after);
-  const pages = [...new Set([...beforePages.keys(), ...afterPages.keys()])].sort().map(page => ({
-    page,
-    scenarios: ['COLD', 'WARM'].map(scenario => {
-      const b = beforePages.get(page)?.scenarios.find(item => item.scenario === scenario);
-      const a = afterPages.get(page)?.scenarios.find(item => item.scenario === scenario);
-      const metrics = Object.fromEntries(comparableMetrics.map(metric => [metric, {
-        before: b?.aggregate?.[metric] ?? { median: null, p75: null },
-        after: a?.aggregate?.[metric] ?? { median: null, p75: null },
-        medianDelta: metricDelta(b?.aggregate?.[metric]?.median, a?.aggregate?.[metric]?.median),
-        p75Delta: metricDelta(b?.aggregate?.[metric]?.p75, a?.aggregate?.[metric]?.p75),
-      }]));
-      return {
-        scenario, beforeStatus: b ? b.runs.map(run => run.completionStatus) : null,
-        afterStatus: a ? a.runs.map(run => run.completionStatus) : null,
-        rawCls: { before: b?.runs.map(run => run.metrics.cls) ?? null, after: a?.runs.map(run => run.metrics.cls) ?? null },
-        events: { before: b ? eventCounts(b.runs) : null, after: a ? eventCounts(a.runs) : null }, metrics,
-        requests: {
-          externalBefore: b?.runs.reduce((n, run) => n + (run.externalBlocked?.length || 0), 0) ?? null,
-          externalAfter: a?.runs.reduce((n, run) => n + (run.externalBlocked?.length || 0), 0) ?? null,
-        },
-      };
-    }),
-  }));
-  return {
-    schemaVersion: '1.0.0', profile: after.profile ?? before.profile ?? null,
-    before: { sha: before.source?.checkoutSha ?? null, node: before.source?.nodeVersion ?? null, chrome: before.source?.chromeVersion ?? null, status: before.status ?? null },
-    after: { sha: after.source?.checkoutSha ?? null, node: after.source?.nodeVersion ?? null, chrome: after.source?.chromeVersion ?? null, status: after.status ?? null },
-    runs: { before: before.pages.flatMap(p => p.scenarios.flatMap(s => s.runs)).length, after: after.pages.flatMap(p => p.scenarios.flatMap(s => s.runs)).length }, pages,
-  };
+function requireSha(value, label) {
+  if (!SHA.test(value || '') || value === 'NOT_EXECUTED') throw new Error(`${label}_INVALID: SHA completo obrigatório`);
+  return value;
 }
 
-export function comparisonMarkdown(comparison) {
-  const lines = ['# S0.6 — comparação before/after', '', `- SHA before: \`${comparison.before.sha}\``, `- SHA after: \`${comparison.after.sha}\``, `- Node: before ${comparison.before.node}; after ${comparison.after.node}`, `- Chrome: before ${comparison.before.chrome}; after ${comparison.after.chrome}`, `- Runs: before ${comparison.runs.before}; after ${comparison.runs.after}`, ''];
-  for (const page of comparison.pages) for (const scenario of page.scenarios) {
-    lines.push(`## ${page.page} — ${scenario.scenario}`, '', '| Métrica | before p75 | after p75 | Δ absoluto | Δ percentual |', '|---|---:|---:|---:|---:|');
-    for (const [metric, value] of Object.entries(scenario.metrics)) lines.push(`| ${metric} | ${value.before.p75 ?? 'null'} | ${value.after.p75 ?? 'null'} | ${value.p75Delta.absolute ?? 'null'} | ${value.p75Delta.percentage ?? 'null'} |`);
-    lines.push('', `CLS bruto before: ${JSON.stringify(scenario.rawCls.before)}  `, `CLS bruto after: ${JSON.stringify(scenario.rawCls.after)}  `, `Eventos before/after: ${JSON.stringify(scenario.events)}  `, `Status before/after: ${JSON.stringify({ before: scenario.beforeStatus, after: scenario.afterStatus })}`, '');
+function validateSource(source, label) {
+  if (!source || typeof source !== 'object') throw new Error(`${label}_SOURCE_INVALID`);
+  requireSha(source.checkoutSha, `${label}_CHECKOUT_SHA`);
+  if (!source.nodeVersion || !source.chromeVersion) throw new Error(`${label}_RUNTIME_PROVENANCE_INVALID`);
+}
+
+function validateReport(report, label) {
+  if (!report || typeof report !== 'object') throw new Error(`${label}_REPORT_INVALID`);
+  if (report.status !== 'MEASURED') throw new Error(`${label}_STATUS_${report.status || 'MISSING'}`);
+  validateSource(report.source, label);
+  if (!Array.isArray(report.pages) || report.pages.length !== EXPECTED_PAGES.length) throw new Error(`${label}_PAGE_COUNT_INVALID`);
+  const names = report.pages.map(page => page.page).sort();
+  if (JSON.stringify(names) !== JSON.stringify([...EXPECTED_PAGES].sort())) throw new Error(`${label}_PAGES_INVALID`);
+  let totalRuns = 0;
+  for (const page of report.pages) {
+    if (!Array.isArray(page.scenarios) || page.scenarios.length !== 2 || JSON.stringify(page.scenarios.map(x => x.scenario).sort()) !== JSON.stringify(SCENARIOS)) throw new Error(`${label}_${page.page}_SCENARIOS_INVALID`);
+    for (const scenario of page.scenarios) {
+      if (!Array.isArray(scenario.runs) || scenario.runs.length !== 5) throw new Error(`${label}_${page.page}_${scenario.scenario}_RUN_COUNT_INVALID`);
+      totalRuns += scenario.runs.length;
+      for (const [index, run] of scenario.runs.entries()) {
+        const prefix = `${label}_${page.page}_${scenario.scenario}_RUN_${index + 1}`;
+        if (run.run !== index + 1 || run.page !== page.page || run.scenario !== scenario.scenario || run.completionStatus !== 'MEASURED') throw new Error(`${prefix}_NOT_MEASURED`);
+        if (!run.metrics || REQUIRED_METRICS.some(metric => !Number.isFinite(run.metrics[metric]))) throw new Error(`${prefix}_REQUIRED_METRIC_INVALID`);
+        if (run.metrics.failedRequestCount !== 0) throw new Error(`${prefix}_FAILED_REQUEST_COUNT`);
+        if (!Array.isArray(run.layoutShiftEvents)) throw new Error(`${prefix}_LAYOUT_EVENTS_INVALID`);
+        if (!Array.isArray(run.failedRequests) || run.failedRequests.length || !Array.isArray(run.resources) || run.resources.some(resource => Number.isFinite(resource.status) && resource.status >= 400)) throw new Error(`${prefix}_HTTP_FAILURE`);
+        if (run.resources.some(resource => typeof resource.url !== 'string' || !resource.url.startsWith('/'))) throw new Error(`${prefix}_EXTERNAL_RESOURCE`);
+        if (run.externalRequestAttempted || (run.externalBlocked?.length || 0)) throw new Error(`${prefix}_EXTERNAL_REQUEST`);
+        if (run.unexpectedRedirect || run.mainDocumentLoaded !== true || !Number.isFinite(run.mainDocumentStatus) || run.mainDocumentStatus < 200 || run.mainDocumentStatus >= 300) throw new Error(`${prefix}_PAGE_NOT_OBSERVED`);
+        if (page.page === '/portal-premium-home.html' && !run.resources.some(resource => resource.url === '/api/portal/notifications/unread-count' && resource.status === 200)) throw new Error(`${prefix}_NOTIFICATIONS_NOT_200`);
+      }
+      for (const metric of REQUIRED_METRICS) if (!Number.isFinite(scenario.aggregate?.[metric]?.median) || !Number.isFinite(scenario.aggregate?.[metric]?.p75)) throw new Error(`${label}_${page.page}_${scenario.scenario}_${metric}_AGGREGATE_INVALID`);
+    }
+  }
+  if (totalRuns !== 50) throw new Error(`${label}_TOTAL_RUNS_INVALID`);
+  return report;
+}
+
+const counts = runs => ({ total: runs.reduce((n, run) => n + run.layoutShiftEvents.length, 0), withSources: runs.reduce((n, run) => n + run.layoutShiftEvents.filter(event => Array.isArray(event.sources) && event.sources.length).length, 0), withoutSources: runs.reduce((n, run) => n + run.layoutShiftEvents.filter(event => !Array.isArray(event.sources) || !event.sources.length).length, 0) });
+
+function comparisonEntry(metric, before, after, criterion) {
+  return { metric, criterion, actualBefore: before, actualAfter: after, delta: metricDelta(before, after) };
+}
+
+export function compareReports(beforeInput, afterInput, provenance) {
+  const baselineSha = requireSha(provenance?.baselineSha, 'BASELINE_SHA');
+  const headSha = requireSha(provenance?.headSha, 'HEAD_SHA');
+  const checkoutSha = requireSha(provenance?.checkoutSha, 'CHECKOUT_SHA');
+  const workflowSha = requireSha(provenance?.workflowSha, 'WORKFLOW_SHA');
+  if (baselineSha === headSha) throw new Error('SAME_SHA_FORBIDDEN');
+  const before = validateReport(beforeInput, 'BEFORE'), after = validateReport(afterInput, 'AFTER');
+  if (before.source.checkoutSha !== baselineSha) throw new Error('BEFORE_SHA_MISMATCH');
+  if (after.source.checkoutSha !== checkoutSha) throw new Error('AFTER_CHECKOUT_SHA_MISMATCH');
+  if (after.source.headSha !== headSha) throw new Error('AFTER_HEAD_SHA_MISMATCH');
+  if (after.source.workflowSha !== workflowSha || after.source.eventName !== provenance.eventName || after.source.ref !== provenance.ref) throw new Error('AFTER_WORKFLOW_PROVENANCE_MISMATCH');
+  if (provenance.eventName === 'pull_request' && !provenance.ref?.startsWith('refs/pull/')) throw new Error('PULL_REQUEST_REF_INVALID');
+  const errors = [], warnings = [];
+  if (before.source.nodeVersion !== after.source.nodeVersion) errors.push('RUNTIME_NODE_MISMATCH');
+  if (before.source.chromeVersion !== after.source.chromeVersion) errors.push('RUNTIME_CHROME_MISMATCH');
+  if (JSON.stringify(before.profile) !== JSON.stringify(after.profile)) errors.push('PROFILE_MISMATCH');
+  const beforePages = new Map(before.pages.map(page => [page.page, page])), afterPages = new Map(after.pages.map(page => [page.page, page]));
+  const pages = [...EXPECTED_PAGES].sort().map(pageName => ({ page: pageName, scenarios: SCENARIOS.map(scenarioName => {
+    const b = beforePages.get(pageName).scenarios.find(x => x.scenario === scenarioName), a = afterPages.get(pageName).scenarios.find(x => x.scenario === scenarioName);
+    const comparisons = REQUIRED_METRICS.map(metric => comparisonEntry(metric, b.aggregate[metric].p75, a.aggregate[metric].p75, metric === 'cls' ? 'p75 <= 0.10' : 'observação operacional'));
+    if (a.aggregate.cls.p75 > 0.10) errors.push(`${pageName}:${scenarioName}:CLS_P75_LIMIT`);
+    if (pageName === '/portal-premium-home.html' && scenarioName === 'COLD') {
+      const values = Object.fromEntries(comparisons.map(item => [item.metric, item]));
+      if (values.cls.actualAfter >= values.cls.actualBefore || values.cls.delta.absolute >= 0) errors.push('HOME_COLD_CLS_NOT_REDUCED');
+      if (values.lcp.delta.percentage !== null && values.lcp.delta.percentage > 10) errors.push('HOME_COLD_LCP_REGRESSION');
+      if (values.transferBytes.delta.percentage !== null && values.transferBytes.delta.percentage > 5) errors.push('HOME_COLD_TRANSFER_REGRESSION');
+      if (values.requestCount.delta.percentage !== null && values.requestCount.delta.percentage > 5) errors.push('HOME_COLD_REQUEST_REGRESSION');
+    }
+    return { scenario: scenarioName, rawCls: { before: b.runs.map(run => run.metrics.cls), after: a.runs.map(run => run.metrics.cls) }, events: { before: counts(b.runs), after: counts(a.runs) }, comparisons };
+  }) }));
+  return { schemaVersion: '2.0.0', status: errors.length ? 'FAILED' : 'PASSED', errors: [...new Set(errors)].sort(), warnings, baselineSha, headSha, checkoutSha, workflowSha, eventName: provenance.eventName, ref: provenance.ref, before: { sha: before.source.checkoutSha, source: before.source, status: before.status }, after: { sha: headSha, source: after.source, status: after.status }, runtime: { node: after.source.nodeVersion, chrome: after.source.chromeVersion }, profile: after.profile, runs: { before: 50, after: 50 }, pages };
+}
+
+export function comparisonMarkdown(c) {
+  const lines = ['# S0.6 — comparação before/after', '', `**Status:** ${c.status}`, '', `- baselineSha: \`${c.baselineSha ?? 'null'}\``, `- headSha: \`${c.headSha ?? 'null'}\``, `- checkoutSha: \`${c.checkoutSha ?? 'null'}\``, `- workflowSha: \`${c.workflowSha ?? 'null'}\``, `- eventName: \`${c.eventName ?? 'null'}\``, `- ref: \`${c.ref ?? 'null'}\``, '', `Erros: ${JSON.stringify(c.errors || [])}`, `Avisos: ${JSON.stringify(c.warnings || [])}`, ''];
+  for (const page of c.pages || []) for (const scenario of page.scenarios) {
+    lines.push(`## ${page.page} — ${scenario.scenario}`, '', '| Métrica | Critério | Actual before | Actual after | Δ absoluto | Δ percentual |', '|---|---|---:|---:|---:|---:|');
+    for (const item of scenario.comparisons) lines.push(`| ${item.metric} | ${item.criterion} | ${item.actualBefore} | ${item.actualAfter} | ${item.delta.absolute} | ${item.delta.percentage ?? 'null'} |`);
+    lines.push('', `CLS bruto: ${JSON.stringify(scenario.rawCls)}`, `Eventos: ${JSON.stringify(scenario.events)}`, '');
   }
   return lines.join('\n') + '\n';
 }
 
+export const exitCodeForComparison = status => status === 'PASSED' ? 0 : 1;
+
+async function readReport(filename, stage) {
+  try { return JSON.parse(await readFile(filename, 'utf8')); }
+  catch (error) { throw new Error(`${stage}_REPORT_UNAVAILABLE: ${error.code === 'ENOENT' ? filename : 'JSON_INVALID'}`); }
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const before = JSON.parse(await readFile(process.argv[2] || path.join(base, 'before/portal-performance-report.json'), 'utf8'));
-  const after = JSON.parse(await readFile(process.argv[3] || path.join(base, 'after/portal-performance-report.json'), 'utf8'));
-  const comparison = compareReports(before, after);
-  await mkdir(base, { recursive: true });
-  await writeFile(path.join(base, 'comparison.json'), JSON.stringify(comparison, null, 2) + '\n');
-  await writeFile(path.join(base, 'comparison.md'), comparisonMarkdown(comparison));
+  await mkdir(outputDirectory, { recursive: true });
+  let result;
+  try {
+    const before = await readReport(process.argv[2] || path.join(outputDirectory, 'before/portal-performance-report.json'), 'BEFORE');
+    const after = await readReport(process.argv[3] || path.join(outputDirectory, 'after/portal-performance-report.json'), 'AFTER');
+    result = compareReports(before, after, { baselineSha: process.env.PERFORMANCE_BASELINE_SHA, headSha: process.env.PERFORMANCE_HEAD_SHA, checkoutSha: process.env.PERFORMANCE_CHECKOUT_SHA, workflowSha: process.env.GITHUB_SHA || process.env.PERFORMANCE_WORKFLOW_SHA, eventName: process.env.PERFORMANCE_EVENT_NAME, ref: process.env.PERFORMANCE_REF });
+  } catch (error) {
+    result = { schemaVersion: '2.0.0', status: 'FAILED', errors: [error.message], warnings: [], baselineSha: process.env.PERFORMANCE_BASELINE_SHA ?? null, headSha: process.env.PERFORMANCE_HEAD_SHA ?? null, checkoutSha: process.env.PERFORMANCE_CHECKOUT_SHA ?? null, workflowSha: process.env.GITHUB_SHA || process.env.PERFORMANCE_WORKFLOW_SHA || null, eventName: process.env.PERFORMANCE_EVENT_NAME ?? null, ref: process.env.PERFORMANCE_REF ?? null, pages: [] };
+  }
+  await writeFile(path.join(outputDirectory, 'comparison.json'), JSON.stringify(result, null, 2) + '\n');
+  await writeFile(path.join(outputDirectory, 'comparison.md'), comparisonMarkdown(result));
+  if (result.status !== 'PASSED') console.error(result.errors.join('\n'));
+  process.exitCode = exitCodeForComparison(result.status);
 }

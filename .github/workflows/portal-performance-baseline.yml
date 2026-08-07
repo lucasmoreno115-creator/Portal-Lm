@@ -7,17 +7,23 @@ on:
       - 'package.json'
       - 'config/portal-performance-profile.json'
       - 'scripts/analyze-portal-performance.mjs'
+      - 'scripts/compare-portal-performance.mjs'
       - 'scripts/measure-portal-performance.mjs'
       - 'scripts/lib/portal-performance-*.mjs'
       - 'tests/portal-performance-measurement.test.mjs'
       - 'tests/portal-performance-smoke.mjs'
       - 'tests/portal-performance-analysis.test.mjs'
+      - 'tests/portal-home-layout-stability.test.mjs'
       - 'public/**'
 jobs:
   measure:
     runs-on: ubuntu-latest
+    env:
+      MEASUREMENT_COMMAND: npm run performance:portal
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -66,39 +72,81 @@ jobs:
       - run: npm run performance:portal:smoke
         env:
           CHROME_BIN: ${{ steps.resolve-chrome.outputs.chrome_bin }}
+      - name: Resolve immutable provenance
+        id: provenance
+        env:
+          BASELINE_SHA: 9fcbc86fa63ca9c0792b789d774de8cf13d2b366
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          git cat-file -e "${BASELINE_SHA}^{commit}"
+          [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$BASELINE_SHA" != "$HEAD_SHA"
+          printf 'baseline_sha=%s\nhead_sha=%s\ncheckout_sha=%s\n' "$BASELINE_SHA" "$HEAD_SHA" "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Measure immutable S0.6 before
+        id: measure-before
+        continue-on-error: true
         env:
           CHROME_BIN: ${{ steps.resolve-chrome.outputs.chrome_bin }}
         run: |
-          git worktree add --detach "$RUNNER_TEMP/s06-before" 9fcbc86fa63ca9c0792b789d774de8cf13d2b366
-          ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/s06-before/node_modules"
-          (cd "$RUNNER_TEMP/s06-before" && npm run performance:portal)
+          set -euo pipefail
+          before="$RUNNER_TEMP/s06-before"
+          cleanup() { git worktree remove --force "$before" 2>/dev/null || true; git worktree prune; }
+          trap cleanup EXIT
+          git cat-file -e "${{ steps.provenance.outputs.baseline_sha }}^{commit}"
+          git worktree add --detach "$before" "${{ steps.provenance.outputs.baseline_sha }}"
+          test "$(git -C "$before" rev-parse HEAD)" = "${{ steps.provenance.outputs.baseline_sha }}"
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$before/node_modules"
           mkdir -p artifacts/performance/s0.6/before
-          cp "$RUNNER_TEMP/s06-before"/artifacts/performance/portal-performance-report.{json,md} artifacts/performance/s0.6/before/
-      - id: checkout-sha
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-      - run: npm run performance:portal
+          (cd "$before" && npm run performance:portal) 2>&1 | tee artifacts/performance/s0.6/before/measurement.log
+          mkdir -p artifacts/performance/s0.6/before
+          cp "$before"/artifacts/performance/portal-performance-report.{json,md} artifacts/performance/s0.6/before/
+      - name: Verify worktree cleanup
+        if: always()
+        run: |
+          git worktree prune
+          if git worktree list --porcelain | grep -F "$RUNNER_TEMP/s06-before"; then exit 1; fi
+      - name: Measure S0.6 after
+        id: measure-after
+        if: always()
+        continue-on-error: true
         env:
           CHROME_BIN: ${{ steps.resolve-chrome.outputs.chrome_bin }}
           PERFORMANCE_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
-          PERFORMANCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          PERFORMANCE_CHECKOUT_SHA: ${{ steps.checkout-sha.outputs.sha }}
+          PERFORMANCE_HEAD_SHA: ${{ steps.provenance.outputs.head_sha }}
+          PERFORMANCE_CHECKOUT_SHA: ${{ steps.provenance.outputs.checkout_sha }}
           PERFORMANCE_EVENT_NAME: ${{ github.event_name }}
           PERFORMANCE_REF: ${{ github.ref }}
-      - name: Preserve after and compare S0.6
         run: |
           mkdir -p artifacts/performance/s0.6/after
+          npm run performance:portal 2>&1 | tee artifacts/performance/s0.6/after/measurement.log
           cp artifacts/performance/portal-performance-report.{json,md} artifacts/performance/s0.6/after/
+      - name: Analyze measured after
+        id: analyze-after
+        if: always() && steps.measure-after.outcome == 'success'
+        continue-on-error: true
+        run: npm run performance:portal:analyze
+      - name: Compare S0.6
+        id: compare
+        if: always()
+        continue-on-error: true
+        env:
+          PERFORMANCE_BASELINE_SHA: ${{ steps.provenance.outputs.baseline_sha }}
+          PERFORMANCE_HEAD_SHA: ${{ steps.provenance.outputs.head_sha }}
+          PERFORMANCE_CHECKOUT_SHA: ${{ steps.provenance.outputs.checkout_sha }}
+          PERFORMANCE_WORKFLOW_SHA: ${{ github.sha }}
+          PERFORMANCE_EVENT_NAME: ${{ github.event_name }}
+          PERFORMANCE_REF: ${{ github.ref }}
+        run: |
           npm run performance:portal:compare
-      - name: Analyze parseable report
+      - name: Validate S0.6 outcome
         if: always()
         run: |
-          test "$(git rev-parse HEAD)" = "$(node -p "JSON.parse(require('fs').readFileSync('artifacts/performance/portal-performance-report.json')).source.checkoutSha")"
-          npm run performance:portal:analyze
-          test -s artifacts/performance/portal-performance-analysis.json
-          test -s artifacts/performance/portal-performance-analysis.md
-          node -e "const fs=require('fs');const r=JSON.parse(fs.readFileSync('artifacts/performance/portal-performance-report.json'));const a=JSON.parse(fs.readFileSync('artifacts/performance/portal-performance-analysis.json'));if(r.status!=='MEASURED'||a.status!=='MEASURED'||a.validity.pages!==5||a.validity.scenarios!==10||a.validity.runs!==50)process.exit(1);const all=r.pages.flatMap(p=>p.scenarios.flatMap(s=>s.runs));const h=r.pages.find(p=>p.page==='/portal-premium-home.html');const home=h?.scenarios.flatMap(s=>s.runs)||[];if(all.length!==50||all.some(x=>x.completionStatus!=='MEASURED'||x.metrics.failedRequestCount!==0||x.externalRequestAttempted||x.resources.some(y=>Number.isInteger(y.status)&&y.status>=400)))process.exit(1);if(home.length!==10||!home.every(x=>x.resources.some(y=>y.url==='/api/portal/notifications/unread-count'&&y.status===200)))process.exit(1);if(a.observedHttpFailures.length||a.findings.some(x=>x.priority==='P0')||a.pageRanking.pages.length!==5||a.optimizationAuthorized!==false)process.exit(1)"
-          node -e "const c=JSON.parse(require('fs').readFileSync('artifacts/performance/s0.6/comparison.json'));if(c.runs.before!==50||c.runs.after!==50)process.exit(1);const h=c.pages.find(p=>p.page==='/portal-premium-home.html').scenarios.find(s=>s.scenario==='COLD');if(h.metrics.cls.after.p75>0.10||h.metrics.cls.p75Delta.absolute>=0||h.metrics.lcp.p75Delta.percentage>10||h.metrics.transferBytes.p75Delta.percentage>5||h.metrics.requestCount.p75Delta.percentage>5)process.exit(1)"
+          test "${{ steps.measure-before.outcome }}" = success || { echo 'BEFORE_MEASUREMENT_FAILED'; exit 1; }
+          test "${{ steps.measure-after.outcome }}" = success || { echo 'AFTER_MEASUREMENT_FAILED'; exit 1; }
+          test "${{ steps.analyze-after.outcome }}" = success || { echo 'AFTER_ANALYSIS_FAILED'; exit 1; }
+          test "${{ steps.compare.outcome }}" = success || { echo 'COMPARISON_FAILED'; exit 1; }
+          node -e "const c=JSON.parse(require('fs').readFileSync('artifacts/performance/s0.6/comparison.json'));if(c.status!=='PASSED'||c.baselineSha!=='${{ steps.provenance.outputs.baseline_sha }}'||c.headSha!=='${{ steps.provenance.outputs.head_sha }}'||c.before.sha!=='${{ steps.provenance.outputs.baseline_sha }}')process.exit(1)"
       - name: Upload diagnostic reports
         if: always()
         uses: actions/upload-artifact@v4

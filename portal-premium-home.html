@@ -75,6 +75,9 @@
         <button id='pwaPushButton' class='primary-cta' type='button'>Ativar notificações</button>
       </div>
     </aside>
+    <script>
+      try { if (localStorage.getItem('lm_portal_push_enabled') === 'true') document.getElementById('pwaPushCard').hidden = true; } catch (_) {}
+    </script>
 
     <section class='planning card dashboard-card mission-card-v6 weekly-plan-editorial' id='weekly-plan-section' aria-labelledby='planning-title' data-state='loading' aria-busy='true'>
       <h2 id='planning-title'>🎯 Objetivos do planejamento</h2>
