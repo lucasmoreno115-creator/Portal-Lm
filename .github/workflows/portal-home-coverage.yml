@@ -26,6 +26,14 @@ jobs:
         run: |
           test -x /usr/bin/google-chrome
           echo "CHROME_BIN=/usr/bin/google-chrome" >> "$GITHUB_ENV"
+      - name: Export provenance
+        run: |
+          echo "PERFORMANCE_HEAD_SHA=${{ github.event.pull_request.head.sha || github.sha }}" >> "$GITHUB_ENV"
+          echo "PERFORMANCE_CHECKOUT_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "PERFORMANCE_WORKFLOW_SHA=${{ github.sha }}" >> "$GITHUB_ENV"
+          echo "PERFORMANCE_BASE_SHA=2281d6ed6fa2fad1303c45c25b5c1eb382011da6" >> "$GITHUB_ENV"
+          echo "PERFORMANCE_EVENT_NAME=${{ github.event_name }}" >> "$GITHUB_ENV"
+          echo "PERFORMANCE_REF=${{ github.ref }}" >> "$GITHUB_ENV"
       - run: npm run coverage:portal-home:test
       - run: npm run coverage:portal-home:smoke
       - run: npm test
