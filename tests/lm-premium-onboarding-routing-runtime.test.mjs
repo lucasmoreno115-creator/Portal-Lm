@@ -9,9 +9,9 @@ const login = await readFile('portal-login.html', 'utf8');
 const inlineScripts = (source) => [...source.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
-async function runGateway(plan = 'premium') {
+async function runGateway(plan = 'premium', accessState = { experience: 'PREMIUM_PORTAL' }) {
   const calls = [], redirects = [];
-  const context = { getAuth: () => ({ email: 'student@example.com', token: 'valid-token' }), getUserPlan: () => plan, api: async (path) => { calls.push(path); return { data: { experience: 'PREMIUM_PORTAL' } }; }, window: { location: { replace: (target) => redirects.push(target) } } };
+  const context = { getAuth: () => ({ email: 'student@example.com', token: 'valid-token' }), getUserPlan: () => plan, api: async (path) => { calls.push(path); return { data: accessState }; }, window: { location: { replace: (target) => redirects.push(target) } } };
   vm.runInNewContext(inlineScripts(gateway)[0], context);
   await tick();
   return { calls, redirects };
@@ -29,6 +29,15 @@ test('gateway sends authenticated Projeto LM students directly to the official r
   const result = await runGateway('projeto_lm');
   assert.deepEqual(result.redirects, ['/projeto-lm/#home']);
   assert.deepEqual(result.calls, []);
+});
+
+test('gateway sends pre-anamnesis Premium access directly to the anamnesis form', async () => {
+  for (const consultationStatus of ['NEW', 'AWAITING_ANAMNESIS']) {
+    const result = await runGateway('premium', { experience: 'ONBOARDING', consultationStatus });
+    assert.deepEqual(result.redirects, ['anamnese-premium.html']);
+  }
+  const underReview = await runGateway('premium', { experience: 'ONBOARDING', consultationStatus: 'UNDER_REVIEW' });
+  assert.deepEqual(underReview.redirects, ['portal-premium-onboarding.html']);
 });
 
 test('active Home guard keeps blocked states hidden and only releases ACTIVE', async () => {
@@ -64,4 +73,21 @@ test('login distinguishes invalid credentials from temporary access-state routin
   vm.runInNewContext(inlineScripts(login)[0], invalidContext);
   await invalid.entrar.onclick();
   assert.match(invalid.msg.textContent, /email e token/);
+});
+
+test('login opens the anamnesis immediately for authenticated Premium students awaiting it', async () => {
+  for (const consultationStatus of ['NEW', 'AWAITING_ANAMNESIS']) {
+    const elements = { email: { value: 'student@example.com' }, token: { value: 'valid-token' }, msg: { textContent: '', className: '' }, entrar: {} };
+    const context = {
+      document: { getElementById: (id) => elements[id] },
+      localStorage: { setItem() {} },
+      window: { location: { href: '' } },
+      api: async (path) => path === '/portal/login'
+        ? { data: { email: 'student@example.com', plan: 'premium' } }
+        : { data: { experience: 'ONBOARDING', consultationStatus } }
+    };
+    vm.runInNewContext(inlineScripts(login)[0], context);
+    await elements.entrar.onclick();
+    assert.equal(context.window.location.href, 'anamnese-premium.html');
+  }
 });

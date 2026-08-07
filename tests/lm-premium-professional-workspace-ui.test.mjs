@@ -30,7 +30,11 @@ test('workspace feedback has semantic variants, accessible live regions, and syn
     assert.match(source,/function setCreateSubmitting\(form, submitting\)/);
     assert.match(source,/if \(state\.createSubmitting\) return/);
     assert.match(source,/button\.textContent = submitting \? 'Cadastrando\.\.\.' : 'Cadastrar aluno'/);
-    assert.match(source,/showWorkspaceFeedback\(\{ type: 'success', message: 'Aluno cadastrado com sucesso\.' \}\)/);
+    assert.match(source,/latestCreatedAccess: null/);
+    assert.match(source,/Copiar mensagem de acesso/);
+    assert.match(source,/Mensagem de acesso copiada com sucesso\./);
+    assert.match(source,/Não foi possível copiar automaticamente/);
+    assert.doesNotMatch(source,/type: 'success', message: 'Aluno cadastrado com sucesso\.'/);
     assert.match(source,/showWorkspaceFeedback\(\{ type: 'error', message: 'Não foi possível cadastrar o aluno\.' \}\)/);
   }
   const cssPaths=['admin-premium-workspace.css','public/admin-premium-workspace.css','public/assets/css/admin-premium-workspace.css'];
