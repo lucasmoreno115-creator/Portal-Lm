@@ -35,6 +35,10 @@ jobs:
           echo "PERFORMANCE_EVENT_NAME=${{ github.event_name }}" >> "$GITHUB_ENV"
           echo "PERFORMANCE_REF=${{ github.ref }}" >> "$GITHUB_ENV"
       - run: npm run coverage:portal-home:test
+      - name: Initialize sanitized diagnostic artifact
+        run: |
+          mkdir -p artifacts/performance/s0.7
+          printf '%s\n' '{"schemaVersion":"1.0.0","status":"NOT_RUN","optimizationAuthorized":false,"reason":"PIPELINE_NOT_COMPLETED"}' > artifacts/performance/s0.7/pipeline-diagnostic.json
       - run: npm run coverage:portal-home:smoke
       - run: npm test
       - run: npm run coverage:portal-home

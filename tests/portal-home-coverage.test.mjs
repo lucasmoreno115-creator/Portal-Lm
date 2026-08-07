@@ -47,7 +47,7 @@ test('exit code falha fechado',()=>{assert.equal(exitCodeForStatus('MEASURED'),0
 test('scripts não persistem source code completo nem headers/bodies',async()=>{for(const f of ['scripts/measure-portal-home-coverage.mjs','scripts/analyze-portal-home-coverage.mjs']){const s=await readFile(f,'utf8');assert.doesNotMatch(s,/scriptSource\s*:/);assert.doesNotMatch(s,/requestHeaders|responseHeaders|postData/)}});
 test('alvos de escrita ficam no diretório S0.7',async()=>{const s=await readFile('scripts/measure-portal-home-coverage.mjs','utf8');assert.match(s,/artifacts\/performance\/s0\.7/)});
 
-import { validateObservedState, validateInteraction, allowedRequest, cleanupCdp, frequencyByState, classifyScript, scriptStableId, buildSource, validateRunMatrix, validateReport, scanArtifact, expectedRunIds } from '../scripts/lib/portal-coverage-core.mjs';
+import { validateObservedState, validateInteraction, allowedRequest, cleanupCdp, frequencyByState, classifyScript, scriptStableId, buildSource, validateRunMatrix, validateReport, scanArtifact, expectedRunIds, isAllowedOrigin, sanitizeLocalResourceUrl, sanitizeBlockedExternalUrl } from '../scripts/lib/portal-coverage-core.mjs';
 const baseSnapshot={path:'/portal-premium-home.html',bodyVisible:true,weeklyState:'available',weeklyBusy:false,weeklyFallbackPresent:true,promptDispatched:false,installExists:true,installHidden:true,installDisplay:'none',installButtonExists:true,pushExists:true,pushHidden:false,pushHeight:80,pushAccessibilityHidden:false,pushState:'waiting',pushBusy:false,pushButtonDisabled:false,pushApiAvailable:true,pushPersisted:false,permissionRequests:0};
 const observed=(state,patch={},context={})=>validateObservedState(state,{...baseSnapshot,...patch},{documentStatus:200,accessAllowed:true,weeklyStub:'available',httpFailures:0,...context});
 test('estado solicitado diferente do DOM não é observado',()=>assert.equal(observed('WEEKLY_PLAN_EMPTY').status,'NOT_OBSERVED'));
@@ -78,3 +78,13 @@ test('combinação duplicada é recusada',()=>assert.equal(validateRunMatrix([..
 test('combinação ausente é recusada',()=>assert.equal(validateRunMatrix(matrixRuns.slice(1),profile).valid,false));
 test('análise recusa relatório inválido',()=>assert.throws(()=>validateReport({schemaVersion:'1.0.0',environment:'LAB_STUBBED',optimizationAuthorized:false,runs:[],profile}),/REPORT_MATRIX_INVALID/));
 test('optimizationAuthorized true é sempre recusado',()=>assert.throws(()=>validateReport({schemaVersion:'1.0.0',environment:'LAB_STUBBED',optimizationAuthorized:true,runs:[],profile}),/REPORT_CONTRACT_INVALID/));
+
+
+test('origem exata exige mesma porta',()=>{const o='http://127.0.0.1:43123';assert.equal(isAllowedOrigin('http://127.0.0.1:43123/portal.css',o),true);assert.equal(isAllowedOrigin('http://127.0.0.1:43124/portal.css',o),false)});
+test('localhost, 0.0.0.0, IPv6 e protocolo diferente são externos',()=>{const o='http://127.0.0.1:43123';for(const u of ['http://localhost:43123/x','http://0.0.0.0:43123/x','http://[::1]:43123/x','https://127.0.0.1:43123/x'])assert.equal(isAllowedOrigin(u,o),false)});
+test('URL com credenciais nunca é permitida',()=>assert.equal(isAllowedOrigin('http://user:pass@127.0.0.1:43123/x','http://127.0.0.1:43123'),false));
+test('origem autorizada precisa de HTTP, loopback e porta explícita',()=>{for(const o of ['http://127.0.0.1','https://127.0.0.1:1','http://localhost:1','http://user@127.0.0.1:1'])assert.equal(isAllowedOrigin('http://127.0.0.1:1/x',o),false)});
+test('recurso local perde query e fragmento',()=>assert.equal(sanitizeLocalResourceUrl('http://127.0.0.1:43123/portal.css?private=x#frag','http://127.0.0.1:43123'),'/portal.css'));
+test('externo preserva apenas marcador e pathname',()=>assert.equal(sanitizeBlockedExternalUrl('http://127.0.0.1:43124/outside.js?private=x#frag','http://127.0.0.1:43123'),'[EXTERNAL]/outside.js'));
+test('URL externa inválida tem representação determinística',()=>assert.equal(sanitizeBlockedExternalUrl('not a url','http://127.0.0.1:43123'),'[EXTERNAL]'));
+test('tentativa externa torna run FAILED',()=>{const externalRequests=[{url:'[EXTERNAL]/outside.js',blockedBeforeSend:true}];assert.equal(externalRequests.length===0?'MEASURED':'FAILED','FAILED')});
