@@ -14,6 +14,7 @@ class FakeNode {
     this.listeners = {};
     this.attributes = {};
     this.className = '';
+    this.style = {};
     this.classList = {
       toggle: () => {},
       remove: () => {},
@@ -27,9 +28,11 @@ class FakeNode {
   removeAttribute(name) { delete this.attributes[name]; }
   closest() { return null; }
   focus() { this.focused = true; }
+  select() { this.selected = true; }
+  remove() { this.removed = true; }
 }
 
-async function runWorkspace({ sessionId = 'session-123', fetchImpl, auth = {} } = {}) {
+async function runWorkspace({ sessionId = 'session-123', fetchImpl, auth = {}, clipboard, execCommand } = {}) {
   const source = await readFile('public/admin-premium-workspace.js', 'utf8');
   const nodes = new Map();
   for (const id of ['studentList', 'errorText', 'error', 'loadMore', 'search', 'clearSearch', 'retry', 'adminLogoutBtn', 'contextBody', 'anamnesisDashboard', 'anamnesisItems', 'checkinDashboard', 'checkinItems', 'record', 'openCreate', 'createPanel', 'studentsNav', 'students', 'overview', 'closeRecord', 'createForm', 'createSubmit', 'createResult']) nodes.set(id, new FakeNode(id));
@@ -37,7 +40,9 @@ async function runWorkspace({ sessionId = 'session-123', fetchImpl, auth = {} } 
     getElementById(id) { return nodes.get(id) || null; },
     createElement(tag) { return new FakeNode('', tag); },
     createTextNode(text) { const node = new FakeNode('', '#text'); node.textContent = String(text); return node; },
-    addEventListener() {}
+    addEventListener() {},
+    body: new FakeNode('body', 'body'),
+    execCommand
   };
   const location = { origin: 'https://portal.test', pathname: '/admin-premium-workspace.html', search: '', hash: '', assigned: null, assign(url) { this.assigned = url; } };
   const calls = [];
@@ -54,6 +59,7 @@ async function runWorkspace({ sessionId = 'session-123', fetchImpl, auth = {} } 
       }
     },
     document,
+    navigator: { clipboard },
     fetch: async (url, opts) => { calls.push({ url, opts }); return fetchImpl(url, opts); },
     URL,
     URLSearchParams,
@@ -72,7 +78,7 @@ async function runWorkspace({ sessionId = 'session-123', fetchImpl, auth = {} } 
   sandbox.window.window = sandbox.window;
   vm.runInNewContext(source, sandbox);
   await new Promise((resolve) => setImmediate(resolve));
-  return { calls, nodes, location, clearCalls };
+  return { calls, nodes, location, clearCalls, document };
 }
 
 test('workspace bootstrap without session redirects and performs zero Workspace fetches', async () => {
@@ -219,14 +225,117 @@ test('cadastro desabilita o envio duplicado, anuncia processamento e restaura o 
   await form.onsubmit({ target: form, preventDefault() {} });
   assert.equal(postCalls, 1);
 
-  resolveCreate(new Response(JSON.stringify({ ok: true, data: { studentId: 'ana', name: 'Ana' } }), { status: 201 }));
+  resolveCreate(new Response(JSON.stringify({ ok: true, data: { studentId: 'ana', name: 'Ana', accessLink: 'https://portal.test/portal-login.html', token: 'codigo-ana' } }), { status: 201 }));
   await submission;
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(button.disabled, false);
   assert.equal(button.textContent, 'Cadastrar aluno');
   assert.equal(form.attributes['aria-busy'], 'false');
-  assert.equal(result.nodes.get('errorText').textContent, 'Aluno cadastrado com sucesso.');
+  assert.match(result.nodes.get('createResult').textContent, /Aluno cadastrado\. O acesso está pronto para envio/);
+  assert.match(result.nodes.get('createResult').textContent, /https:\/\/portal\.test\/portal-login\.html/);
+  assert.match(result.nodes.get('createResult').textContent, /codigo-ana/);
+  assert.match(result.nodes.get('createResult').textContent, /Copiar mensagem de acesso/);
+  const heading = result.nodes.get('createResult').children[0];
+  assert.equal(heading.tabIndex, -1);
+  assert.equal(heading.focused, true);
+  assert.equal(result.nodes.get('errorText').textContent, 'Aluno cadastrado. O acesso está pronto para envio.');
+  assert.notEqual(result.nodes.get('errorText').textContent, 'Mensagem de acesso copiada com sucesso.');
+});
+
+test('cadastro preserva o acesso e só confirma sucesso depois que a mensagem é copiada', async () => {
+  const copied = [];
+  const result = await runWorkspace({
+    clipboard: { writeText: async (value) => copied.push(value) },
+    fetchImpl: async (url, options = {}) => {
+      if (options.method === 'POST') return new Response(JSON.stringify({ ok: true, data: { studentId: 'bia', name: 'Bia', accessLink: 'https://portal.test/portal-login.html', token: 'codigo-bia' } }), { status: 201 });
+      if (String(url).includes('/summary')) return new Response(JSON.stringify({ ok: false, error: 'SERVER_ERROR' }), { status: 500 });
+      return new Response(JSON.stringify({ ok: true, data: { items: [], nextCursor: null } }), { status: 200 });
+    }
+  });
+  const form = result.nodes.get('createForm');
+  form.values = { name: 'Bia', email: 'bia@example.test', whatsapp: '' };
+  await form.onsubmit({ target: form, preventDefault() {} });
+  const copy = result.nodes.get('createResult').children.find((child) => child.textContent === 'Copiar mensagem de acesso');
+  assert.ok(copy);
+  assert.equal(copied.length, 0);
+  await copy.onclick();
+  assert.equal(copied.length, 1);
+  assert.match(copied[0], /Olá, Bia!/);
+  assert.match(copied[0], /Acesse: https:\/\/portal\.test\/portal-login\.html/);
+  assert.match(copied[0], /Seu código de acesso: codigo-bia/);
+  assert.equal(result.nodes.get('errorText').textContent, 'Mensagem de acesso copiada com sucesso.');
+});
+
+test('cópia do acesso usa fallback sem Clipboard API e não anuncia sucesso quando ele falha', async () => {
+  for (const [fallbackResult, expected] of [[true, 'Mensagem de acesso copiada com sucesso.'], [false, 'Não foi possível copiar automaticamente. Selecione a mensagem exibida e copie manualmente.']]) {
+    const result = await runWorkspace({
+      execCommand: (command) => command === 'copy' && fallbackResult,
+      fetchImpl: async (url, options = {}) => {
+        if (options.method === 'POST') return new Response(JSON.stringify({ ok: true, data: { name: 'Caio', accessLink: 'https://portal.test/portal-login.html', token: 'codigo-caio' } }), { status: 201 });
+        if (String(url).includes('/summary')) return new Response(JSON.stringify({ ok: false, error: 'SERVER_ERROR' }), { status: 500 });
+        return new Response(JSON.stringify({ ok: true, data: { items: [], nextCursor: null } }), { status: 200 });
+      }
+    });
+    const form = result.nodes.get('createForm'); form.values = { name: 'Caio', email: 'caio@example.test' };
+    await form.onsubmit({ target: form, preventDefault() {} });
+    const copy = result.nodes.get('createResult').children.find((child) => child.textContent === 'Copiar mensagem de acesso');
+    await copy.onclick();
+    assert.equal(result.nodes.get('errorText').textContent, expected);
+    assert.equal(result.document.body.children.at(-1).removed, true);
+  }
+});
+
+test('fallback remove o textarea temporário mesmo quando execCommand lança', async () => {
+  const result = await runWorkspace({
+    execCommand: () => { throw new Error('copy blocked'); },
+    fetchImpl: async (url, options = {}) => {
+      if (options.method === 'POST') return new Response(JSON.stringify({ ok: true, data: { name: 'Duda', accessLink: 'https://portal.test/portal-login.html', token: 'codigo-duda' } }), { status: 201 });
+      if (String(url).includes('/summary')) return new Response(JSON.stringify({ ok: false, error: 'SERVER_ERROR' }), { status: 500 });
+      return new Response(JSON.stringify({ ok: true, data: { items: [], nextCursor: null } }), { status: 200 });
+    }
+  });
+  const form = result.nodes.get('createForm'); form.values = { name: 'Duda', email: 'duda@example.test' };
+  await form.onsubmit({ target: form, preventDefault() {} });
+  const copy = result.nodes.get('createResult').children.find((child) => child.textContent === 'Copiar mensagem de acesso');
+  await copy.onclick();
+  assert.equal(result.document.body.children.at(-1).removed, true);
+  assert.match(result.nodes.get('errorText').textContent, /Não foi possível copiar automaticamente/);
+});
+
+test('cadastro renderiza dados da API como texto e não ativa URL fora de HTTP ou HTTPS', async () => {
+  const result = await runWorkspace({
+    fetchImpl: async (url, options = {}) => {
+      if (options.method === 'POST') return new Response(JSON.stringify({ ok: true, data: { name: '<img src=x onerror=alert(1)>', accessLink: 'javascript:alert(1)', token: '<script>token</script>' } }), { status: 201 });
+      if (String(url).includes('/summary')) return new Response(JSON.stringify({ ok: false, error: 'SERVER_ERROR' }), { status: 500 });
+      return new Response(JSON.stringify({ ok: true, data: { items: [], nextCursor: null } }), { status: 200 });
+    }
+  });
+  const form = result.nodes.get('createForm'); form.values = { name: 'Teste', email: 'teste@example.test' };
+  await form.onsubmit({ target: form, preventDefault() {} });
+  const output = result.nodes.get('createResult');
+  const renderedUrl = output.children.find((child) => child.textContent === 'javascript:alert(1)');
+  assert.equal(renderedUrl.tag, 'span');
+  assert.equal(renderedUrl.href, undefined);
+  assert.match(output.textContent, /<script>token<\/script>/);
+  assert.equal(output.children.some((child) => child.tag === 'img' || child.tag === 'script'), false);
+});
+
+test('cadastro ativa HTTP e HTTPS normais, mas rejeita credenciais na URL', async () => {
+  for (const [accessLink, expectedTag] of [['http://portal.test/acesso', 'a'], ['https://portal.test/acesso', 'a'], ['https://user@portal.test/acesso', 'span'], ['https://user:secret@portal.test/acesso', 'span']]) {
+    const result = await runWorkspace({
+      fetchImpl: async (url, options = {}) => {
+        if (options.method === 'POST') return new Response(JSON.stringify({ ok: true, data: { name: 'Eva', accessLink, token: 'codigo-eva' } }), { status: 201 });
+        if (String(url).includes('/summary')) return new Response(JSON.stringify({ ok: false, error: 'SERVER_ERROR' }), { status: 500 });
+        return new Response(JSON.stringify({ ok: true, data: { items: [], nextCursor: null } }), { status: 200 });
+      }
+    });
+    const form = result.nodes.get('createForm'); form.values = { name: 'Eva', email: 'eva@example.test' };
+    await form.onsubmit({ target: form, preventDefault() {} });
+    const renderedUrl = result.nodes.get('createResult').children.find((child) => child.textContent === accessLink);
+    assert.equal(renderedUrl.tag, expectedTag);
+    assert.equal(Boolean(renderedUrl.href), expectedTag === 'a');
+  }
 });
 
 test('cadastro restaura o botão, preserva os dados e comunica erro padronizado', async () => {
