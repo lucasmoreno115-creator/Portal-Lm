@@ -1,0 +1,55 @@
+name: Portal Home resource coverage S0.7
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/portal-home-coverage.yml'
+      - 'config/portal-home-coverage-profile.json'
+      - 'scripts/measure-portal-home-coverage.mjs'
+      - 'scripts/analyze-portal-home-coverage.mjs'
+      - 'scripts/lib/portal-coverage-core.mjs'
+      - 'scripts/lib/portal-performance-chrome.mjs'
+      - 'scripts/smoke/portal-home-coverage-smoke.mjs'
+      - 'tests/portal-home-coverage.test.mjs'
+      - 'portal-premium-home.html'
+      - 'portal.css'
+      - 'public/assets/js/**'
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Require stable Chrome
+        run: |
+          test -x /usr/bin/google-chrome
+          echo "CHROME_BIN=/usr/bin/google-chrome" >> "$GITHUB_ENV"
+      - name: Export provenance
+        run: |
+          echo "PERFORMANCE_HEAD_SHA=${{ github.event.pull_request.head.sha || github.sha }}" >> "$GITHUB_ENV"
+          echo "PERFORMANCE_CHECKOUT_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "PERFORMANCE_WORKFLOW_SHA=${{ github.sha }}" >> "$GITHUB_ENV"
+          echo "PERFORMANCE_BASE_SHA=2281d6ed6fa2fad1303c45c25b5c1eb382011da6" >> "$GITHUB_ENV"
+          echo "PERFORMANCE_EVENT_NAME=${{ github.event_name }}" >> "$GITHUB_ENV"
+          echo "PERFORMANCE_REF=${{ github.ref }}" >> "$GITHUB_ENV"
+      - run: npm run coverage:portal-home:test
+      - name: Initialize sanitized diagnostic artifact
+        run: |
+          mkdir -p artifacts/performance/s0.7
+          printf '%s\n' '{"schemaVersion":"1.0.0","status":"NOT_RUN","optimizationAuthorized":false,"reason":"PIPELINE_NOT_COMPLETED"}' > artifacts/performance/s0.7/pipeline-diagnostic.json
+      - run: npm run coverage:portal-home:smoke
+      - run: npm test
+      - run: npm run coverage:portal-home
+      - if: always()
+        run: npm run coverage:portal-home:analyze
+      - name: Validate analysis
+        if: always()
+        run: test -s artifacts/performance/s0.7/portal-home-coverage-analysis.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: portal-home-coverage-s0.7-${{ github.sha }}
+          path: artifacts/performance/s0.7/
+          if-no-files-found: error

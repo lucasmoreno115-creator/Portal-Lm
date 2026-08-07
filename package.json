@@ -37,5 +37,9 @@
     "db:catalog": "node scripts/db-tool.mjs catalog",
     "deploy:production:plan": "node scripts/db-tool.mjs production-plan",
     "performance:portal:smoke": "node --test tests/portal-performance-smoke.mjs"
+    ,"coverage:portal-home": "node scripts/measure-portal-home-coverage.mjs"
+    ,"coverage:portal-home:analyze": "node scripts/analyze-portal-home-coverage.mjs"
+    ,"coverage:portal-home:test": "node --test tests/portal-home-coverage.test.mjs"
+    ,"coverage:portal-home:smoke": "node --test scripts/smoke/portal-home-coverage-smoke.mjs"
   }
 }
