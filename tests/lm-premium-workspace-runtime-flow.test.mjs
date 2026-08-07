@@ -232,10 +232,14 @@ test('cadastro desabilita o envio duplicado, anuncia processamento e restaura o 
   assert.equal(button.disabled, false);
   assert.equal(button.textContent, 'Cadastrar aluno');
   assert.equal(form.attributes['aria-busy'], 'false');
-  assert.match(result.nodes.get('createResult').textContent, /Aluno cadastrado\. Acesso pronto para envio/);
+  assert.match(result.nodes.get('createResult').textContent, /Aluno cadastrado\. O acesso está pronto para envio/);
   assert.match(result.nodes.get('createResult').textContent, /https:\/\/portal\.test\/portal-login\.html/);
   assert.match(result.nodes.get('createResult').textContent, /codigo-ana/);
   assert.match(result.nodes.get('createResult').textContent, /Copiar mensagem de acesso/);
+  const heading = result.nodes.get('createResult').children[0];
+  assert.equal(heading.tabIndex, -1);
+  assert.equal(heading.focused, true);
+  assert.equal(result.nodes.get('errorText').textContent, 'Aluno cadastrado. O acesso está pronto para envio.');
   assert.notEqual(result.nodes.get('errorText').textContent, 'Mensagem de acesso copiada com sucesso.');
 });
 
@@ -282,6 +286,23 @@ test('cópia do acesso usa fallback sem Clipboard API e não anuncia sucesso qua
   }
 });
 
+test('fallback remove o textarea temporário mesmo quando execCommand lança', async () => {
+  const result = await runWorkspace({
+    execCommand: () => { throw new Error('copy blocked'); },
+    fetchImpl: async (url, options = {}) => {
+      if (options.method === 'POST') return new Response(JSON.stringify({ ok: true, data: { name: 'Duda', accessLink: 'https://portal.test/portal-login.html', token: 'codigo-duda' } }), { status: 201 });
+      if (String(url).includes('/summary')) return new Response(JSON.stringify({ ok: false, error: 'SERVER_ERROR' }), { status: 500 });
+      return new Response(JSON.stringify({ ok: true, data: { items: [], nextCursor: null } }), { status: 200 });
+    }
+  });
+  const form = result.nodes.get('createForm'); form.values = { name: 'Duda', email: 'duda@example.test' };
+  await form.onsubmit({ target: form, preventDefault() {} });
+  const copy = result.nodes.get('createResult').children.find((child) => child.textContent === 'Copiar mensagem de acesso');
+  await copy.onclick();
+  assert.equal(result.document.body.children.at(-1).removed, true);
+  assert.match(result.nodes.get('errorText').textContent, /Não foi possível copiar automaticamente/);
+});
+
 test('cadastro renderiza dados da API como texto e não ativa URL fora de HTTP ou HTTPS', async () => {
   const result = await runWorkspace({
     fetchImpl: async (url, options = {}) => {
@@ -298,6 +319,23 @@ test('cadastro renderiza dados da API como texto e não ativa URL fora de HTTP o
   assert.equal(renderedUrl.href, undefined);
   assert.match(output.textContent, /<script>token<\/script>/);
   assert.equal(output.children.some((child) => child.tag === 'img' || child.tag === 'script'), false);
+});
+
+test('cadastro ativa HTTP e HTTPS normais, mas rejeita credenciais na URL', async () => {
+  for (const [accessLink, expectedTag] of [['http://portal.test/acesso', 'a'], ['https://portal.test/acesso', 'a'], ['https://user@portal.test/acesso', 'span'], ['https://user:secret@portal.test/acesso', 'span']]) {
+    const result = await runWorkspace({
+      fetchImpl: async (url, options = {}) => {
+        if (options.method === 'POST') return new Response(JSON.stringify({ ok: true, data: { name: 'Eva', accessLink, token: 'codigo-eva' } }), { status: 201 });
+        if (String(url).includes('/summary')) return new Response(JSON.stringify({ ok: false, error: 'SERVER_ERROR' }), { status: 500 });
+        return new Response(JSON.stringify({ ok: true, data: { items: [], nextCursor: null } }), { status: 200 });
+      }
+    });
+    const form = result.nodes.get('createForm'); form.values = { name: 'Eva', email: 'eva@example.test' };
+    await form.onsubmit({ target: form, preventDefault() {} });
+    const renderedUrl = result.nodes.get('createResult').children.find((child) => child.textContent === accessLink);
+    assert.equal(renderedUrl.tag, expectedTag);
+    assert.equal(Boolean(renderedUrl.href), expectedTag === 'a');
+  }
 });
 
 test('cadastro restaura o botão, preserva os dados e comunica erro padronizado', async () => {
