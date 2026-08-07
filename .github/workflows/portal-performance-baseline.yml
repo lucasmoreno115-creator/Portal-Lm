@@ -98,9 +98,17 @@ jobs:
           test "$(git -C "$before" rev-parse HEAD)" = "${{ steps.provenance.outputs.baseline_sha }}"
           ln -s "$GITHUB_WORKSPACE/node_modules" "$before/node_modules"
           mkdir -p artifacts/performance/s0.6/before
-          (cd "$before" && npm run performance:portal) 2>&1 | tee artifacts/performance/s0.6/before/measurement.log
-          mkdir -p artifacts/performance/s0.6/before
+          (cd "$before" && env \
+            -u GITHUB_SHA \
+            -u PERFORMANCE_BASE_SHA \
+            PERFORMANCE_CHECKOUT_SHA="${{ steps.provenance.outputs.baseline_sha }}" \
+            PERFORMANCE_HEAD_SHA="${{ steps.provenance.outputs.baseline_sha }}" \
+            PERFORMANCE_EVENT_NAME=local \
+            PERFORMANCE_REF=local \
+            CHROME_BIN="$CHROME_BIN" \
+            npm run performance:portal) 2>&1 | tee artifacts/performance/s0.6/before/measurement.log
           cp "$before"/artifacts/performance/portal-performance-report.{json,md} artifacts/performance/s0.6/before/
+          node -e "const r=JSON.parse(require('fs').readFileSync('artifacts/performance/s0.6/before/portal-performance-report.json'));const s=r.source,b='${{ steps.provenance.outputs.baseline_sha }}';if(s.eventName!=='local'||s.ref!=='local'||s.checkoutSha!==b||s.headSha!==b||s.baseSha!==null||s.workflowSha!==null||s.canonicalMainSha!==null)process.exit(1)"
       - name: Verify worktree cleanup
         if: always()
         run: |

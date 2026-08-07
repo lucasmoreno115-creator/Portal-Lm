@@ -5,6 +5,7 @@ import path from 'node:path';
 import { compareReports, comparisonMarkdown, exitCodeForComparison, metricDelta, REQUIRED_METRICS } from '../scripts/compare-portal-performance.mjs';
 import { aggregateRuns } from '../scripts/lib/portal-performance-core.mjs';
 import { EXPECTED_PAGES } from '../scripts/lib/portal-performance-analysis.mjs';
+import { buildPerformanceSource } from '../scripts/lib/portal-performance-analysis.mjs';
 
 const root = path.resolve(import.meta.dirname, '..'), BASE = '9'.repeat(40), HEAD = 'a'.repeat(40), CHECKOUT = 'b'.repeat(40), WORKFLOW = 'c'.repeat(40);
 const read = file => readFile(path.join(root, file), 'utf8');
@@ -66,8 +67,22 @@ test('FAILED e INCONCLUSIVE nunca têm exit code zero', () => { assert.equal(exi
 
 test('workflow disponibiliza base, liga after ao head e preserva diagnóstico/upload após falha', async () => {
   const workflow = await read('.github/workflows/portal-performance-baseline.yml');
-  for (const required of ['fetch-depth: 0', 'git cat-file -e', 'git worktree add --detach', 'trap cleanup EXIT', 'git worktree remove --force', 'github.event.pull_request.head.sha || github.sha', 'continue-on-error: true', "if: always()", 'BEFORE_MEASUREMENT_FAILED', 'AFTER_MEASUREMENT_FAILED', 'artifacts/performance/s0.6/']) assert.ok(workflow.includes(required), required);
+  for (const required of ['fetch-depth: 0', 'git cat-file -e', 'git worktree add --detach', 'trap cleanup EXIT', 'git worktree remove --force', 'env \\', '-u GITHUB_SHA', '-u PERFORMANCE_BASE_SHA', 'PERFORMANCE_EVENT_NAME=local', 'PERFORMANCE_REF=local', 'github.event.pull_request.head.sha || github.sha', 'continue-on-error: true', "if: always()", 'BEFORE_MEASUREMENT_FAILED', 'AFTER_MEASUREMENT_FAILED', 'artifacts/performance/s0.6/before/portal-performance-report.json', 'artifacts/performance/s0.6/']) assert.ok(workflow.includes(required), required);
   assert.equal((workflow.match(/run: npm test/g) || []).length, 1);
+});
+
+test('before isola GITHUB_SHA do pai e nasce com proveniência local válida', () => {
+  const mergeSha = 'd'.repeat(40), baselineSha = '9fcbc86fa63ca9c0792b789d774de8cf13d2b366';
+  assert.throws(() => buildPerformanceSource({ checkoutSha: baselineSha, chromeVersion: 'Chrome/150', nodeVersion: 'v22.22.2', env: { GITHUB_SHA: mergeSha, PERFORMANCE_CHECKOUT_SHA: baselineSha, PERFORMANCE_HEAD_SHA: baselineSha, PERFORMANCE_EVENT_NAME: 'local', PERFORMANCE_REF: 'local' } }), /proveniência local/);
+  const isolated = buildPerformanceSource({ checkoutSha: baselineSha, chromeVersion: 'Chrome/150', nodeVersion: 'v22.22.2', env: { PERFORMANCE_CHECKOUT_SHA: baselineSha, PERFORMANCE_HEAD_SHA: baselineSha, PERFORMANCE_EVENT_NAME: 'local', PERFORMANCE_REF: 'local' } });
+  assert.deepEqual(isolated, { baseSha: null, headSha: baselineSha, checkoutSha: baselineSha, workflowSha: null, canonicalMainSha: null, ref: 'local', eventName: 'local', nodeVersion: 'v22.22.2', chromeVersion: 'Chrome/150' });
+});
+
+test('after mantém todas as variáveis de proveniência pull_request', async () => {
+  const workflow = await read('.github/workflows/portal-performance-baseline.yml');
+  const after = workflow.slice(workflow.indexOf('- name: Measure S0.6 after'), workflow.indexOf('- name: Analyze measured after'));
+  for (const variable of ['PERFORMANCE_BASE_SHA:', 'PERFORMANCE_HEAD_SHA:', 'PERFORMANCE_CHECKOUT_SHA:', 'PERFORMANCE_EVENT_NAME:', 'PERFORMANCE_REF:']) assert.ok(after.includes(variable), variable);
+  assert.doesNotMatch(after, /-u (GITHUB_SHA|PERFORMANCE_BASE_SHA)/);
 });
 
 test('preserva métricas, scripts, sanitização e não introduz seletores exclusivos', async () => {
