@@ -151,7 +151,14 @@
     const feedback = el('p', { className: 'muted', textContent: '' });
     feedback.setAttribute('role', 'status');
     const nodes = [field('Status do acesso', statusLabels[status] || status || '—'), field('E-mail oficial', student.email)];
-    if (['NEW', 'AWAITING_ANAMNESIS', 'UNDER_REVIEW'].includes(status)) {
+    if (['NEW', 'AWAITING_ANAMNESIS'].includes(status)) {
+      nodes.push(el('p', { className: 'muted', textContent: 'Acesso ainda não disponível.' }));
+      if (temporaryAccessCredentials?.temporaryPassword) {
+        const link = 'https://portal.lucasmorenopersonal.com.br/portal-login.html';
+        const message = accessMessage(student);
+        nodes.push(field('Link de acesso', link), field('Código de acesso', temporaryAccessCredentials.temporaryPassword), el('pre', { className: 'access-message', textContent: message }), el('button', { textContent: 'Copiar mensagem de acesso', dataset: { copyAccess: 'true' } }));
+      } else nodes.push(el('button', { textContent: 'Gerar novo acesso', dataset: { generateAccess: 'true' } }));
+    } else if (status === 'UNDER_REVIEW') {
       nodes.push(el('p', { className: 'muted', textContent: 'Acesso ainda não disponível.' }));
     } else if (status === 'READY_TO_RELEASE') {
       nodes.push(el('button', { textContent: 'Liberar acesso ao aluno', dataset: { releaseAccess: 'true' } }));
@@ -248,6 +255,19 @@
   }
 
   document.addEventListener('click', async (event) => {
+    if (event.target?.dataset?.generateAccess) {
+      if (!confirm('Será criado um novo código de acesso para esta aluna. Um código anterior, se existir, deixará de funcionar.')) return;
+      event.target.disabled = true;
+      const feedback = byId('studentAccess')?.querySelector?.('[role="status"]');
+      try {
+        const credentials = await api(`/api/admin/premium/workspace/students/${encodeURIComponent(studentId)}/access`, { method: 'POST', body: '{}' });
+        temporaryAccessCredentials = { temporaryPassword: credentials.token };
+        renderStudentAccess(lastStudent);
+        const result = byId('studentAccess')?.querySelector?.('[role="status"]');
+        if (result) result.textContent = 'Novo acesso criado. Link, código e mensagem estão disponíveis para cópia.';
+      } catch (error) { if (feedback) feedback.textContent = error.message; event.target.disabled = false; }
+      return;
+    }
     if (event.target?.dataset?.releaseAccess) {
       event.target.disabled = true;
       try {
