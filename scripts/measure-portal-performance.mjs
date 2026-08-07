@@ -7,6 +7,7 @@ import { validateProfile, assertLocalUrl, sanitizeUrl, resourceType, aggregateBy
 import { startLocalServer } from './lib/portal-performance-server.mjs';
 import { launchChrome, pageSocket, waitForPageLoad, formatChromeLaunchDiagnostic, ChromeLaunchError } from './lib/portal-performance-chrome.mjs';
 import { buildPerformanceSource } from './lib/portal-performance-analysis.mjs';
+import { clsConsistency, identifyUpstreamGrowth, sortLayoutSnapshots } from './lib/portal-layout-stability.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, 'artifacts/performance');
@@ -104,7 +105,16 @@ export async function measure(cdp, page, scenario, run, port, activeProfile = pr
       await safeSend('Network.clearBrowserCache');
       await safeSend('Storage.clearDataForOrigin', { origin: `http://127.0.0.1:${port}`, storageTypes: 'all' });
     }
-    await safeSend('Page.addScriptToEvaluateOnNewDocument', { source: `localStorage.setItem('lm_student_email','student@example.invalid');localStorage.setItem('lm_student_token','LAB_ONLY');localStorage.setItem('lm_student_name','Aluno Fictício');localStorage.setItem('lm_student_plan','premium');window.__perf={lcp:null,cls:0,longTasks:[],layoutShiftEvents:[]};const safePart=v=>String(v||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,40);const sensitive=v=>/(email|name|token|auth|password|secret|student|aluno)/i.test(v||'');const selector=n=>{if(!n||!n.tagName)return null;const parts=[];for(let x=n;x&&parts.length<3;x=x.parentElement){let p=safePart(x.tagName).toLowerCase();if(x.id&&!sensitive(x.id))p+='#'+safePart(x.id);p+=[...x.classList].filter(c=>!sensitive(c)).slice(0,2).map(c=>'.'+safePart(c)).join('');parts.unshift(p)}return parts.join('>')};const rect=r=>r?{x:r.x,y:r.y,width:r.width,height:r.height,top:r.top,right:r.right,bottom:r.bottom,left:r.left}:null;try{new PerformanceObserver(x=>{const e=x.getEntries().at(-1);if(e)window.__perf.lcp=e.startTime}).observe({type:'largest-contentful-paint',buffered:true});new PerformanceObserver(x=>{for(const e of x.getEntries()){const sources=e.sources===undefined?null:e.sources.map(s=>({nodeSelector:selector(s.node),previousRect:rect(s.previousRect),currentRect:rect(s.currentRect)}));window.__perf.layoutShiftEvents.push({startTime:e.startTime,value:e.value,hadRecentInput:e.hadRecentInput,sources});if(!e.hadRecentInput)window.__perf.cls+=e.value}}).observe({type:'layout-shift',buffered:true});new PerformanceObserver(x=>window.__perf.longTasks.push(...x.getEntries().map(e=>e.duration))).observe({type:'longtask',buffered:true})}catch{}` });
+    await safeSend('Page.addScriptToEvaluateOnNewDocument', { source: `
+      localStorage.setItem('lm_student_email','student@example.invalid');localStorage.setItem('lm_student_token','LAB_ONLY');localStorage.setItem('lm_student_name','Aluno Fictício');localStorage.setItem('lm_student_plan','premium');
+      window.__perf={lcp:null,cls:0,longTasks:[],layoutShiftEvents:[],layoutSnapshots:[],observers:[]};
+      const safePart=v=>String(v||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,40),sensitive=v=>/(email|name|token|auth|password|secret|student|aluno)/i.test(v||'');
+      const selector=n=>{if(!n||!n.tagName)return null;const parts=[];for(let x=n;x&&parts.length<3;x=x.parentElement){let p=safePart(x.tagName).toLowerCase();if(x.id&&!sensitive(x.id))p+='#'+safePart(x.id);p+=[...x.classList].filter(c=>!sensitive(c)).slice(0,2).map(c=>'.'+safePart(c)).join('');parts.unshift(p)}return parts.join('>')};
+      const rect=r=>r?{x:r.x,y:r.y,width:r.width,height:r.height,top:r.top,right:r.right,bottom:r.bottom,left:r.left}:null;
+      const consumeLayout=entries=>{for(const e of entries){const sources=e.sources===undefined?null:e.sources.map(s=>({nodeSelector:selector(s.node),previousRect:rect(s.previousRect),currentRect:rect(s.currentRect)}));window.__perf.layoutShiftEvents.push({startTime:e.startTime,value:e.value,hadRecentInput:e.hadRecentInput,sources});if(!e.hadRecentInput)window.__perf.cls+=e.value}};
+      const snapshot=phase=>{if(location.pathname!='/portal-premium-home.html')return;const target=document.querySelector('#pwaPushCard');if(!target)return;const nodes=[document.querySelector('header'),...document.querySelectorAll('main.home-main>*')].filter(Boolean);const before=[];for(const node of nodes){if(node===target)break;before.push(node)}before.push(target,document.querySelector('#weekly-plan-section'));const elements=before.filter(Boolean).map(node=>{const style=getComputedStyle(node),r=node.getBoundingClientRect();return{selector:selector(node),rect:{top:r.top,bottom:r.bottom,width:r.width,height:r.height},hidden:Boolean(node.hidden),display:style.display,visibility:style.visibility,state:safePart(node.dataset?.state||'')}}).filter(x=>x.selector).sort((a,b)=>a.selector.localeCompare(b.selector));window.__perf.layoutSnapshots.push({phase,monotonicTime:performance.now(),elements})};
+      try{const lcp=new PerformanceObserver(x=>{const e=x.getEntries().at(-1);if(e)window.__perf.lcp=e.startTime}),layout=new PerformanceObserver(x=>consumeLayout(x.getEntries())),longtask=new PerformanceObserver(x=>window.__perf.longTasks.push(...x.getEntries().map(e=>e.duration)));lcp.observe({type:'largest-contentful-paint',buffered:true});layout.observe({type:'layout-shift',buffered:true});longtask.observe({type:'longtask',buffered:true});window.__perf.observers=[lcp,layout,longtask];window.__perf.flush=()=>{consumeLayout(layout.takeRecords());for(const observer of window.__perf.observers)observer.disconnect();snapshot('FINAL')};addEventListener('DOMContentLoaded',()=>{snapshot('INITIAL_DOM');let mutation=0;const observer=new MutationObserver(()=>snapshot('MUTATION_'+String(++mutation).padStart(3,'0')));observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['hidden','style','class','data-state']});window.__perf.mutationObserver=observer},{once:true})}catch{}
+    ` });
     const expected = `http://127.0.0.1:${port}${page}`;
     const loaded = waitForPageLoad(cdp, { timeoutMs: 30000, label: `${scenario}:${page}:${run}` });
     unsubscribers.push(loaded.cleanup);
@@ -113,14 +123,15 @@ export async function measure(cdp, page, scenario, run, port, activeProfile = pr
     await new Promise(resolve => setTimeout(resolve, 500));
     let evalResult;
     try {
-      evalResult = await safeSend('Runtime.evaluate', { returnByValue: true, expression: `(()=>{const n=performance.getEntriesByType('navigation')[0],p=performance.getEntriesByType('paint').find(x=>x.name==='first-contentful-paint'),x=window.__perf||{};return{url:location.href,ttfb:n?n.responseStart:null,fcp:p?p.startTime:null,lcp:x.lcp??null,cls:x.cls??null,domContentLoaded:n?n.domContentLoadedEventEnd:null,load:n?n.loadEventEnd:null,longTaskCount:x.longTasks?.length??null,longTaskDuration:x.longTasks?.reduce((a,b)=>a+b,0)??null}})()` });
+      evalResult = await safeSend('Runtime.evaluate', { returnByValue: true, expression: `(()=>{const x=window.__perf||{};x.mutationObserver?.disconnect();x.flush?.();const n=performance.getEntriesByType('navigation')[0],p=performance.getEntriesByType('paint').find(x=>x.name==='first-contentful-paint');return{metrics:{url:location.href,ttfb:n?n.responseStart:null,fcp:p?p.startTime:null,lcp:x.lcp??null,cls:x.cls??null,domContentLoaded:n?n.domContentLoadedEventEnd:null,load:n?n.loadEventEnd:null,longTaskCount:x.longTasks?.length??null,longTaskDuration:x.longTasks?.reduce((a,b)=>a+b,0)??null},layoutShiftEvents:x.layoutShiftEvents??[],layoutSnapshots:x.layoutSnapshots??[]}})()` });
     } catch (error) {
       runtimeEvaluateFailed = true;
       throw error;
     }
     resources.push(...byId.values());
     resources.sort((a, b) => a.url.localeCompare(b.url));
-    const base = evalResult.result.value;
+    const captured = evalResult.result.value;
+    const base = captured.metrics;
     const transferValues = resources.map(r => r.transferBytes).filter(Number.isFinite);
     const encodedValues = resources.map(r => r.encodedBodyBytes).filter(Number.isFinite);
     const decodedValues = resources.map(r => r.decodedBodyBytes).filter(Number.isFinite);
@@ -135,7 +146,11 @@ export async function measure(cdp, page, scenario, run, port, activeProfile = pr
       decodedBodyBytes: decodedValues.length ? decodedValues.reduce((a, b) => a + b, 0) : null
     };
     const finalPath = new URL(base.url).pathname;
-    const result = { run, scenario, page, metrics, layoutShiftEvents: (await safeSend('Runtime.evaluate',{returnByValue:true,expression:'window.__perf?.layoutShiftEvents??[]'})).result.value, bytesByType: aggregateBytes(resources), encodedBytesByType: aggregateBytes(resources, 'encodedBodyBytes'), decodedBytesByType: aggregateBytes(resources, 'decodedBodyBytes'), resources, failedRequests, redirects, mainDocumentStatus, mainDocumentLoaded, loadEventFired, externalRequestAttempted, unexpectedRedirect: finalPath !== page ? { expected: page, actual: finalPath } : null, externalBlocked, runtimeEvaluateFailed, cdpError, errors, warnings, error: errors[0] ?? null };
+    const consistency = clsConsistency(metrics.cls, captured.layoutShiftEvents);
+    if (!consistency.valid) errors.push('CLS_EVENT_MISMATCH');
+    const layoutSnapshots = sortLayoutSnapshots(captured.layoutSnapshots);
+    const layoutDiagnosis = page === '/portal-premium-home.html' ? { upstreamGrowth: identifyUpstreamGrowth(layoutSnapshots, ['main>aside#pwaPushCard.pwa-push-card.card','main>section#weekly-plan-section.planning.card']) } : null;
+    const result = { run, scenario, page, metrics, layoutShiftEvents: captured.layoutShiftEvents, layoutSnapshots, layoutDiagnosis, clsConsistency: consistency, bytesByType: aggregateBytes(resources), encodedBytesByType: aggregateBytes(resources, 'encodedBodyBytes'), decodedBytesByType: aggregateBytes(resources, 'decodedBodyBytes'), resources, failedRequests, redirects, mainDocumentStatus, mainDocumentLoaded, loadEventFired, externalRequestAttempted, unexpectedRedirect: finalPath !== page ? { expected: page, actual: finalPath } : null, externalBlocked, runtimeEvaluateFailed, cdpError, errors, warnings, error: errors[0] ?? null };
     Object.assign(result, classifyRun(result));
     return result;
   } finally {

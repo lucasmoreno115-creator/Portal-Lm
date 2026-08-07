@@ -40,18 +40,6 @@
   <main class='container home-main'>
     <div id='nav' class='mobile-nav'></div>
 
-    <aside id='pwaInstallCard' class='pwa-install-card card' aria-labelledby='pwa-install-title' hidden>
-      <div class='pwa-install-card__icon' aria-hidden='true'>📲</div>
-      <div class='pwa-install-card__content'>
-        <h2 id='pwa-install-title'>Instale o Portal LM</h2>
-        <p>Tenha acesso mais rápido ao seu planejamento e prepare seu dispositivo para receber lembretes importantes.</p>
-        <div class='pwa-install-card__actions'>
-          <button id='pwaInstallButton' class='primary-cta' type='button'>Instalar agora</button>
-          <button id='pwaInstallDismiss' class='pwa-install-card__dismiss' type='button'>Agora não</button>
-        </div>
-      </div>
-    </aside>
-
     <div id='pwaIosModal' class='pwa-install-modal' role='dialog' aria-modal='true' aria-labelledby='pwa-ios-title' hidden>
       <div class='pwa-install-modal__backdrop' data-pwa-modal-close></div>
       <section class='pwa-install-modal__panel'>
@@ -66,17 +54,20 @@
       </section>
     </div>
 
-    <aside id='pwaPushCard' class='pwa-push-card card' aria-labelledby='pwa-push-title' data-state='waiting'>
+    <aside id='pwaPushCard' class='pwa-push-card card' aria-labelledby='pwa-push-title' data-state='loading' aria-busy='true'>
       <div class='pwa-push-card__icon' aria-hidden='true'>🔔</div>
       <div class='pwa-push-card__content'>
         <h2 id='pwa-push-title'>Ative os lembretes</h2>
         <p>Receba avisos importantes sobre check-in e atualizações do seu acompanhamento.</p>
-        <p id='pwaPushMessage' class='pwa-push-card__status' aria-live='polite'>Aguardando verificação do dispositivo.</p>
+        <p id='pwaPushMessage' class='pwa-push-card__status' aria-live='polite'>Verificando compatibilidade e permissão do dispositivo…</p>
         <button id='pwaPushButton' class='primary-cta' type='button'>Ativar notificações</button>
       </div>
     </aside>
+    <script>
+      try { if (localStorage.getItem('lm_portal_push_enabled') === 'true') document.getElementById('pwaPushCard').hidden = true; } catch (_) {}
+    </script>
 
-    <section class='planning card dashboard-card mission-card-v6 weekly-plan-editorial' id='weekly-plan-section' aria-labelledby='planning-title'>
+    <section class='planning card dashboard-card mission-card-v6 weekly-plan-editorial' id='weekly-plan-section' aria-labelledby='planning-title' data-state='loading' aria-busy='true'>
       <h2 id='planning-title'>🎯 Objetivos do planejamento</h2>
       <div class='weekly-plan-grid'>
         <article>
@@ -123,6 +114,19 @@
         <a class='secondary-link' href='https://wa.me/5514991174500?text=Olá%20Lucas,%20preciso%20de%20ajuda.' target='_blank' rel='noopener noreferrer' data-feature='suporte'><span class='quick-icon'>💬</span><span>Preciso de ajuda</span></a>
       </div>
     </section>
+
+    <aside id='pwaInstallCard' class='pwa-install-card card' aria-labelledby='pwa-install-title' hidden>
+      <div class='pwa-install-card__icon' aria-hidden='true'>📲</div>
+      <div class='pwa-install-card__content'>
+        <h2 id='pwa-install-title'>Instale o Portal LM</h2>
+        <p>Tenha acesso mais rápido ao seu planejamento e prepare seu dispositivo para receber lembretes importantes.</p>
+        <div class='pwa-install-card__actions'>
+          <button id='pwaInstallButton' class='primary-cta' type='button'>Instalar agora</button>
+          <button id='pwaInstallDismiss' class='pwa-install-card__dismiss' type='button'>Agora não</button>
+        </div>
+      </div>
+    </aside>
+
   </main>
 
   <script>
@@ -150,11 +154,12 @@
       const weeklyPlanNutritionEl = document.querySelector('#weeklyPlanNutrition');
       const weeklyPlanObservationEl = document.querySelector('#weeklyPlanObservation');
       const weeklyInsightCopies = document.querySelectorAll('.weekly-insight-copy');
+      const weeklyPlanSection = document.querySelector('#weekly-plan-section');
 
       try {
         const weeklyPlanResponse = await api('/portal/weekly-plan');
         const weeklyPlan = weeklyPlanResponse?.data || null;
-        if (!weeklyPlan) return;
+        if (!weeklyPlan) { weeklyPlanSection.dataset.state = 'empty'; return; }
 
         const trainingFocus = weeklyPlan.training_focus || 'Use o treino no MFIT como base da semana, priorizando técnica, controle e regularidade.';
         const cardioTarget = weeklyPlan.cardio_target || 'Busque realizar o cardio combinado da forma mais sustentável possível dentro da sua rotina.';
@@ -167,8 +172,11 @@
         weeklyPlanNutritionEl.textContent = nutritionFocus;
         weeklyPlanObservationEl.textContent = coachMessage;
         weeklyInsightCopies.forEach((el) => { el.textContent = mainRisk; });
+        weeklyPlanSection.dataset.state = 'available';
       } catch (error) {
-        // Erro silencioso para não quebrar a experiência da home.
+        weeklyPlanSection.dataset.state = 'error';
+      } finally {
+        weeklyPlanSection.setAttribute('aria-busy', 'false');
       }
     })();
     });
