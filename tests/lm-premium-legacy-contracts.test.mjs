@@ -23,9 +23,9 @@ async function withDb(fn) {
   }
 }
 
-async function seedAccess(db, { id = 'access-1', email = 'student@example.com', token = 'token', plan = 'premium', planType = 'PREMIUM' } = {}) {
-  await db.prepare(`INSERT INTO student_access (id, name, email, access_token, status, plan_type, plan, created_at) VALUES (?, ?, ?, ?, 'ACTIVE', ?, ?, ?)`)
-    .bind(id, 'Student', email, token, planType, plan, '2026-07-14T00:00:00.000Z').run();
+async function seedAccess(db, { id = 'access-1', email = 'student@example.com', token = 'token', plan = 'premium', planType = 'PREMIUM', studentId = null } = {}) {
+  await db.prepare(`INSERT INTO student_access (id, name, email, access_token, status, plan_type, plan, student_id, created_at) VALUES (?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?)`)
+    .bind(id, 'Student', email, token, planType, plan, studentId, '2026-07-14T00:00:00.000Z').run();
 }
 
 async function seedPremiumStudent(db, { studentId = 'student-1', email = 'student@example.com', status = 'ACTIVE' } = {}) {
@@ -46,6 +46,46 @@ function assertNoInternalFields(value) {
   assert.equal(text.includes('identity_method'), false);
   assert.equal(text.includes('fallback'), false);
 }
+
+test('emissão Premium pré-anamnese usa ID, rotaciona o token e preserva o lifecycle', async () => withDb(async (db) => {
+  await seedPremiumStudent(db, { status: 'AWAITING_ANAMNESIS' });
+  await seedAccess(db, { token: 'token-anterior', studentId: 'student-1' });
+  const unauthorized = await api(db, 'POST', '/api/admin/premium/workspace/students/student-1/access');
+  assert.equal(unauthorized.status, 401);
+  const issued = await api(db, 'POST', '/api/admin/premium/workspace/students/student-1/access', { admin: true });
+  assert.equal(issued.status, 200);
+  assert.match(issued.body.data.token, /^[a-f0-9]{12}$/);
+  assert.notEqual(issued.body.data.token, 'token-anterior');
+  assert.match(issued.body.data.accessLink, /portal-login\.html$/);
+  const access = await db.prepare('SELECT access_token FROM student_access WHERE student_id=?').bind('student-1').first();
+  assert.equal(access.access_token, issued.body.data.token);
+  const student = await db.prepare('SELECT consultation_status FROM premium_students WHERE student_id=?').bind('student-1').first();
+  assert.equal(student.consultation_status, 'AWAITING_ANAMNESIS');
+  const audit = await db.prepare(`SELECT title,metadata_json FROM activity_timeline WHERE student_email='student@example.com' AND event_type='STUDENT_TOKEN_UPDATED'`).first();
+  assert.equal(audit.title, 'Acesso Premium emitido');
+  assert.equal(JSON.stringify(audit).includes(issued.body.data.token), false);
+}));
+
+test('emissão cria acesso legado ausente e recusa produto, estado, anamnese e aluno inválidos', async () => withDb(async (db) => {
+  await seedPremiumStudent(db, { status: 'NEW' });
+  const created = await api(db, 'POST', '/api/admin/premium/workspace/students/student-1/access', { admin: true });
+  assert.equal(created.status, 200);
+  assert.equal((await db.prepare('SELECT count(*) total FROM student_access WHERE student_id=?').bind('student-1').first()).total, 1);
+
+  await seedPremiumStudent(db, { studentId: 'active', email: 'active@example.com', status: 'ACTIVE' });
+  assert.equal((await api(db, 'POST', '/api/admin/premium/workspace/students/active/access', { admin: true })).status, 409);
+  await seedPremiumStudent(db, { studentId: 'review', email: 'review@example.com', status: 'UNDER_REVIEW' });
+  assert.equal((await api(db, 'POST', '/api/admin/premium/workspace/students/review/access', { admin: true })).status, 409);
+
+  await seedPremiumStudent(db, { studentId: 'project', email: 'project@example.com', status: 'NEW' });
+  await seedAccess(db, { id: 'project-access', email: 'project@example.com', studentId: 'project', plan: 'projeto_lm', planType: 'project_lm' });
+  assert.equal((await api(db, 'POST', '/api/admin/premium/workspace/students/project/access', { admin: true })).status, 403);
+  assert.equal((await api(db, 'POST', '/api/admin/premium/workspace/students/missing/access', { admin: true })).status, 404);
+
+  await seedPremiumStudent(db, { studentId: 'answered', email: 'answered@example.com', status: 'AWAITING_ANAMNESIS' });
+  await db.prepare(`INSERT INTO premium_anamnesis (id,student_id,student_name,student_email,status,answers_json,created_at,updated_at) VALUES ('anamnesis-answered','answered','Answered','answered@example.com','SUBMITTED','{}',?,?)`).bind('2026-07-14T00:00:00.000Z','2026-07-14T00:00:00.000Z').run();
+  assert.equal((await api(db, 'POST', '/api/admin/premium/workspace/students/answered/access', { admin: true })).status, 409);
+}));
 
 test('GET /api/portal/nutrition-plan preserva contrato público e bloqueia Projeto LM', async () => withDb(async (db) => {
   await seedAccess(db);

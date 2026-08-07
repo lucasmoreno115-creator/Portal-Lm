@@ -1061,6 +1061,29 @@ export default {
           if (!access?.access_token) return json({ ok:false, error:'Acesso oficial indisponível.' },404);
           return json({ ok:true, data:{ name:access.name||'Aluno', accessLink:`${url.origin}/portal-login.html`, token:access.access_token } });
         }
+        const workspaceRotateAccessMatch = url.pathname.match(/^\/api\/admin\/premium\/workspace\/students\/([^/]+)\/access$/);
+        if (workspaceRotateAccessMatch && method === 'POST') {
+          const studentId = decodeURIComponent(workspaceRotateAccessMatch[1]);
+          const student = await env.DB.prepare(`SELECT student_id,email,display_name,consultation_status FROM premium_students WHERE student_id=? LIMIT 1`).bind(studentId).first();
+          if (!student) return json({ ok:false, error:'Aluno não encontrado.' },404);
+          if (!['NEW','AWAITING_ANAMNESIS'].includes(student.consultation_status)) return json({ ok:false, error:'O acesso só pode ser gerado antes do envio da anamnese.' },409);
+          const submitted = await env.DB.prepare(`SELECT id FROM premium_anamnesis WHERE student_id=? LIMIT 1`).bind(studentId).first();
+          if (submitted) return json({ ok:false, error:'A anamnese já foi enviada.' },409);
+          const access = await env.DB.prepare(`SELECT id,access_token,plan,plan_type FROM student_access WHERE student_id=? LIMIT 1`).bind(studentId).first();
+          if (access && (String(access.plan||'').toLowerCase()==='projeto_lm' || String(access.plan_type||'').toLowerCase()==='project_lm')) return json({ ok:false, error:'Aluno Projeto LM não pode usar este recurso.' },403);
+          const token = generateAccessToken();
+          const now = new Date().toISOString();
+          if (access) {
+            const changed = await env.DB.prepare(`UPDATE student_access SET access_token=?,status='ACTIVE' WHERE id=? AND coalesce(access_token,'')=?`).bind(token,access.id,access.access_token||'').run();
+            if (Number(changed?.meta?.changes||0)!==1) return json({ ok:false, error:'O acesso já foi atualizado por outra operação. Recarregue o prontuário.' },409);
+          } else {
+            try {
+              await env.DB.prepare(`INSERT INTO student_access (id,name,email,access_token,status,plan_type,plan,student_id,created_at) VALUES (?,?,?,?,'ACTIVE','PREMIUM','premium',?,?)`).bind(crypto.randomUUID(),student.display_name||student.email,student.email,token,studentId,now).run();
+            } catch (_) { return json({ ok:false, error:'O acesso já foi atualizado por outra operação. Recarregue o prontuário.' },409); }
+          }
+          await logActivityEvent(env.DB,{student_email:student.email,event_type:EVENT_TYPES.STUDENT_TOKEN_UPDATED,source:'admin',title:'Acesso Premium emitido',payload:{reason:'Emissão/rotação antes da anamnese',student_id:studentId}});
+          return json({ok:true,data:{name:student.display_name||'Aluno',accessLink:`${url.origin}/portal-login.html`,token}});
+        }
         const workspaceActionMatch = url.pathname.match(/^\/api\/admin\/premium\/workspace\/students\/([^/]+)\/(mark-ready|release|pause)$/);
         if (workspaceActionMatch && method === 'POST') {
           const studentId = decodeURIComponent(workspaceActionMatch[1]); const action = workspaceActionMatch[2]; const now = new Date().toISOString();
