@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0.0",
+  "environment": "LAB_STUBBED",
+  "page": "/portal-premium-home.html",
+  "runs": 3,
+  "viewports": [
+    { "name": "mobile", "width": 390, "height": 844, "deviceScaleFactor": 2, "mobile": true },
+    { "name": "desktop", "width": 1440, "height": 900, "deviceScaleFactor": 1, "mobile": false }
+  ],
+  "network": { "latencyMs": 150, "downloadBytesPerSecond": 200000, "uploadBytesPerSecond": 93750 },
+  "cpuSlowdownMultiplier": 4,
+  "scenarios": ["COLD", "WARM"],
+  "states": ["HOME_DEFAULT", "PWA_INSTALL_AVAILABLE", "PUSH_ENABLED", "PUSH_BLOCKED", "PUSH_UNSUPPORTED", "WEEKLY_PLAN_EMPTY", "WEEKLY_PLAN_ERROR", "FULL_INTERACTION"],
+  "interactions": ["PWA_MODAL_OPEN_CLOSE"],
+  "quietWindowMs": 500
+}

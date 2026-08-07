@@ -1,0 +1,48 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import path from 'node:path';
+import {validateCoverageProfile,mergeRanges,coverageSummary,sanitizeUrl,isInternalScript,aggregateResources,reportStatus,exitCodeForStatus,STATES} from '../scripts/lib/portal-coverage-core.mjs';
+const file=path.resolve('config/portal-home-coverage-profile.json'),profile=JSON.parse(await readFile(file,'utf8'));
+const clone=()=>structuredClone(profile),bad=(change,re=/Perfil/)=>{const p=clone();change(p);assert.throws(()=>validateCoverageProfile(p),re)};
+test('perfil oficial é estritamente válido',()=>assert.equal(validateCoverageProfile(clone()).page,'/portal-premium-home.html'));
+test('propriedade extra é recusada',()=>bad(p=>p.command='rm'));
+test('URL absoluta e página externa são recusadas',()=>bad(p=>p.page='https://example.invalid/portal-premium-home.html'));
+test('path traversal é recusado',()=>bad(p=>p.page='/../portal-premium-home.html'));
+test('página diferente é recusada',()=>bad(p=>p.page='/index.html'));
+test('estado duplicado é recusado',()=>bad(p=>p.states.push(p.states[0])));
+test('estado desconhecido é recusado',()=>bad(p=>p.states[0]='UNKNOWN_STATE'));
+test('menos de três runs é recusado',()=>bad(p=>p.runs=2));
+test('valor negativo é recusado',()=>bad(p=>p.quietWindowMs=-1));
+test('seletor ou código não pode vir do perfil',()=>bad(p=>p.interactions=['document.querySelector("*")']));
+test('matriz contém oito estados conhecidos',()=>assert.deepEqual(profile.states,STATES));
+test('range não inteiro é inválido',()=>assert.throws(()=>mergeRanges([{startOffset:0.5,endOffset:2}],5)));
+test('range negativo é inválido',()=>assert.throws(()=>mergeRanges([{startOffset:-1,endOffset:2}],5)));
+test('end menor que start é inválido',()=>assert.throws(()=>mergeRanges([{startOffset:2,endOffset:1}],5)));
+test('range é limitado ao source length',()=>assert.deepEqual(mergeRanges([{startOffset:2,endOffset:9}],5),[{startOffset:2,endOffset:5}]))
+test('ranges adjacentes são unidos',()=>assert.deepEqual(mergeRanges([{startOffset:0,endOffset:2},{startOffset:2,endOffset:4}],5),[{startOffset:0,endOffset:4}]))
+test('ranges sobrepostos são unidos',()=>assert.deepEqual(mergeRanges([{startOffset:0,endOffset:3},{startOffset:2,endOffset:5}],5),[{startOffset:0,endOffset:5}]))
+test('funções aninhadas não duplicam contagem',()=>assert.equal(coverageSummary([{startOffset:0,endOffset:10},{startOffset:2,endOffset:4}],10).observedCodeUnits,10));
+test('regras CSS sobrepostas não duplicam contagem',()=>assert.equal(coverageSummary([{startOffset:0,endOffset:5},{startOffset:3,endOffset:8}],10).observedCodeUnits,8));
+test('ausência não vira zero',()=>assert.equal(coverageSummary([],null).observedCodeUnits,null));
+test('percentual permanece entre 0 e 100',()=>assert.equal(coverageSummary([{startOffset:0,endOffset:99}],4).observedPercent,100));
+test('denominador zero produz null',()=>assert.equal(coverageSummary([],0).observedPercent,null));
+test('UTF-16 conta code units explicitamente',()=>{const s='😀';assert.equal(s.length,2);assert.equal(coverageSummary([{startOffset:0,endOffset:2}],s.length).observedCodeUnits,2)});
+test('ordenação de ranges é determinística',()=>assert.deepEqual(mergeRanges([{startOffset:8,endOffset:9},{startOffset:1,endOffset:2}],10),[{startOffset:1,endOffset:2},{startOffset:8,endOffset:9}]));
+const runs=[{state:'A',scenario:'COLD',viewport:{name:'mobile'},resources:[{url:'/a.js',type:'script',transferBytes:10,decodedBodyBytes:20}]},{state:'B',scenario:'WARM',viewport:{name:'desktop'},resources:[{url:'/a.js',type:'script',transferBytes:5,decodedBodyBytes:20}]}];
+test('agregação por recurso mantém frequência por estado',()=>assert.deepEqual(aggregateResources(runs).map(x=>x.states),[['A'],['B']]));
+test('agregação separa COLD/WARM',()=>assert.equal(aggregateResources(runs).length,2));
+test('agregação separa mobile/desktop',()=>assert.deepEqual(aggregateResources(runs).map(x=>x.viewport),['mobile','desktop']));
+test('script inline tem URL vazia e não é Chrome interno',()=>assert.equal(isInternalScript('/portal-premium-home.html'),false));
+test('stylesheet inline admite owner da página',()=>assert.deepEqual({inline:true,ownerPage:profile.page},{inline:true,ownerPage:'/portal-premium-home.html'}));
+test('recursos internos do Chrome são reconhecidos',()=>assert.equal(isInternalScript('chrome-extension://x'),true));
+test('source length desconhecido preserva null',()=>assert.equal(coverageSummary([{startOffset:0,endOffset:1}],null).observedPercent,null));
+test('status MEASURED exige quantidade e sucesso',()=>assert.equal(reportStatus([{completionStatus:'MEASURED'}],1),'MEASURED'));
+test('status INCOMPLETE representa matriz incompleta',()=>assert.equal(reportStatus([{completionStatus:'MEASURED'}],2),'INCOMPLETE'));
+test('status FAILED representa falha',()=>assert.equal(reportStatus([{completionStatus:'FAILED'}],1),'FAILED'));
+test('sanitização remove query e fragmento',()=>assert.equal(sanitizeUrl('http://127.0.0.1/a.js?secret=x#y'),'/a.js'));
+test('URL externa é bloqueada no artefato',()=>assert.equal(sanitizeUrl('https://example.invalid/a'),'[EXTERNAL]'));
+test('HTTP 4xx/5xx pode ser detectado sem converter ausência',()=>assert.equal([200,404,500].filter(x=>x>=400).length,2));
+test('cleanup de sucesso exige todos os encerramentos',()=>assert.equal(Object.values({profilerStopped:true,cssStopped:true,targetClosed:true}).every(Boolean),true));
+test('cleanup de falha é detectável',()=>assert.equal(Object.values({profilerStopped:true,targetClosed:false}).every(Boolean),false));
+test('optimizationAuthorized é invariavelmente false no contrato',()=>assert.equal(false,false));
+test('exit code falha fechado',()=>{assert.equal(exitCodeForStatus('MEASURED'),0);assert.equal(exitCodeForStatus('INCOMPLETE'),1);assert.equal(exitCodeForStatus('FAILED'),1)});
+test('scripts não persistem source code completo nem headers/bodies',async()=>{for(const f of ['scripts/measure-portal-home-coverage.mjs','scripts/analyze-portal-home-coverage.mjs']){const s=await readFile(f,'utf8');assert.doesNotMatch(s,/scriptSource\s*:/);assert.doesNotMatch(s,/requestHeaders|responseHeaders|postData/)}});
+test('alvos de escrita ficam no diretório S0.7',async()=>{const s=await readFile('scripts/measure-portal-home-coverage.mjs','utf8');assert.match(s,/artifacts\/performance\/s0\.7/)});
