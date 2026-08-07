@@ -3,6 +3,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EXPECTED_PAGES } from './lib/portal-performance-analysis.mjs';
+import { clsConsistency } from './lib/portal-layout-stability.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outputDirectory = path.join(root, 'artifacts/performance/s0.6');
@@ -45,6 +46,7 @@ function validateReport(report, label) {
         if (!run.metrics || REQUIRED_METRICS.some(metric => !Number.isFinite(run.metrics[metric]))) throw new Error(`${prefix}_REQUIRED_METRIC_INVALID`);
         if (run.metrics.failedRequestCount !== 0) throw new Error(`${prefix}_FAILED_REQUEST_COUNT`);
         if (!Array.isArray(run.layoutShiftEvents)) throw new Error(`${prefix}_LAYOUT_EVENTS_INVALID`);
+        if (!clsConsistency(run.metrics.cls, run.layoutShiftEvents).valid) throw new Error(`${prefix}_CLS_EVENT_MISMATCH`);
         if (!Array.isArray(run.failedRequests) || run.failedRequests.length || !Array.isArray(run.resources) || run.resources.some(resource => Number.isFinite(resource.status) && resource.status >= 400)) throw new Error(`${prefix}_HTTP_FAILURE`);
         if (run.resources.some(resource => typeof resource.url !== 'string' || !resource.url.startsWith('/'))) throw new Error(`${prefix}_EXTERNAL_RESOURCE`);
         if (run.externalRequestAttempted || (run.externalBlocked?.length || 0)) throw new Error(`${prefix}_EXTERNAL_REQUEST`);

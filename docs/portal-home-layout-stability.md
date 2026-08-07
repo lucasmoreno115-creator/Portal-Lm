@@ -30,6 +30,10 @@ O workflow mede o `before` em worktree detached do SHA inicial, preserva os rela
 
 Nesta execução local, o Chrome não estava disponível e a instalação pelo repositório do sistema foi bloqueada (HTTP 403). Assim, não há medição real after comparável local e o resultado permanece **INCONCLUSIVE**; não se declara o alvo de CLS atingido nem se autoriza a próxima otimização. O workflow dedicado é a fonte obrigatória para preencher resultados e deltas reais, exigir 50/50 `MEASURED`, Home 10/10, notificações HTTP 200, ausência de HTTP 4xx/5xx e requests externos, CLS COLD p75 ≤ 0,10 e regressões dentro dos limites.
 
+O run real #10 mediu 50 runs em cada lado, mas terminou `FAILED`: CLS COLD p75 da Home permaneceu em `0.33671254681779383` (delta absoluto e percentual zero). A geometria mostrou `#pwaPushCard` e `#weekly-plan-section` descendo juntos cerca de 339,7 px sem mudar de altura; o elemento causal acima deles era o card condicional `#pwaInstallCard`, revelado de forma tardia por `beforeinstallprompt`. A correção posiciona esse convite opcional depois das ações principais, preservando conteúdo, foco e comportamento, mas impedindo que sua elegibilidade empurre conteúdo já pintado.
+
+O coletor agora drena `PerformanceObserver.takeRecords()`, desconecta os observers e captura métricas, eventos e snapshots no mesmo `Runtime.evaluate`. A soma dos eventos sem interação é comparada ao CLS com tolerância limitada a `Number.EPSILON`; divergência gera `CLS_EVENT_MISMATCH` e a run deixa de ser `MEASURED`. Snapshots geométricos contêm apenas seletor sanitizado, retângulo, propriedades visuais, estado e tempo monotônico — nunca texto ou identidade.
+
 ## Riscos residuais
 
 - Conteúdo editorial excepcionalmente maior que a reserva pode crescer (sem corte) e ainda produzir deslocamento; a comparação de cinco runs detecta o efeito no contrato LAB_STUBBED.

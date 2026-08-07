@@ -40,18 +40,6 @@
   <main class='container home-main'>
     <div id='nav' class='mobile-nav'></div>
 
-    <aside id='pwaInstallCard' class='pwa-install-card card' aria-labelledby='pwa-install-title' hidden>
-      <div class='pwa-install-card__icon' aria-hidden='true'>📲</div>
-      <div class='pwa-install-card__content'>
-        <h2 id='pwa-install-title'>Instale o Portal LM</h2>
-        <p>Tenha acesso mais rápido ao seu planejamento e prepare seu dispositivo para receber lembretes importantes.</p>
-        <div class='pwa-install-card__actions'>
-          <button id='pwaInstallButton' class='primary-cta' type='button'>Instalar agora</button>
-          <button id='pwaInstallDismiss' class='pwa-install-card__dismiss' type='button'>Agora não</button>
-        </div>
-      </div>
-    </aside>
-
     <div id='pwaIosModal' class='pwa-install-modal' role='dialog' aria-modal='true' aria-labelledby='pwa-ios-title' hidden>
       <div class='pwa-install-modal__backdrop' data-pwa-modal-close></div>
       <section class='pwa-install-modal__panel'>
@@ -126,6 +114,19 @@
         <a class='secondary-link' href='https://wa.me/5514991174500?text=Olá%20Lucas,%20preciso%20de%20ajuda.' target='_blank' rel='noopener noreferrer' data-feature='suporte'><span class='quick-icon'>💬</span><span>Preciso de ajuda</span></a>
       </div>
     </section>
+
+    <aside id='pwaInstallCard' class='pwa-install-card card' aria-labelledby='pwa-install-title' hidden>
+      <div class='pwa-install-card__icon' aria-hidden='true'>📲</div>
+      <div class='pwa-install-card__content'>
+        <h2 id='pwa-install-title'>Instale o Portal LM</h2>
+        <p>Tenha acesso mais rápido ao seu planejamento e prepare seu dispositivo para receber lembretes importantes.</p>
+        <div class='pwa-install-card__actions'>
+          <button id='pwaInstallButton' class='primary-cta' type='button'>Instalar agora</button>
+          <button id='pwaInstallDismiss' class='pwa-install-card__dismiss' type='button'>Agora não</button>
+        </div>
+      </div>
+    </aside>
+
   </main>
 
   <script>

@@ -6,6 +6,7 @@ import { compareReports, comparisonMarkdown, exitCodeForComparison, metricDelta,
 import { aggregateRuns } from '../scripts/lib/portal-performance-core.mjs';
 import { EXPECTED_PAGES } from '../scripts/lib/portal-performance-analysis.mjs';
 import { buildPerformanceSource } from '../scripts/lib/portal-performance-analysis.mjs';
+import { clsConsistency, expectedCls, identifyUpstreamGrowth, sortLayoutSnapshots } from '../scripts/lib/portal-layout-stability.mjs';
 
 const root = path.resolve(import.meta.dirname, '..'), BASE = '9'.repeat(40), HEAD = 'a'.repeat(40), CHECKOUT = 'b'.repeat(40), WORKFLOW = 'c'.repeat(40);
 const read = file => readFile(path.join(root, file), 'utf8');
@@ -17,7 +18,7 @@ function report(sha, homeCls, source = {}) {
       const metrics = { cls, lcp: 1000, fcp: 500, transferBytes: 10000, requestCount: 10, failedRequestCount: 0 };
       const resources = [{ url: page, status: 200, type: 'document' }];
       if (page === '/portal-premium-home.html') resources.push({ url: '/api/portal/notifications/unread-count', status: 200, type: 'xhr' });
-      return { run: index + 1, page, scenario, metrics, resources, failedRequests: [], layoutShiftEvents: [], externalBlocked: [], externalRequestAttempted: false, unexpectedRedirect: null, mainDocumentLoaded: true, mainDocumentStatus: 200, completionStatus: 'MEASURED' };
+      return { run: index + 1, page, scenario, metrics, resources, failedRequests: [], layoutShiftEvents: cls ? [{ startTime: 1, value: cls, hadRecentInput: false, sources: [] }] : [], externalBlocked: [], externalRequestAttempted: false, unexpectedRedirect: null, mainDocumentLoaded: true, mainDocumentStatus: 200, completionStatus: 'MEASURED' };
     });
     return { scenario, runs, aggregate: aggregateRuns(runs) };
   }) }));
@@ -38,6 +39,29 @@ test('Home usa loading real e remove definitivamente o slot enabled antes do pai
 test('estados loading, waiting, enabled, blocked, unsupported, install e error permanecem alcançáveis', async () => {
   const content = await read('public/portal-premium-home.html') + await read('public/assets/js/pwa-push-subscription.js');
   for (const state of ['loading', 'waiting', 'enabled', 'blocked', 'unsupported', 'install', 'error']) assert.ok(content.includes(state), state);
+});
+
+test('prompt de instalação condicional fica após o conteúdo principal e não empurra os cards', async () => {
+  const html = await read('public/portal-premium-home.html');
+  assert.ok(html.indexOf("id='pwaPushCard'") < html.indexOf("id='weekly-plan-section'"));
+  assert.ok(html.indexOf("class='secondary-actions'") < html.indexOf("id='pwaInstallCard'"));
+  assert.match(html, /id='pwaInstallCard'[^>]+hidden/);
+});
+
+test('CLS soma eventos sem interação uma vez, independentemente de fontes', () => {
+  const events = [{ value: .1, hadRecentInput: false, sources: [{ nodeSelector: '#same' }, { nodeSelector: '#other' }] }, { value: .2, hadRecentInput: false, sources: [{ nodeSelector: '#same' }] }, { value: .9, hadRecentInput: true, sources: [] }];
+  assert.equal(expectedCls(events), .1 + .2);
+  assert.equal(clsConsistency(.1 + .2, events).valid, true);
+  assert.equal(clsConsistency(0, events).valid, false);
+});
+
+test('snapshots são ordenados, não contêm texto e identificam crescimento anterior sem culpar sources afetadas', () => {
+  const element = (selector, height, state) => ({ selector, rect: { top: 0, bottom: height, width: 390, height }, hidden: false, display: 'block', visibility: 'visible', state });
+  const snapshots = [{ phase: 'FINAL', monotonicTime: 2, elements: [element('#affected', 366, ''), element('#install', 340, 'available')] }, { phase: 'INITIAL_DOM', monotonicTime: 1, elements: [element('#install', 0, 'hidden'), element('#affected', 366, '')] }];
+  const ordered = sortLayoutSnapshots(snapshots), growth = identifyUpstreamGrowth(ordered, ['#affected']);
+  assert.deepEqual(ordered.map(x => x.phase), ['INITIAL_DOM', 'FINAL']);
+  assert.deepEqual(growth, [{ selector: '#install', heightBefore: 0, heightAfter: 340, delta: 340, stateBefore: 'hidden', stateAfter: 'available' }]);
+  assert.doesNotMatch(JSON.stringify(ordered), /text|email|token|Aluno/);
 });
 
 test('comparação aprovada é determinística, distingue merge-ref/head e aceita percentual null com zero', () => {
