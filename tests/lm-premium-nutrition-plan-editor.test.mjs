@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const editorPath = 'public/admin-premium-nutrition-plan.js';
-const assetPath = 'public/assets/js/admin-premium-nutrition-plan.js';
+const assetPath = 'public/assets/js/admin-premium-nutrition-plan.20260809-1.js';
 const source = fs.readFileSync(editorPath, 'utf8');
 
 function serialize({ model, draft }) {
@@ -284,7 +284,7 @@ test('published editor cache-busts deterministic assets and keeps canonical copi
   assert.match(html, /admin-premium-nutrition-plan\.css\?v=20260809-1/);
   assert.match(html, /admin-premium-nutrition-plan\.20260809-1\.js/);
   assert.equal(source, fs.readFileSync(assetPath, 'utf8'));
-  assert.equal(source, fs.readFileSync('public/assets/js/admin-premium-nutrition-plan.20260809-1.js', 'utf8'));
+  assert.equal(fs.existsSync('public/assets/js/admin-premium-nutrition-plan.js'), false);
   assert.equal(fs.readFileSync('public/admin-premium-nutrition-plan.css', 'utf8'), fs.readFileSync('public/assets/css/admin-premium-nutrition-plan.css', 'utf8'));
 });
 
