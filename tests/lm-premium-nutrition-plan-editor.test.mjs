@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const editorPath = 'public/admin-premium-nutrition-plan.js';
-const assetPath = 'public/assets/js/admin-premium-nutrition-plan.20260809-1.js';
+const assetPath = 'public/assets/js/admin-premium-nutrition-plan.20260809-2.js';
 const source = fs.readFileSync(editorPath, 'utf8');
 
 function serialize({ model, draft }) {
@@ -281,8 +281,8 @@ test('meal selector reports a visible error when its dialog is absent', async ()
 });
 
 test('published editor cache-busts deterministic assets and keeps canonical copies synchronized', () => {
-  assert.match(html, /admin-premium-nutrition-plan\.css\?v=20260809-1/);
-  assert.match(html, /admin-premium-nutrition-plan\.20260809-1\.js/);
+  assert.match(html, /admin-premium-nutrition-plan\.css\?v=20260809-2/);
+  assert.match(html, /admin-premium-nutrition-plan\.20260809-2\.js/);
   assert.equal(source, fs.readFileSync(assetPath, 'utf8'));
   assert.equal(fs.existsSync('public/assets/js/admin-premium-nutrition-plan.js'), false);
   assert.equal(fs.readFileSync('public/admin-premium-nutrition-plan.css', 'utf8'), fs.readFileSync('public/assets/css/admin-premium-nutrition-plan.css', 'utf8'));
@@ -290,8 +290,8 @@ test('published editor cache-busts deterministic assets and keeps canonical copi
 
 const serviceWorkerSource = fs.readFileSync('public/sw.js', 'utf8');
 const oldRuntimeUrl = 'https://portal.example/assets/js/admin-premium-nutrition-plan.js';
-const queryVersionedRuntimeUrl = `${oldRuntimeUrl}?v=20260809-1`;
-const fingerprintedRuntimeUrl = 'https://portal.example/assets/js/admin-premium-nutrition-plan.20260809-1.js';
+const queryVersionedRuntimeUrl = `${oldRuntimeUrl}?v=20260809-2`;
+const fingerprintedRuntimeUrl = 'https://portal.example/assets/js/admin-premium-nutrition-plan.20260809-2.js';
 
 function cachedUrlFor(requestUrl, cachedUrls, { ignoreSearch }) {
   const requested = new URL(requestUrl);
@@ -323,4 +323,40 @@ test('service-worker hotfix preserves API bypass, navigation, offline fallback a
   assert.match(serviceWorkerSource, /request\.headers\.has\('authorization'\)/);
   assert.ok(serviceWorkerSource.includes('!/(?:private|no-store)/i.test(cacheControl)'));
   assert.match(serviceWorkerSource, /cache\.put\(request, response\.clone\(\)\)/);
+});
+
+test('real Editar planejamento click duplicates the published id and handles invalid plans and API failures', async () => {
+  const elements = new Map(['status', 'current', 'currentSection', 'history', 'draftForm', 'createDraft', 'duplicateDraft', 'saveDraft', 'publishDraft', 'backToRecord'].map(id => [id, new MealSelectorElement('div', id)]));
+  const findById = (root, id) => root?.id === id || root?.getAttribute?.('id') === id ? root : root?.children?.map(child => findById(child, id)).find(Boolean) || null;
+  const document = {
+    getElementById: id => elements.get(id) || [...elements.values()].map(root => findById(root, id)).find(Boolean) || null,
+    querySelectorAll: () => [],
+    createElement: tag => new MealSelectorElement(tag)
+  };
+  const context = { URLSearchParams, URL, location: { search: '?student_id=student-1', origin: 'https://admin.example' }, document, LMAdminAuth: { getAdminAuthHeaders: headers => headers }, fetch: () => new Promise(() => {}) };
+  vm.runInNewContext(`${source}\nglobalThis.requestUrls=[];state.current={id:'published-42',title:'Plano publicado',version_number:7,meals:[]};api=async path=>{requestUrls.push(path);return {id:'draft-8',title:'Rascunho',meals:[],updated_at:'2026-08-09'};};adoptDraft=draft=>{globalThis.openedDraft=draft;};renderCurrent();`, context);
+
+  const editButton = elements.get('current').children[0].children.find(child => child.getAttribute('id') === 'editPublished');
+  assert.ok(editButton, 'the rendered Editar planejamento button must exist');
+  await editButton.dispatch('click');
+  await new Promise(resolve => setImmediate(resolve));
+  const requests = JSON.parse(JSON.stringify(context.requestUrls));
+  assert.deepEqual(requests, ['/api/admin/premium/nutrition-plans/published-42/duplicate-as-draft']);
+  assert.ok(requests.every(url => !url.includes('undefined')));
+  assert.equal(context.openedDraft.id, 'draft-8');
+
+  vm.runInNewContext("state.current={title:'Sem id',meals:[]};renderCurrent();", context);
+  const invalidButton = elements.get('current').children[0].children.find(child => child.getAttribute('id') === 'editPublished');
+  await invalidButton.dispatch('click');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(context.requestUrls.length, 1, 'an invalid plan must not call the API');
+  assert.match(elements.get('status').textContent, /identificador válido/);
+  assert.equal(elements.get('status').className, 'notice error');
+
+  vm.runInNewContext("state.current={id:'published-failure',title:'Plano',meals:[]};api=async()=>{throw new Error('Falha controlada');};renderCurrent();", context);
+  const failingButton = elements.get('current').children[0].children.find(child => child.getAttribute('id') === 'editPublished');
+  await assert.doesNotReject(() => failingButton.dispatch('click'));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(elements.get('status').textContent, 'Falha controlada');
+  assert.equal(elements.get('status').className, 'notice error');
 });
