@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const editorPath = 'public/admin-premium-nutrition-plan.js';
-const assetPath = 'public/assets/js/admin-premium-nutrition-plan.js';
+const assetPath = 'public/assets/js/admin-premium-nutrition-plan.20260809-1.js';
 const source = fs.readFileSync(editorPath, 'utf8');
 
 function serialize({ model, draft }) {
@@ -194,4 +194,133 @@ test('default equivalences keep using existing add, delete, save and reopen flow
   assert.match(source, /state\.model\.substitutions\.splice\(index,1\)/);
   assert.match(source, /substitutions:m\.substitutions\.map\(serializeEquivalence\)\.filter\(Boolean\)/);
   assert.match(source, /reconcileSavedModel\(saved\)/);
+});
+
+class MealSelectorElement {
+  constructor(tag = 'div', id = '') { this.tagName = tag.toUpperCase(); this.id = id; this.children = []; this.listeners = new Map(); this.attributes = {}; this.className = ''; this.open = false; this.textContent = ''; this.focusCount = 0; }
+  setAttribute(name, value) { this.attributes[name] = String(value); }
+  getAttribute(name) { return this.attributes[name]; }
+  addEventListener(type, listener) { const list = this.listeners.get(type) || []; list.push(listener); this.listeners.set(type, list); }
+  removeEventListener(type, listener) { this.listeners.set(type, (this.listeners.get(type) || []).filter(item => item !== listener)); }
+  append(...children) { this.children.push(...children); }
+  replaceChildren(...children) { this.children = children; }
+  querySelector(selector) {
+    if (selector === 'button') return this.children.find(child => child.tagName === 'BUTTON') || null;
+    if (selector === '[data-close-meal-selector]') return this.closeButton || null;
+    return null;
+  }
+  querySelectorAll() { return []; }
+  showModal() { this.open = true; this.showModalCount = (this.showModalCount || 0) + 1; }
+  close() { this.open = false; }
+  focus() { this.focusCount += 1; }
+  dispatch(type, init = {}) { const event = { target: this, preventDefault() { this.defaultPrevented = true; }, ...init }; return Promise.all((this.listeners.get(type) || []).map(listener => listener(event))); }
+}
+
+function realMealSelectorHarness({ includeDialog = true } = {}) {
+  const status = new MealSelectorElement('p', 'status');
+  const options = new MealSelectorElement('div', 'mealSelectorOptions');
+  const dialog = new MealSelectorElement('dialog', 'mealSelectorModal');
+  const close = new MealSelectorElement('button');
+  dialog.closeButton = close;
+  const addButtons = [new MealSelectorElement('button'), new MealSelectorElement('button')];
+  const opener = new MealSelectorElement('button');
+  const elements = new Map(['current', 'history', 'draftForm', 'createDraft', 'duplicateDraft', 'saveDraft', 'publishDraft', 'backToRecord'].map(id => [id, new MealSelectorElement('div', id)]));
+  elements.set('status', status);
+  if (includeDialog) { elements.set('mealSelectorModal', dialog); elements.set('mealSelectorOptions', options); }
+  const document = {
+    activeElement: opener,
+    getElementById: id => elements.get(id) || null,
+    querySelectorAll: selector => selector === '[data-add-meal]' ? addButtons : [],
+    createElement: tag => new MealSelectorElement(tag)
+  };
+  const context = { URLSearchParams, URL, location: { search: '?student_id=student-1', origin: 'https://admin.example' }, document, LMAdminAuth: { getAdminAuthHeaders: headers => headers }, fetch: () => new Promise(() => {}) };
+  vm.runInNewContext(`${source}\nstate.model=blankModel();markDirty=()=>{};renderMealsEditor=()=>{globalThis.renderCount=(globalThis.renderCount||0)+1;};`, context);
+  return { context, status, options, dialog, close, addButtons, opener };
+}
+
+function openFrom(button, dialog) {
+  const click = button.dispatch('click');
+  assert.equal(dialog.open, true);
+  return click;
+}
+
+async function closeAndWait(dialog, pending, mode, close) {
+  if (mode === 'cancel') await dialog.dispatch('cancel');
+  if (mode === 'button') await close.dispatch('click');
+  if (mode === 'backdrop') await dialog.dispatch('click', { target: dialog });
+  await pending;
+  assert.equal(dialog.open, false);
+}
+
+test('real meal-selector runtime opens from both actions, creates a meal, and preserves every close path', async () => {
+  const harness = realMealSelectorHarness();
+  let pending = openFrom(harness.addButtons[0], harness.dialog);
+  assert.equal(harness.options.children.filter(child => child.tagName === 'BUTTON').length, 9);
+  await closeAndWait(harness.dialog, pending, 'cancel', harness.close);
+
+  pending = openFrom(harness.addButtons[1], harness.dialog);
+  const lunch = harness.options.children.find(child => child.getAttribute('data-meal-name') === 'Almoço');
+  assert.ok(lunch);
+  await lunch.dispatch('click');
+  await pending;
+  assert.equal(vm.runInNewContext('state.model.meals.length', harness.context), 1);
+  assert.equal(vm.runInNewContext('state.model.meals[0].name', harness.context), 'Almoço');
+
+  for (const mode of ['button', 'backdrop']) {
+    pending = openFrom(harness.addButtons[0], harness.dialog);
+    await closeAndWait(harness.dialog, pending, mode, harness.close);
+  }
+  assert.ok(harness.opener.focusCount >= 3);
+});
+
+test('meal selector reports a visible error when its dialog is absent', async () => {
+  const { addButtons, status } = realMealSelectorHarness({ includeDialog: false });
+  await addButtons[0].dispatch('click');
+  assert.match(status.textContent, /Não foi possível abrir o seletor de refeições/);
+  assert.equal(status.className, 'notice error');
+});
+
+test('published editor cache-busts deterministic assets and keeps canonical copies synchronized', () => {
+  assert.match(html, /admin-premium-nutrition-plan\.css\?v=20260809-1/);
+  assert.match(html, /admin-premium-nutrition-plan\.20260809-1\.js/);
+  assert.equal(source, fs.readFileSync(assetPath, 'utf8'));
+  assert.equal(fs.existsSync('public/assets/js/admin-premium-nutrition-plan.js'), false);
+  assert.equal(fs.readFileSync('public/admin-premium-nutrition-plan.css', 'utf8'), fs.readFileSync('public/assets/css/admin-premium-nutrition-plan.css', 'utf8'));
+});
+
+const serviceWorkerSource = fs.readFileSync('public/sw.js', 'utf8');
+const oldRuntimeUrl = 'https://portal.example/assets/js/admin-premium-nutrition-plan.js';
+const queryVersionedRuntimeUrl = `${oldRuntimeUrl}?v=20260809-1`;
+const fingerprintedRuntimeUrl = 'https://portal.example/assets/js/admin-premium-nutrition-plan.20260809-1.js';
+
+function cachedUrlFor(requestUrl, cachedUrls, { ignoreSearch }) {
+  const requested = new URL(requestUrl);
+  return cachedUrls.find(candidate => {
+    const cached = new URL(candidate);
+    return cached.origin === requested.origin
+      && cached.pathname === requested.pathname
+      && (ignoreSearch || cached.search === requested.search);
+  }) || null;
+}
+
+test('version-aware cache lookup reproduces and blocks the stale query-string runtime', () => {
+  const cache = [oldRuntimeUrl];
+  assert.equal(cachedUrlFor(queryVersionedRuntimeUrl, cache, { ignoreSearch: true }), oldRuntimeUrl);
+  assert.equal(cachedUrlFor(queryVersionedRuntimeUrl, cache, { ignoreSearch: false }), null);
+  assert.match(serviceWorkerSource, /const versioned = url\.searchParams\.has\('v'\)/);
+  assert.match(serviceWorkerSource, /caches\.match\(request, \{ ignoreSearch: !versioned \}\)/);
+});
+
+test('fingerprinted runtime pathname cannot match the stale canonical pathname', () => {
+  assert.equal(cachedUrlFor(fingerprintedRuntimeUrl, [oldRuntimeUrl], { ignoreSearch: true }), null);
+  assert.notEqual(new URL(fingerprintedRuntimeUrl).pathname, new URL(oldRuntimeUrl).pathname);
+});
+
+test('service-worker hotfix preserves API bypass, navigation, offline fallback and cache safety', () => {
+  assert.match(serviceWorkerSource, /url\.pathname\.startsWith\('\/api\/'\)/);
+  assert.match(serviceWorkerSource, /request\.mode === 'navigate'/);
+  assert.match(serviceWorkerSource, /fetch\(request\)\.catch\(\(\) => caches\.match\(OFFLINE_URL\)\)/);
+  assert.match(serviceWorkerSource, /request\.headers\.has\('authorization'\)/);
+  assert.ok(serviceWorkerSource.includes('!/(?:private|no-store)/i.test(cacheControl)'));
+  assert.match(serviceWorkerSource, /cache\.put\(request, response\.clone\(\)\)/);
 });

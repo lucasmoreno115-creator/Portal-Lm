@@ -57,7 +57,8 @@ self.addEventListener('fetch', (event) => {
   if (!isCacheableStaticRequest(request, url) || request.headers.has('authorization')) return;
 
   event.respondWith((async () => {
-    const cached = await caches.match(request, { ignoreSearch: true });
+    const versioned = url.searchParams.has('v');
+    const cached = await caches.match(request, { ignoreSearch: !versioned });
     if (cached) return cached;
 
     const response = await fetch(unauthenticatedRequest(request.url));
