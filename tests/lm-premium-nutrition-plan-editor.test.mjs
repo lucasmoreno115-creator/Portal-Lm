@@ -282,7 +282,45 @@ test('meal selector reports a visible error when its dialog is absent', async ()
 
 test('published editor cache-busts deterministic assets and keeps canonical copies synchronized', () => {
   assert.match(html, /admin-premium-nutrition-plan\.css\?v=20260809-1/);
-  assert.match(html, /admin-premium-nutrition-plan\.js\?v=20260809-1/);
+  assert.match(html, /admin-premium-nutrition-plan\.20260809-1\.js/);
   assert.equal(source, fs.readFileSync(assetPath, 'utf8'));
+  assert.equal(source, fs.readFileSync('public/assets/js/admin-premium-nutrition-plan.20260809-1.js', 'utf8'));
   assert.equal(fs.readFileSync('public/admin-premium-nutrition-plan.css', 'utf8'), fs.readFileSync('public/assets/css/admin-premium-nutrition-plan.css', 'utf8'));
+});
+
+const serviceWorkerSource = fs.readFileSync('public/sw.js', 'utf8');
+const oldRuntimeUrl = 'https://portal.example/assets/js/admin-premium-nutrition-plan.js';
+const queryVersionedRuntimeUrl = `${oldRuntimeUrl}?v=20260809-1`;
+const fingerprintedRuntimeUrl = 'https://portal.example/assets/js/admin-premium-nutrition-plan.20260809-1.js';
+
+function cachedUrlFor(requestUrl, cachedUrls, { ignoreSearch }) {
+  const requested = new URL(requestUrl);
+  return cachedUrls.find(candidate => {
+    const cached = new URL(candidate);
+    return cached.origin === requested.origin
+      && cached.pathname === requested.pathname
+      && (ignoreSearch || cached.search === requested.search);
+  }) || null;
+}
+
+test('version-aware cache lookup reproduces and blocks the stale query-string runtime', () => {
+  const cache = [oldRuntimeUrl];
+  assert.equal(cachedUrlFor(queryVersionedRuntimeUrl, cache, { ignoreSearch: true }), oldRuntimeUrl);
+  assert.equal(cachedUrlFor(queryVersionedRuntimeUrl, cache, { ignoreSearch: false }), null);
+  assert.match(serviceWorkerSource, /const versioned = url\.searchParams\.has\('v'\)/);
+  assert.match(serviceWorkerSource, /caches\.match\(request, \{ ignoreSearch: !versioned \}\)/);
+});
+
+test('fingerprinted runtime pathname cannot match the stale canonical pathname', () => {
+  assert.equal(cachedUrlFor(fingerprintedRuntimeUrl, [oldRuntimeUrl], { ignoreSearch: true }), null);
+  assert.notEqual(new URL(fingerprintedRuntimeUrl).pathname, new URL(oldRuntimeUrl).pathname);
+});
+
+test('service-worker hotfix preserves API bypass, navigation, offline fallback and cache safety', () => {
+  assert.match(serviceWorkerSource, /url\.pathname\.startsWith\('\/api\/'\)/);
+  assert.match(serviceWorkerSource, /request\.mode === 'navigate'/);
+  assert.match(serviceWorkerSource, /fetch\(request\)\.catch\(\(\) => caches\.match\(OFFLINE_URL\)\)/);
+  assert.match(serviceWorkerSource, /request\.headers\.has\('authorization'\)/);
+  assert.ok(serviceWorkerSource.includes('!/(?:private|no-store)/i.test(cacheControl)'));
+  assert.match(serviceWorkerSource, /cache\.put\(request, response\.clone\(\)\)/);
 });
