@@ -96,7 +96,8 @@ export async function runSmoke({ env = process.env, requestFn } = {}) {
         'Portal expõe um plano segundo o contrato público de plano publicado e ativo.', { status: currentPlan.status });
     }
 
-    const workspace = await performRequest('/api/admin/premium/workspace', { headers: adminHeaders, expectedStatus: [200] });
+    // Match loadWorkspaceSummary(), the browser's first authenticated Workspace request.
+    const workspace = await performRequest('/api/admin/premium/workspace/summary', { headers: adminHeaders, expectedStatus: [200] });
     const workspaceJson = parseJson(workspace);
     assert(workspace.ok, 'professional-auth', 'Profissional autentica no Workspace de staging.', reportDetails(workspace));
     if (workspace.status === 401 || workspace.status === 403) {
