@@ -28,6 +28,7 @@ jobs:
       CF_WORKERS_SUBDOMAIN: ${{ vars.CF_WORKERS_SUBDOMAIN || 'lucasmoreno115' }}
       QA_STUDENT_EMAIL: ${{ secrets.QA_STUDENT_EMAIL }}
       QA_STUDENT_TOKEN: ${{ secrets.QA_STUDENT_TOKEN }}
+      QA_TARGET_ENVIRONMENT: staging
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -100,7 +101,16 @@ jobs:
         run: node scripts/authenticate-qa-admin.mjs
 
       - name: Execute authenticated staging QA
-        run: npm run qa:lm:sprint7 | tee qa-sprint7-report.json
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run qa:lm:sprint7 | tee qa-sprint7-report.json
+
+      - name: Execute Premium entry operational smoke
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run qa:lm:premium-entry | tee qa-premium-entry-report.json
 
       - name: Publish resolved target
         if: always()
@@ -117,5 +127,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: qa-lm-staging-e2e
-          path: qa-sprint7-report.json
+          path: |
+            qa-sprint7-report.json
+            qa-premium-entry-report.json
           retention-days: 30
