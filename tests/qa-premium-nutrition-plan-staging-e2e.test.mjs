@@ -5,12 +5,19 @@ import { PREMIUM_NUTRITION_PLAN_CALLS, validateDraft, validatePremiumNutritionPl
 
 const result=(body,status=200)=>({ok:status>=200&&status<300,status,responseBody:JSON.stringify(body)});
 const studentId='student-1', planId='plan-1', marker='QA-F1.8-run-1', editedMarker=`${marker}-EDITADO`, deletedMarker=`${marker}-EXCLUIR`;
-const draft={id:planId,student_id:studentId,status:'DRAFT',is_active:0,updated_at:'2026-08-10T00:00:00Z',meals:[]};
+// Exact admin presenter shape returned by POST create (and by GET/PATCH): the
+// repository stores is_active=0, but the HTTP contract does not expose the field.
+const draft={id:planId,student_id:studentId,student_email:'student@example.test',title:'Plano alimentar',goal:'',strategy:'',meals:[],substitutions:[],adherence_rules:[],notes:'',whatsapp_message:'',status:'DRAFT',version_number:null,published_at:null,published_by:null,archived_at:null,supersedes_plan_id:null,source_feedback_id:null,created_at:'2026-08-10T00:00:00Z',updated_at:'2026-08-10T00:00:00Z'};
 const meals=[{id:'meal-1',name:'Café da manhã',guidance:editedMarker,items:[{food:marker,quantity:'1',unit:'unidade'}]},{id:'meal-2',name:'Almoço',primary_text:marker,items:[]}];
 
-test('draft creation requires canonical id, identity, DRAFT and inactive state',()=>assert.equal(validateDraft(result({ok:true,data:draft}),studentId).ok,true));
-test('draft response without id fails closed',()=>assert.equal(validateDraft(result({ok:true,data:{...draft,id:null}}),studentId).ok,false));
+test('draft creation accepts the real admin presenter contract without is_active',()=>{assert.equal(Object.hasOwn(draft,'is_active'),false);assert.equal(validateDraft(result({ok:true,data:draft}),studentId).ok,true);});
+test('draft response without id fails closed',()=>assert.equal(validateDraft(result({ok:true,data:Object.fromEntries(Object.entries(draft).filter(([key])=>key!=='id'))}),studentId).ok,false));
+test('draft response with undefined id fails closed',()=>assert.equal(validateDraft(result({ok:true,data:{...draft,id:undefined}}),studentId).ok,false));
+test('draft response with null id fails closed',()=>assert.equal(validateDraft(result({ok:true,data:{...draft,id:null}}),studentId).ok,false));
+test('draft response with MouseEvent id fails closed',()=>assert.equal(validateDraft(result({ok:true,data:{...draft,id:'[object MouseEvent]'}}),studentId).ok,false));
 test('unexpected draft status fails closed',()=>assert.equal(validateDraft(result({ok:true,data:{...draft,status:'PUBLISHED'}}),studentId).ok,false));
+test('HTTP 200 with ok false is not a draft creation success',()=>assert.equal(validateDraft(result({ok:false,data:draft}),studentId).ok,false));
+test('draft creation HTTP 4xx fails closed',()=>assert.equal(validateDraft(result({ok:false,data:draft},409),studentId).ok,false));
 test('meal write accepts canonical persisted meal contract',()=>assert.equal(validateWrite(result({ok:true,data:{...draft,meals}}),{planId,studentId,marker}).ok,true));
 test('meal without id is rejected by the operational contract',()=>assert.ok(!meals.map(x=>x.id).concat([null]).every(id=>id&&!['undefined','null','[object MouseEvent]'].includes(String(id)))));
 test('structured item keeps food, quantity and unit',()=>assert.deepEqual(meals[0].items[0],{food:marker,quantity:'1',unit:'unidade'}));
