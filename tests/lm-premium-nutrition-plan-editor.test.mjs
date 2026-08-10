@@ -281,7 +281,7 @@ test('meal selector reports a visible error when its dialog is absent', async ()
 });
 
 test('published editor cache-busts deterministic assets and keeps canonical copies synchronized', () => {
-  assert.match(html, /admin-premium-nutrition-plan\.css\?v=20260809-2/);
+  assert.match(html, /admin-premium-nutrition-plan\.css\?v=20260809-1/);
   assert.match(html, /admin-premium-nutrition-plan\.20260809-2\.js/);
   assert.equal(source, fs.readFileSync(assetPath, 'utf8'));
   assert.equal(fs.existsSync('public/assets/js/admin-premium-nutrition-plan.js'), false);
