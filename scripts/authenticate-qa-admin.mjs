@@ -15,11 +15,11 @@ function fail(code) {
   throw new QaAdminAuthError(code);
 }
 
-async function fetchWithTimeout(fetchImpl, url, options, timeoutMs) {
+async function fetchWithTimeout(fetchImpl, url, options, timeoutMs, timeoutCode) {
   try {
     return await fetchImpl(url, { ...options, signal: AbortSignal.timeout(timeoutMs) });
   } catch (_) {
-    fail('QA_ADMIN_LOGIN_TIMEOUT');
+    fail(timeoutCode);
   }
 }
 
@@ -27,12 +27,13 @@ export async function authenticateQaAdmin({ baseUrl, adminToken, fetchImpl = fet
   const origin = String(baseUrl || '').trim().replace(/\/+$/, '');
   const token = String(adminToken || '').trim();
   if (!origin || !token) fail('QA_ADMIN_CREDENTIALS_MISSING');
+  mask(token);
 
   const login = await fetchWithTimeout(fetchImpl, `${origin}/api/admin/session/login`, {
     method: 'POST',
     headers: { accept: 'application/json', 'content-type': 'application/json' },
     body: JSON.stringify({ token }),
-  }, timeoutMs);
+  }, timeoutMs, 'QA_ADMIN_LOGIN_REQUEST_FAILED');
 
   let payload;
   try { payload = await login.json(); }
@@ -43,11 +44,15 @@ export async function authenticateQaAdmin({ baseUrl, adminToken, fetchImpl = fet
   if (!session) fail('QA_ADMIN_SESSION_NOT_ISSUED');
   mask(session);
 
-  const workspace = await fetchWithTimeout(fetchImpl, `${origin}/api/admin/premium/workspace`, {
+  // This is the first request made by the real Workspace UI after requireAdmin().
+  // There is no collection endpoint at /api/admin/premium/workspace.
+  const workspace = await fetchWithTimeout(fetchImpl, `${origin}/api/admin/premium/workspace/summary`, {
     method: 'GET',
     headers: { accept: 'application/json', 'x-admin-session': session },
-  }, timeoutMs);
-  if (!workspace.ok) fail('QA_ADMIN_WORKSPACE_AUTH_FAILED');
+  }, timeoutMs, 'QA_ADMIN_WORKSPACE_REQUEST_FAILED');
+  if (workspace.status === 401) fail('QA_ADMIN_WORKSPACE_UNAUTHORIZED');
+  if (workspace.status === 403) fail('QA_ADMIN_WORKSPACE_FORBIDDEN');
+  if (!workspace.ok) fail('QA_ADMIN_WORKSPACE_REQUEST_FAILED');
 
   return {
     session,

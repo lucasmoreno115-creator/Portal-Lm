@@ -29,8 +29,9 @@ test('real login contract emits a masked session and proves Workspace HTTP 200',
   const calls = []; const masks = [];
   const result = await authenticateQaAdmin({ baseUrl: 'https://qa.example/', adminToken: secret, fetchImpl: successfulFetch(calls), mask: value => masks.push(value) });
   assert.equal(result.session, session);
-  assert.deepEqual(masks, [session]);
+  assert.deepEqual(masks, [secret, session]);
   assert.deepEqual(JSON.parse(calls[0].options.body), { token: secret });
+  assert.equal(new URL(calls[1].url).pathname, '/api/admin/premium/workspace/summary');
   assert.equal(calls[1].options.headers['x-admin-session'], session);
   assert.equal(calls[1].options.headers['x-admin-token'], undefined);
   assert.ok(masks.indexOf(session) > -1, 'session is masked before the Workspace request completes');
@@ -46,13 +47,18 @@ test('missing credentials, missing session, invalid JSON, and timeout are saniti
   await rejectsCode(() => authenticateQaAdmin({ baseUrl: '', adminToken: secret }), 'QA_ADMIN_CREDENTIALS_MISSING');
   await rejectsCode(() => authenticateQaAdmin({ baseUrl: 'https://qa.example', adminToken: secret, fetchImpl: async () => response(200, { ok: true, data: {} }) }), 'QA_ADMIN_SESSION_NOT_ISSUED');
   await rejectsCode(() => authenticateQaAdmin({ baseUrl: 'https://qa.example', adminToken: secret, fetchImpl: async () => response(200, '{not-json') }), 'QA_ADMIN_LOGIN_INVALID_RESPONSE');
-  await rejectsCode(() => authenticateQaAdmin({ baseUrl: 'https://qa.example', adminToken: secret, fetchImpl: async () => { throw new DOMException('timed out', 'TimeoutError'); } }), 'QA_ADMIN_LOGIN_TIMEOUT');
+  await rejectsCode(() => authenticateQaAdmin({ baseUrl: 'https://qa.example', adminToken: secret, fetchImpl: async () => { throw new DOMException('timed out', 'TimeoutError'); } }), 'QA_ADMIN_LOGIN_REQUEST_FAILED');
 });
 
-test('fresh session cannot pass login while failing immediate Workspace authorization', async () => {
+test('Workspace failures are fail-closed and classified without response details', async () => {
+  for (const [status, code] of [[401, 'QA_ADMIN_WORKSPACE_UNAUTHORIZED'], [403, 'QA_ADMIN_WORKSPACE_FORBIDDEN'], [404, 'QA_ADMIN_WORKSPACE_REQUEST_FAILED']]) {
+    let call = 0;
+    const fetchImpl = async () => ++call === 1 ? response(200, loginBody) : response(status, { code: 'sensitive-server-detail' });
+    await rejectsCode(() => authenticateQaAdmin({ baseUrl: 'https://qa.example', adminToken: secret, fetchImpl }), code);
+  }
   let call = 0;
-  const fetchImpl = async () => ++call === 1 ? response(200, loginBody) : response(401, { code: 'ADMIN_SESSION_EXPIRED' });
-  await rejectsCode(() => authenticateQaAdmin({ baseUrl: 'https://qa.example', adminToken: secret, fetchImpl }), 'QA_ADMIN_WORKSPACE_AUTH_FAILED');
+  const networkFailure = async () => ++call === 1 ? response(200, loginBody) : Promise.reject(new Error('network includes no credentials'));
+  await rejectsCode(() => authenticateQaAdmin({ baseUrl: 'https://qa.example', adminToken: secret, fetchImpl: networkFailure }), 'QA_ADMIN_WORKSPACE_REQUEST_FAILED');
 });
 
 test('session transfer uses GITHUB_ENV without exposing credentials in stdout or stderr', async () => {
@@ -71,7 +77,7 @@ test('session transfer uses GITHUB_ENV without exposing credentials in stdout or
 test('helper is isolated from student and Projeto LM routes', async () => {
   const calls = [];
   await authenticateQaAdmin({ baseUrl: 'https://qa.example', adminToken: secret, fetchImpl: successfulFetch(calls) });
-  assert.deepEqual(calls.map(call => new URL(call.url).pathname), ['/api/admin/session/login', '/api/admin/premium/workspace']);
+  assert.deepEqual(calls.map(call => new URL(call.url).pathname), ['/api/admin/session/login', '/api/admin/premium/workspace/summary']);
   assert.equal(calls.some(call => /projeto-lm|portal|student|checkin/i.test(new URL(call.url).pathname)), false);
 });
 

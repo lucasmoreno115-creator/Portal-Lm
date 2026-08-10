@@ -39,7 +39,7 @@ test('public page rejects redirect loops and timeouts', async () => {
 
 function smokeRequest(workspace, portal = plan) {
   return async (path, options = {}) => {
-    if (path === '/api/admin/premium/workspace') return workspace;
+    if (path === '/api/admin/premium/workspace/summary') return workspace;
     if (path === '/api/portal/nutrition-plan' && options.headers) return json(200,portal);
     if (path === '/api/portal/nutrition-plan') return json(401,{ code:'UNAUTHORIZED' });
     return { ok:true, status:200, responseBody:'ok', durationMs:1 };
@@ -50,6 +50,22 @@ test('Workspace 200 with valid JSON produces functional evidence', async () => {
   const report = await runSmoke({ env, requestFn:smokeRequest(json(200,{ ok:true, data:[] })) });
   assert.ok(report.evidence.some(item=>item.scope==='workspace' && /contrato JSON/.test(item.message)));
   assert.equal(report.failures.some(item=>item.scope==='professional-auth'),false);
+});
+
+test('smoke reproduces the browser Workspace request without QA-only or legacy headers', async () => {
+  const calls = [];
+  const requestFn = async (path, options) => {
+    calls.push({ path, options });
+    return smokeRequest(json(200, { ok:true, data:{} }))(path, options);
+  };
+  await runSmoke({ env, requestFn });
+  const workspace = calls.find(call => call.path.startsWith('/api/admin/premium/workspace'));
+  assert.deepEqual(workspace, {
+    path: '/api/admin/premium/workspace/summary',
+    options: { headers: { 'x-admin-session': env.QA_ADMIN_SESSION }, expectedStatus: [200] },
+  });
+  assert.equal(workspace.options.headers['x-admin-token'], undefined);
+  assert.equal(Object.keys(workspace.options.headers).some(name => /qa/i.test(name)), false);
 });
 
 test('expired admin session is an auth failure and QA fixture failure without functional evidence', async () => {
