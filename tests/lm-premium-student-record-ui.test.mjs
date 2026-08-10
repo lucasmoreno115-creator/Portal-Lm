@@ -50,19 +50,69 @@ test('Copiar acesso usa somente a senha temporária em memória e envia a mensag
   assert.equal(dom.document.getElementById('studentAccess').querySelector('[role="status"]').textContent, '✓ Acesso copiado');
 });
 
-test('Copiar acesso sem senha bloqueia o Clipboard, orienta redefinição e funciona sem Clipboard API', async () => {
+test('ACTIVE sem senha temporária orienta a rotação e não oferece cópia', async () => {
   const source = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
   const dom = createFakeDocument();
   const location = { search: '?student_id=student-1', origin: 'https://admin.example' };
   const context = { document: dom.document, navigator: {}, window: { LMAdminAuth: { requireAdmin(){}, attachLogout(){}, getAdminAuthHeaders(headers){ return headers; } } }, location, URLSearchParams, URL, FormData: class {}, fetch: async () => response({ student: { student_id: 'student-1', name: 'Ana', email: 'ana@example.com', consultation_status: 'ACTIVE' }, summary: {}, nutrition_plan: {}, pending_items: [], feedbacks: [], followup_entries: [] }) };
   vm.runInNewContext(source, context);
   await new Promise((resolve) => setTimeout(resolve, 0));
-  await dom.listeners.click({ target: dom.created.find((node) => node.dataset.copyAccess) });
-  assert.match(dom.document.getElementById('studentAccess').textContent, /A senha não está mais disponível para cópia\. Gere uma nova senha de acesso\./);
+  assert.equal(dom.created.find((node) => node.dataset.copyAccess), undefined);
+  assert.ok(dom.created.find((node) => node.dataset.resetAccessPassword));
+  assert.match(dom.document.getElementById('studentAccess').textContent, /A senha anterior não fica armazenada por segurança\. Gere uma nova senha para enviá-la ao aluno\./);
   assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB|console\.(?:log|info|warn|error).*temporary/i);
   assert.match(source, /lastStudent\.student_id !== student\.student_id\) temporaryAccessCredentials = null/);
   assert.match(source, /\/api\/admin\/student-access\/token', \{ method: 'POST'/);
   assert.doesNotMatch(source, /\/api\/admin\/student-access\/token', \{ method: 'GET'/);
+});
+
+test('rotação ACTIVE confirma, usa o e-mail oficial, renderiza e copia a nova senha somente após cópia real', async () => {
+  const source = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
+  const dom = createFakeDocument();
+  const requests = [];
+  const writes = [];
+  let confirmed = false;
+  const student = { student_id: 'student-1', name: 'Ana Lima', email: 'ana@example.com', consultation_status: 'ACTIVE' };
+  const fetch = async (url, options = {}) => {
+    requests.push({ url, options });
+    if (url === '/api/admin/student-access/token') return response({ email: student.email, token: 'Nova#9081' });
+    return response({ student, summary: {}, nutrition_plan: {}, pending_items: [], feedbacks: [], followup_entries: [] });
+  };
+  const context = { confirm: () => confirmed, document: dom.document, navigator: { clipboard: { writeText: async (value) => writes.push(value) } }, window: { LMAdminAuth: { requireAdmin(){}, attachLogout(){}, getAdminAuthHeaders(headers){ return headers; } } }, location: { search: '?student_id=student-1', origin: 'https://admin.example' }, URLSearchParams, URL, FormData: class {}, fetch };
+  vm.runInNewContext(source, context);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const reset = dom.created.find((node) => node.dataset.resetAccessPassword);
+  await dom.listeners.click({ target: reset });
+  assert.equal(requests.filter(({ url }) => url === '/api/admin/student-access/token').length, 0);
+  confirmed = true;
+  await dom.listeners.click({ target: reset });
+  const tokenRequest = requests.find(({ url }) => url === '/api/admin/student-access/token');
+  assert.deepEqual(JSON.parse(tokenRequest.options.body), { email: student.email });
+  assert.match(dom.document.getElementById('studentAccess').textContent, /Nova#9081/);
+  assert.equal(writes.length, 0);
+  const copy = dom.created.findLast((node) => node.dataset.copyAccess);
+  await dom.listeners.click({ target: copy });
+  assert.deepEqual(writes, ['Portal LM\n\nAluno: Ana Lima\nE-mail: ana@example.com\nSenha: Nova#9081\nLink: https://portal.lucasmorenopersonal.com.br/portal-login.html']);
+  assert.equal(dom.document.getElementById('studentAccess').querySelector('[role="status"]').textContent, '✓ Acesso copiado');
+});
+
+test('falha ao gerar senha mantém o card seguro, sem sucesso falso ou senha vazia', async () => {
+  const source = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
+  const dom = createFakeDocument();
+  const student = { student_id: 'student-1', name: 'Ana', email: 'ana@example.com', consultation_status: 'ACTIVE' };
+  let calls = 0;
+  const fetch = async (url) => url === '/api/admin/student-access/token'
+    ? (calls++, { ok: false, json: async () => ({ ok: false, error: 'Serviço indisponível' }) })
+    : response({ student, summary: {}, nutrition_plan: {}, pending_items: [], feedbacks: [], followup_entries: [] });
+  const context = { confirm: () => true, document: dom.document, navigator: {}, window: { LMAdminAuth: { requireAdmin(){}, attachLogout(){}, getAdminAuthHeaders(headers){ return headers; } } }, location: { search: '?student_id=student-1', origin: 'https://admin.example' }, URLSearchParams, URL, FormData: class {}, fetch };
+  vm.runInNewContext(source, context);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const reset = dom.created.find((node) => node.dataset.resetAccessPassword);
+  await assert.doesNotReject(dom.listeners.click({ target: reset }));
+  assert.equal(calls, 1);
+  assert.match(dom.document.getElementById('studentAccess').textContent, /Serviço indisponível/);
+  assert.equal(dom.created.find((node) => node.dataset.copyAccess), undefined);
+  assert.doesNotMatch(dom.document.getElementById('studentAccess').textContent, /✓ Acesso copiado|Senha de acesso—/);
 });
 
 test('renderização do prontuário permanece operacional sem containers opcionais', async () => {
@@ -124,7 +174,7 @@ test('Objetivos do planejamento expõe main_risk opcional e mantém as cópias J
 
 test('HTML seguro: Prontuário não usa innerHTML nem interpolação HTML dinâmica', () => {
   const publicJs = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
-  const assetJs = readFileSync(new URL('../public/assets/js/admin-premium-student-record.js', import.meta.url), 'utf8');
+  const assetJs = readFileSync(new URL('../public/assets/js/admin-premium-student-record.20260810-1.js', import.meta.url), 'utf8');
   assert.equal(publicJs, assetJs);
   assert.doesNotMatch(publicJs, /\.innerHTML\s*=/);
   assert.match(publicJs, /textContent/);
