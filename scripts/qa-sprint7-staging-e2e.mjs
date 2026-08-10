@@ -27,7 +27,11 @@ export async function request(baseUrl, path, { headers = {}, expectedStatus = [2
       status: response.status,
       finalUrl: response.url,
       redirected: response.redirected,
-      responseBody: responseBody.slice(0, 8000),
+      // Keep the complete body for in-memory validation. Truncating it made valid,
+      // larger Workspace summaries impossible to parse. It is never persisted.
+      responseBody,
+      contentType: response.headers.get('content-type') || '',
+      bodyLengthBytes: Buffer.byteLength(responseBody),
       durationMs: Date.now() - startedAt,
     };
   } catch (error) {
@@ -47,7 +51,32 @@ function reportDetails(result) {
     finalUrl: result.finalUrl,
     redirected: result.redirected,
     durationMs: result.durationMs,
+    ...(result.contentType ? { contentType: result.contentType } : {}),
+    ...(Number.isInteger(result.bodyLengthBytes) ? { bodyLengthBytes: result.bodyLengthBytes } : {}),
     ...(result.error ? { error: result.error } : {}),
+  };
+}
+
+export function isWorkspaceSummary(payload) {
+  if (!payload || payload.ok !== true || !payload.data || typeof payload.data !== 'object' || Array.isArray(payload.data)) return false;
+  const { anamnesis, checkins } = payload.data;
+  return Boolean(
+    anamnesis && typeof anamnesis === 'object'
+    && Number.isFinite(anamnesis.awaiting)
+    && Number.isFinite(anamnesis.underReview)
+    && Number.isFinite(anamnesis.readyToRelease)
+    && Array.isArray(anamnesis.items)
+    && checkins && typeof checkins === 'object'
+    && Number.isFinite(checkins.awaitingReview)
+    && (checkins.withoutRecentResponse === null || Number.isFinite(checkins.withoutRecentResponse))
+    && Array.isArray(checkins.items)
+  );
+}
+
+function workspaceMetadata(result, payload) {
+  return {
+    ...reportDetails(result),
+    topLevelKeys: payload && typeof payload === 'object' && !Array.isArray(payload) ? Object.keys(payload).sort() : [],
   };
 }
 
@@ -105,7 +134,11 @@ export async function runSmoke({ env = process.env, requestFn } = {}) {
         fail('qa-fixture', 'Sessão administrativa de QA expirada.', { status: workspace.status, code: 'ADMIN_SESSION_EXPIRED' });
       }
     } else if (workspace.ok) {
-      assert(workspaceJson !== null, 'workspace', 'Workspace retorna contrato JSON válido.', { status: workspace.status });
+      const details = workspaceMetadata(workspace, workspaceJson);
+      const isJsonContent = /^application\/json(?:\s*;|$)/i.test(workspace.contentType || '');
+      assert(isJsonContent, 'workspace', 'Workspace retorna Content-Type JSON coerente.', details);
+      assert(workspaceJson !== null, 'workspace', 'Workspace retorna JSON parseável.', details);
+      assert(isWorkspaceSummary(workspaceJson), 'workspace', 'Workspace retorna o contrato funcional mínimo usado pelo front-end.', details);
     }
 
     // Projeto LM is deliberately limited to a route compatibility probe. It does
