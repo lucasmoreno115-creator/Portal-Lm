@@ -68,12 +68,7 @@ jobs:
               --header 'Content-Type: application/json' \
               "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CF_WORKER_NAME}/versions?per_page=1")
 
-            VERSION_ID=$(printf '%s' "$RESPONSE" | jq -r '.result[0].id // empty')
-            if [[ -z "$VERSION_ID" ]]; then
-              echo "A Cloudflare não retornou uma versão do Worker ${CF_WORKER_NAME}." >&2
-              printf '%s\n' "$RESPONSE" >&2
-              exit 1
-            fi
+            VERSION_ID=$(printf '%s' "$RESPONSE" | node scripts/parse-cloudflare-worker-version.mjs)
 
             VERSION_PREFIX="${VERSION_ID:0:8}"
             BASE_URL="https://${VERSION_PREFIX}-${CF_WORKER_NAME}.${CF_WORKERS_SUBDOMAIN}.workers.dev"
