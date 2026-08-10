@@ -163,9 +163,13 @@
     } else if (status === 'READY_TO_RELEASE') {
       nodes.push(el('button', { textContent: 'Liberar acesso ao aluno', dataset: { releaseAccess: 'true' } }));
     } else if (status === 'ACTIVE') {
-      nodes.push(el('p', { textContent: 'Acesso liberado' }), el('button', { textContent: 'Copiar acesso', dataset: { copyAccess: 'true' } }), el('a', { className: 'button', textContent: 'Abrir Portal', href: portalPremiumUrl() }));
-      if (!temporaryAccessCredentials?.temporaryPassword) nodes.push(el('p', { className: 'muted', textContent: 'A senha não está mais disponível para cópia. Gere uma nova senha de acesso.' }));
-      nodes.push(el('button', { textContent: 'Gerar nova senha de acesso', dataset: { resetAccessPassword: 'true' } }));
+      nodes.push(el('p', { textContent: 'Acesso liberado' }), el('a', { className: 'button', textContent: 'Abrir Portal', href: portalPremiumUrl() }));
+      if (temporaryAccessCredentials?.temporaryPassword) {
+        const link = 'https://portal.lucasmorenopersonal.com.br/portal-login.html';
+        nodes.push(field('Link de acesso', link), field('Senha de acesso', temporaryAccessCredentials.temporaryPassword), el('pre', { className: 'access-message', textContent: accessMessage(student) }), el('button', { textContent: 'Copiar mensagem de acesso', dataset: { copyAccess: 'true' } }));
+      } else {
+        nodes.push(el('p', { className: 'muted', textContent: 'A senha anterior não fica armazenada por segurança. Gere uma nova senha para enviá-la ao aluno.' }), el('button', { textContent: 'Gerar nova senha de acesso', dataset: { resetAccessPassword: 'true' } }));
+      }
     } else if (status === 'PAUSED') {
       nodes.push(el('p', { className: 'muted', textContent: 'Acesso pausado.' }));
     } else if (status === 'ENDED') {
@@ -279,10 +283,12 @@
       return;
     }
     if (event.target?.dataset?.resetAccessPassword) {
+      if (!confirm('Gerar uma nova senha de acesso? A senha anterior deixará de funcionar.')) return;
       event.target.disabled = true;
       const feedback = byId('studentAccess')?.querySelector?.('[role="status"]');
       try {
         const credentials = await api('/api/admin/student-access/token', { method: 'POST', body: JSON.stringify({ email: lastStudent.email }) });
+        if (!credentials?.token) throw new Error('A API não retornou uma senha de acesso válida. Tente novamente.');
         temporaryAccessCredentials = { temporaryPassword: credentials.token };
         renderStudentAccess(lastStudent);
       } catch (error) { if (feedback) feedback.textContent = error.message; event.target.disabled = false; }

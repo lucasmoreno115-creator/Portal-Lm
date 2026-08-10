@@ -14,7 +14,7 @@ test('record and workspace keep release operations on the record surface',()=>{
   const workspace=fs.readFileSync('workers/premium/presenters/professional-workspace-student-presenter.js','utf8');
   assert.match(record,/Marcar planejamento como pronto/); assert.match(record,/Liberar acesso ao aluno/);
   assert.match(workspace,/action:'open-student'/); assert.doesNotMatch(workspace,/action:'mark-ready'/); assert.doesNotMatch(workspace,/action:'release'/);
-  assert.equal(fs.readFileSync('public/admin-premium-student-record.js','utf8'),fs.readFileSync('public/assets/js/admin-premium-student-record.js','utf8'));
+  assert.equal(fs.readFileSync('public/admin-premium-student-record.js','utf8'),fs.readFileSync('public/assets/js/admin-premium-student-record.20260810-1.js','utf8'));
   assert.equal(fs.readFileSync('public/admin-premium-nutrition-plan.js','utf8'),fs.readFileSync('public/assets/js/admin-premium-nutrition-plan.20260809-2.js','utf8'));
 });
 test('version draft use case accepts immutable versions and rejects draft origins',async()=>{
