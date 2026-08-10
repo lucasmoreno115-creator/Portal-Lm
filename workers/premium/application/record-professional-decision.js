@@ -11,6 +11,7 @@ export function createRecordProfessionalDecisionUseCase({ weeklyFeedbackReposito
     // turn the internal note into a public reply; the Workspace always sends it.
     const publicReply = coach_reply == null ? null : String(coach_reply).trim();
     if (coach_reply != null && !publicReply) return { ok: false, error: 'A mensagem pública ao aluno é obrigatória.', status: 400 };
+    await weeklyFeedbackRepository.claimLegacyIdentity?.(feedback_id);
     const feedback = await weeklyFeedbackRepository.findById(feedback_id);
     if (!feedback?.student_id) return { ok: false, error: 'Feedback não encontrado.', status: 404 };
     const existingEntry = await followupEntryRepository.listByRelatedEntity('student_checkins', feedback_id).then((entries) => entries.find((entry) => entry.entry_type === 'PROFESSIONAL_DECISION'));

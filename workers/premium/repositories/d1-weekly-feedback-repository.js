@@ -1,9 +1,26 @@
+import { uniqueLegacyCheckinStudentIdSql } from './legacy-checkin-identity-sql.js';
+
 function rows(result) { return result?.results ?? []; }
 function changes(result) { return Number(result?.meta?.changes ?? result?.changes ?? 0); }
 
 export function createD1WeeklyFeedbackRepository(db) {
+  const legacyStudentId = uniqueLegacyCheckinStudentIdSql('sc');
+  const storedLegacyStudentId = uniqueLegacyCheckinStudentIdSql('student_checkins');
   return Object.freeze({
-    findById(id) { return db.prepare('SELECT * FROM student_checkins WHERE id = ? LIMIT 1').bind(id).first(); },
+    findById(id) { return db.prepare(`SELECT sc.id, sc.student_email, sc.week_ref,
+      sc.training_adherence, sc.nutrition_adherence, sc.cardio_adherence, sc.free_meals,
+      sc.hunger_level, sc.binge_or_snacking, sc.sleep_quality, sc.energy_level, sc.stress_level,
+      sc.weekly_weight, sc.waist, sc.strength_status, sc.main_difficulty, sc.routine_context,
+      sc.weekly_score, sc.support_needed, sc.coach_status, sc.coach_reply, sc.coach_reply_at,
+      sc.submitted_at, sc.available_at, sc.reviewed_at, sc.analyzed_at, sc.decision_type,
+      sc.decision_note, sc.followup_at, sc.created_at, sc.updated_at,
+      COALESCE(sc.student_id, ${legacyStudentId}) AS student_id
+      FROM student_checkins sc WHERE sc.id = ? LIMIT 1`).bind(id).first(); },
+    async claimLegacyIdentity(id) {
+      return changes(await db.prepare(`UPDATE student_checkins
+        SET student_id=${storedLegacyStudentId}
+        WHERE id=? AND ${storedLegacyStudentId} IS NOT NULL`).bind(id).run());
+    },
     findByStudentAndWeek(studentId, weekRef) { return db.prepare('SELECT * FROM student_checkins WHERE student_id = ? AND week_ref = ? LIMIT 1').bind(studentId, weekRef).first(); },
     findAvailableByStudentId(studentId, weekRef) { return this.findByStudentAndWeek(studentId, weekRef); },
     async listByStudentId(studentId, { limit = 20 } = {}) {

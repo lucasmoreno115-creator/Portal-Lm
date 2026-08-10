@@ -10,7 +10,7 @@ const publicEntrypoints = [
   'index.html', 'portal.html', 'admin-login.html', 'admin-premium-workspace.html',
   'admin-premium-student-record.html', 'admin-premium-nutrition-plan.html', 'projeto-lm/index.html',
   '404.html',
-  'assets/js/admin-premium-student-record.20260810-1.js', 'assets/css/admin-premium-student-record.css',
+  'assets/js/admin-premium-student-record.20260810-2.js', 'assets/css/admin-premium-student-record.css',
 ];
 
 test('Cloudflare route covers the complete portal hostname exactly once', () => {
@@ -34,7 +34,7 @@ test('native static assets stay asset-first with an HTML 404 page and API/admin 
 test('public is the production frontend source for critical entrypoints and runtime markers', async () => {
   await Promise.all(publicEntrypoints.map((entrypoint) => access(`public/${entrypoint}`, constants.R_OK)));
   const html = await readFile('public/admin-premium-student-record.html', 'utf8');
-  const js = await readFile('public/assets/js/admin-premium-student-record.20260810-1.js', 'utf8');
+  const js = await readFile('public/assets/js/admin-premium-student-record.20260810-2.js', 'utf8');
   assert.match(html, /Planejamento alimentar/);
   assert.match(js, /Editar planejamento alimentar/);
 });
@@ -62,7 +62,7 @@ test('public HTML imports resolve inside the canonical static directory', async 
 
 test('Pages deployment remains absent and Cloudflare smoke verifies canonical pages, redirects, API, assets, and isolated 404s', async () => {
   await assert.rejects(access('.github/workflows/pages-deploy.yml', constants.F_OK));
-  for (const path of ['/api/health', '/', '/portal', '/admin-premium-student-record', '/assets/js/admin-premium-student-record.20260810-1.js', '/assets/css/admin-premium-student-record.css', '/admin-premium-nutrition-plan', '/api/rota-inexistente', '/arquivo-inexistente-${GITHUB_SHA}.html']) assert.match(workflow, new RegExp(path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  for (const path of ['/api/health', '/', '/portal', '/admin-premium-student-record', '/assets/js/admin-premium-student-record.20260810-2.js', '/assets/css/admin-premium-student-record.css', '/admin-premium-nutrition-plan', '/api/rota-inexistente', '/arquivo-inexistente-${GITHUB_SHA}.html']) assert.match(workflow, new RegExp(path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   for (const [legacyPath, canonicalPath] of [['/portal.html', '/portal'], ['/admin-premium-student-record.html', '/admin-premium-student-record'], ['/admin-premium-nutrition-plan.html', '/admin-premium-nutrition-plan']]) {
     assert.match(workflow, new RegExp(`redirect ${legacyPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} ${canonicalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
   }

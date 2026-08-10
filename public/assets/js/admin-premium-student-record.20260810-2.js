@@ -7,6 +7,8 @@
   const state = document.getElementById('state');
   const root = document.getElementById('record');
   let lastStudent = {};
+  let activeFeedbackButton = null;
+  let activeFeedbackId = null;
   let temporaryAccessCredentials = null;
   const statusLabels = { NEW:'Novo', AWAITING_ANAMNESIS:'Aguardando anamnese', UNDER_REVIEW:'Em análise', READY_TO_RELEASE:'Pronto para liberação', ACTIVE:'Ativo', PAUSED:'Pausado', ENDED:'Encerrado' };
 
@@ -218,14 +220,75 @@
   function renderFeedbacks(feedbacks) {
     const target = byId('feedbacks');
     if (!feedbacks.length) {
-      target.replaceChildren(emptyState('Nenhum feedback enviado', 'Sem check-ins semanais registrados.'));
+      target.replaceChildren(emptyState('Nenhum check-in enviado.', 'Os check-ins realmente enviados aparecerão aqui.'));
       return;
     }
-    target.replaceChildren(...feedbacks.map((feedback) => emptyState(
-      `${fmt(feedback.created_at)} • ${text(feedback.week_ref)}`,
-      `Treino: ${text(feedback.training_adherence)} • Dieta: ${text(feedback.nutrition_adherence)} • Sono: ${text(feedback.sleep_quality)} • Status: ${text(feedback.coach_status, 'pendente')}`,
-      !['reviewed','replied'].includes(String(feedback.coach_status || '').trim().toLowerCase()) ? 'danger' : ''
-    )));
+    target.replaceChildren(...feedbacks.map((feedback) => {
+      const pending = !['reviewed','replied','analyzed','analisado','analisada'].includes(String(feedback.coach_status || '').trim().toLowerCase());
+      const button = el('button', { textContent: 'Ver check-in', dataset: { viewCheckin: feedback.id } });
+      button.setAttribute('type', 'button');
+      return el('div', { className: `item feedback-item${pending ? ' pending danger' : ''}` },
+        el('div', { className: 'feedback-meta' },
+          el('strong', { textContent: `Enviado em ${fmt(feedback.submitted_at || feedback.created_at)}` }),
+          el('span', { textContent: `Semana de referência: ${text(feedback.week_ref, 'Não informado')}` }),
+          el('span', { className: 'muted', textContent: `Status profissional: ${text(feedback.coach_status, 'Pendente')}` })
+        ), button);
+    }));
+  }
+
+  const checkinFields = [
+    ['Adesão ao treino', 'training_adherence'], ['Adesão alimentar', 'nutrition_adherence'],
+    ['Cardio', 'cardio_adherence'], ['Refeições livres', 'free_meals'], ['Fome', 'hunger_level'],
+    ['Compulsão/beliscos', 'binge_or_snacking'], ['Sono', 'sleep_quality'], ['Energia', 'energy_level'],
+    ['Estresse', 'stress_level'], ['Peso semanal', 'weekly_weight'], ['Cintura', 'waist'],
+    ['Evolução de força', 'strength_status'], ['Principal dificuldade', 'main_difficulty'],
+    ['Contexto da rotina', 'routine_context'], ['Nota da semana', 'weekly_score'],
+    ['Suporte solicitado', 'support_needed'], ['Resposta do profissional', 'coach_reply']
+  ];
+
+  function closeCheckin() {
+    const dialog = byId('checkinDialog');
+    if (dialog?.open) dialog.close();
+    activeFeedbackId = null;
+    const button = activeFeedbackButton;
+    activeFeedbackButton = null;
+    button?.focus?.();
+  }
+
+  function renderCheckinDetail(feedback) {
+    const answers = el('dl', { className: 'checkin-answers' });
+    checkinFields.forEach(([label, key]) => answers.append(el('div', { className: 'checkin-answer' }, el('dt', { textContent: label }), el('dd', { textContent: text(feedback[key], 'Não informado') }))));
+    const dates = el('dl', { className: 'checkin-answers' },
+      el('div', { className: 'checkin-answer' }, el('dt', { textContent: 'Enviado em' }), el('dd', { textContent: feedback.submitted_at ? fmt(feedback.submitted_at) : 'Não informado' })),
+      el('div', { className: 'checkin-answer' }, el('dt', { textContent: 'Criado em' }), el('dd', { textContent: feedback.created_at ? fmt(feedback.created_at) : 'Não informado' })),
+      el('div', { className: 'checkin-answer' }, el('dt', { textContent: 'Respondido pelo profissional em' }), el('dd', { textContent: feedback.coach_reply_at ? fmt(feedback.coach_reply_at) : 'Não informado' })),
+      el('div', { className: 'checkin-answer' }, el('dt', { textContent: 'Revisado em' }), el('dd', { textContent: feedback.reviewed_at ? fmt(feedback.reviewed_at) : 'Não informado' }))
+    );
+    byId('checkinDetail').replaceChildren(
+      field('Semana de referência', text(feedback.week_ref, 'Não informado')),
+      field('Status profissional', text(feedback.coach_status, 'Pendente')),
+      answers, el('h3', { textContent: 'Datas relevantes' }), dates
+    );
+  }
+
+  async function openCheckin(id, trigger) {
+    const dialog = byId('checkinDialog');
+    activeFeedbackButton = trigger;
+    activeFeedbackId = id;
+    byId('checkinDetail').replaceChildren(el('p', { textContent: 'Carregando check-in…' }));
+    if (dialog && !dialog.open) dialog.showModal?.();
+    try {
+      const detail = await api(`/api/admin/premium/weekly-feedbacks/${encodeURIComponent(id)}`);
+      if (activeFeedbackId !== id) return;
+      const feedback = detail?.feedback;
+      if (!feedback || feedback.student_id !== lastStudent.student_id) throw new Error('Este check-in não pertence ao aluno aberto no prontuário.');
+      renderCheckinDetail(feedback);
+    } catch (error) {
+      if (activeFeedbackId !== id) return;
+      const retry = el('button', { textContent: 'Tentar novamente', dataset: { retryCheckin: id } });
+      retry.setAttribute('type', 'button');
+      byId('checkinDetail').replaceChildren(el('p', { textContent: error.message || 'Erro ao carregar check-in.' }), retry);
+    }
   }
 
   function renderEntries(entries) {
@@ -259,6 +322,10 @@
   }
 
   document.addEventListener('click', async (event) => {
+    if (event.target?.dataset?.closeCheckin != null) { closeCheckin(); return; }
+    if (event.target?.dataset?.viewCheckin) { await openCheckin(event.target.dataset.viewCheckin, event.target); return; }
+    if (event.target?.dataset?.retryCheckin) { await openCheckin(event.target.dataset.retryCheckin, activeFeedbackButton); return; }
+    if (event.target === byId('checkinDialog')) { closeCheckin(); return; }
     if (event.target?.dataset?.generateAccess) {
       if (!confirm('Será criado um novo código de acesso para esta aluna. Um código anterior, se existir, deixará de funcionar.')) return;
       event.target.disabled = true;
@@ -320,6 +387,8 @@
     await api(`/api/admin/premium/pending-items/${encodeURIComponent(id)}/resolve`, { method: 'PATCH' });
     load();
   });
+
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && byId('checkinDialog')?.open) { event.preventDefault(); closeCheckin(); } });
 
   byId('entryForm').addEventListener('submit', async (event) => {
     event.preventDefault();
