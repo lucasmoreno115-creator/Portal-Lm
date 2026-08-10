@@ -24,6 +24,7 @@
     "qa:lm:workspace-entry": "node --test tests/workspace-entry-qa.test.mjs tests/admin-auth-return-to.test.mjs tests/admin-session-e2e-contract.test.mjs",
     "qa:lm:premium-api": "node scripts/qa-premium-api-contracts.mjs",
     "qa:lm:premium-entry": "node scripts/qa-premium-entry-staging-e2e.mjs",
+    "qa:lm:premium-anamnesis": "node scripts/qa-premium-anamnesis-staging-e2e.mjs",
     "build:project-lm-runtime": "node scripts/build-project-lm-runtime.mjs",
     "check:project-lm-runtime": "node scripts/check-project-lm-runtime.mjs",
     "prepare:pages-artifact": "node scripts/prepare-pages-artifact.mjs",

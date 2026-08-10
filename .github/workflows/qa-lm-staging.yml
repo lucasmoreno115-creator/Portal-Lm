@@ -112,6 +112,12 @@ jobs:
           set -o pipefail
           npm run qa:lm:premium-entry | tee qa-premium-entry-report.json
 
+      - name: Execute Premium anamnesis operational smoke
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run qa:lm:premium-anamnesis | tee qa-premium-anamnesis-report.json
+
       - name: Publish resolved target
         if: always()
         run: |
@@ -130,4 +136,5 @@ jobs:
           path: |
             qa-sprint7-report.json
             qa-premium-entry-report.json
+            qa-premium-anamnesis-report.json
           retention-days: 30
