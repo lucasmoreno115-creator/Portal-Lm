@@ -107,8 +107,34 @@ test('GET record combina identidade canônica e legado enviado sem misturar, dup
   const legacyDetail=await api(db,'GET','/api/admin/premium/weekly-feedbacks/legacy-sent');
   assert.equal(legacyDetail.status,200);
   assert.equal(legacyDetail.body.data.feedback.student_id,'student-1');
+  const pendingBefore=await db.prepare(`SELECT COUNT(*) AS total FROM premium_pending_items WHERE related_entity_id='legacy-sent' AND status='OPEN'`).first();
+  const decision=await api(db,'POST','/api/admin/premium/weekly-feedbacks/legacy-sent/decision',{decision_type:'KEEP_STRATEGY',note:'Identidade comprovada',coach_reply:'Continue assim.'});
+  assert.equal(decision.status,200);
+  const persistedLegacy=await db.prepare(`SELECT student_id,coach_reply FROM student_checkins WHERE id='legacy-sent'`).first();
+  assert.deepEqual(persistedLegacy,{student_id:'student-1',coach_reply:'Continue assim.'});
+  const pendingAfter=await db.prepare(`SELECT COUNT(*) AS total FROM premium_pending_items WHERE related_entity_id='legacy-sent'`).first();
+  assert.equal(pendingAfter.total,pendingBefore.total);
   const otherDetail=await api(db,'GET','/api/admin/premium/weekly-feedbacks/conflicting-id');
   assert.equal(otherDetail.body.data.feedback.student_id,'student-2');
+}));
+
+test('fallback legado ambíguo não aparece, não resolve detalhe e não aceita decisão', async()=>withDb(async(db)=>{
+  await db.prepare(`INSERT INTO premium_students (student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES ('duplicate-1','duplicate@example.com','duplicate-key-1','Duplicate 1','ACTIVE','ACTIVE','TEST','2026-07-14','2026-07-14')`).run();
+  await db.prepare(`INSERT INTO premium_students (student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES ('duplicate-2',' DUPLICATE@EXAMPLE.COM ','duplicate-key-2','Duplicate 2','ACTIVE','ACTIVE','TEST','2026-07-14','2026-07-14')`).run();
+  await db.prepare(`INSERT INTO student_checkins (id,student_id,student_email,week_ref,submitted_at,created_at) VALUES ('ambiguous-legacy',NULL,' duplicate@example.com ','ambiguous','2026-08-20','2026-08-20')`).run();
+  for(const studentId of ['duplicate-1','duplicate-2']) {
+    const record=await api(db,'GET',`/api/admin/premium/students/${studentId}/record`);
+    assert.equal(record.status,200);
+    assert.equal(record.body.data.feedbacks.some((feedback)=>feedback.id==='ambiguous-legacy'),false);
+  }
+  const detail=await api(db,'GET','/api/admin/premium/weekly-feedbacks/ambiguous-legacy');
+  assert.equal(detail.status,404);
+  const decision=await api(db,'POST','/api/admin/premium/weekly-feedbacks/ambiguous-legacy/decision',{decision_type:'KEEP_STRATEGY',coach_reply:'Não deve salvar'});
+  assert.equal(decision.status,404);
+  const persisted=await db.prepare(`SELECT student_id,coach_reply FROM student_checkins WHERE id='ambiguous-legacy'`).first();
+  assert.deepEqual(persisted,{student_id:null,coach_reply:null});
+  const pending=await db.prepare(`SELECT COUNT(*) AS total FROM premium_pending_items WHERE related_entity_id='ambiguous-legacy'`).first();
+  assert.equal(pending.total,0);
 }));
 
 

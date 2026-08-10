@@ -1,4 +1,5 @@
 import { isAnalyzedCoachStatus } from '../domain/feedback-status.js';
+import { uniqueLegacyCheckinStudentIdSql } from './legacy-checkin-identity-sql.js';
 function rows(result) { return result?.results ?? []; }
 function parseJson(value, fallback) { try { return value ? JSON.parse(value) : fallback; } catch { return fallback; } }
 export function createD1StudentRecordRepository(db) {
@@ -13,7 +14,8 @@ export function createD1StudentRecordRepository(db) {
     async getNutritionPlanWorkflow(studentId) { const result = await db.prepare(`SELECT id, student_id, student_email, title, goal, strategy, status, version_number, published_at, updated_at, created_at FROM nutrition_plans WHERE student_id=? AND (status='DRAFT' OR (status='PUBLISHED' AND is_active=1)) ORDER BY CASE status WHEN 'DRAFT' THEN 0 ELSE 1 END, datetime(updated_at) DESC LIMIT 2`).bind(studentId).all(); const plans = rows(result); const legacy = await db.prepare("SELECT id FROM nutrition_plans WHERE student_id IS NULL AND is_active=1 AND (status='PUBLISHED' OR status IS NULL) AND lower(trim(student_email))=(SELECT lower(trim(email)) FROM premium_students WHERE student_id=?) LIMIT 1").bind(studentId).first(); return { current: plans.find((plan) => plan.status === 'PUBLISHED') || null, draft: plans.find((plan) => plan.status === 'DRAFT') || null, legacy_available: Boolean(legacy) }; },
     async getCurrentNutritionPlan(studentId) { return (await this.getNutritionPlanWorkflow(studentId)).current; },
     async listRecentFeedbacks(studentId, { limit = 12, offset = 0 } = {}) {
-      return rows(await db.prepare(`SELECT sc.id, COALESCE(sc.student_id, ?) AS student_id, sc.student_email, sc.week_ref,
+      const legacyIdentitySql = uniqueLegacyCheckinStudentIdSql('sc');
+      const sql = `SELECT sc.id, COALESCE(sc.student_id, __LEGACY_IDENTITY__) AS student_id, sc.student_email, sc.week_ref,
         sc.training_adherence, sc.nutrition_adherence, sc.cardio_adherence, sc.free_meals,
         sc.hunger_level, sc.binge_or_snacking, sc.sleep_quality, sc.energy_level, sc.stress_level,
         sc.weekly_weight, sc.waist, sc.strength_status, sc.main_difficulty, sc.routine_context,
@@ -21,12 +23,10 @@ export function createD1StudentRecordRepository(db) {
         sc.submitted_at, sc.reviewed_at, sc.reviewed_by, sc.created_at
         FROM student_checkins sc
         WHERE sc.submitted_at IS NOT NULL
-          AND (sc.student_id=? OR (
-            sc.student_id IS NULL
-            AND lower(trim(sc.student_email))=(SELECT lower(trim(email)) FROM premium_students WHERE student_id=? LIMIT 1)
-          ))
+          AND (sc.student_id=? OR __LEGACY_IDENTITY__=?)
         ORDER BY datetime(COALESCE(sc.submitted_at, sc.created_at)) DESC, datetime(sc.created_at) DESC, sc.id DESC
-        LIMIT ? OFFSET ?`).bind(studentId, studentId, studentId, limit, offset).all());
+        LIMIT ? OFFSET ?`.replaceAll('__LEGACY_IDENTITY__', legacyIdentitySql);
+      return rows(await db.prepare(sql).bind(studentId, studentId, limit, offset).all());
     },
     async listFollowupEntries(studentId, { limit = 50, offset = 0 } = {}) { return rows(await db.prepare(`SELECT * FROM premium_followup_entries WHERE student_id=? ORDER BY datetime(created_at) DESC, id DESC LIMIT ? OFFSET ?`).bind(studentId, limit, offset).all()); },
     async listPendingItems(studentId, { status = 'OPEN', limit = 100 } = {}) { return rows(await db.prepare(`SELECT * FROM premium_pending_items WHERE student_id=? AND status=? ORDER BY CASE priority WHEN 'HIGH' THEN 0 ELSE 1 END, datetime(created_at) DESC LIMIT ?`).bind(studentId, status, limit).all()); },
