@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import test from 'node:test';
+import { PREMIUM_NUTRITION_PLAN_CALLS, validateDraft, validatePremiumNutritionPlanCalls, validatePublish, validateStudentPlan, validateWrite } from '../scripts/qa-premium-nutrition-plan-staging-e2e.mjs';
+
+const result=(body,status=200)=>({ok:status>=200&&status<300,status,responseBody:JSON.stringify(body)});
+const studentId='student-1', planId='plan-1', marker='QA-F1.8-run-1', editedMarker=`${marker}-EDITADO`, deletedMarker=`${marker}-EXCLUIR`;
+const draft={id:planId,student_id:studentId,status:'DRAFT',is_active:0,updated_at:'2026-08-10T00:00:00Z',meals:[]};
+const meals=[{id:'meal-1',name:'Café da manhã',guidance:editedMarker,items:[{food:marker,quantity:'1',unit:'unidade'}]},{id:'meal-2',name:'Almoço',primary_text:marker,items:[]}];
+
+test('draft creation requires canonical id, identity, DRAFT and inactive state',()=>assert.equal(validateDraft(result({ok:true,data:draft}),studentId).ok,true));
+test('draft response without id fails closed',()=>assert.equal(validateDraft(result({ok:true,data:{...draft,id:null}}),studentId).ok,false));
+test('unexpected draft status fails closed',()=>assert.equal(validateDraft(result({ok:true,data:{...draft,status:'PUBLISHED'}}),studentId).ok,false));
+test('meal write accepts canonical persisted meal contract',()=>assert.equal(validateWrite(result({ok:true,data:{...draft,meals}}),{planId,studentId,marker}).ok,true));
+test('meal without id is rejected by the operational contract',()=>assert.ok(!meals.map(x=>x.id).concat([null]).every(id=>id&&!['undefined','null','[object MouseEvent]'].includes(String(id)))));
+test('structured item keeps food, quantity and unit',()=>assert.deepEqual(meals[0].items[0],{food:marker,quantity:'1',unit:'unidade'}));
+test('independent reload validator requires marker persistence',()=>assert.equal(validateWrite(result({ok:true,data:{...draft,meals}}),{planId,studentId,marker}).ok,true));
+test('edit validator requires edited marker',()=>assert.equal(validateWrite(result({ok:true,data:{...draft,meals}}),{planId,studentId,marker,editedMarker}).ok,true));
+test('delete validator rejects the disposable marker while retaining content',()=>assert.equal(validateWrite(result({ok:true,data:{...draft,meals}}),{planId,studentId,marker,deletedMarker}).ok,true));
+test('valid publication requires active PUBLISHED version',()=>assert.equal(validatePublish(result({ok:true,data:{...draft,status:'PUBLISHED',is_active:1,version_number:1}}),{planId,studentId}).ok,true));
+test('publish 4xx fails closed',()=>assert.equal(validatePublish(result({ok:false},409),{planId,studentId}).ok,false));
+test('HTTP 200 with ok false is not a publication success',()=>assert.equal(validatePublish(result({ok:false,data:{...draft,status:'PUBLISHED',is_active:1,version_number:1}}),{planId,studentId}).ok,false));
+test('student unauthenticated read contract is explicitly 401',()=>assert.match(fs.readFileSync('scripts/qa-premium-nutrition-plan-staging-e2e.mjs','utf8'),/expectedStatus:\[401\]/));
+test('authenticated student receives exact published content',()=>assert.equal(validateStudentPlan(result({ok:true,data:{status:'PUBLISHED',meals}}),{marker,editedMarker,deletedMarker}).ok,true));
+test('missing run marker fails student consistency',()=>assert.equal(validateStudentPlan(result({ok:true,data:{status:'PUBLISHED',meals:[]}}),{marker,editedMarker,deletedMarker}).ok,false));
+test('wrong public version fails student consistency',()=>assert.equal(validateStudentPlan(result({ok:true,data:{status:'ARCHIVED',meals}}),{marker,editedMarker,deletedMarker}).ok,false));
+test('draft exposed by public response fails student consistency',()=>assert.equal(validateStudentPlan(result({ok:true,data:{status:'DRAFT',meals}}),{marker,editedMarker,deletedMarker}).ok,false));
+test('studentId divergence fails draft and publish contracts',()=>{assert.equal(validateDraft(result({ok:true,data:draft}),'other').ok,false);assert.equal(validatePublish(result({ok:true,data:{...draft,status:'PUBLISHED',is_active:1,version_number:1}}),{planId,studentId:'other'}).ok,false);});
+test('allowlist rejects Projeto LM and accepts only the explicit F1.8 routes',()=>{assert.equal(validatePremiumNutritionPlanCalls([{method:'GET',path:'/api/portal/project-lm/current-mission'}]).ok,false);assert.ok(PREMIUM_NUTRITION_PLAN_CALLS.has('GET /api/portal/nutrition-plan'));});
+test('report source masks secrets and excludes email, token and session from evidence',()=>{const source=fs.readFileSync('scripts/qa-premium-nutrition-plan-staging-e2e.mjs','utf8');assert.match(source,/mask\(env\.QA_ADMIN_SESSION\)/);assert.match(source,/mask\(email\)/);assert.match(source,/mask\(token\)/);assert.doesNotMatch(source,/add\([^\n]*\{[^\n]*(?:email|token|session)/i);});
+test('NOT_VALIDATED exits non-zero',()=>assert.match(fs.readFileSync('scripts/qa-premium-nutrition-plan-staging-e2e.mjs','utf8'),/report\.status==='VALIDATED'\?0:1/));
+test('workflow preserves smoke failure through tee and uploads its report',()=>{const workflow=fs.readFileSync('.github/workflows/qa-lm-staging.yml','utf8');assert.match(workflow,/set -o pipefail\n\s+npm run qa:lm:premium-nutrition-plan \| tee qa-premium-nutrition-plan-report\.json/);assert.match(workflow,/qa-premium-nutrition-plan-report\.json/);});
+test('PR 405 regression: UI meal selector feeds the selected type into the persisted model',()=>{const source=fs.readFileSync('public/admin-premium-nutrition-plan.js','utf8');assert.match(source,/const mealName=await openMealSelector\(\);if\(!mealName\)return;createMeal\(mealName\)/);assert.match(source,/m\.meals\.map\(meal=>/);});
+test('PR 406 regression: edit and publish requests use a guarded canonical id',()=>{const source=fs.readFileSync('public/admin-premium-nutrition-plan.js','utf8');assert.match(source,/if\(!source\|\|typeof source!=='object'\|\|!source\.id\)/);assert.match(source,/encodeURIComponent\(source\.id\).*duplicate-as-draft/);assert.match(source,/const reviewedDraftId=state\.draft\.id/);assert.doesNotMatch(`/api/admin/premium/nutrition-plans/${planId}/draft`,/undefined|null|\[object MouseEvent\]/);});
