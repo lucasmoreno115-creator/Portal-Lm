@@ -2,7 +2,7 @@
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
-const REQUIRED_ENV = ['QA_STUDENT_EMAIL', 'QA_STUDENT_TOKEN', 'QA_ADMIN_SESSION', 'QA_ADMIN_TOKEN'];
+const REQUIRED_ENV = ['QA_STUDENT_EMAIL', 'QA_STUDENT_TOKEN', 'QA_ADMIN_SESSION'];
 
 export async function request(baseUrl, path, { headers = {}, expectedStatus = [200], method = 'GET', body, timeoutMs = 20000 } = {}) {
   const url = `${baseUrl}${path}`;
@@ -83,7 +83,7 @@ export async function runSmoke({ env = process.env, requestFn } = {}) {
     }
 
     const studentHeaders = { 'x-student-email': env.QA_STUDENT_EMAIL, 'x-student-token': env.QA_STUDENT_TOKEN };
-    const adminHeaders = { 'x-admin-session': env.QA_ADMIN_SESSION, 'x-admin-token': env.QA_ADMIN_TOKEN };
+    const adminHeaders = { 'x-admin-session': env.QA_ADMIN_SESSION };
     const unauthenticated = await performRequest('/api/portal/nutrition-plan', { expectedStatus: [401, 403] });
     assert(unauthenticated.ok, 'student-auth', 'Endpoint do plano rejeita acesso sem autenticação.', reportDetails(unauthenticated));
 

@@ -28,8 +28,6 @@ jobs:
       CF_WORKERS_SUBDOMAIN: ${{ vars.CF_WORKERS_SUBDOMAIN || 'lucasmoreno115' }}
       QA_STUDENT_EMAIL: ${{ secrets.QA_STUDENT_EMAIL }}
       QA_STUDENT_TOKEN: ${{ secrets.QA_STUDENT_TOKEN }}
-      QA_ADMIN_SESSION: ${{ secrets.QA_ADMIN_SESSION }}
-      QA_ADMIN_TOKEN: ${{ secrets.QA_ADMIN_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -95,6 +93,11 @@ jobs:
           done
           echo "Preview não ficou disponível no tempo esperado: ${QA_BASE_URL}" >&2
           exit 1
+
+      - name: Authenticate QA administrator
+        env:
+          QA_ADMIN_TOKEN: ${{ secrets.QA_ADMIN_TOKEN }}
+        run: node scripts/authenticate-qa-admin.mjs
 
       - name: Execute authenticated staging QA
         run: npm run qa:lm:sprint7 | tee qa-sprint7-report.json
