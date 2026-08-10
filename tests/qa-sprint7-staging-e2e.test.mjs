@@ -5,8 +5,9 @@ import { once } from 'node:events';
 import { request, runSmoke } from '../scripts/qa-sprint7-staging-e2e.mjs';
 
 const env = { QA_BASE_URL:'https://qa.example', QA_STUDENT_EMAIL:'student@example.test', QA_STUDENT_TOKEN:'student-token', QA_ADMIN_SESSION:'admin-session', QA_ADMIN_TOKEN:'admin-token' };
-const json = (status, value) => ({ ok:status===200, status, responseBody:JSON.stringify(value), durationMs:1 });
+const json = (status, value) => { const responseBody=JSON.stringify(value); return { ok:status===200, status, responseBody, contentType:'application/json; charset=utf-8', bodyLengthBytes:Buffer.byteLength(responseBody), durationMs:1 }; };
 const plan = { ok:true, data:{ title:'Plano', meals:[], substitutions:[], observations:'' } };
+const workspaceSummary = { ok:true, data:{ anamnesis:{ awaiting:1, underReview:2, readyToRelease:3, items:[] }, checkins:{ awaitingReview:4, withoutRecentResponse:null, items:[] } } };
 
 async function withServer(handler, fn) {
   const server = http.createServer(handler).listen(0, '127.0.0.1');
@@ -46,17 +47,47 @@ function smokeRequest(workspace, portal = plan) {
   };
 }
 
-test('Workspace 200 with valid JSON produces functional evidence', async () => {
-  const report = await runSmoke({ env, requestFn:smokeRequest(json(200,{ ok:true, data:[] })) });
-  assert.ok(report.evidence.some(item=>item.scope==='workspace' && /contrato JSON/.test(item.message)));
+test('Workspace 200 with its real functional JSON contract produces sanitized evidence', async () => {
+  const report = await runSmoke({ env, requestFn:smokeRequest(json(200,workspaceSummary)) });
+  assert.ok(report.evidence.some(item=>item.scope==='workspace' && /contrato funcional/.test(item.message)));
   assert.equal(report.failures.some(item=>item.scope==='professional-auth'),false);
+  const serialized=JSON.stringify(report);
+  assert.doesNotMatch(serialized,/responseBody|student@example\.test|private student/i);
+  assert.match(serialized,/bodyLengthBytes/);
+});
+
+test('Workspace parses a valid response larger than the former 8000-byte truncation limit', async () => {
+  await withServer((_req,res) => {
+    const payload={...workspaceSummary, padding:'x'.repeat(9000)};
+    res.writeHead(200,{'content-type':'application/json; charset=utf-8'}).end(JSON.stringify(payload));
+  }, async base => {
+    const result=await request(base,'/api/admin/premium/workspace/summary');
+    assert.ok(result.responseBody.length>8000);
+    const report=await runSmoke({env:{...env,QA_BASE_URL:base},requestFn:smokeRequest(result)});
+    assert.equal(report.failures.some(item=>item.scope==='workspace'),false);
+  });
+});
+
+test('Workspace rejects empty, HTML, invalid JSON, invalid envelope, and incoherent content type', async () => {
+  const cases=[
+    { ...json(200,workspaceSummary), responseBody:'', bodyLengthBytes:0 },
+    { ok:true,status:200,responseBody:'<html>fallback</html>',contentType:'text/html',bodyLengthBytes:21,durationMs:1 },
+    { ok:true,status:200,responseBody:'{"ok":',contentType:'application/json',bodyLengthBytes:6,durationMs:1 },
+    json(200,{ok:true,data:{}}),
+    { ...json(200,workspaceSummary), contentType:'text/plain' },
+  ];
+  for (const response of cases) {
+    const report=await runSmoke({env,requestFn:smokeRequest(response)});
+    assert.ok(report.failures.some(item=>item.scope==='workspace'));
+    assert.equal(report.status,'NOT_VALIDATED');
+  }
 });
 
 test('smoke reproduces the browser Workspace request without QA-only or legacy headers', async () => {
   const calls = [];
   const requestFn = async (path, options) => {
     calls.push({ path, options });
-    return smokeRequest(json(200, { ok:true, data:{} }))(path, options);
+    return smokeRequest(json(200, workspaceSummary))(path, options);
   };
   await runSmoke({ env, requestFn });
   const workspace = calls.find(call => call.path.startsWith('/api/admin/premium/workspace'));
@@ -96,7 +127,7 @@ test('invalid or absent expected plan fails the public contract assertion', asyn
 
 test('Projeto LM remains one isolated compatibility request without Premium check-in logic', async () => {
   const calls=[];
-  const requestFn=async(path,options)=>{ calls.push({path,options}); return smokeRequest(json(200,{ok:true}))(path,options); };
+  const requestFn=async(path,options)=>{ calls.push({path,options}); return smokeRequest(json(200,workspaceSummary))(path,options); };
   const report=await runSmoke({env,requestFn});
   assert.equal(report.evidence.filter(item=>item.scope==='compatibility').length,1);
   assert.deepEqual(calls.filter(call=>call.path.startsWith('/projeto-lm')), [{path:'/projeto-lm/',options:{expectedStatus:[200]}}]);
