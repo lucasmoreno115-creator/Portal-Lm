@@ -6,6 +6,11 @@ import { request } from './qa-sprint7-staging-e2e.mjs';
 const PRODUCTION_HOSTS = new Set(['portal.lucasmorenopersonal.com.br']);
 const SECRET_KEY = /password|senha|token|session|authorization/i;
 export const ANAMNESIS_ROUTE = '/anamnese-premium.html';
+const PREMIUM_ENTRY_CALLS = new Set([
+  'POST /api/admin/premium/workspace/students',
+  'POST /api/portal/login',
+  'GET /api/portal/premium/access-state',
+]);
 
 export function routeForPremiumAccess(state) {
   if (state?.experience === 'PREMIUM_PORTAL') return '/portal-premium-home.html';
@@ -31,6 +36,13 @@ function safeEvidence(value) {
 export function reportIsSanitized(report, secrets = []) {
   const serialized = JSON.stringify(report);
   return !SECRET_KEY.test(serialized) && secrets.every(secret => !secret || !serialized.includes(secret));
+}
+
+// An allowlist is intentionally stronger than trying to enumerate Projeto LM:
+// it also blocks /api/portal/project-lm/*, LM2 and shared daily-checkin routes.
+export function validatePremiumEntryCalls(calls) {
+  const unexpected = calls.filter(({ path, method = 'GET' }) => !PREMIUM_ENTRY_CALLS.has(`${method} ${path}`));
+  return { ok: unexpected.length === 0, unexpected: unexpected.map(({ path, method = 'GET' }) => `${method} ${path}`) };
 }
 
 export function validateCreation(payload, requestedEmail) {
@@ -99,8 +111,8 @@ export async function runPremiumEntrySmoke({ env = process.env, requestFn, mask 
   const lifecycleOk = stateResult.ok && state?.consultationStatus === lifecycle && route === ANAMNESIS_ROUTE && state?.primaryAction?.href === ANAMNESIS_ROUTE;
   add('lifecycle-routing', 'lifecycle criado decide pela anamnese Premium', { httpStatus: stateResult.status, lifecycle: state?.consultationStatus || null, finalRoute: route }, lifecycleOk ? 'PASSED' : 'FAILED');
 
-  const projectWrites = calls.filter(item => item.method !== 'GET' && /^\/api\/project-lm(?:-2)?\//.test(item.path));
-  add('project-lm-isolation', 'nenhuma escrita Projeto LM', { writeCalls: projectWrites.length }, projectWrites.length === 0 ? 'PASSED' : 'FAILED');
+  const isolation = validatePremiumEntryCalls(calls);
+  add('project-lm-isolation', 'somente rotas F1.5 Premium/admin/portal', { unexpectedCalls: isolation.unexpected.length }, isolation.ok ? 'PASSED' : 'FAILED');
   return finish(rows, startedAt, [token]);
 }
 
