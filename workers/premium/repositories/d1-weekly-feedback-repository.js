@@ -3,7 +3,18 @@ function changes(result) { return Number(result?.meta?.changes ?? result?.change
 
 export function createD1WeeklyFeedbackRepository(db) {
   return Object.freeze({
-    findById(id) { return db.prepare('SELECT * FROM student_checkins WHERE id = ? LIMIT 1').bind(id).first(); },
+    findById(id) { return db.prepare(`SELECT sc.id, sc.student_email, sc.week_ref,
+      sc.training_adherence, sc.nutrition_adherence, sc.cardio_adherence, sc.free_meals,
+      sc.hunger_level, sc.binge_or_snacking, sc.sleep_quality, sc.energy_level, sc.stress_level,
+      sc.weekly_weight, sc.waist, sc.strength_status, sc.main_difficulty, sc.routine_context,
+      sc.weekly_score, sc.support_needed, sc.coach_status, sc.coach_reply, sc.coach_reply_at,
+      sc.submitted_at, sc.available_at, sc.reviewed_at, sc.analyzed_at, sc.decision_type,
+      sc.decision_note, sc.followup_at, sc.created_at, sc.updated_at,
+      CASE WHEN sc.student_id IS NOT NULL THEN sc.student_id
+        WHEN (SELECT COUNT(*) FROM premium_students ps WHERE lower(trim(ps.email))=lower(trim(sc.student_email)))=1
+        THEN (SELECT ps.student_id FROM premium_students ps WHERE lower(trim(ps.email))=lower(trim(sc.student_email)) LIMIT 1)
+        ELSE NULL END AS student_id
+      FROM student_checkins sc WHERE sc.id = ? LIMIT 1`).bind(id).first(); },
     findByStudentAndWeek(studentId, weekRef) { return db.prepare('SELECT * FROM student_checkins WHERE student_id = ? AND week_ref = ? LIMIT 1').bind(studentId, weekRef).first(); },
     findAvailableByStudentId(studentId, weekRef) { return this.findByStudentAndWeek(studentId, weekRef); },
     async listByStudentId(studentId, { limit = 20 } = {}) {

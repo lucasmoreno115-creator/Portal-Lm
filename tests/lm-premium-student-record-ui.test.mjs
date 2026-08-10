@@ -17,7 +17,7 @@ test('Prontuário LM renderiza estrutura, empty states e não expõe token', () 
   assert.match(html, /Prontuário LM/);
   assert.match(html, /href="\/admin-premium-workspace\.html">← Voltar ao Workspace/);
   for (const text of ['Pendências', 'Anamnese', 'Planejamento alimentar', 'Feedbacks semanais', 'Evolução do acompanhamento']) assert.match(html, new RegExp(text));
-  for (const text of ['Anamnese ainda não respondida', 'Nenhum plano criado', 'Rascunho em edição', 'Plano publicado', 'Alterações em revisão', 'Nenhum feedback enviado', 'Nenhuma pendência aberta', 'Nenhum registro de evolução']) assert.match(js, new RegExp(text));
+  for (const text of ['Anamnese ainda não respondida', 'Nenhum plano criado', 'Rascunho em edição', 'Plano publicado', 'Alterações em revisão', 'Nenhum check-in enviado.', 'Nenhuma pendência aberta', 'Nenhum registro de evolução']) assert.match(js, new RegExp(text));
   assert.doesNotMatch(html + js, /access_token|x-admin-token'\s*:/);
   assert.match(js, /admin-premium-nutrition-plan\.html/);
   assert.match(js, /searchParams\.set\('student_id'/);
@@ -174,11 +174,40 @@ test('Objetivos do planejamento expõe main_risk opcional e mantém as cópias J
 
 test('HTML seguro: Prontuário não usa innerHTML nem interpolação HTML dinâmica', () => {
   const publicJs = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
-  const assetJs = readFileSync(new URL('../public/assets/js/admin-premium-student-record.20260810-1.js', import.meta.url), 'utf8');
+  const assetJs = readFileSync(new URL('../public/assets/js/admin-premium-student-record.20260810-2.js', import.meta.url), 'utf8');
   assert.equal(publicJs, assetJs);
   assert.doesNotMatch(publicJs, /\.innerHTML\s*=/);
   assert.match(publicJs, /textContent/);
   assert.match(publicJs, /replaceChildren/);
+});
+
+test('check-ins oferecem detalhe canônico completo, validam o aluno e distinguem estados', async () => {
+  const source = readFileSync(new URL('../public/admin-premium-student-record.js', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../public/admin-premium-student-record.html', import.meta.url), 'utf8');
+  const dom = createFakeDocument();
+  const requests = [];
+  const feedback = { id: 'feedback/1', student_id: 'student-1', submitted_at: '2026-08-08T12:00:00Z', week_ref: '2026-W32', coach_status: 'pending', training_adherence: 'Boa' };
+  const fetch = async (url) => {
+    requests.push(url);
+    return url.includes('/weekly-feedbacks/') ? response({ feedback }) : response({ student: { student_id: 'student-1', name: 'Ana' }, summary: {}, nutrition_plan: {}, pending_items: [], feedbacks: [feedback], followup_entries: [] });
+  };
+  vm.runInNewContext(source, { document: dom.document, navigator: {}, window: { LMAdminAuth: { requireAdmin(){}, attachLogout(){}, getAdminAuthHeaders(headers){ return headers; } } }, location: { search: '?student_id=student-1', origin: 'https://admin.example' }, URLSearchParams, URL, FormData: class {}, fetch });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const button = dom.created.find((node) => node.dataset.viewCheckin === 'feedback/1');
+  assert.ok(button);
+  assert.match(dom.document.getElementById('feedbacks').textContent, /Enviado em.*Semana de referência: 2026-W32.*Status profissional: pending.*Ver check-in/);
+  assert.match(button.parentNode?.className || dom.document.getElementById('feedbacks').children[0].className, /pending/);
+  await dom.listeners.click({ target: button });
+  assert.equal(requests.at(-1), '/api/admin/premium/weekly-feedbacks/feedback%2F1');
+  const detail = dom.document.getElementById('checkinDetail').textContent;
+  for (const label of ['Adesão ao treino','Adesão alimentar','Cardio','Refeições livres','Fome','Compulsão/beliscos','Sono','Energia','Estresse','Peso semanal','Cintura','Evolução de força','Principal dificuldade','Contexto da rotina','Nota da semana','Suporte solicitado','Resposta do profissional','Datas relevantes']) assert.match(detail, new RegExp(label));
+  assert.match(detail, /Boa/);
+  assert.match(detail, /Não informado/);
+  assert.match(html, /Carregando check-in…/);
+  assert.match(source, /Nenhum check-in enviado\./);
+  assert.match(source, /Tentar novamente/);
+  assert.match(source, /feedback\.student_id !== lastStudent\.student_id/);
+  assert.doesNotMatch(source, /\.innerHTML\s*=/);
 });
 
 test('XSS: dados maliciosos aparecem como texto sem criar elementos ou atributos perigosos', async () => {
@@ -278,14 +307,17 @@ function createFakeDocument({ includeCareStatus = true, includePlanningObjective
     }
     set textContent(value) { this._text = String(value ?? ''); this.children = []; }
     get textContent() { return [this._text, ...this.children.map((child) => child.textContent)].join(''); }
-    append(...nodes) { this.children.push(...nodes.filter(Boolean)); }
+    append(...nodes) { for (const node of nodes.filter(Boolean)) { node.parentNode = this; this.children.push(node); } }
     replaceChildren(...nodes) { this.children = nodes.filter(Boolean); this._text = ''; }
     setAttribute(name, value) { this.attributes[name] = String(value); }
     querySelector(selector) { if (selector === '[role="status"]') return this.children.find((child) => child.attributes?.role === 'status') || null; return null; }
     addEventListener() {}
+    showModal() { this.open = true; }
+    close() { this.open = false; }
+    focus() { this.focused = true; }
     reset() {}
   }
-  const ids = ['state','record','studentName','contact','status','summary','pendingList','planejamento-alimentar','anamnesis','plan','feedbacks','entries','entryForm','studentAccess','adminLogoutBtn','primaryAction', ...(includeCareStatus ? ['careStatusContent'] : []), ...(includePlanningObjectives ? ['planningObjectives'] : [])];
+  const ids = ['state','record','studentName','contact','status','summary','pendingList','planejamento-alimentar','anamnesis','plan','feedbacks','entries','entryForm','studentAccess','adminLogoutBtn','primaryAction','checkinDialog','checkinDetail', ...(includeCareStatus ? ['careStatusContent'] : []), ...(includePlanningObjectives ? ['planningObjectives'] : [])];
   const elements = new Map(ids.map((id) => [id, new Element(id === 'entryForm' ? 'form' : 'div', id)]));
   const document = {
     getElementById(id) { return elements.get(id) || null; },

@@ -107,7 +107,7 @@ jobs:
           request / 200 'text/html' 'LM Portal'
           request /portal 200 'text/html' 'Portal Premium LM'
           request /admin-premium-student-record 200 'text/html' 'Planejamento alimentar'
-          request /assets/js/admin-premium-student-record.20260810-1.js 200 'javascript' 'Editar planejamento alimentar'
+          request /assets/js/admin-premium-student-record.20260810-2.js 200 'javascript' 'Editar planejamento alimentar'
           request /assets/css/admin-premium-student-record.css 200 'text/css'
           request /admin-premium-nutrition-plan 200 'text/html' 'Planejamento alimentar'
           redirect /portal.html /portal

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import worker, { initializeSchemaForTests } from '../workers/api.js';
 async function withDb(fn){ const dir=await mkdtemp(join(tmpdir(),'record-')); const db=new SqliteD1(join(dir,'test.db')); let testError; try{ await initializeSchemaForTests(db); await seed(db); await fn(db);} catch(error){testError=error;throw error;} finally{try{db.close();}catch(closeError){if(!testError)throw closeError;}await rm(dir,{recursive:true,force:true});}}
-async function seed(db){ await db.prepare(`INSERT INTO student_access (id, name, email, access_token, status, plan_type, plan, whatsapp, student_id, created_at) VALUES ('a1','Student','student@example.com','tok','ACTIVE','PREMIUM','premium','5511999999999','student-1','2026-07-14T00:00:00.000Z')`).run(); await db.prepare(`INSERT INTO premium_students (student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES ('student-1','student@example.com','student@example.com','Student','ACTIVE','ACTIVE','TEST','2026-07-14T00:00:00.000Z','2026-07-14T00:00:00.000Z')`).run(); await db.prepare(`INSERT INTO premium_anamnesis (id, student_id, student_name, student_email, student_phone, status, answers_json, created_at, updated_at) VALUES ('anam-1','student-1','Student','student@example.com','55','RECEBIDA','{}','2026-07-14T00:01:00.000Z','2026-07-14T00:01:00.000Z')`).run(); await db.prepare(`INSERT INTO student_checkins (id, student_id, student_email, week_ref, created_at) VALUES ('fb-1','student-1','student@example.com','2026-W29','2026-07-14T00:02:00.000Z')`).run(); await db.prepare(`INSERT INTO student_checkins (id, student_id, student_email, week_ref, coach_status, created_at) VALUES ('fb-reviewed','student-1','student@example.com','2026-W28',' Reviewed ','2026-07-13T00:02:00.000Z')`).run(); }
+async function seed(db){ await db.prepare(`INSERT INTO student_access (id, name, email, access_token, status, plan_type, plan, whatsapp, student_id, created_at) VALUES ('a1','Student','student@example.com','tok','ACTIVE','PREMIUM','premium','5511999999999','student-1','2026-07-14T00:00:00.000Z')`).run(); await db.prepare(`INSERT INTO premium_students (student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES ('student-1','student@example.com','student@example.com','Student','ACTIVE','ACTIVE','TEST','2026-07-14T00:00:00.000Z','2026-07-14T00:00:00.000Z')`).run(); await db.prepare(`INSERT INTO premium_anamnesis (id, student_id, student_name, student_email, student_phone, status, answers_json, created_at, updated_at) VALUES ('anam-1','student-1','Student','student@example.com','55','RECEBIDA','{}','2026-07-14T00:01:00.000Z','2026-07-14T00:01:00.000Z')`).run(); await db.prepare(`INSERT INTO student_checkins (id, student_id, student_email, week_ref, submitted_at, created_at) VALUES ('fb-1','student-1','student@example.com','2026-W29','2026-07-14T00:02:00.000Z','2026-07-14T00:02:00.000Z')`).run(); await db.prepare(`INSERT INTO student_checkins (id, student_id, student_email, week_ref, coach_status, submitted_at, created_at) VALUES ('fb-reviewed','student-1','student@example.com','2026-W28',' Reviewed ','2026-07-13T00:02:00.000Z','2026-07-13T00:02:00.000Z')`).run(); }
 async function api(db,method,path,body,admin=true){ const headers={'content-type':'application/json'}; if(admin) headers['x-admin-token']='admin-token'; const res=await worker.fetch(new Request(`https://portal.test${path}`,{method,headers,body:body?JSON.stringify(body):undefined}),{DB:db,ADMIN_TOKEN:'admin-token'}); return {status:res.status, body:await res.json()}; }
 
 test('endpoints administrativos do Prontuário exigem admin e preservam contrato seguro', async()=>withDb(async(db)=>{
@@ -86,6 +86,29 @@ test('GET record legado resolve e-mail exato para student_id canônico e cria pe
   assert.equal(legacyIdCount.total, 0);
   assert.equal(pending.results.length, 1);
   assert.equal((await api(db,'GET','/api/admin/premium/students/naoexiste%40email.com/record')).status,404);
+}));
+
+test('GET record combina identidade canônica e legado enviado sem misturar, duplicar ou exceder 12', async()=>withDb(async(db)=>{
+  await db.prepare(`INSERT INTO premium_students (student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES ('student-2','other@example.com','other@example.com','Other','ACTIVE','ACTIVE','TEST','2026-07-14','2026-07-14')`).run();
+  await db.prepare(`INSERT INTO student_checkins (id,student_id,student_email,week_ref,submitted_at,created_at) VALUES ('legacy-sent',NULL,'  STUDENT@EXAMPLE.COM  ','legacy','2026-08-20T10:00:00Z','2026-08-01')`).run();
+  await db.prepare(`INSERT INTO student_checkins (id,student_id,student_email,week_ref,submitted_at,created_at) VALUES ('wrong-email',NULL,'stranger@example.com','wrong-email','2026-08-21T10:00:00Z','2026-08-21')`).run();
+  await db.prepare(`INSERT INTO student_checkins (id,student_id,student_email,week_ref,submitted_at,created_at) VALUES ('conflicting-id','student-2','student@example.com','conflict','2026-08-22T10:00:00Z','2026-08-22')`).run();
+  await db.prepare(`INSERT INTO student_checkins (id,student_id,student_email,week_ref,submitted_at,created_at) VALUES ('not-submitted','student-1','student@example.com','draft',NULL,'2026-08-23')`).run();
+  for (let index=0; index<12; index++) await db.prepare(`INSERT INTO student_checkins (id,student_id,student_email,week_ref,submitted_at,created_at) VALUES (?,?,?,?,?,?)`).bind(`sent-${index}`,'student-1','stale-address@example.com',`week-${index}`,`2026-08-${String(index+1).padStart(2,'0')}T10:00:00Z`,`2026-07-${String(index+1).padStart(2,'0')}`).run();
+  const response=await api(db,'GET','/api/admin/premium/students/student-1/record');
+  assert.equal(response.status,200);
+  const feedbacks=response.body.data.feedbacks;
+  assert.equal(feedbacks.length,12);
+  assert.equal(feedbacks[0].id,'legacy-sent');
+  assert.equal(feedbacks[0].student_id,'student-1');
+  assert.equal(new Set(feedbacks.map((item)=>item.id)).size,feedbacks.length);
+  for(const excluded of ['wrong-email','conflicting-id','not-submitted']) assert.equal(feedbacks.some((item)=>item.id===excluded),false);
+  assert.deepEqual(feedbacks.map((item)=>item.submitted_at),[...feedbacks].map((item)=>item.submitted_at).sort().reverse());
+  const legacyDetail=await api(db,'GET','/api/admin/premium/weekly-feedbacks/legacy-sent');
+  assert.equal(legacyDetail.status,200);
+  assert.equal(legacyDetail.body.data.feedback.student_id,'student-1');
+  const otherDetail=await api(db,'GET','/api/admin/premium/weekly-feedbacks/conflicting-id');
+  assert.equal(otherDetail.body.data.feedback.student_id,'student-2');
 }));
 
 
