@@ -87,12 +87,10 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in $(seq 1 20); do
-            STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 10 "${QA_BASE_URL}/portal-login.html" || true)
-            if [[ "$STATUS" == "200" || "$STATUS" == "302" ]]; then
-              echo "Preview disponível com HTTP $STATUS."
+            if scripts/check-qa-preview-health.sh "${QA_BASE_URL}/portal-login.html"; then
               exit 0
             fi
-            echo "Tentativa $attempt/20: HTTP ${STATUS:-indisponível}."
+            echo "Tentativa $attempt/20: preview ainda indisponível."
             sleep 6
           done
           echo "Preview não ficou disponível no tempo esperado: ${QA_BASE_URL}" >&2
