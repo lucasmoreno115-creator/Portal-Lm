@@ -10,7 +10,7 @@ test('Workspace uses one centralized summary request to render cards and operati
   assert.match(source, /async function loadWorkspaceSummary\(\) \{ setDashboardLoading\(\); renderSummary\(await api\('\/api\/admin\/premium\/workspace\/summary'\)\); \}/);
   assert.match(source, /function renderSummary\(data\) \{ renderDashboardCards\(data\);[\s\S]*?anamnesisDashboard\.append[\s\S]*?checkinDashboard\.append/);
   assert.match(source, /loadWorkspaceSummary\(\)\.catch\(handleWorkspaceSummaryError\)/);
-  assert.match(source, /Promise\.all\(\[loadRecord\(id\), loadStudents\(\), loadWorkspaceSummary\(\)\.catch\(handleWorkspaceSummaryError\)\]\)/);
+  assert.doesNotMatch(source, /loadRecord\(id\)/);
 });
 
 test('Workspace maps official summary fields to the three dashboard cards', async () => {
