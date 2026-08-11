@@ -1,48 +1,39 @@
 #!/usr/bin/env node
-import fs from 'node:fs';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
-export function extractDeployMetadata(jsonl, { gitSha, workerName }) {
+export function extractDeployMetadata(commandOutput, { gitSha, workerName }) {
   const sha = String(gitSha || '').trim();
   const expectedWorker = String(workerName || '').trim();
+  const output = String(commandOutput || '');
   if (!sha) throw new Error('Git SHA is required.');
   if (!expectedWorker) throw new Error('Worker name is required.');
+  if (!output.trim()) throw new Error('Wrangler command output is required.');
 
-  const entries = String(jsonl || '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      try { return JSON.parse(line); }
-      catch { throw new Error('WRANGLER_OUTPUT_FILE contains invalid JSONL.'); }
-    });
+  const versionMatches = [...output.matchAll(/^Current Version ID:\s*([0-9a-f-]{36})\s*$/gim)];
+  if (versionMatches.length !== 1) {
+    throw new Error(`Expected exactly one Current Version ID in Wrangler command output, got ${versionMatches.length}.`);
+  }
+  const versionId = versionMatches[0][1].trim();
 
-  const deploys = entries.filter((entry) => entry?.type === 'deploy' && entry?.worker_name === expectedWorker);
-  if (deploys.length === 0) throw new Error(`No deploy event found for Worker ${expectedWorker}.`);
-
-  const deploy = deploys.at(-1);
-  const versionId = String(deploy?.version_id || '').trim();
-  if (!versionId) throw new Error('Cloudflare deploy event is missing version_id.');
-
-  const targets = Array.isArray(deploy?.targets)
-    ? deploy.targets.map((target) => String(target || '').trim()).filter(Boolean)
-    : [];
+  const targets = [...output.matchAll(/^\s*(https:\/\/[^\s]+\.workers\.dev)\s*$/gim)]
+    .map((match) => match[1].trim());
 
   return {
     schemaVersion: 1,
     gitSha: sha,
     workerName: expectedWorker,
     versionId,
-    targets,
+    targets: [...new Set(targets)],
   };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const [outputFile, gitSha, workerName] = process.argv.slice(2);
+  const [gitSha, workerName] = process.argv.slice(2);
+  let commandOutput = '';
+  for await (const chunk of process.stdin) commandOutput += chunk;
   try {
-    if (!outputFile) throw new Error('WRANGLER_OUTPUT_FILE path is required.');
-    const metadata = extractDeployMetadata(fs.readFileSync(outputFile, 'utf8'), { gitSha, workerName });
+    const metadata = extractDeployMetadata(commandOutput, { gitSha, workerName });
     process.stdout.write(`${JSON.stringify(metadata, null, 2)}\n`);
   } catch (error) {
     console.error(`Unable to extract Cloudflare deploy metadata: ${error.message}`);
