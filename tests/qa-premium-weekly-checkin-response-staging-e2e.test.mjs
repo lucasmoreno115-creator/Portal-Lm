@@ -114,14 +114,16 @@ test('report sanitizer removes secrets and NOT_VALIDATED CLI exits nonzero',()=>
   assert.match(source,/report\.status!==['"]VALIDATED['"]\)process\.exitCode=1/);
 });
 
-test('workflow pins default staging target to exact git SHA preview and deploy creates that alias',()=>{
+test('workflow resolves the exact git SHA through the Cloudflare Worker version tag',()=>{
   const workflow=fs.readFileSync('.github/workflows/qa-lm-staging.yml','utf8');
   const deploy=fs.readFileSync('.github/workflows/cloudflare-deploy.yml','utf8');
-  assert.match(workflow,/sha-\$\{EXPECTED_SHA\}-\$\{CF_WORKER_NAME\}/);
-  assert.match(workflow,/Cloudflare SHA preview alias/);
+  assert.match(workflow,/resolve-cloudflare-worker-version-by-tag\.mjs/);
+  assert.match(workflow,/QA_WORKER_VERSION_ID/);
+  assert.match(workflow,/VERSION_PREFIX="\$\{VERSION_ID:0:8\}"/);
+  assert.match(workflow,/Cloudflare version tag match/);
   assert.match(workflow,/Verify preview fidelity/);
+  assert.doesNotMatch(workflow,/sha-\$\{EXPECTED_SHA\}-\$\{CF_WORKER_NAME\}/);
   assert.doesNotMatch(workflow,/versions\?per_page=1/);
-  assert.match(deploy,/--preview-alias sha-\$\{\{ github\.sha \}\}/);
   assert.match(deploy,/--tag \$\{\{ github\.sha \}\}/);
 });
 
