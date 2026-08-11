@@ -8,19 +8,25 @@
 </head>
 <body>
   <main class="workspace">
-    <header class="top">
-      <div>
-        <p>LM Premium</p>
+    <header class="top premium-header">
+      <div class="premium-brand">
+        <p class="premium-brand-name">LM Premium</p>
         <h1>Visão geral</h1>
       </div>
-      <nav aria-label="Navegação principal">
-        <button id="overview">Visão geral</button>
-        <button id="studentsNav">Alunos</button>
-        <a class="button" href="/admin-premium-nutrition-library.html">Biblioteca alimentar</a>
-        <button id="openCreate">Cadastrar aluno</button>
-        <button id="refresh">Atualizar</button>
-        <button id="adminLogoutBtn">Sair</button>
-      </nav>
+      <div class="premium-header-controls">
+        <nav aria-label="Navegação principal">
+          <div class="primary-navigation">
+          <button id="overview" class="nav-item is-active" aria-current="page">Visão geral</button>
+          <button id="studentsNav">Alunos</button>
+          <a class="button nav-item" href="/admin-premium-nutrition-library.html">Biblioteca alimentar</a>
+          </div>
+        </nav>
+        <div class="header-actions" aria-label="Ações do Workspace">
+          <button id="openCreate">Cadastrar aluno</button>
+          <button id="refresh">Atualizar</button>
+          <button id="adminLogoutBtn">Sair</button>
+        </div>
+      </div>
     </header>
 
     <section id="error" class="panel workspace-feedback-error" role="alert" aria-live="assertive" hidden>
@@ -30,8 +36,11 @@
 
     <section class="workspace-dashboard" aria-labelledby="workspaceDashboardHeading">
       <div class="workspace-dashboard-heading">
-        <p class="eyebrow">Operação de hoje</p>
-        <h2 id="workspaceDashboardHeading">O que precisa da sua atenção</h2>
+        <div>
+          <p class="eyebrow">Operação de hoje</p>
+          <h2 id="workspaceDashboardHeading">O que precisa da sua atenção</h2>
+        </div>
+        <time id="workspaceDate" class="workspace-date" aria-live="polite">Carregando data…</time>
       </div>
 
       <div id="workspaceDashboard" class="workspace-dashboard-grid" aria-live="polite" aria-busy="true">
@@ -59,20 +68,25 @@
       </div>
     </section>
 
-    <!-- Painéis operacionais existentes preservados até a W2.2 conectar as contagens oficiais. -->
+    <div class="operational-panels">
     <section id="anamnesisOperationalPanel" class="panel dashboard dashboard-current">
-      <h2 id="anamnesisOperationalHeading" tabindex="-1">Anamneses</h2>
+      <p class="panel-kicker">Fluxo de entrada</p>
+      <h2 id="anamnesisOperationalHeading" tabindex="-1">Pendências prioritárias</h2>
+      <p class="panel-description">Anamneses que exigem acompanhamento na etapa atual.</p>
       <div id="anamnesisDashboard" class="dashboard-blocks">Carregando...</div>
       <h3>Prioridades</h3>
       <div id="anamnesisItems" class="list"></div>
     </section>
 
     <section id="checkinsOperationalPanel" class="panel dashboard dashboard-current">
-      <h2 id="checkinsOperationalHeading" tabindex="-1">Check-ins</h2>
+      <p class="panel-kicker">Acompanhamento</p>
+      <h2 id="checkinsOperationalHeading" tabindex="-1">Check-ins para analisar</h2>
+      <p class="panel-description">Respostas recebidas que aguardam análise profissional.</p>
       <div id="checkinDashboard" class="dashboard-blocks">Carregando...</div>
       <p class="muted">“Sem resposta recente” aguarda uma frequência oficial de check-in e por isso não é contabilizado nesta versão.</p>
       <div id="checkinItems" class="list"></div>
     </section>
+    </div>
 
     <section id="createPanel" class="panel" hidden>
       <h2>Cadastrar aluno</h2>

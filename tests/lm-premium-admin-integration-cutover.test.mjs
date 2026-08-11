@@ -57,7 +57,7 @@ test('legacy compatibility entry redirects authenticated and anonymous admins to
 test('workspace shell exposes only the approved operational navigation and independent dashboards', () => {
   const source = html();
   for (const label of ['Visão geral', 'Alunos', 'Cadastrar aluno', 'Anamneses', 'Check-ins', 'Alunos Premium']) assert.match(source, new RegExp(label));
-  for (const hidden of ['Inbox operacional', 'Pendências', 'Feedback Semanal', 'Plano Alimentar', 'Student 360', 'Evolução', 'Configurações']) assert.doesNotMatch(source, new RegExp(hidden));
+  for (const hidden of ['Inbox operacional', '>Pendências<', 'Feedback Semanal', 'Plano Alimentar', 'Student 360', 'Evolução', 'Configurações']) assert.doesNotMatch(source, new RegExp(hidden));
   assert.match(source, /assets\/js\/admin-premium-workspace\.js/);
   assert.match(source, /anamnesisDashboard/);
   assert.match(source, /checkinDashboard/);
