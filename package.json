@@ -28,6 +28,7 @@
     "qa:lm:premium-objectives": "node scripts/qa-premium-objectives-staging-e2e.mjs",
     "qa:lm:premium-nutrition-plan": "node scripts/qa-premium-nutrition-plan-staging-e2e.mjs",
     "qa:lm:premium-nutrition-versioning": "node scripts/qa-premium-nutrition-versioning-staging-e2e.mjs",
+    "qa:lm:premium-weekly-checkin-response": "node scripts/qa-premium-weekly-checkin-response-staging-e2e.mjs",
     "build:project-lm-runtime": "node scripts/build-project-lm-runtime.mjs",
     "check:project-lm-runtime": "node scripts/check-project-lm-runtime.mjs",
     "prepare:pages-artifact": "node scripts/prepare-pages-artifact.mjs",
