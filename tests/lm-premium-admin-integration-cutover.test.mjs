@@ -102,11 +102,11 @@ test('workspace loads the central summary and student list independently', () =>
   assert.match(source, /retryBlock\(\$\('studentList'\)/);
 });
 
-test('selected student uses openRecord/loadRecord and only explicit session failures log out', () => {
+test('workspace uses the dedicated record and only explicit session failures log out', () => {
   const source = js();
   for (const action of ['Ver Feedbacks', 'Editar Plano Alimentar', 'Abrir Anamnese legada', 'Abrir Student 360', 'Ver Evolução', 'Pendência resolvida']) assert.doesNotMatch(source, new RegExp(action));
-  assert.match(source, /openRecord\(id\)/);
-  assert.match(source, /loadRecord\(id\)/);
+  assert.doesNotMatch(source, /openRecord\(id\)|loadRecord\(id\)/);
+  assert.match(source, /admin-premium-student-record\.html/);
   assert.match(source, /ADMIN_SESSION_INVALID/);
   assert.match(source, /ADMIN_SESSION_EXPIRED/);
   assert.match(source, /clearAdminSession/);

@@ -144,7 +144,7 @@ test('aluno sem student_id mantém Abrir Prontuário desabilitado sem URL quebra
   assert.equal(result.location.assigned, null);
 });
 
-test('busca filtra alunos carregados sem novo fetch e restaura a seleção ao limpar', async () => {
+test('busca filtra alunos carregados sem novo fetch e restaura a lista ao limpar', async () => {
   const students = [
     { studentId: 'ana', name: 'Ana Maria', email: 'ana@example.test', operationalStatusLabel: 'Ativo', anamnesisStatusLabel: 'Respondida', weeklyFeedbackStatusLabel: 'Em dia' },
     { studentId: 'bruno', name: 'Bruno', email: 'bruno@example.test', operationalStatusLabel: 'Ativo', anamnesisStatusLabel: 'Respondida', weeklyFeedbackStatusLabel: 'Em dia' }
@@ -156,10 +156,6 @@ test('busca filtra alunos carregados sem novo fetch e restaura a seleção ao li
       return new Response(JSON.stringify({ ok: true, data: { items: students, nextCursor: null } }), { status: 200 });
     }
   });
-  const ana = result.nodes.get('studentList').children[0];
-  const summary = ana.children.flatMap((child) => child.children || []).find((child) => child.textContent === 'Ver resumo');
-  summary.onclick();
-  await new Promise((resolve) => setImmediate(resolve));
   const callsBeforeSearch = result.calls.length;
 
   const search = result.nodes.get('search');
@@ -172,7 +168,8 @@ test('busca filtra alunos carregados sem novo fetch e restaura a seleção ao li
   result.nodes.get('clearSearch').onclick();
   assert.equal(search.focused, true);
   assert.equal(result.calls.length, callsBeforeSearch);
-  assert.equal(result.nodes.get('studentList').children[0].className, 'item student-item is-selected');
+  assert.equal(result.nodes.get('studentList').children[0].className, 'item student-item');
+  assert.match(result.nodes.get('studentList').textContent, /Ana Maria/);
 });
 
 test('workspace keeps session on 500, 403 and network errors', async () => {

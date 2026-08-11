@@ -20,11 +20,10 @@ test('lista operacional preserva os dados atuais como chips textuais', () => {
   assert.match(css, /\.student-status-chip/);
 });
 
-test('aluno selecionado fica em atendimento e mantém Abrir Prontuário desabilitado', () => {
-  assert.match(js, /node\('span', 'Em atendimento', 'student-status-chip student-status-chip-active'\)/);
-  assert.match(js, /openButton\.disabled = selected \|\| openButton\.dataset\.unavailable === 'true'/);
-  assert.match(css, /\.student-item\.is-selected/);
-  assert.match(css, /\.student-status-chip-active/);
+test('cada aluno expõe somente Abrir Prontuário sem estado intermediário selecionado', () => {
+  assert.match(js, /actions\.append\(recordButton\(id\)\)/);
+  assert.doesNotMatch(js, /Em atendimento|is-selected|student-status-chip-active/);
+  assert.doesNotMatch(js, /Ver resumo|summaryButton|openRecord/);
 });
 
 test('estado vazio orienta o profissional sem criar CTA', () => {

@@ -2,43 +2,38 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 
-const js = readFileSync('public/admin-premium-workspace.js', 'utf8');
+const runtimes = [
+  'admin-premium-workspace.js',
+  'public/admin-premium-workspace.js',
+  'public/assets/js/admin-premium-workspace.js'
+];
+const js = readFileSync(runtimes[0], 'utf8');
 const html = readFileSync('public/admin-premium-workspace.html', 'utf8');
-const css = readFileSync('public/assets/css/admin-premium-workspace.css', 'utf8');
 
-test('Ver resumo aguarda renderização para fazer scroll e foco acessível', () => {
-  assert.match(js, /renderRecord\(await api\([\s\S]*?state\.loadedRecordId = id; highlightAndFocusRecord\(\)/);
-  assert.match(js, /record\.scrollIntoView\?\.\(\{ behavior: prefersReducedMotion\(\) \? 'auto' : 'smooth', block: 'start' \}\)/);
-  assert.match(js, /if \(!isFullyVisible\(record\)\)/);
-  assert.match(js, /\$\('recordHeading'\)\?\.focus\?\.\(\{ preventScroll: true \}\)/);
-  assert.match(html, /id="recordHeading" tabindex="-1"/);
+test('F3.2 exposes only the canonical student record action', () => {
+  assert.doesNotMatch(js, /Ver resumo|function summaryButton\b/);
+  assert.match(js, /function recordActions\(id\) \{ const actions = node\('div', null, 'record-actions'\); actions\.append\(recordButton\(id\)\); return actions; \}/);
+  assert.match(js, /function recordButton\(id\) \{ const button = node\('button', 'Abrir Prontuário'\);/);
 });
 
-test('Ver resumo aplica feedback de loading, seleção e destaque temporário', () => {
-  assert.match(js, /📋 Carregando prontuário/);
-  assert.match(js, /button\.disabled = loading; button\.textContent = loading \? 'Abrindo\.{3}'/);
-  assert.match(js, /className = `item student-item\$\{selected \? ' is-selected' : ''\}`/);
-  assert.match(js, /setTimeout\(\(\) => record\.classList\?\.remove\('record-highlight'\), 1000\)/);
-  assert.match(css, /\.student-item\.is-selected/);
-  assert.match(css, /\.record-highlight/);
-});
-
-test('Abrir Prontuário navega para o prontuário Premium com student_id codificado', () => {
-  assert.match(js, /function premiumRecordUrl\(studentId\) \{ if \(!studentId\) return null; const url = new URL\('\/admin-premium-student-record\.html', window\.location\.origin\); url\.searchParams\.set\('student_id', studentId\); return `\$\{url\.pathname\}\$\{url\.search\}`; \}/);
-  assert.match(js, /function recordButton\(id\) \{ const button = node\('button', 'Abrir Prontuário'\); const target = premiumRecordUrl\(id\);/);
+test('F3.2 preserves the canonical record URL and safely handles a missing student_id', () => {
+  assert.match(js, /new URL\('\/admin-premium-student-record\.html', window\.location\.origin\)/);
+  assert.match(js, /url\.searchParams\.set\('student_id', studentId\)/);
   assert.match(js, /button\.onclick = \(\) => window\.location\.assign\(target\)/);
+  assert.match(js, /if \(!target\) \{ button\.disabled = true; button\.dataset\.unavailable = 'true';/);
   assert.doesNotMatch(js, /admin-premium-student-record\.html\?email=/);
 });
 
-test('aluno sem student_id não gera URL quebrada e o resumo permanece separado', () => {
-  assert.match(js, /if \(!target\) \{ button\.disabled = true; button\.dataset\.unavailable = 'true'; button\.title = 'Aluno sem identificador oficial\.'; return button; \}/);
-  assert.match(js, /function summaryButton\(id\) \{ const button = node\('button', 'Ver resumo'\);/);
-  assert.match(js, /function recordActions\(id\) \{ const actions = node\('div', null, 'record-actions'\);/);
-  assert.match(js, /button\.onclick = \(\) => \{ state\.recordTrigger = button; openRecord\(id\); \}/);
+test('F3.2 removes the embedded record and its exclusive runtime flow', () => {
+  assert.doesNotMatch(html, /<section id="record"\b/);
+  for (const name of ['openRecord', 'loadRecord', 'renderRecord', 'renderAnamnesis', 'setRecordButtonState', 'recordTrigger', 'recordButtons']) {
+    assert.doesNotMatch(js, new RegExp(`\\b${name}\\b`));
+  }
 });
 
-test('reabrir o mesmo resumo reutiliza os dados já carregados sem nova chamada', () => {
-  assert.match(js, /if \(state\.loadedRecordId === id\) return highlightAndFocusRecord\(\);/);
-  assert.match(js, /state\.loadingRecordId = id/);
-  assert.match(js, /finally \{ state\.loadingRecordId = null; setRecordButtonState\(id, false\); \}/);
+test('F3.2 preserves workspace endpoints and byte-identical runtime copies', () => {
+  for (const endpoint of ['/api/admin/premium/workspace/summary', '/api/admin/premium/workspace/students', '/api/admin/premium/workspace/pending-items']) {
+    assert.match(js, new RegExp(endpoint.replaceAll('/', '\\/')));
+  }
+  for (const runtime of runtimes.slice(1)) assert.equal(readFileSync(runtime, 'utf8'), js);
 });
