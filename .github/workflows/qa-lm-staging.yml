@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       qa_base_url:
-        description: 'URL opcional para execução manual. Quando vazia, o workflow procura na Cloudflare a versão cujo tag corresponde ao SHA do checkout.'
+        description: 'URL opcional para execução manual. Quando vazia, o workflow usa o version_id registrado pelo deploy bem-sucedido do mesmo SHA.'
         required: false
         type: string
   schedule:
@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   staging-e2e:
@@ -22,8 +23,6 @@ jobs:
     env:
       MANUAL_QA_BASE_URL: ${{ inputs.qa_base_url }}
       SECRET_QA_BASE_URL: ${{ secrets.QA_BASE_URL }}
-      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
       CF_WORKER_NAME: ${{ vars.CF_WORKER_NAME || 'lm-system-api' }}
       CF_WORKERS_SUBDOMAIN: ${{ vars.CF_WORKERS_SUBDOMAIN || 'lucasmoreno115' }}
       QA_STUDENT_EMAIL: ${{ secrets.QA_STUDENT_EMAIL }}
@@ -45,6 +44,8 @@ jobs:
       - name: Resolve QA base URL
         id: resolve-url
         shell: bash
+        env:
+          GH_ACTIONS_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
@@ -52,6 +53,7 @@ jobs:
           SOURCE="workflow input"
           EXPECTED_SHA="${GITHUB_SHA}"
           VERSION_ID=""
+          DEPLOY_RUN_ID=""
 
           if [[ -z "$BASE_URL" ]]; then
             BASE_URL="${SECRET_QA_BASE_URL:-}"
@@ -59,53 +61,99 @@ jobs:
           fi
 
           if [[ -z "$BASE_URL" ]]; then
-            if [[ -z "${CF_ACCOUNT_ID:-}" || -z "${CF_API_TOKEN:-}" || -z "${CF_WORKERS_SUBDOMAIN:-}" ]]; then
-              echo "CF_ACCOUNT_ID, CF_API_TOKEN e CF_WORKERS_SUBDOMAIN são obrigatórios para resolver o preview por tag." >&2
+            if [[ -z "${CF_WORKERS_SUBDOMAIN:-}" || -z "${GH_ACTIONS_TOKEN:-}" ]]; then
+              echo "CF_WORKERS_SUBDOMAIN e GitHub Actions token são obrigatórios para resolver o deploy pelo SHA." >&2
               exit 1
             fi
 
-            for attempt in $(seq 1 40); do
-              RESPONSE=$(curl --fail-with-body --silent --show-error \
-                --header "Authorization: Bearer ${CF_API_TOKEN}" \
-                --header 'Content-Type: application/json' \
-                "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CF_WORKER_NAME}/versions?per_page=50")
+            for attempt in $(seq 1 60); do
+              RUNS=$(curl --fail-with-body --silent --show-error \
+                --header "Authorization: Bearer ${GH_ACTIONS_TOKEN}" \
+                --header 'Accept: application/vnd.github+json' \
+                --header 'X-GitHub-Api-Version: 2022-11-28' \
+                "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/cloudflare-deploy.yml/runs?head_sha=${EXPECTED_SHA}&event=push&per_page=10")
 
               set +e
-              VERSION_ID=$(printf '%s' "$RESPONSE" | node scripts/resolve-cloudflare-worker-version-by-tag.mjs "$EXPECTED_SHA")
-              RESOLVE_STATUS=$?
+              DEPLOY_RUN_ID=$(printf '%s' "$RUNS" | node -e '
+                let input=""; process.stdin.on("data",c=>input+=c); process.stdin.on("end",()=>{
+                  const sha=process.argv[1]; const payload=JSON.parse(input); const runs=(payload.workflow_runs||[]).filter(r=>r.head_sha===sha);
+                  const success=runs.find(r=>r.status==="completed"&&r.conclusion==="success");
+                  if(success){process.stdout.write(String(success.id)); return;}
+                  if(runs.some(r=>r.status!=="completed")){process.exitCode=2; return;}
+                  if(runs.length===0){process.exitCode=2; return;}
+                  console.error(`Deploy workflow for ${sha} completed without success: ${runs.map(r=>r.conclusion).join(",")}`); process.exitCode=1;
+                });
+              ' "$EXPECTED_SHA")
+              RUN_STATUS=$?
               set -e
 
-              if [[ "$RESOLVE_STATUS" -eq 0 && -n "$VERSION_ID" ]]; then
+              if [[ "$RUN_STATUS" -eq 0 && -n "$DEPLOY_RUN_ID" ]]; then
                 break
               fi
-              if [[ "$RESOLVE_STATUS" -ne 2 ]]; then
-                echo "Falha ao interpretar versões Cloudflare para o SHA ${EXPECTED_SHA}." >&2
+              if [[ "$RUN_STATUS" -ne 2 ]]; then
+                echo "Deploy Cloudflare do SHA ${EXPECTED_SHA} terminou sem sucesso." >&2
                 exit 1
               fi
-              echo "Tentativa $attempt/40: versão com tag ${EXPECTED_SHA} ainda não publicada."
-              sleep 6
+              echo "Tentativa $attempt/60: aguardando deploy bem-sucedido do SHA ${EXPECTED_SHA}."
+              sleep 10
             done
 
-            if [[ -z "$VERSION_ID" ]]; then
-              echo "Nenhuma versão Cloudflare com tag exata ${EXPECTED_SHA} foi encontrada." >&2
+            if [[ -z "$DEPLOY_RUN_ID" ]]; then
+              echo "Nenhum deploy Cloudflare bem-sucedido foi encontrado para ${EXPECTED_SHA}." >&2
               exit 1
             fi
+
+            ARTIFACTS=$(curl --fail-with-body --silent --show-error \
+              --header "Authorization: Bearer ${GH_ACTIONS_TOKEN}" \
+              --header 'Accept: application/vnd.github+json' \
+              --header 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${DEPLOY_RUN_ID}/artifacts?per_page=100")
+            ARTIFACT_NAME="cloudflare-worker-version-${EXPECTED_SHA}"
+            ARTIFACT_ID=$(printf '%s' "$ARTIFACTS" | node -e '
+              let input=""; process.stdin.on("data",c=>input+=c); process.stdin.on("end",()=>{
+                const name=process.argv[1]; const payload=JSON.parse(input); const matches=(payload.artifacts||[]).filter(a=>a.name===name&&!a.expired);
+                if(matches.length!==1){console.error(`Expected exactly one non-expired artifact ${name}, got ${matches.length}`); process.exitCode=1; return;}
+                process.stdout.write(String(matches[0].id));
+              });
+            ' "$ARTIFACT_NAME")
+
+            mkdir -p "$RUNNER_TEMP/worker-deploy-metadata"
+            curl --fail --location --silent --show-error \
+              --header "Authorization: Bearer ${GH_ACTIONS_TOKEN}" \
+              --header 'Accept: application/vnd.github+json' \
+              --header 'X-GitHub-Api-Version: 2022-11-28' \
+              --output "$RUNNER_TEMP/worker-deploy-metadata.zip" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip"
+            unzip -q -o "$RUNNER_TEMP/worker-deploy-metadata.zip" -d "$RUNNER_TEMP/worker-deploy-metadata"
+
+            VERSION_ID=$(node -e '
+              const fs=require("node:fs");
+              const m=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+              const sha=process.argv[2], worker=process.argv[3];
+              if(m.schemaVersion!==1||m.gitSha!==sha||m.workerName!==worker||typeof m.versionId!=="string"||!m.versionId.trim()){
+                console.error("Worker deploy metadata does not match checkout SHA/worker."); process.exit(1);
+              }
+              process.stdout.write(m.versionId.trim());
+            ' "$RUNNER_TEMP/worker-deploy-metadata/worker-deploy-metadata.json" "$EXPECTED_SHA" "$CF_WORKER_NAME")
 
             VERSION_PREFIX="${VERSION_ID:0:8}"
             BASE_URL="https://${VERSION_PREFIX}-${CF_WORKER_NAME}.${CF_WORKERS_SUBDOMAIN}.workers.dev"
-            SOURCE="Cloudflare version tag match"
+            SOURCE="Cloudflare deploy artifact"
           fi
 
           BASE_URL="${BASE_URL%/}"
           echo "QA_BASE_URL=$BASE_URL" >> "$GITHUB_ENV"
           echo "QA_EXPECTED_SHA=$EXPECTED_SHA" >> "$GITHUB_ENV"
           echo "QA_WORKER_VERSION_ID=$VERSION_ID" >> "$GITHUB_ENV"
+          echo "QA_DEPLOY_RUN_ID=$DEPLOY_RUN_ID" >> "$GITHUB_ENV"
           echo "base_url=$BASE_URL" >> "$GITHUB_OUTPUT"
           echo "source=$SOURCE" >> "$GITHUB_OUTPUT"
           echo "expected_sha=$EXPECTED_SHA" >> "$GITHUB_OUTPUT"
           echo "version_id=$VERSION_ID" >> "$GITHUB_OUTPUT"
+          echo "deploy_run_id=$DEPLOY_RUN_ID" >> "$GITHUB_OUTPUT"
           echo "URL resolvida por: $SOURCE"
           echo "SHA esperado: $EXPECTED_SHA"
+          echo "Deploy run: ${DEPLOY_RUN_ID:-external-target}"
           echo "Worker version: ${VERSION_ID:-external-target}"
           echo "URL de teste: $BASE_URL"
 
@@ -128,9 +176,9 @@ jobs:
         run: |
           set -euo pipefail
           actual_host="$(node -e 'process.stdout.write(new URL(process.argv[1]).hostname)' "$QA_BASE_URL")"
-          if [[ "${{ steps.resolve-url.outputs.source }}" == "Cloudflare version tag match" ]]; then
-            if [[ -z "${QA_WORKER_VERSION_ID:-}" ]]; then
-              echo "Version ID ausente para alvo resolvido por tag." >&2
+          if [[ "${{ steps.resolve-url.outputs.source }}" == "Cloudflare deploy artifact" ]]; then
+            if [[ -z "${QA_WORKER_VERSION_ID:-}" || -z "${QA_DEPLOY_RUN_ID:-}" ]]; then
+              echo "Version ID/deploy run ausente para alvo resolvido pelo deploy artifact." >&2
               exit 1
             fi
             expected_prefix="${QA_WORKER_VERSION_ID:0:8}"
@@ -140,7 +188,7 @@ jobs:
               exit 1
             fi
           fi
-          echo "Preview fidelity: source=${{ steps.resolve-url.outputs.source }} sha=${QA_EXPECTED_SHA} version=${QA_WORKER_VERSION_ID:-external} host=${actual_host}"
+          echo "Preview fidelity: source=${{ steps.resolve-url.outputs.source }} sha=${QA_EXPECTED_SHA} deploy_run=${QA_DEPLOY_RUN_ID:-external} version=${QA_WORKER_VERSION_ID:-external} host=${actual_host}"
 
       - name: Authenticate QA administrator
         env:
@@ -198,6 +246,7 @@ jobs:
             echo "- URL: \`${QA_BASE_URL:-não resolvida}\`"
             echo "- Origem: \`${{ steps.resolve-url.outputs.source }}\`"
             echo "- SHA esperado: \`${QA_EXPECTED_SHA:-não resolvido}\`"
+            echo "- Deploy run: \`${QA_DEPLOY_RUN_ID:-externo/não resolvido}\`"
             echo "- Worker version: \`${QA_WORKER_VERSION_ID:-externo/não resolvido}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
