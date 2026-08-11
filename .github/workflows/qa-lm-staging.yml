@@ -130,6 +130,12 @@ jobs:
           set -o pipefail
           npm run qa:lm:premium-nutrition-plan | tee qa-premium-nutrition-plan-report.json
 
+      - name: Execute Premium nutrition versioning operational smoke
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run qa:lm:premium-nutrition-versioning | tee qa-premium-nutrition-versioning-report.json
+
       - name: Publish resolved target
         if: always()
         run: |
@@ -151,4 +157,5 @@ jobs:
             qa-premium-anamnesis-report.json
             qa-premium-objectives-report.json
             qa-premium-nutrition-plan-report.json
+            qa-premium-nutrition-versioning-report.json
           retention-days: 30
