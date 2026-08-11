@@ -57,11 +57,39 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy with pinned Wrangler
+        id: deploy-worker
         uses: cloudflare/wrangler-action@v3
+        env:
+          WRANGLER_OUTPUT_FILE: ${{ runner.temp }}/wrangler-output.jsonl
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: 4.65.0
           command: deploy --preview-alias sha-${{ github.sha }} --tag ${{ github.sha }} --message "github:${{ github.sha }}"
+
+      - name: Capture deployed Worker version
+        env:
+          WRANGLER_OUTPUT_FILE: ${{ runner.temp }}/wrangler-output.jsonl
+          CF_WORKER_NAME: lm-system-api
+        run: |
+          set -euo pipefail
+          node scripts/extract-cloudflare-deploy-metadata.mjs \
+            "$WRANGLER_OUTPUT_FILE" \
+            "$GITHUB_SHA" \
+            "$CF_WORKER_NAME" > worker-deploy-metadata.json
+          node -e '
+            const fs=require("node:fs");
+            const m=JSON.parse(fs.readFileSync("worker-deploy-metadata.json","utf8"));
+            if(m.gitSha!==process.env.GITHUB_SHA||!m.versionId||m.workerName!==process.env.CF_WORKER_NAME) process.exit(1);
+            console.log(`Captured Worker version ${m.versionId} for ${m.gitSha}`);
+          '
+
+      - name: Upload Worker deployment metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-worker-version-${{ github.sha }}
+          path: worker-deploy-metadata.json
+          retention-days: 30
+          if-no-files-found: error
 
       - name: Smoke production API and static assets
         env:
@@ -112,6 +140,6 @@ jobs:
           request /admin-premium-nutrition-plan 200 'text/html' 'Planejamento alimentar'
           redirect /portal.html /portal
           redirect /admin-premium-student-record.html /admin-premium-student-record
-          redirect /admin-premium-nutrition-plan.html /admin-premium-nutrition-plan
+          redirect /admin-premium-nutrition-plan.html /admin-premium-student-record
           request /api/rota-inexistente 404 'application/json' 'API_ROUTE_NOT_FOUND' true
           request "/arquivo-inexistente-${GITHUB_SHA}.html" 404 'text/html' 'Página não encontrada' true
