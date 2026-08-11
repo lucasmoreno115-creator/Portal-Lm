@@ -61,7 +61,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: 4.65.0
-          command: deploy
+          command: deploy --preview-alias sha-${{ github.sha }} --tag ${{ github.sha }} --message "github:${{ github.sha }}"
 
       - name: Smoke production API and static assets
         env:
