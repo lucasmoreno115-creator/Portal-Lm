@@ -36,6 +36,16 @@ export function submittedFeedbacks(records=[]) { return records.filter(item=>Boo
 export function validateIdentity(item, studentId) { return {ok:Boolean(item?.id)&&item?.student_id===studentId,checkinId:item?.id||null,studentId:item?.student_id||null}; }
 export function pendingFor(record, checkinId) { return (record?.pending_items||[]).filter(item=>item.type==='ANALYZE_WEEKLY_FEEDBACK'&&item.related_entity_type==='student_checkins'&&item.related_entity_id===checkinId&&item.status==='OPEN'); }
 export function validateHttpSuccess(result) { const body=parse(result); return {ok:Boolean(result?.ok&&result.status>=200&&result.status<300&&body?.ok===true),body}; }
+export function validateCurrentWeeklyFeedbackContract(result) {
+  const http=validateHttpSuccess(result), current=http.body?.data, status=String(current?.status||'');
+  const freshFixtureStatus=status==='AVAILABLE'||status==='NOT_AVAILABLE';
+  const shape=Boolean(current&&typeof current.weekRef==='string'&&current.weekRef&&typeof current.availableAt==='string'&&current.availableAt&&typeof current.recommendedDeadline==='string'&&current.recommendedDeadline);
+  return {ok:Boolean(http.ok&&freshFixtureStatus&&shape),status:status||null,weekRef:current?.weekRef||null,availableAt:current?.availableAt||null,recommendedDeadline:current?.recommendedDeadline||null,httpStatus:result?.status??null};
+}
+export function validateUnavailableSubmitContract(result) {
+  const body=parse(result), error=String(body?.error||'');
+  return {ok:Boolean(result?.ok&&result.status===409&&body?.ok===false&&/ainda não está disponível/i.test(error)),httpStatus:result?.status??null,error:error||null};
+}
 export function validateDetail(result,{checkinId,studentId,marker}) { const body=parse(result), detail=body?.data, feedback=detail?.feedback; const serialized=JSON.stringify(feedback||{}); return {ok:validateHttpSuccess(result).ok&&feedback?.id===checkinId&&feedback?.student_id===studentId&&Boolean(feedback?.submitted_at)&&serialized.includes(marker),feedback,detail}; }
 export function validateAnalyzedRecord(record,{checkinId,studentId,responseMarker}) { const feedback=submittedFeedbacks(record?.feedbacks).find(item=>item.id===checkinId), pending=pendingFor(record,checkinId); return {ok:Boolean(feedback&&feedback.student_id===studentId&&analyzed(feedback.coach_status)&&String(feedback.coach_reply||'').includes(responseMarker)&&(feedback.reviewed_at||feedback.coach_reply_at)&&pending.length===0),feedback,pendingCount:pending.length}; }
 export function validateStudentResponse(result,{checkinId,responseMarker}) { const body=parse(result), current=body?.data; return {ok:validateHttpSuccess(result).ok&&current?.questions?.id===checkinId&&String(current?.professionalResponse?.message||'').includes(responseMarker)&&Boolean(current?.professionalResponse?.respondedAt),current}; }
@@ -44,10 +54,11 @@ export function sanitizeReport(report,secrets=[]) { let text=JSON.stringify(repo
 
 export async function runPremiumWeeklyCheckinResponseSmoke({env=process.env,requestFn,mask=()=>{}}={}) {
   const started=Date.now(), rows=[], calls=[], base=String(env.QA_BASE_URL||'').trim().replace(/\/+$/,'');
+  let executionMode='FULL_RESPONSE_FLOW';
   const add=(flow,expected,evidence,ok)=>rows.push({flow,expected,evidence,status:ok?'PASSED':'FAILED'});
   const perform=requestFn||((path,options)=>request(base,path,options));
   const call=async(path,options={})=>{calls.push({path,method:options.method||'GET'});return perform(path,options);};
-  const finish=()=>{const isolation=validateWeeklyCheckinCalls(calls);add('project-lm-isolation','allowlist contém exclusivamente contratos Premium',{unexpectedCalls:isolation.unexpected},isolation.ok);const report={flow:'Premium weekly check-in response F2.1',environment:'staging',status:rows.every(row=>row.status==='PASSED')?'VALIDATED':'NOT_VALIDATED',durationMs:Date.now()-started,columns:['Fluxo','Resultado esperado','Evidência','Status'],rows};return sanitizeReport(report,[env.QA_ADMIN_SESSION]);};
+  const finish=()=>{const isolation=validateWeeklyCheckinCalls(calls);add('project-lm-isolation','allowlist contém exclusivamente contratos Premium',{unexpectedCalls:isolation.unexpected},isolation.ok);const report={flow:'Premium weekly check-in response F2.1',environment:'staging',executionMode,status:rows.every(row=>row.status==='PASSED')?'VALIDATED':'NOT_VALIDATED',durationMs:Date.now()-started,columns:['Fluxo','Resultado esperado','Evidência','Status'],rows};return sanitizeReport(report,[env.QA_ADMIN_SESSION]);};
   let target; try { target=new URL(base); } catch {}
   if(env.QA_TARGET_ENVIRONMENT!=='staging'||target?.protocol!=='https:'||target?.hostname==='portal.lucasmorenopersonal.com.br'||!env.QA_ADMIN_SESSION){add('fixture-active','staging não produtivo e sessão administrativa presentes',{code:'UNSAFE_OR_INCOMPLETE_TARGET'},false);return finish();}
   mask(env.QA_ADMIN_SESSION);
@@ -70,10 +81,19 @@ export async function runPremiumWeeklyCheckinResponseSmoke({env=process.env,requ
   const recordPath=`/api/admin/premium/students/${encodeURIComponent(studentId)}/record`;
   const initial=data(await call(recordPath,{headers:ah,expectedStatus:[200]})), initialState=validateInitialCheckinState(initial,{fixtureMarker,checkinMarker,responseMarker});
   add('checkin-initial-state','markers de check-in e resposta ainda não existem no Prontuário',{fixtureMarkerPresent:initialState.fixtureMarkerPresent,checkinMarkerPresent:initialState.checkinMarkerPresent,responseMarkerPresent:initialState.responseMarkerPresent},initialState.ok); if(!initialState.ok)return finish();
-  const currentBefore=await call('/api/portal/premium/weekly-feedback/current',{headers:sh,expectedStatus:[200]});
+  const currentBefore=await call('/api/portal/premium/weekly-feedback/current',{headers:sh,expectedStatus:[200]}), temporal=validateCurrentWeeklyFeedbackContract(currentBefore);
+  add('weekly-feedback-temporal-contract','GET current retorna contrato temporal íntegro para fixture nova',{endpoint:'GET /api/portal/premium/weekly-feedback/current',httpStatus:temporal.httpStatus,status:temporal.status,weekRef:temporal.weekRef,availableAt:temporal.availableAt,recommendedDeadline:temporal.recommendedDeadline},temporal.ok); if(!temporal.ok)return finish();
   const answers={trainingAdherence:'100%',nutritionAdherence:'Boa',cardioAdherence:'Completo',freeMeals:'1',hungerLevel:'Controlada',bingeOrSnacking:'Não',sleepQuality:'Boa',energyLevel:'Boa',stressLevel:'Baixo',weeklyWeight:'70',waist:'80',strengthStatus:'Mantida',mainDifficulty:checkinMarker,routineContext:`Rotina segura ${checkinMarker}`,weeklyScore:'9',supportNeeded:`Apoio ${checkinMarker}`};
+  if(temporal.status==='NOT_AVAILABLE') {
+    executionMode='TEMPORAL_WINDOW_CLOSED';
+    const rejected=await call('/api/portal/premium/weekly-feedback/current',{method:'POST',headers:sh,expectedStatus:[409],body:answers}), unavailable=validateUnavailableSubmitContract(rejected);
+    add('student-checkin-unavailable','fora da janela o POST é rejeitado por contrato com 409, nunca 5xx',{endpoint:'POST /api/portal/premium/weekly-feedback/current',httpStatus:unavailable.httpStatus,error:unavailable.error},unavailable.ok);
+    const afterRejected=data(await call(recordPath,{headers:ah,expectedStatus:[200]})), rejectedState=validateInitialCheckinState(afterRejected,{fixtureMarker,checkinMarker,responseMarker});
+    add('unavailable-no-persistence','rejeição temporal não persiste check-in nem resposta',{fixtureMarkerPresent:rejectedState.fixtureMarkerPresent,checkinMarkerPresent:rejectedState.checkinMarkerPresent,responseMarkerPresent:rejectedState.responseMarkerPresent},unavailable.ok&&rejectedState.ok);
+    return finish();
+  }
   const submitted=await call('/api/portal/premium/weekly-feedback/current',{method:'POST',headers:sh,expectedStatus:[200],body:answers}), submitBody=data(submitted), submitOk=validateHttpSuccess(submitted).ok&&Boolean(submitBody?.id)&&Boolean(submitBody?.submittedAt);
-  add('student-checkin-submit','POST retorna ID canônico e submittedAt',{endpoint:'POST /api/portal/premium/weekly-feedback/current',httpStatus:submitted.status,checkinId:submitBody?.id||null,submittedAt:submitBody?.submittedAt||null,availabilityStatus:data(currentBefore)?.status||null},submitOk); if(!submitOk)return finish();
+  add('student-checkin-submit','POST retorna ID canônico e submittedAt',{endpoint:'POST /api/portal/premium/weekly-feedback/current',httpStatus:submitted.status,checkinId:submitBody?.id||null,submittedAt:submitBody?.submittedAt||null,availabilityStatus:temporal.status},submitOk); if(!submitOk)return finish();
   const checkinId=submitBody.id, recordBefore=data(await call(recordPath,{headers:ah,expectedStatus:[200]})), feedback=submittedFeedbacks(recordBefore?.feedbacks).find(item=>item.id===checkinId), identity=validateIdentity(feedback,studentId);
   add('professional-checkin-list','Prontuário lista entre os 12 enviados o mesmo ID e marker',{checkinId,listedId:feedback?.id||null,submittedAt:feedback?.submitted_at||null,markerPresent:JSON.stringify(feedback||{}).includes(checkinMarker)},identity.ok&&Boolean(feedback?.submitted_at)&&JSON.stringify(feedback).includes(checkinMarker));
   const pendingBefore=pendingFor(recordBefore,checkinId); add('pending-before-analysis','existe exatamente uma pendência OPEN correlacionada',{count:pendingBefore.length,pendingId:pendingBefore[0]?.id||null},pendingBefore.length===1);
