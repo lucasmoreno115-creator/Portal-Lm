@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
-import { PREMIUM_NUTRITION_PLAN_CALLS, validateDraft, validatePremiumNutritionPlanCalls, validateProfessionalCurrent, validatePublish, validateStudentPlan, validateWrite } from '../scripts/qa-premium-nutrition-plan-staging-e2e.mjs';
+import { PREMIUM_NUTRITION_PLAN_CALLS, validateDraft, validatePremiumNutritionPlanCalls, validatePreReleaseStudentPlan, validateProfessionalCurrent, validatePublish, validateRelease, validateReleasedLifecycle, validateStudentPlan, validateWrite } from '../scripts/qa-premium-nutrition-plan-staging-e2e.mjs';
 
 const result=(body,status=200)=>({ok:status>=200&&status<300,status,responseBody:JSON.stringify(body)});
 const studentId='student-1', planId='plan-1', marker='QA-F1.8-run-1', editedMarker=`${marker}-EDITADO`, deletedMarker=`${marker}-EXCLUIR`;
@@ -42,10 +42,25 @@ test('professional current fails when draft remains',()=>assert.equal(validatePr
 test('professional current fails when published marker diverges',()=>assert.equal(validateProfessionalCurrent(workflow({...published,meals:[]}),{planId,studentId,version:1,marker,editedMarker,deletedMarker}).ok,false));
 test('professional current requires the version returned by publish',()=>assert.equal(validateProfessionalCurrent(workflow({...published,version_number:2}),{planId,studentId,version:1,marker,editedMarker,deletedMarker}).ok,false));
 test('student unauthenticated read contract is explicitly 401',()=>assert.match(fs.readFileSync('scripts/qa-premium-nutrition-plan-staging-e2e.mjs','utf8'),/expectedStatus:\[401\]/));
-test('authenticated student receives exact published content',()=>assert.equal(validateStudentPlan(result({ok:true,data:{status:'PUBLISHED',meals}}),{marker,editedMarker,deletedMarker}).ok,true));
-test('missing run marker fails student consistency',()=>assert.equal(validateStudentPlan(result({ok:true,data:{status:'PUBLISHED',meals:[]}}),{marker,editedMarker,deletedMarker}).ok,false));
-test('wrong public version fails student consistency',()=>assert.equal(validateStudentPlan(result({ok:true,data:{status:'ARCHIVED',meals}}),{marker,editedMarker,deletedMarker}).ok,false));
-test('draft exposed by public response fails student consistency',()=>assert.equal(validateStudentPlan(result({ok:true,data:{status:'DRAFT',meals}}),{marker,editedMarker,deletedMarker}).ok,false));
+test('published plan remains forbidden before consultation release',()=>assert.equal(validatePreReleaseStudentPlan(result({ok:false,error:'locked'},403)).ok,true));
+test('pre-release validator does not accept an early 200',()=>assert.equal(validatePreReleaseStudentPlan(result({ok:true,data:published})).ok,false));
+const release={student_id:studentId,from:'READY_TO_RELEASE',to:'ACTIVE',updated_at:'2026-08-10T02:00:00Z',followup_entry_id:'followup-1'};
+test('professional release requires the exact identity and lifecycle transition',()=>assert.equal(validateRelease(result({ok:true,data:release}),{studentId}).ok,true));
+test('release ok false fails closed',()=>assert.equal(validateRelease(result({ok:false,data:release}),{studentId}).ok,false));
+test('release 4xx fails closed',()=>assert.equal(validateRelease(result({ok:false},409),{studentId}).ok,false));
+test('release studentId divergence fails closed',()=>assert.equal(validateRelease(result({ok:true,data:release}),{studentId:'other'}).ok,false));
+test('release from divergence fails closed',()=>assert.equal(validateRelease(result({ok:true,data:{...release,from:'UNDER_REVIEW'}}),{studentId}).ok,false));
+test('release to divergence fails closed',()=>assert.equal(validateRelease(result({ok:true,data:{...release,to:'PAUSED'}}),{studentId}).ok,false));
+test('idempotent unchanged response is not accepted as release evidence',()=>assert.equal(validateRelease(result({ok:true,data:{...release,from:'ACTIVE',unchanged:true}}),{studentId}).ok,false));
+const activeState={consultationStatus:'ACTIVE',experience:'PREMIUM_PORTAL'};
+test('lifecycle reload confirms ACTIVE for the released identity',()=>assert.equal(validateReleasedLifecycle(result({ok:true,data:activeState}),{studentId,releaseStudentId:studentId}).ok,true));
+test('lifecycle reload rejects READY_TO_RELEASE',()=>assert.equal(validateReleasedLifecycle(result({ok:true,data:{...activeState,consultationStatus:'READY_TO_RELEASE'}}),{studentId,releaseStudentId:studentId}).ok,false));
+test('lifecycle reload rejects release identity divergence',()=>assert.equal(validateReleasedLifecycle(result({ok:true,data:activeState}),{studentId,releaseStudentId:'other'}).ok,false));
+test('authenticated student receives exact published content',()=>assert.equal(validateStudentPlan(result({ok:true,data:{status:'PUBLISHED',version_number:1,meals}}),{marker,editedMarker,deletedMarker,version:1}).ok,true));
+test('post-release 403 fails student consistency',()=>assert.equal(validateStudentPlan(result({ok:false},403),{marker,editedMarker,deletedMarker,version:1}).ok,false));
+test('missing run marker fails student consistency',()=>assert.equal(validateStudentPlan(result({ok:true,data:{status:'PUBLISHED',version_number:1,meals:[]}}),{marker,editedMarker,deletedMarker,version:1}).ok,false));
+test('wrong public version fails student consistency',()=>assert.equal(validateStudentPlan(result({ok:true,data:{status:'PUBLISHED',version_number:2,meals}}),{marker,editedMarker,deletedMarker,version:1}).ok,false));
+test('draft exposed by public response fails student consistency',()=>assert.equal(validateStudentPlan(result({ok:true,data:{status:'DRAFT',version_number:1,meals}}),{marker,editedMarker,deletedMarker,version:1}).ok,false));
 test('studentId divergence fails draft contract',()=>assert.equal(validateDraft(result({ok:true,data:draft}),'other').ok,false));
 test('allowlist rejects Projeto LM and accepts only the explicit F1.8 routes',()=>{assert.equal(validatePremiumNutritionPlanCalls([{method:'GET',path:'/api/portal/project-lm/current-mission'}]).ok,false);assert.ok(PREMIUM_NUTRITION_PLAN_CALLS.has('GET /api/portal/nutrition-plan'));});
 test('report source masks secrets and excludes email, token and session from evidence',()=>{const source=fs.readFileSync('scripts/qa-premium-nutrition-plan-staging-e2e.mjs','utf8');assert.match(source,/mask\(env\.QA_ADMIN_SESSION\)/);assert.match(source,/mask\(email\)/);assert.match(source,/mask\(token\)/);assert.doesNotMatch(source,/add\([^\n]*\{[^\n]*(?:email|token|session)/i);});
