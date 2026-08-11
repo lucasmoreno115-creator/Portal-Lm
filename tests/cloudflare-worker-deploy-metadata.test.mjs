@@ -6,38 +6,25 @@ import { extractDeployMetadata } from '../scripts/extract-cloudflare-deploy-meta
 const sha='e819152bded88defea3237e2d1c1b60b7a6abe21';
 const worker='lm-system-api';
 
-const line=(value)=>JSON.stringify(value);
+const output=`Uploaded ${worker} (3.70 sec)\nDeployed ${worker} triggers (0.50 sec)\n  https://${worker}.example.workers.dev\nCurrent Version ID: 11111111-2222-3333-4444-555555555555\n`;
 
-test('extracts the deployed version_id from Wrangler structured output',()=>{
-  const jsonl=[
-    line({type:'wrangler-session',version:1}),
-    line({type:'deploy',worker_name:worker,version_id:'11111111-2222-3333-4444-555555555555',targets:['https://lm-system-api.example.workers.dev']}),
-  ].join('\n');
-  assert.deepEqual(extractDeployMetadata(jsonl,{gitSha:sha,workerName:worker}),{
+test('extracts version_id from wrangler-action command-output',()=>{
+  assert.deepEqual(extractDeployMetadata(output,{gitSha:sha,workerName:worker}),{
     schemaVersion:1,
     gitSha:sha,
     workerName:worker,
     versionId:'11111111-2222-3333-4444-555555555555',
-    targets:['https://lm-system-api.example.workers.dev'],
+    targets:[`https://${worker}.example.workers.dev`],
   });
 });
 
-test('uses the last matching deploy event and ignores other workers',()=>{
-  const jsonl=[
-    line({type:'deploy',worker_name:worker,version_id:'old-version',targets:[]}),
-    line({type:'deploy',worker_name:'another-worker',version_id:'other-version',targets:[]}),
-    line({type:'deploy',worker_name:worker,version_id:'new-version',targets:[]}),
-  ].join('\n');
-  assert.equal(extractDeployMetadata(jsonl,{gitSha:sha,workerName:worker}).versionId,'new-version');
+test('fails closed when command output is missing or has ambiguous version IDs',()=>{
+  assert.throws(()=>extractDeployMetadata('',{gitSha:sha,workerName:worker}),/command output is required/);
+  assert.throws(()=>extractDeployMetadata(`Uploaded ${worker}\n`,{gitSha:sha,workerName:worker}),/got 0/);
+  assert.throws(()=>extractDeployMetadata(`${output}Current Version ID: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\n`,{gitSha:sha,workerName:worker}),/got 2/);
 });
 
-test('fails closed when Wrangler output is malformed or version_id is absent',()=>{
-  assert.throws(()=>extractDeployMetadata('{bad json',{gitSha:sha,workerName:worker}),/invalid JSONL/);
-  assert.throws(()=>extractDeployMetadata(line({type:'deploy',worker_name:worker}),{gitSha:sha,workerName:worker}),/missing version_id/);
-  assert.throws(()=>extractDeployMetadata(line({type:'deploy',worker_name:'other'}),{gitSha:sha,workerName:worker}),/No deploy event/);
-});
-
-test('deploy workflow persists SHA-to-version metadata and staging consumes the matching successful deploy artifact',()=>{
+test('deploy workflow consumes wrangler-action command-output and persists SHA-to-version metadata',()=>{
   const deploy=fs.readFileSync('.github/workflows/cloudflare-deploy.yml','utf8');
   const staging=fs.readFileSync('.github/workflows/qa-lm-staging.yml','utf8');
 
@@ -46,7 +33,9 @@ test('deploy workflow persists SHA-to-version metadata and staging consumes the 
   assert.doesNotMatch(deploy,/--preview-alias/);
   assert.doesNotMatch(deploy,/--tag/);
   assert.doesNotMatch(deploy,/--message/);
-  assert.match(deploy,/WRANGLER_OUTPUT_FILE/);
+  assert.match(deploy,/steps\.deploy-worker\.outputs\.command-output/);
+  assert.match(deploy,/WRANGLER_COMMAND_OUTPUT/);
+  assert.doesNotMatch(deploy,/WRANGLER_OUTPUT_FILE/);
   assert.match(deploy,/extract-cloudflare-deploy-metadata\.mjs/);
   assert.match(deploy,/cloudflare-worker-version-\$\{\{ github\.sha \}\}/);
   assert.match(deploy,/worker-deploy-metadata\.json/);
@@ -57,6 +46,4 @@ test('deploy workflow persists SHA-to-version metadata and staging consumes the 
   assert.match(staging,/actions\/artifacts\/\$\{ARTIFACT_ID\}\/zip/);
   assert.match(staging,/m\.gitSha!==sha/);
   assert.match(staging,/SOURCE="Cloudflare deploy artifact"/);
-  assert.doesNotMatch(staging,/resolve-cloudflare-worker-version-by-tag\.mjs/);
-  assert.doesNotMatch(staging,/workers\/scripts\/\$\{CF_WORKER_NAME\}\/versions/);
 });

@@ -126,7 +126,9 @@ test('workflow resolves the exact git SHA from the successful deploy artifact',(
   assert.match(workflow,/Verify preview fidelity/);
   assert.doesNotMatch(workflow,/resolve-cloudflare-worker-version-by-tag\.mjs/);
   assert.doesNotMatch(workflow,/workers\/scripts\/\$\{CF_WORKER_NAME\}\/versions/);
-  assert.match(deploy,/WRANGLER_OUTPUT_FILE/);
+  assert.match(deploy,/steps\.deploy-worker\.outputs\.command-output/);
+  assert.match(deploy,/WRANGLER_COMMAND_OUTPUT/);
+  assert.doesNotMatch(deploy,/WRANGLER_OUTPUT_FILE/);
   assert.match(deploy,/extract-cloudflare-deploy-metadata\.mjs/);
   assert.match(deploy,/cloudflare-worker-version-\$\{\{ github\.sha \}\}/);
 });
