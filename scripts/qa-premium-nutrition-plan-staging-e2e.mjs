@@ -44,7 +44,23 @@ export function validateProfessionalCurrent(result, { planId, studentId, version
 export function validatePreReleaseStudentPlan(result) { const body=parse(result); return { ok:result.status===403&&body?.ok===false, body }; }
 export function validateRelease(result, { studentId, from='READY_TO_RELEASE', to='ACTIVE' }) { const body=parse(result), release=body?.data; return { ok:result.ok&&result.status===200&&body?.ok===true&&release?.student_id===studentId&&release?.from===from&&release?.to===to&&release?.unchanged!==true, release }; }
 export function validateReleasedLifecycle(result, { studentId, releaseStudentId }) { const body=parse(result), state=body?.data; return { ok:result.ok&&result.status===200&&body?.ok===true&&releaseStudentId===studentId&&state?.consultationStatus==='ACTIVE'&&state?.experience==='PREMIUM_PORTAL', state }; }
-export function validateStudentPlan(result, { marker, editedMarker, deletedMarker, version }) { const body=parse(result), plan=body?.data, serialized=JSON.stringify(plan||{}); return { ok:result.ok&&result.status===200&&body?.ok===true&&plan?.status==='PUBLISHED'&&Number(plan?.version_number)===Number(version)&&Number(version)>0&&serialized.includes(marker)&&serialized.includes(editedMarker)&&!serialized.includes(deletedMarker)&&!serialized.includes('DRAFT'), plan }; }
+// GET /api/portal/nutrition-plan uses publicNutritionPlan(), whose public shape is
+// { id, student_email, title, goal, strategy, meals, substitutions,
+//   adherence_rules, notes, whatsapp_message, created_at, updated_at }.
+// Lifecycle and version metadata belong to the independent professional read.
+export function validateStudentPlan(result, { planId, marker, editedMarker, deletedMarker }) {
+  const body=parse(result), plan=body?.data;
+  const meals=Array.isArray(plan?.meals)?plan.meals:null, serialized=JSON.stringify(plan||{});
+  const structuredItems=meals?.flatMap(meal=>Array.isArray(meal?.items)?meal.items:[])||[];
+  const markerPresent=serialized.includes(marker), editedMarkerPresent=serialized.includes(editedMarker), deletedMarkerPresent=serialized.includes(deletedMarker);
+  const draftLeak=Boolean(plan&&(
+    Object.hasOwn(plan,'draft')||Object.hasOwn(plan,'is_draft')||plan.status==='DRAFT'||
+    meals?.some(meal=>meal?.status==='DRAFT'||Object.hasOwn(meal||{},'draft')||Object.hasOwn(meal||{},'is_draft'))
+  ));
+  const contractOk=Boolean(result.ok&&result.status===200&&body?.ok===true&&plan&&typeof plan==='object'&&!Array.isArray(plan)&&plan.id===planId&&typeof plan.title==='string'&&meals&&Array.isArray(plan.substitutions)&&Array.isArray(plan.adherence_rules)&&!draftLeak);
+  const contentOk=Boolean(contractOk&&markerPresent&&editedMarkerPresent&&!deletedMarkerPresent&&structuredItems.length>=2&&structuredItems.filter(item=>JSON.stringify(item).includes(marker)).length>=2);
+  return { ok:contractOk&&contentOk, contractOk, contentOk, markerPresent, editedMarkerPresent, deletedMarkerPresent, draftLeak, itemCount:structuredItems.length, plan };
+}
 
 export async function runPremiumNutritionPlanSmoke({ env=process.env, requestFn, mask=()=>{} }={}) {
   const startedAt=Date.now(), rows=[], calls=[], base=String(env.QA_BASE_URL||'').trim().replace(/\/+$/,'');
@@ -109,9 +125,10 @@ export async function runPremiumNutritionPlanSmoke({ env=process.env, requestFn,
   const afterReleaseResult=await call('/api/portal/premium/access-state',{headers:studentHeaders,expectedStatus:[200]}), releasedLifecycle=validateReleasedLifecycle(afterReleaseResult,{studentId,releaseStudentId:release.release.student_id});
   add('lifecycle-after-release','reload canônico confirma ACTIVE e experiência Premium',{studentId,lifecycle:releasedLifecycle.state?.consultationStatus||null,experience:releasedLifecycle.state?.experience||null},releasedLifecycle.ok?'PASSED':'FAILED');
   if(!releasedLifecycle.ok)return finish();
-  const portal=await call('/api/portal/nutrition-plan',{headers:studentHeaders,expectedStatus:[200]}), studentPlan=validateStudentPlan(portal,{marker,editedMarker,deletedMarker,version:published.plan.version_number});
-  add('student-plan-post-release','a mesma identidade recebe a versão publicada após a liberação',{httpStatus:portal.status,studentId,version:studentPlan.plan?.version_number||null,status:studentPlan.plan?.status||null},studentPlan.ok?'PASSED':'FAILED');
-  add('content-consistency','Portal contém edição e marker, sem refeição excluída ou draft',{marker,editedMarkerPresent:JSON.stringify(studentPlan.plan||{}).includes(editedMarker),deletedMarkerPresent:JSON.stringify(studentPlan.plan||{}).includes(deletedMarker)},studentPlan.ok?'PASSED':'FAILED');
+  const portal=await call('/api/portal/nutrition-plan',{headers:studentHeaders,expectedStatus:[200]}), studentPlan=validateStudentPlan(portal,{planId:draft.planId,marker,editedMarker,deletedMarker});
+  const portalBody=parse(portal), portalData=portalBody?.data;
+  add('student-plan-post-release','a mesma identidade recebe o contrato público do plano após a liberação',{httpStatus:portal.status,topLevelKeys:portalBody&&typeof portalBody==='object'?Object.keys(portalBody).sort():[],dataKeys:portalData&&typeof portalData==='object'?Object.keys(portalData).sort():[],hasStatus:Boolean(portalData&&Object.hasOwn(portalData,'status')),hasVersionNumber:Boolean(portalData&&Object.hasOwn(portalData,'version_number')),hasPlanId:Boolean(portalData?.id),mealCount:Array.isArray(portalData?.meals)?portalData.meals.length:0,markerPresent:studentPlan.markerPresent,editedMarkerPresent:studentPlan.editedMarkerPresent,deletedMarkerPresent:studentPlan.deletedMarkerPresent},studentPlan.contractOk?'PASSED':'FAILED');
+  add('content-consistency','Portal contém conteúdo estruturado da versão publicada, sem refeição excluída ou draft',{markerPresent:studentPlan.markerPresent,editedMarkerPresent:studentPlan.editedMarkerPresent,deletedMarkerPresent:studentPlan.deletedMarkerPresent,draftLeak:studentPlan.draftLeak,itemCount:studentPlan.itemCount},studentPlan.contentOk?'PASSED':'FAILED');
   return finish();
 }
 
