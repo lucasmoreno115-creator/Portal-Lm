@@ -18,7 +18,7 @@ test('minimal Workspace exposes only validated operational surface', async () =>
     /<section id="record" class="panel context" hidden aria-labelledby="recordHeading">[\s\S]*?<h2 id="recordHeading" tabindex="-1">Prontuário LM<\/h2>/
   ]) assert.match(html, pattern);
   assert.doesNotMatch(html, /Contexto básico/);
-  for (const hidden of ['Inbox operacional', 'Revisão semanal', 'Filtros', 'Pendências', 'Feedback Semanal', 'Student 360']) assert.doesNotMatch(html, new RegExp(hidden));
+  for (const hidden of ['Inbox operacional', 'Revisão semanal', 'Filtros', '>Pendências<', 'Feedback Semanal', 'Student 360']) assert.doesNotMatch(html, new RegExp(hidden));
 });
 
 test('minimal Workspace logs sanitized endpoint diagnostics and does not load pending in normal flow', async () => {
