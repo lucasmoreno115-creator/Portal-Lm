@@ -114,17 +114,21 @@ test('report sanitizer removes secrets and NOT_VALIDATED CLI exits nonzero',()=>
   assert.match(source,/report\.status!==['"]VALIDATED['"]\)process\.exitCode=1/);
 });
 
-test('workflow resolves the exact git SHA through the Cloudflare Worker version tag',()=>{
+test('workflow resolves the exact git SHA from the successful deploy artifact',()=>{
   const workflow=fs.readFileSync('.github/workflows/qa-lm-staging.yml','utf8');
   const deploy=fs.readFileSync('.github/workflows/cloudflare-deploy.yml','utf8');
-  assert.match(workflow,/resolve-cloudflare-worker-version-by-tag\.mjs/);
+  assert.match(workflow,/actions:\s*read/);
+  assert.match(workflow,/cloudflare-deploy\.yml\/runs\?head_sha=\$\{EXPECTED_SHA\}/);
+  assert.match(workflow,/cloudflare-worker-version-\$\{EXPECTED_SHA\}/);
   assert.match(workflow,/QA_WORKER_VERSION_ID/);
   assert.match(workflow,/VERSION_PREFIX="\$\{VERSION_ID:0:8\}"/);
-  assert.match(workflow,/Cloudflare version tag match/);
+  assert.match(workflow,/Cloudflare deploy artifact/);
   assert.match(workflow,/Verify preview fidelity/);
-  assert.doesNotMatch(workflow,/sha-\$\{EXPECTED_SHA\}-\$\{CF_WORKER_NAME\}/);
-  assert.doesNotMatch(workflow,/versions\?per_page=1/);
-  assert.match(deploy,/--tag \$\{\{ github\.sha \}\}/);
+  assert.doesNotMatch(workflow,/resolve-cloudflare-worker-version-by-tag\.mjs/);
+  assert.doesNotMatch(workflow,/workers\/scripts\/\$\{CF_WORKER_NAME\}\/versions/);
+  assert.match(deploy,/WRANGLER_OUTPUT_FILE/);
+  assert.match(deploy,/extract-cloudflare-deploy-metadata\.mjs/);
+  assert.match(deploy,/cloudflare-worker-version-\$\{\{ github\.sha \}\}/);
 });
 
 test('workflow runs F2.1 after F1.8.1 with pipefail and uploads its report',()=>{
