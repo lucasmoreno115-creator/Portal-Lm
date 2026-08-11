@@ -59,8 +59,6 @@ jobs:
       - name: Deploy with pinned Wrangler
         id: deploy-worker
         uses: cloudflare/wrangler-action@v3
-        env:
-          WRANGLER_OUTPUT_FILE: ${{ runner.temp }}/wrangler-output.jsonl
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: 4.65.0
@@ -68,12 +66,11 @@ jobs:
 
       - name: Capture deployed Worker version
         env:
-          WRANGLER_OUTPUT_FILE: ${{ runner.temp }}/wrangler-output.jsonl
+          WRANGLER_COMMAND_OUTPUT: ${{ steps.deploy-worker.outputs.command-output }}
           CF_WORKER_NAME: lm-system-api
         run: |
           set -euo pipefail
-          node scripts/extract-cloudflare-deploy-metadata.mjs \
-            "$WRANGLER_OUTPUT_FILE" \
+          printf '%s' "$WRANGLER_COMMAND_OUTPUT" | node scripts/extract-cloudflare-deploy-metadata.mjs \
             "$GITHUB_SHA" \
             "$CF_WORKER_NAME" > worker-deploy-metadata.json
           node -e '
