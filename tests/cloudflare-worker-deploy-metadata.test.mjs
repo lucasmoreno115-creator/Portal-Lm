@@ -41,6 +41,11 @@ test('deploy workflow persists SHA-to-version metadata and staging consumes the 
   const deploy=fs.readFileSync('.github/workflows/cloudflare-deploy.yml','utf8');
   const staging=fs.readFileSync('.github/workflows/qa-lm-staging.yml','utf8');
 
+  assert.match(deploy,/wranglerVersion:\s*4\.65\.0/);
+  assert.match(deploy,/command:\s*deploy\s*$/m);
+  assert.doesNotMatch(deploy,/--preview-alias/);
+  assert.doesNotMatch(deploy,/--tag/);
+  assert.doesNotMatch(deploy,/--message/);
   assert.match(deploy,/WRANGLER_OUTPUT_FILE/);
   assert.match(deploy,/extract-cloudflare-deploy-metadata\.mjs/);
   assert.match(deploy,/cloudflare-worker-version-\$\{\{ github\.sha \}\}/);
