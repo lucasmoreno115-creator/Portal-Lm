@@ -64,7 +64,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: 4.65.0
-          command: deploy --preview-alias sha-${{ github.sha }} --tag ${{ github.sha }} --message "github:${{ github.sha }}"
+          command: deploy
 
       - name: Capture deployed Worker version
         env:
