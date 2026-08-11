@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 export function versionTag(item) {
   return String(
@@ -29,7 +30,7 @@ export function resolveWorkerVersionByTag(payload, expectedTag) {
   return { id, tag };
 }
 
-if (import.meta.url === new URL(`file://${process.argv[1]}`).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   let response = '';
   for await (const chunk of process.stdin) response += chunk;
   try {
