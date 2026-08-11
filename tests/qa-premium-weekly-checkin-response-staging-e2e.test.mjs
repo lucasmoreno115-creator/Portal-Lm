@@ -3,12 +3,19 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   pendingFor, sanitizeReport, submittedFeedbacks, validateAnalyzedRecord, validateDetail,
-  validateHttpSuccess, validateIdentity, validateStudentResponse, validateWeeklyCheckinCalls,
+  validateHttpSuccess, validateIdentity, validateInitialCheckinState, validateStudentResponse, validateWeeklyCheckinCalls,
 } from '../scripts/qa-premium-weekly-checkin-response-staging-e2e.mjs';
 
 const response=(data,status=200,ok=status>=200&&status<300)=>({ok,status,responseBody:JSON.stringify(data)});
 const checkin={id:'checkin-1',student_id:'student-1',submitted_at:'2026-08-11T10:00:00Z',main_difficulty:'QA-F2.1-CHECKIN-run-1',coach_status:'pending'};
 const pending={id:'pending-1',student_id:'student-1',type:'ANALYZE_WEEKLY_FEEDBACK',related_entity_type:'student_checkins',related_entity_id:'checkin-1',status:'OPEN'};
+
+test('initial state permits fixture data but rejects a check-in marker before submit',()=>{
+  const markers={fixtureMarker:'QA-F2.1-FIXTURE-run-1',checkinMarker:'QA-F2.1-CHECKIN-run-1',responseMarker:'QA-F2.1-RESPONSE-run-1'};
+  const record={anamnesis:{marker:markers.fixtureMarker},objectives:{marker:markers.fixtureMarker},nutritionPlan:{notes:markers.fixtureMarker},feedbacks:[]};
+  assert.deepEqual(validateInitialCheckinState(record,markers),{ok:true,fixtureMarkerPresent:true,checkinMarkerPresent:false,responseMarkerPresent:false});
+  assert.deepEqual(validateInitialCheckinState({...record,feedbacks:[{main_difficulty:markers.checkinMarker}]},markers),{ok:false,fixtureMarkerPresent:true,checkinMarkerPresent:true,responseMarkerPresent:false});
+});
 
 test('submitted_at is the sole sent-checkin boundary',()=>{
   assert.deepEqual(submittedFeedbacks([checkin,{...checkin,id:'draft',submitted_at:null}]).map(x=>x.id),['checkin-1']);
