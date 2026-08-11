@@ -28,11 +28,40 @@ function canonical(method,path){
 }
 export function validateVersioningCalls(calls){const unexpected=calls.map(x=>canonical(x.method||'GET',x.path)).filter(x=>!VERSIONING_CALLS.has(x));return {ok:unexpected.length===0,unexpected};}
 export function validateCanonicalEditId(id){return {ok:!invalidId(id)&&typeof id==='string',id:invalidId(id)?null:id};}
+const markerInPlan=(plan,marker)=>[plan?.title,plan?.notes,JSON.stringify(plan?.meals??[])].some(value=>String(value??'').includes(marker));
+export function validateCurrentV2(workflow,{v1Id,v2Id,v1Version}){
+  const current=workflow?.current,draft=workflow?.draft;
+  const checks={
+    currentPresent:Boolean(current),
+    currentIdMatches:current?.id===v2Id,
+    currentPublished:current?.status==='PUBLISHED',
+    noDraft:draft==null,
+    versionAdvanced:Number.isFinite(Number(current?.version_number))&&Number(current?.version_number)>Number(v1Version),
+    supersedesV1:current?.supersedes_plan_id===v1Id
+  };
+  return {ok:Object.values(checks).every(Boolean),checks,current,draft};
+}
+export function validateArchivedV1(workflow,{v1Id,v1Version,v1Marker,v2Marker,historyContent='summary'}){
+  const history=workflow?.history||[],old=history.find(plan=>plan.id===v1Id);
+  const contentIsFull=historyContent==='full';
+  const checks={
+    v1Present:Boolean(old),
+    v1IdMatches:old?.id===v1Id,
+    v1Archived:old?.status==='ARCHIVED',
+    v1VersionMatches:Number.isFinite(Number(old?.version_number))&&Number(old?.version_number)===Number(v1Version),
+    v1MarkerPreserved:!contentIsFull||markerInPlan(old,v1Marker),
+    v1NotContaminated:!contentIsFull||!markerInPlan(old,v2Marker)
+  };
+  return {ok:Object.values(checks).every(Boolean),checks,old,history,contentIsFull};
+}
 export function validateVersionWorkflow(workflow,{v1Id,v2Id,v1Marker,v2Marker,phase}){
   const current=workflow?.current,draft=workflow?.draft,history=workflow?.history||[];
   if(phase==='draft')return {ok:current?.id===v1Id&&current.status==='PUBLISHED'&&draft?.id===v2Id&&v2Id!==v1Id&&draft.status==='DRAFT'&&JSON.stringify(current).includes(v1Marker)&&!JSON.stringify(current).includes(v2Marker)&&JSON.stringify(draft).includes(v2Marker),current,draft,history};
   const old=history.find(x=>x.id===v1Id);
-  return {ok:current?.id===v2Id&&current.status==='PUBLISHED'&&draft==null&&Number(current.version_number)>Number(old?.version_number)&&old?.status==='ARCHIVED'&&JSON.stringify(old).includes(v1Marker)&&!JSON.stringify(old).includes(v2Marker),current,draft,history,old};
+  const currentResult=validateCurrentV2(workflow,{v1Id,v2Id,v1Version:old?.version_number});
+  const historyContent=old&&['title','notes','meals'].some(key=>Object.hasOwn(old,key))?'full':'summary';
+  const archivedResult=validateArchivedV1(workflow,{v1Id,v1Version:old?.version_number,v1Marker,v2Marker,historyContent});
+  return {ok:currentResult.ok&&archivedResult.ok,current,draft,history,old,checks:{...currentResult.checks,...archivedResult.checks}};
 }
 export function validatePortalVersion(result,{planId,present,absent}){const plan=payload(result),text=JSON.stringify(plan||{});return {ok:result.ok&&result.status===200&&plan?.id===planId&&text.includes(present)&&!text.includes(absent)&&plan.status!=='DRAFT'&&!Object.hasOwn(plan||{},'draft'),planId:plan?.id||null,present:text.includes(present),absent:!text.includes(absent)};}
 
@@ -79,11 +108,14 @@ export async function runPremiumNutritionVersioningSmoke({env=process.env,reques
   add('student-remains-on-v1','Portal ACTIVE continua em V1 e não vaza V2',{planId:portalDuring.planId,v1Present:portalDuring.present,v2Absent:portalDuring.absent},portalDuring.ok);if(!edit2.ok||!duringCheck.ok||!portalDuring.ok)return finish();
   const published2=payload(await call(`/api/admin/premium/nutrition-plans/${encodeURIComponent(v2Id)}/publish`,{method:'POST',headers:ah,expectedStatus:[200],body:{student_id:studentId}})),versionOk=published2?.id===v2Id&&published2?.status==='PUBLISHED'&&Number(published2.version_number)>Number(v1Version);
   add('v2-publish','V2 é publicada com versão estritamente maior',{v2PlanId:published2?.id,v1Version,v2Version:published2?.version_number,status:published2?.status},versionOk);
-  const after=payload(await call(endpoint,{headers:ah,expectedStatus:[200]})),afterCheck=validateVersionWorkflow(after,{v1Id,v2Id,v1Marker,v2Marker,phase:'published'});
-  add('professional-current-v2','current muda para V2 e não sobra draft',{currentId:after?.current?.id,draftPresent:Boolean(after?.draft)},afterCheck.ok);
+  const after=payload(await call(endpoint,{headers:ah,expectedStatus:[200]}));
+  const currentV2Check=validateCurrentV2(after,{v1Id,v2Id,v1Version});
+  const archivedV1Check=validateArchivedV1(after,{v1Id,v1Version,v1Marker,v2Marker,historyContent:'summary'});
+  const history=after?.history||[],old=archivedV1Check.old,current=after?.current;
+  add('professional-current-v2','current muda para V2 e não sobra draft',{currentId:current?.id,currentStatus:current?.status,currentVersion:current?.version_number,currentSupersedesPlanId:current?.supersedes_plan_id??null,currentKeys:Object.keys(current||{}).sort(),draftPresent:Boolean(after?.draft),historyCount:history.length,historyIds:history.map(x=>x.id),historyStatuses:history.map(x=>x.status),historyVersions:history.map(x=>x.version_number),checks:currentV2Check.checks},currentV2Check.ok);
   const portal2=validatePortalVersion(await call('/api/portal/nutrition-plan',{headers:sh,expectedStatus:[200]}),{planId:v2Id,present:v2Marker,absent:v1Marker});
   add('student-switches-to-v2','Portal muda atomicamente para V2',{planId:portal2.planId,v2Present:portal2.present,v1Absent:portal2.absent},portal2.ok);
-  add('v1-history-preserved','history administrativo preserva ID, versão e marker V1 sem contaminação V2',{v1PlanId:afterCheck.old?.id,v1Version:afterCheck.old?.version_number,status:afterCheck.old?.status,historyCount:afterCheck.history?.length},afterCheck.ok);
+  add('v1-history-preserved','history administrativo preserva a identidade e versão resumida da V1 arquivada',{v1PlanId:old?.id,v1Version:old?.version_number,v1Status:old?.status,v1Keys:Object.keys(old||{}).sort(),v1MarkerPresent:markerInPlan(old,v1Marker),v2MarkerPresentInV1:markerInPlan(old,v2Marker),v1TitleMarkerPresent:String(old?.title??'').includes(v1Marker),v1NotesMarkerPresent:String(old?.notes??'').includes(v1Marker),v1MealsMarkerPresent:JSON.stringify(old?.meals??[]).includes(v1Marker),checks:archivedV1Check.checks},archivedV1Check.ok);
   const lineageOk=published2?.supersedes_plan_id===v1Id;
   add('version-lineage','V2 referencia V1 por supersedes_plan_id',{supersedesPlanId:published2?.supersedes_plan_id,v1PlanId:v1Id},lineageOk);
   const lifecycleDuring=payload(await call('/api/portal/premium/access-state',{headers:sh,expectedStatus:[200]}))?.consultationStatus;
