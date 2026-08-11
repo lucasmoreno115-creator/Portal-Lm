@@ -17,6 +17,7 @@ export const WEEKLY_CHECKIN_CALLS = new Set([
 ]);
 const parse = result => { try { return JSON.parse(result?.responseBody || ''); } catch { return null; } };
 const data = result => parse(result)?.data;
+const diagnosticText = value => { const text=String(value??'').trim(); return text ? text.slice(0,240) : null; };
 const analyzed = value => ['reviewed','replied','analyzed','analisado','analisada'].includes(String(value || '').trim().toLowerCase());
 const canonical = (method, path) => {
   const patterns = [
@@ -40,7 +41,18 @@ export function validateCurrentWeeklyFeedbackContract(result) {
   const http=validateHttpSuccess(result), current=http.body?.data, status=String(current?.status||'');
   const freshFixtureStatus=status==='AVAILABLE'||status==='NOT_AVAILABLE';
   const shape=Boolean(current&&typeof current.weekRef==='string'&&current.weekRef&&typeof current.availableAt==='string'&&current.availableAt&&typeof current.recommendedDeadline==='string'&&current.recommendedDeadline);
-  return {ok:Boolean(http.ok&&freshFixtureStatus&&shape),status:status||null,weekRef:current?.weekRef||null,availableAt:current?.availableAt||null,recommendedDeadline:current?.recommendedDeadline||null,httpStatus:result?.status??null};
+  return {
+    ok:Boolean(http.ok&&freshFixtureStatus&&shape),
+    status:status||null,
+    weekRef:current?.weekRef||null,
+    availableAt:current?.availableAt||null,
+    recommendedDeadline:current?.recommendedDeadline||null,
+    httpStatus:result?.status??null,
+    error:diagnosticText(http.body?.error),
+    code:diagnosticText(http.body?.code),
+    message:diagnosticText(http.body?.message),
+    responseKeys:http.body&&typeof http.body==='object'&&!Array.isArray(http.body)?Object.keys(http.body).sort():[],
+  };
 }
 export function validateUnavailableSubmitContract(result) {
   const body=parse(result), error=String(body?.error||'');
@@ -82,7 +94,7 @@ export async function runPremiumWeeklyCheckinResponseSmoke({env=process.env,requ
   const initial=data(await call(recordPath,{headers:ah,expectedStatus:[200]})), initialState=validateInitialCheckinState(initial,{fixtureMarker,checkinMarker,responseMarker});
   add('checkin-initial-state','markers de check-in e resposta ainda não existem no Prontuário',{fixtureMarkerPresent:initialState.fixtureMarkerPresent,checkinMarkerPresent:initialState.checkinMarkerPresent,responseMarkerPresent:initialState.responseMarkerPresent},initialState.ok); if(!initialState.ok)return finish();
   const currentBefore=await call('/api/portal/premium/weekly-feedback/current',{headers:sh,expectedStatus:[200]}), temporal=validateCurrentWeeklyFeedbackContract(currentBefore);
-  add('weekly-feedback-temporal-contract','GET current retorna contrato temporal íntegro para fixture nova',{endpoint:'GET /api/portal/premium/weekly-feedback/current',httpStatus:temporal.httpStatus,status:temporal.status,weekRef:temporal.weekRef,availableAt:temporal.availableAt,recommendedDeadline:temporal.recommendedDeadline},temporal.ok); if(!temporal.ok)return finish();
+  add('weekly-feedback-temporal-contract','GET current retorna contrato temporal íntegro para fixture nova',{endpoint:'GET /api/portal/premium/weekly-feedback/current',httpStatus:temporal.httpStatus,status:temporal.status,weekRef:temporal.weekRef,availableAt:temporal.availableAt,recommendedDeadline:temporal.recommendedDeadline,error:temporal.error,code:temporal.code,message:temporal.message,responseKeys:temporal.responseKeys},temporal.ok); if(!temporal.ok)return finish();
   const answers={trainingAdherence:'100%',nutritionAdherence:'Boa',cardioAdherence:'Completo',freeMeals:'1',hungerLevel:'Controlada',bingeOrSnacking:'Não',sleepQuality:'Boa',energyLevel:'Boa',stressLevel:'Baixo',weeklyWeight:'70',waist:'80',strengthStatus:'Mantida',mainDifficulty:checkinMarker,routineContext:`Rotina segura ${checkinMarker}`,weeklyScore:'9',supportNeeded:`Apoio ${checkinMarker}`};
   if(temporal.status==='NOT_AVAILABLE') {
     executionMode='TEMPORAL_WINDOW_CLOSED';

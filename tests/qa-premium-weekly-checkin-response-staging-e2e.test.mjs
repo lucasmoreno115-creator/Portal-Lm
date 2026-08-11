@@ -42,6 +42,17 @@ test('fresh fixture temporal contract accepts only AVAILABLE or NOT_AVAILABLE wi
   assert.equal(validateCurrentWeeklyFeedbackContract(response({ok:true,data:{status:'NOT_AVAILABLE'}})).ok,false);
 });
 
+test('temporal validator preserves sanitized public 5xx diagnostics without accepting the failure',()=>{
+  const result=validateCurrentWeeklyFeedbackContract(response({ok:false,code:'INTERNAL_ERROR',error:'D1 bind failed',message:'weekly feedback lookup failed',secret:'must-not-be-picked'},500,false));
+  assert.equal(result.ok,false);
+  assert.equal(result.httpStatus,500);
+  assert.equal(result.code,'INTERNAL_ERROR');
+  assert.equal(result.error,'D1 bind failed');
+  assert.equal(result.message,'weekly feedback lookup failed');
+  assert.deepEqual(result.responseKeys,['code','error','message','ok','secret']);
+  assert.equal(Object.hasOwn(result,'secret'),false);
+});
+
 test('closed temporal window requires canonical 409 and never accepts a 5xx',()=>{
   const unavailable=response({ok:false,error:'Seu Feedback Semanal ainda não está disponível.'},409,true);
   assert.equal(validateUnavailableSubmitContract(unavailable).ok,true);
@@ -101,6 +112,17 @@ test('report sanitizer removes secrets and NOT_VALIDATED CLI exits nonzero',()=>
   assert.equal(JSON.stringify(clean).includes('secret-token'),false);
   const source=fs.readFileSync('scripts/qa-premium-weekly-checkin-response-staging-e2e.mjs','utf8');
   assert.match(source,/report\.status!==['"]VALIDATED['"]\)process\.exitCode=1/);
+});
+
+test('workflow pins default staging target to exact git SHA preview and deploy creates that alias',()=>{
+  const workflow=fs.readFileSync('.github/workflows/qa-lm-staging.yml','utf8');
+  const deploy=fs.readFileSync('.github/workflows/cloudflare-deploy.yml','utf8');
+  assert.match(workflow,/sha-\$\{EXPECTED_SHA\}-\$\{CF_WORKER_NAME\}/);
+  assert.match(workflow,/Cloudflare SHA preview alias/);
+  assert.match(workflow,/Verify preview fidelity/);
+  assert.doesNotMatch(workflow,/versions\?per_page=1/);
+  assert.match(deploy,/--preview-alias sha-\$\{\{ github\.sha \}\}/);
+  assert.match(deploy,/--tag \$\{\{ github\.sha \}\}/);
 });
 
 test('workflow runs F2.1 after F1.8.1 with pipefail and uploads its report',()=>{

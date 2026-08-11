@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       qa_base_url:
-        description: 'URL opcional para execução manual. Quando vazia, o workflow resolve o preview mais recente da Cloudflare.'
+        description: 'URL opcional para execução manual. Quando vazia, o workflow usa o preview Cloudflare determinístico do SHA do checkout.'
         required: false
         type: string
   schedule:
@@ -50,6 +50,7 @@ jobs:
 
           BASE_URL="${MANUAL_QA_BASE_URL:-}"
           SOURCE="workflow input"
+          EXPECTED_SHA="${GITHUB_SHA}"
 
           if [[ -z "$BASE_URL" ]]; then
             BASE_URL="${SECRET_QA_BASE_URL:-}"
@@ -57,43 +58,49 @@ jobs:
           fi
 
           if [[ -z "$BASE_URL" ]]; then
-            if [[ -z "${CF_ACCOUNT_ID:-}" || -z "${CF_API_TOKEN:-}" ]]; then
-              echo "QA_BASE_URL não foi informado e CF_ACCOUNT_ID/CF_API_TOKEN não estão configurados." >&2
+            if [[ -z "${CF_WORKERS_SUBDOMAIN:-}" ]]; then
+              echo "CF_WORKERS_SUBDOMAIN não está configurado." >&2
               exit 1
             fi
-
-            RESPONSE=$(curl --fail-with-body --silent --show-error \
-              --header "Authorization: Bearer ${CF_API_TOKEN}" \
-              --header 'Content-Type: application/json' \
-              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CF_WORKER_NAME}/versions?per_page=1")
-
-            VERSION_ID=$(printf '%s' "$RESPONSE" | node scripts/parse-cloudflare-worker-version.mjs)
-
-            VERSION_PREFIX="${VERSION_ID:0:8}"
-            BASE_URL="https://${VERSION_PREFIX}-${CF_WORKER_NAME}.${CF_WORKERS_SUBDOMAIN}.workers.dev"
-            SOURCE="Cloudflare latest version preview"
+            BASE_URL="https://sha-${EXPECTED_SHA}-${CF_WORKER_NAME}.${CF_WORKERS_SUBDOMAIN}.workers.dev"
+            SOURCE="Cloudflare SHA preview alias"
           fi
 
           BASE_URL="${BASE_URL%/}"
           echo "QA_BASE_URL=$BASE_URL" >> "$GITHUB_ENV"
+          echo "QA_EXPECTED_SHA=$EXPECTED_SHA" >> "$GITHUB_ENV"
           echo "base_url=$BASE_URL" >> "$GITHUB_OUTPUT"
           echo "source=$SOURCE" >> "$GITHUB_OUTPUT"
+          echo "expected_sha=$EXPECTED_SHA" >> "$GITHUB_OUTPUT"
           echo "URL resolvida por: $SOURCE"
+          echo "SHA esperado: $EXPECTED_SHA"
           echo "URL de teste: $BASE_URL"
 
       - name: Wait for preview availability
         shell: bash
         run: |
           set -euo pipefail
-          for attempt in $(seq 1 20); do
+          for attempt in $(seq 1 40); do
             if scripts/check-qa-preview-health.sh "${QA_BASE_URL}/portal-login.html"; then
               exit 0
             fi
-            echo "Tentativa $attempt/20: preview ainda indisponível."
+            echo "Tentativa $attempt/40: preview do SHA ${QA_EXPECTED_SHA} ainda indisponível."
             sleep 6
           done
-          echo "Preview não ficou disponível no tempo esperado: ${QA_BASE_URL}" >&2
+          echo "Preview do SHA não ficou disponível no tempo esperado: ${QA_BASE_URL}" >&2
           exit 1
+
+      - name: Verify preview fidelity
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_host="sha-${QA_EXPECTED_SHA}-${CF_WORKER_NAME}.${CF_WORKERS_SUBDOMAIN}.workers.dev"
+          actual_host="$(node -e 'process.stdout.write(new URL(process.argv[1]).hostname)' "$QA_BASE_URL")"
+          if [[ "${{ steps.resolve-url.outputs.source }}" == "Cloudflare SHA preview alias" && "$actual_host" != "$expected_host" ]]; then
+            echo "Preview divergente: expected=${expected_host} actual=${actual_host}" >&2
+            exit 1
+          fi
+          echo "Preview fidelity: source=${{ steps.resolve-url.outputs.source }} sha=${QA_EXPECTED_SHA} host=${actual_host}"
 
       - name: Authenticate QA administrator
         env:
@@ -150,6 +157,7 @@ jobs:
             echo ''
             echo "- URL: \`${QA_BASE_URL:-não resolvida}\`"
             echo "- Origem: \`${{ steps.resolve-url.outputs.source }}\`"
+            echo "- SHA esperado: \`${QA_EXPECTED_SHA:-não resolvido}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload staging evidence
