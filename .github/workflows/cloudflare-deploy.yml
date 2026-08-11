@@ -140,6 +140,6 @@ jobs:
           request /admin-premium-nutrition-plan 200 'text/html' 'Planejamento alimentar'
           redirect /portal.html /portal
           redirect /admin-premium-student-record.html /admin-premium-student-record
-          redirect /admin-premium-nutrition-plan.html /admin-premium-student-record
+          redirect /admin-premium-nutrition-plan.html /admin-premium-nutrition-plan
           request /api/rota-inexistente 404 'application/json' 'API_ROUTE_NOT_FOUND' true
           request "/arquivo-inexistente-${GITHUB_SHA}.html" 404 'text/html' 'Página não encontrada' true
