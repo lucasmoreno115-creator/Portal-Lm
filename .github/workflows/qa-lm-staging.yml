@@ -136,6 +136,12 @@ jobs:
           set -o pipefail
           npm run qa:lm:premium-nutrition-versioning | tee qa-premium-nutrition-versioning-report.json
 
+      - name: Execute Premium weekly check-in response operational smoke
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run qa:lm:premium-weekly-checkin-response | tee qa-premium-weekly-checkin-response-report.json
+
       - name: Publish resolved target
         if: always()
         run: |
@@ -158,4 +164,5 @@ jobs:
             qa-premium-objectives-report.json
             qa-premium-nutrition-plan-report.json
             qa-premium-nutrition-versioning-report.json
+            qa-premium-weekly-checkin-response-report.json
           retention-days: 30
