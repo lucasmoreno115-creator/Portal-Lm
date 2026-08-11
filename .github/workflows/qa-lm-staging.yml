@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       qa_base_url:
-        description: 'URL opcional para execução manual. Quando vazia, o workflow usa o preview Cloudflare determinístico do SHA do checkout.'
+        description: 'URL opcional para execução manual. Quando vazia, o workflow procura na Cloudflare a versão cujo tag corresponde ao SHA do checkout.'
         required: false
         type: string
   schedule:
@@ -51,6 +51,7 @@ jobs:
           BASE_URL="${MANUAL_QA_BASE_URL:-}"
           SOURCE="workflow input"
           EXPECTED_SHA="${GITHUB_SHA}"
+          VERSION_ID=""
 
           if [[ -z "$BASE_URL" ]]; then
             BASE_URL="${SECRET_QA_BASE_URL:-}"
@@ -58,49 +59,88 @@ jobs:
           fi
 
           if [[ -z "$BASE_URL" ]]; then
-            if [[ -z "${CF_WORKERS_SUBDOMAIN:-}" ]]; then
-              echo "CF_WORKERS_SUBDOMAIN não está configurado." >&2
+            if [[ -z "${CF_ACCOUNT_ID:-}" || -z "${CF_API_TOKEN:-}" || -z "${CF_WORKERS_SUBDOMAIN:-}" ]]; then
+              echo "CF_ACCOUNT_ID, CF_API_TOKEN e CF_WORKERS_SUBDOMAIN são obrigatórios para resolver o preview por tag." >&2
               exit 1
             fi
-            BASE_URL="https://sha-${EXPECTED_SHA}-${CF_WORKER_NAME}.${CF_WORKERS_SUBDOMAIN}.workers.dev"
-            SOURCE="Cloudflare SHA preview alias"
+
+            for attempt in $(seq 1 40); do
+              RESPONSE=$(curl --fail-with-body --silent --show-error \
+                --header "Authorization: Bearer ${CF_API_TOKEN}" \
+                --header 'Content-Type: application/json' \
+                "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CF_WORKER_NAME}/versions?per_page=50")
+
+              set +e
+              VERSION_ID=$(printf '%s' "$RESPONSE" | node scripts/resolve-cloudflare-worker-version-by-tag.mjs "$EXPECTED_SHA")
+              RESOLVE_STATUS=$?
+              set -e
+
+              if [[ "$RESOLVE_STATUS" -eq 0 && -n "$VERSION_ID" ]]; then
+                break
+              fi
+              if [[ "$RESOLVE_STATUS" -ne 2 ]]; then
+                echo "Falha ao interpretar versões Cloudflare para o SHA ${EXPECTED_SHA}." >&2
+                exit 1
+              fi
+              echo "Tentativa $attempt/40: versão com tag ${EXPECTED_SHA} ainda não publicada."
+              sleep 6
+            done
+
+            if [[ -z "$VERSION_ID" ]]; then
+              echo "Nenhuma versão Cloudflare com tag exata ${EXPECTED_SHA} foi encontrada." >&2
+              exit 1
+            fi
+
+            VERSION_PREFIX="${VERSION_ID:0:8}"
+            BASE_URL="https://${VERSION_PREFIX}-${CF_WORKER_NAME}.${CF_WORKERS_SUBDOMAIN}.workers.dev"
+            SOURCE="Cloudflare version tag match"
           fi
 
           BASE_URL="${BASE_URL%/}"
           echo "QA_BASE_URL=$BASE_URL" >> "$GITHUB_ENV"
           echo "QA_EXPECTED_SHA=$EXPECTED_SHA" >> "$GITHUB_ENV"
+          echo "QA_WORKER_VERSION_ID=$VERSION_ID" >> "$GITHUB_ENV"
           echo "base_url=$BASE_URL" >> "$GITHUB_OUTPUT"
           echo "source=$SOURCE" >> "$GITHUB_OUTPUT"
           echo "expected_sha=$EXPECTED_SHA" >> "$GITHUB_OUTPUT"
+          echo "version_id=$VERSION_ID" >> "$GITHUB_OUTPUT"
           echo "URL resolvida por: $SOURCE"
           echo "SHA esperado: $EXPECTED_SHA"
+          echo "Worker version: ${VERSION_ID:-external-target}"
           echo "URL de teste: $BASE_URL"
 
       - name: Wait for preview availability
         shell: bash
         run: |
           set -euo pipefail
-          for attempt in $(seq 1 40); do
+          for attempt in $(seq 1 20); do
             if scripts/check-qa-preview-health.sh "${QA_BASE_URL}/portal-login.html"; then
               exit 0
             fi
-            echo "Tentativa $attempt/40: preview do SHA ${QA_EXPECTED_SHA} ainda indisponível."
+            echo "Tentativa $attempt/20: preview ainda indisponível para version ${QA_WORKER_VERSION_ID:-external}."
             sleep 6
           done
-          echo "Preview do SHA não ficou disponível no tempo esperado: ${QA_BASE_URL}" >&2
+          echo "Preview não ficou disponível no tempo esperado: ${QA_BASE_URL}" >&2
           exit 1
 
       - name: Verify preview fidelity
         shell: bash
         run: |
           set -euo pipefail
-          expected_host="sha-${QA_EXPECTED_SHA}-${CF_WORKER_NAME}.${CF_WORKERS_SUBDOMAIN}.workers.dev"
           actual_host="$(node -e 'process.stdout.write(new URL(process.argv[1]).hostname)' "$QA_BASE_URL")"
-          if [[ "${{ steps.resolve-url.outputs.source }}" == "Cloudflare SHA preview alias" && "$actual_host" != "$expected_host" ]]; then
-            echo "Preview divergente: expected=${expected_host} actual=${actual_host}" >&2
-            exit 1
+          if [[ "${{ steps.resolve-url.outputs.source }}" == "Cloudflare version tag match" ]]; then
+            if [[ -z "${QA_WORKER_VERSION_ID:-}" ]]; then
+              echo "Version ID ausente para alvo resolvido por tag." >&2
+              exit 1
+            fi
+            expected_prefix="${QA_WORKER_VERSION_ID:0:8}"
+            expected_host="${expected_prefix}-${CF_WORKER_NAME}.${CF_WORKERS_SUBDOMAIN}.workers.dev"
+            if [[ "$actual_host" != "$expected_host" ]]; then
+              echo "Preview divergente: expected=${expected_host} actual=${actual_host}" >&2
+              exit 1
+            fi
           fi
-          echo "Preview fidelity: source=${{ steps.resolve-url.outputs.source }} sha=${QA_EXPECTED_SHA} host=${actual_host}"
+          echo "Preview fidelity: source=${{ steps.resolve-url.outputs.source }} sha=${QA_EXPECTED_SHA} version=${QA_WORKER_VERSION_ID:-external} host=${actual_host}"
 
       - name: Authenticate QA administrator
         env:
@@ -158,6 +198,7 @@ jobs:
             echo "- URL: \`${QA_BASE_URL:-não resolvida}\`"
             echo "- Origem: \`${{ steps.resolve-url.outputs.source }}\`"
             echo "- SHA esperado: \`${QA_EXPECTED_SHA:-não resolvido}\`"
+            echo "- Worker version: \`${QA_WORKER_VERSION_ID:-externo/não resolvido}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload staging evidence
