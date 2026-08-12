@@ -38,7 +38,7 @@ test('endpoints administrativos do Prontuário exigem admin e preservam contrato
   const pending=await api(db,'POST','/api/admin/premium/students/student-1/pending-items',{type:'CUSTOM',title:'Contato'}); assert.equal(pending.status,201);
   const resolved=await api(db,'PATCH',`/api/admin/premium/pending-items/${pending.body.data.id}/resolve`); assert.equal(resolved.body.data.status,'RESOLVED');
   const status=await api(db,'PATCH','/api/admin/premium/students/student-1/status',{status:'PAUSED'}); assert.equal(status.body.data.to,'PAUSED');
-  const decision=await api(db,'POST','/api/admin/premium/feedbacks/fb-1/decision',{decision_type:'KEEP_STRATEGY',note:'Manter'}); assert.equal(decision.body.data.decision_type,'KEEP_STRATEGY');
+  const decision=await api(db,'POST','/api/admin/premium/feedbacks/fb-1/decision',{decision_type:'KEEP_STRATEGY',note:'Manter',coach_reply:'Siga assim.'}); assert.equal(decision.body.data.feedback.decision_type,'KEEP_STRATEGY');
 }));
 
 
@@ -167,10 +167,43 @@ test('status e decisão profissional usam batch e não duplicam evolução em re
   let count = await db.prepare(`SELECT COUNT(*) AS total FROM premium_followup_entries WHERE student_id='student-1' AND entry_type='CONSULTATION_STATUS_CHANGE'`).first();
   assert.equal(count.total, 1);
 
-  const firstDecision = await api(db,'POST','/api/admin/premium/feedbacks/fb-1/decision',{decision_type:'KEEP_STRATEGY',note:'Manter'});
+  const firstDecision = await api(db,'POST','/api/admin/premium/feedbacks/fb-1/decision',{decision_type:'KEEP_STRATEGY',note:'Manter',coach_reply:'Siga assim.'});
   assert.equal(firstDecision.status, 200);
-  const retryDecision = await api(db,'POST','/api/admin/premium/feedbacks/fb-1/decision',{decision_type:'KEEP_STRATEGY',note:'Manter'});
+  const retryDecision = await api(db,'POST','/api/admin/premium/feedbacks/fb-1/decision',{decision_type:'KEEP_STRATEGY',note:'Manter',coach_reply:'Siga assim.'});
   assert.equal(retryDecision.body.data.unchanged, true);
   count = await db.prepare(`SELECT COUNT(*) AS total FROM premium_followup_entries WHERE student_id='student-1' AND entry_type='PROFESSIONAL_DECISION' AND related_entity_id='fb-1'`).first();
   assert.equal(count.total, 1);
+}));
+
+test('decisão canônica exige reply, confirma estado e rejeita retries divergentes sem mutação', async()=>withDb(async(db)=>{
+  for (const coach_reply of [undefined,null,'','   ']) {
+    const payload={decision_type:'UPDATE_PLAN',note:'  Ajustar plano  ',followup_at:'2026-08-20T12:00:00.000Z'};
+    if (coach_reply !== undefined) payload.coach_reply=coach_reply;
+    const response=await api(db,'POST','/api/admin/premium/weekly-feedbacks/fb-1/decision',payload);
+    assert.equal(response.status,400); assert.equal(response.body.code,'COACH_REPLY_REQUIRED');
+  }
+  assert.equal((await db.prepare(`SELECT COUNT(*) total FROM premium_followup_entries WHERE related_entity_id='fb-1' AND entry_type='PROFESSIONAL_DECISION'`).first()).total,0);
+  await db.prepare(`INSERT INTO premium_pending_items (id,student_id,type,title,status,priority,source,related_entity_type,related_entity_id,created_at,updated_at) VALUES ('analyze-fb-1','student-1','ANALYZE_WEEKLY_FEEDBACK','Analisar','OPEN','HIGH','test','student_checkins','fb-1','2026-08-12T00:00:00.000Z','2026-08-12T00:00:00.000Z')`).run();
+  const payload={decision_type:'UPDATE_PLAN',note:'  Ajustar plano  ',coach_reply:'  Vamos ajustar seu plano.  ',followup_at:'2026-08-20T12:00:00.000Z'};
+  const first=await api(db,'POST','/api/admin/premium/weekly-feedbacks/fb-1/decision',payload);
+  assert.equal(first.status,200); assert.equal(first.body.data.unchanged,false); assert.equal(first.body.data.pendingResolved,true);
+  assert.deepEqual(first.body.data.feedback,{...first.body.data.feedback,coach_status:'reviewed',coach_reply:'Vamos ajustar seu plano.',decision_type:'UPDATE_PLAN',decision_note:'Ajustar plano',followup_at:'2026-08-20T12:00:00.000Z'});
+  const persisted=await db.prepare(`SELECT coach_reply_at,reviewed_at,analyzed_at,decision_at,updated_at FROM student_checkins WHERE id='fb-1'`).first();
+  const resolved=(await db.prepare(`SELECT resolved_at FROM premium_pending_items WHERE id='analyze-fb-1'`).first()).resolved_at;
+  const retry=await api(db,'POST','/api/admin/premium/weekly-feedbacks/fb-1/decision',payload);
+  assert.equal(retry.status,200); assert.equal(retry.body.data.unchanged,true); assert.deepEqual(await db.prepare(`SELECT coach_reply_at,reviewed_at,analyzed_at,decision_at,updated_at FROM student_checkins WHERE id='fb-1'`).first(),persisted); assert.equal((await db.prepare(`SELECT resolved_at FROM premium_pending_items WHERE id='analyze-fb-1'`).first()).resolved_at,resolved);
+  for (const divergent of [{...payload,coach_reply:'Outra resposta'},{...payload,decision_type:'KEEP_STRATEGY'},{...payload,note:'Outro motivo'},{...payload,followup_at:null}]) {
+    const response=await api(db,'POST','/api/admin/premium/weekly-feedbacks/fb-1/decision',divergent);
+    assert.equal(response.status,409); assert.equal(response.body.code,'WEEKLY_FEEDBACK_ALREADY_REVIEWED');
+  }
+  const final=await db.prepare(`SELECT coach_reply,decision_type,decision_note,followup_at FROM student_checkins WHERE id='fb-1'`).first();
+  assert.deepEqual(final,{coach_reply:'Vamos ajustar seu plano.',decision_type:'UPDATE_PLAN',decision_note:'Ajustar plano',followup_at:'2026-08-20T12:00:00.000Z'});
+  assert.equal((await db.prepare(`SELECT COUNT(*) total FROM premium_followup_entries WHERE related_entity_id='fb-1' AND entry_type='PROFESSIONAL_DECISION'`).first()).total,1);
+  assert.equal((await db.prepare(`SELECT COUNT(*) total FROM premium_pending_items WHERE related_entity_id='fb-1' AND type='CREATE_NUTRITION_PLAN'`).first()).total,1);
+}));
+
+test('decisão canônica isola check-in não Premium', async()=>withDb(async(db)=>{
+  await db.prepare(`INSERT INTO student_checkins (id,student_id,student_email,week_ref,coach_status,submitted_at,created_at) VALUES ('project-checkin','project-student','project@example.com','2026-W30','pending','2026-08-01T00:00:00.000Z','2026-08-01T00:00:00.000Z')`).run();
+  const response=await api(db,'POST','/api/admin/premium/weekly-feedbacks/project-checkin/decision',{decision_type:'KEEP_STRATEGY',coach_reply:'Não persistir'});
+  assert.equal(response.status,404); assert.equal((await db.prepare(`SELECT coach_status FROM student_checkins WHERE id='project-checkin'`).first()).coach_status,'pending');
 }));

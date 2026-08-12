@@ -13,9 +13,11 @@ export function createD1WeeklyFeedbackRepository(db) {
       sc.weekly_weight, sc.waist, sc.strength_status, sc.main_difficulty, sc.routine_context,
       sc.weekly_score, sc.support_needed, sc.coach_status, sc.coach_reply, sc.coach_reply_at,
       sc.submitted_at, sc.available_at, sc.reviewed_at, sc.analyzed_at, sc.decision_type,
-      sc.decision_note, sc.followup_at, sc.created_at, sc.updated_at,
+      sc.decision_note, sc.decision_at, sc.followup_at, sc.created_at, sc.updated_at,
       COALESCE(sc.student_id, ${legacyStudentId}) AS student_id
-      FROM student_checkins sc WHERE sc.id = ? LIMIT 1`).bind(id).first(); },
+      FROM student_checkins sc WHERE sc.id = ?
+      AND EXISTS (SELECT 1 FROM premium_students ps WHERE ps.student_id=COALESCE(sc.student_id, ${legacyStudentId}))
+      LIMIT 1`).bind(id).first(); },
     async claimLegacyIdentity(id) {
       return changes(await db.prepare(`UPDATE student_checkins
         SET student_id=${storedLegacyStudentId}
