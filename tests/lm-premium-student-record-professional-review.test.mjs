@@ -21,6 +21,12 @@ test('F2.2.2 exposes exactly the four canonical professional decisions', () => {
   const values = [...match[1].matchAll(/([A-Z_]+):/g)].map((entry) => entry[1]);
   assert.deepEqual(values, ['KEEP_STRATEGY', 'UPDATE_PLAN', 'CONTACT_STUDENT', 'REQUEST_MORE_INFORMATION']);
   for (const invented of ['KEEP_PLAN', 'REQUEST_INFORMATION', 'OTHER', 'CUSTOM']) assert.equal(values.includes(invented), false);
+  assert.match(runtime, /decision\.required = true/);
+  assert.match(runtime, /textContent: 'Selecione a conduta'/);
+  assert.match(runtime, /decisionPlaceholder\.value = ''/);
+  assert.match(runtime, /decisionPlaceholder\.selected = true/);
+  assert.match(runtime, /decisionPlaceholder\.disabled = true/);
+  assert.equal(values.includes(''), false, 'the empty placeholder is not a domain decision');
 });
 
 test('F2.2.2 posts only the review command to the canonical opened-feedback endpoint', () => {
@@ -34,6 +40,9 @@ test('F2.2.2 posts only the review command to the canonical opened-feedback endp
 });
 
 test('F2.2.2 requires trimmed public feedback and protects the request from double submit', () => {
+  assert.match(runtime, /if \(!decision\.value\) \{ message\.textContent = 'Selecione a conduta profissional\.'/);
+  assert.match(runtime, /decision\.focus\?\.\(\); return;/);
+  assert.ok(runtime.indexOf('if (!decision.value)') < runtime.indexOf('await api(`/api/admin/premium/weekly-feedbacks/${encodeURIComponent(activeFeedbackId)}/decision`'), 'the empty-decision guard must run before the request');
   assert.match(runtime, /String\(reply\.value \|\| ''\)\.trim\(\)/);
   assert.match(runtime, /if \(!coachReply\)/);
   assert.match(runtime, /if \(reviewSubmitting \|\| activeFeedbackId !== feedback\.id \|\| feedback\.student_id !== lastStudent\.student_id\) return/);

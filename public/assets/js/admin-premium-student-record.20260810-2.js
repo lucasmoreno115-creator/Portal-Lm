@@ -292,6 +292,7 @@
     const form = el('form', { className: 'weekly-feedback-review-form' });
     form.setAttribute('aria-busy', 'false');
     const decision = el('select'); decision.name = 'decision_type'; decision.required = true;
+    const decisionPlaceholder = el('option', { textContent: 'Selecione a conduta' }); decisionPlaceholder.value = ''; decisionPlaceholder.selected = true; decisionPlaceholder.disabled = true; decision.append(decisionPlaceholder);
     Object.entries(decisionLabels).forEach(([value, label]) => { const option = el('option', { textContent: label }); option.value = value; decision.append(option); });
     const reply = el('textarea'); reply.name = 'coach_reply'; reply.required = true; reply.rows = 5;
     const note = el('textarea'); note.name = 'note'; note.rows = 3;
@@ -302,6 +303,7 @@
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (reviewSubmitting || activeFeedbackId !== feedback.id || feedback.student_id !== lastStudent.student_id) return;
+      if (!decision.value) { message.textContent = 'Selecione a conduta profissional.'; message.className = 'weekly-feedback-review-message error'; decision.focus?.(); return; }
       const coachReply = String(reply.value || '').trim();
       if (!coachReply) { message.textContent = 'Informe o feedback para o aluno.'; message.className = 'weekly-feedback-review-message error'; message.focus?.(); return; }
       reviewSubmitting = true; form.setAttribute('aria-busy', 'true'); submit.disabled = true; submit.textContent = 'Enviando...'; message.textContent = '';
