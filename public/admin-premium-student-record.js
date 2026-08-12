@@ -9,12 +9,15 @@
   let lastStudent = {};
   let activeFeedbackButton = null;
   let activeFeedbackId = null;
+  let reviewSubmitting = false;
   let temporaryAccessCredentials = null;
   const statusLabels = { NEW:'Novo', AWAITING_ANAMNESIS:'Aguardando anamnese', UNDER_REVIEW:'Em análise', READY_TO_RELEASE:'Pronto para liberação', ACTIVE:'Ativo', PAUSED:'Pausado', ENDED:'Encerrado' };
 
   const byId = (id) => document.getElementById(id);
   const fmt = (value) => value ? new Date(value).toLocaleString('pt-BR') : '—';
   const text = (value, empty = '—') => value == null || value === '' ? empty : String(value);
+  const analyzedCoachStatuses = new Set(['REVIEWED', 'REPLIED', 'ANALYZED', 'ANALISADO', 'ANALISADA']);
+  const decisionLabels = Object.freeze({ KEEP_STRATEGY:'Manter estratégia', UPDATE_PLAN:'Atualizar plano', CONTACT_STUDENT:'Entrar em contato', REQUEST_MORE_INFORMATION:'Solicitar mais informações' });
 
   function el(tag, { className, textContent, href, dataset } = {}, ...children) {
     const node = document.createElement(tag);
@@ -28,6 +31,16 @@
 
   function field(label, value) {
     return el('div', {}, el('strong', { textContent: label }), el('p', { textContent: text(value) }));
+  }
+
+  function labeledControl(labelText, control, description) {
+    const id = `weeklyFeedbackReview${control.name.replace(/(^|_)([a-z])/g, (_, prefix, letter) => letter.toUpperCase())}`;
+    control.id = id;
+    const label = el('label', { textContent: labelText });
+    label.setAttribute('for', id);
+    const wrapper = el('div', { className: 'weekly-feedback-review-field' }, label, control);
+    if (description) wrapper.append(el('p', { className: 'muted weekly-feedback-review-help', textContent: description }));
+    return wrapper;
   }
 
   function emptyState(title, meta, className = '') {
@@ -255,7 +268,60 @@
     button?.focus?.();
   }
 
-  function renderCheckinDetail(feedback) {
+  function renderProfessionalReview(feedback, previousDecision, successMessage = '') {
+    const section = el('section', { className: 'weekly-feedback-review' });
+    section.setAttribute('aria-labelledby', 'weeklyFeedbackReviewHeading');
+    const heading = el('h3', { textContent: 'Análise profissional' });
+    heading.id = 'weeklyFeedbackReviewHeading';
+    section.append(heading);
+    if (successMessage) {
+      const success = el('p', { className: 'weekly-feedback-review-message success', textContent: successMessage });
+      success.setAttribute('role', 'status'); success.setAttribute('tabindex', '-1'); section.append(success); success.focus?.();
+    }
+    const analyzed = analyzedCoachStatuses.has(String(feedback.coach_status || '').trim().toUpperCase());
+    if (analyzed) {
+      section.append(el('p', { className: 'badge', textContent: 'Análise concluída' }));
+      const decisionType = feedback.decision_type || previousDecision?.decision_type || null;
+      section.append(field('Conduta', decisionLabels[decisionType] || decisionType), field('Feedback enviado', feedback.coach_reply), field('Nota interna', feedback.decision_note || previousDecision?.content), field('Data da análise/resposta', fmt(feedback.reviewed_at || feedback.coach_reply_at)));
+      return section;
+    }
+    if (!feedback.submitted_at) {
+      section.append(el('p', { className: 'muted', textContent: 'Este check-in ainda não foi submetido pelo aluno. A análise profissional não está disponível.' }));
+      return section;
+    }
+    const form = el('form', { className: 'weekly-feedback-review-form' });
+    form.setAttribute('aria-busy', 'false');
+    const decision = el('select'); decision.name = 'decision_type'; decision.required = true;
+    const decisionPlaceholder = el('option', { textContent: 'Selecione a conduta' }); decisionPlaceholder.value = ''; decisionPlaceholder.selected = true; decisionPlaceholder.disabled = true; decision.append(decisionPlaceholder);
+    Object.entries(decisionLabels).forEach(([value, label]) => { const option = el('option', { textContent: label }); option.value = value; decision.append(option); });
+    const reply = el('textarea'); reply.name = 'coach_reply'; reply.required = true; reply.rows = 5;
+    const note = el('textarea'); note.name = 'note'; note.rows = 3;
+    const followup = el('input'); followup.name = 'followup_at'; followup.type = 'datetime-local';
+    const message = el('p', { className: 'weekly-feedback-review-message' }); message.setAttribute('role', 'status'); message.setAttribute('aria-live', 'polite'); message.setAttribute('tabindex', '-1');
+    const submit = el('button', { textContent: 'Enviar feedback e concluir análise' }); submit.type = 'submit';
+    form.append(labeledControl('Conduta', decision), labeledControl('Feedback para o aluno', reply, 'Esta mensagem ficará disponível para o aluno no Portal LM.'), labeledControl('Nota interna', note, 'Visível somente no acompanhamento profissional.'), labeledControl('Follow-up', followup, 'Metadado operacional opcional.'), submit, message);
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (reviewSubmitting || activeFeedbackId !== feedback.id || feedback.student_id !== lastStudent.student_id) return;
+      if (!decision.value) { message.textContent = 'Selecione a conduta profissional.'; message.className = 'weekly-feedback-review-message error'; decision.focus?.(); return; }
+      const coachReply = String(reply.value || '').trim();
+      if (!coachReply) { message.textContent = 'Informe o feedback para o aluno.'; message.className = 'weekly-feedback-review-message error'; message.focus?.(); return; }
+      reviewSubmitting = true; form.setAttribute('aria-busy', 'true'); submit.disabled = true; submit.textContent = 'Enviando...'; message.textContent = '';
+      try {
+        await api(`/api/admin/premium/weekly-feedbacks/${encodeURIComponent(activeFeedbackId)}/decision`, { method:'POST', body:JSON.stringify({ decision_type:decision.value, note:String(note.value || '').trim() || null, coach_reply:coachReply, followup_at:String(followup.value || '').trim() || null }) });
+        const detail = await api(`/api/admin/premium/weekly-feedbacks/${encodeURIComponent(activeFeedbackId)}`);
+        if (!detail?.feedback || detail.feedback.student_id !== lastStudent.student_id || detail.feedback.id !== activeFeedbackId) throw new Error('Não foi possível confirmar o check-in analisado.');
+        renderCheckinDetail(detail.feedback, detail.previousDecision, 'Feedback enviado e análise concluída.');
+        await load();
+      } catch (error) {
+        reviewSubmitting = false; form.setAttribute('aria-busy', 'false'); submit.disabled = false; submit.textContent = 'Enviar feedback e concluir análise'; message.textContent = error.message || 'Não foi possível concluir a análise.'; message.className = 'weekly-feedback-review-message error'; message.focus?.();
+      }
+    });
+    section.append(form);
+    return section;
+  }
+
+  function renderCheckinDetail(feedback, previousDecision = null, successMessage = '') {
     const answers = el('dl', { className: 'checkin-answers' });
     checkinFields.forEach(([label, key]) => answers.append(el('div', { className: 'checkin-answer' }, el('dt', { textContent: label }), el('dd', { textContent: text(feedback[key], 'Não informado') }))));
     const dates = el('dl', { className: 'checkin-answers' },
@@ -267,7 +333,7 @@
     byId('checkinDetail').replaceChildren(
       field('Semana de referência', text(feedback.week_ref, 'Não informado')),
       field('Status profissional', text(feedback.coach_status, 'Pendente')),
-      answers, el('h3', { textContent: 'Datas relevantes' }), dates
+      answers, el('h3', { textContent: 'Datas relevantes' }), dates, renderProfessionalReview(feedback, previousDecision, successMessage)
     );
   }
 
@@ -282,7 +348,8 @@
       if (activeFeedbackId !== id) return;
       const feedback = detail?.feedback;
       if (!feedback || feedback.student_id !== lastStudent.student_id) throw new Error('Este check-in não pertence ao aluno aberto no prontuário.');
-      renderCheckinDetail(feedback);
+      reviewSubmitting = false;
+      renderCheckinDetail(feedback, detail.previousDecision);
     } catch (error) {
       if (activeFeedbackId !== id) return;
       const retry = el('button', { textContent: 'Tentar novamente', dataset: { retryCheckin: id } });
