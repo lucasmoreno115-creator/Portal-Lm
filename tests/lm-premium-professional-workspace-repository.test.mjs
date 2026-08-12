@@ -44,6 +44,27 @@ test('summary uses current operational week instead of all feedback history', as
   assert.equal(summary.studentsWithoutResponse,2);
 }));
 
+test('explicit pending-items queue filters, counts and orders before its limit with Premium isolation', async()=>withDb(async(db,repo)=>{
+  await db.prepare(`DELETE FROM premium_pending_items`).run();
+  const insert = (id, studentId, status, priority, createdAt, type='CUSTOM') => db.prepare(`INSERT INTO premium_pending_items(id,student_id,type,title,status,priority,source,created_at,updated_at) VALUES(?,?,?,?,?,?,'manual',?,?)`).bind(id,studentId,type,id,status,priority,createdAt,createdAt).run();
+  await insert('resolved-high','s1','RESOLVED','HIGH','2026-01-01');
+  await insert('dismissed-normal','s1','DISMISSED','NORMAL','2026-01-01');
+  await insert('project-high','p1','OPEN','HIGH','2025-01-01');
+  await insert('high-b','s1','OPEN','HIGH','2026-02-01');
+  await insert('high-a','s2','OPEN','HIGH','2026-02-01','ANALYZE_ANAMNESIS');
+  await insert('normal-old','s1','OPEN','NORMAL','2026-01-01');
+  for(let index=0;index<10;index++) await insert(`normal-${index}`,'s1','OPEN','NORMAL',`2026-03-${String(index+1).padStart(2,'0')}`);
+
+  const {pendingItems}=await repo.getOperationalDashboard();
+  assert.equal(pendingItems.open,13);
+  assert.equal(pendingItems.high,2);
+  assert.equal(pendingItems.items.length,12);
+  assert.deepEqual(pendingItems.items.slice(0,3).map(item=>item.id),['high-a','high-b','normal-old']);
+  assert.equal(pendingItems.items.every(item=>item.status==='OPEN'),true);
+  assert.equal(pendingItems.items.some(item=>item.student_id==='p1'),false);
+  assert.equal(pendingItems.items.length<=pendingItems.open,true);
+}));
+
 test('operational check-in queue is the same eligible submitted historical backlog for count and items', async()=>withDb(async(db,repo)=>{
   await db.prepare(`UPDATE premium_students SET consultation_status='PAUSED' WHERE student_id='s3'`).run();
   await db.prepare(`UPDATE premium_students SET consultation_status='ENDED' WHERE student_id='s4'`).run();
