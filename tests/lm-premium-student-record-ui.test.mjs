@@ -311,7 +311,7 @@ function createFakeDocument({ includeCareStatus = true, includePlanningObjective
     replaceChildren(...nodes) { this.children = nodes.filter(Boolean); this._text = ''; }
     setAttribute(name, value) { this.attributes[name] = String(value); }
     querySelector(selector) { if (selector === '[role="status"]') return this.children.find((child) => child.attributes?.role === 'status') || null; return null; }
-    addEventListener() {}
+    addEventListener(type, listener) { this.listeners ||= {}; this.listeners[type] = listener; }
     showModal() { this.open = true; }
     close() { this.open = false; }
     focus() { this.focused = true; }
