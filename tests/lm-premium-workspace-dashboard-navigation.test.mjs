@@ -16,10 +16,10 @@ class FakeNode {
 
 async function boot({ summaryFailure = false, reduceMotion = false, hasMatchMedia = true, ids } = {}) {
   const source = await readFile('public/admin-premium-workspace.js', 'utf8');
-  const nodes = new Map((ids || ['workspaceDashboard', 'anamnesisPendingCard', 'checkinsAnsweredCard', 'anamnesisPendingValue', 'anamnesisPendingHint', 'checkinsAnsweredValue', 'checkinsAnsweredHint', 'checkinsOpenValue', 'checkinsOpenHint', 'anamnesisOperationalPanel', 'anamnesisOperationalHeading', 'checkinsOperationalPanel', 'checkinsOperationalHeading', 'anamnesisDashboard', 'anamnesisItems', 'checkinDashboard', 'checkinItems', 'studentList', 'loadMore', 'error', 'errorText', 'adminLogoutBtn', 'studentsNav', 'students', 'overview']).map((id) => [id, new FakeNode(id)]));
+  const nodes = new Map((ids || ['workspaceDashboard', 'anamnesisPendingCard', 'checkinsAnsweredCard', 'anamnesisPendingValue', 'anamnesisPendingHint', 'checkinsAnsweredValue', 'checkinsAnsweredHint', 'checkinsOpenValue', 'checkinsOpenHint', 'anamnesisOperationalPanel', 'anamnesisOperationalHeading', 'onboardingQueue', 'onboardingQueueHeading', 'onboardingQueueList', 'onboardingQueueCount', 'underReviewQueueList', 'underReviewQueueCount', 'readyToReleaseQueueList', 'readyToReleaseQueueCount', 'checkinsOperationalPanel', 'checkinsOperationalHeading', 'anamnesisDashboard', 'anamnesisItems', 'checkinDashboard', 'checkinItems', 'studentList', 'loadMore', 'error', 'errorText', 'adminLogoutBtn', 'studentsNav', 'students', 'overview']).map((id) => [id, new FakeNode(id)]));
   const document = { getElementById: (id) => nodes.get(id) || null, createElement: (tag) => new FakeNode('', tag) };
   const timers = [];
-  const sandbox = { document, window: { location: { origin: 'https://portal.test', pathname: '/', assign() {} }, matchMedia: hasMatchMedia ? () => ({ matches: reduceMotion }) : undefined, scrollTo(options) { this.scrollOptions = options; }, LMAdminAuth: { requireAdmin: () => true, attachLogout() {}, getAdminAuthHeaders: () => ({}) } }, fetch: async (url) => new Response(JSON.stringify(summaryFailure && String(url).includes('/summary') ? { ok: false, error: 'indisponível' } : { ok: true, data: String(url).includes('/summary') ? { anamnesis: { awaiting: 2, underReview: 0, readyToRelease: 0, items: [] }, checkins: { awaitingReview: 3, withoutRecentResponse: null, items: [] } } : { items: [], nextCursor: null } }), { status: summaryFailure && String(url).includes('/summary') ? 500 : 200 }), URL, console: { info() {} }, setTimeout: (fn) => { timers.push(fn); return timers.length; }, clearTimeout() {}, encodeURIComponent, Promise, Array, String, Boolean };
+  const sandbox = { document, window: { location: { origin: 'https://portal.test', pathname: '/', assign() {} }, matchMedia: hasMatchMedia ? () => ({ matches: reduceMotion }) : undefined, scrollTo(options) { this.scrollOptions = options; }, LMAdminAuth: { requireAdmin: () => true, attachLogout() {}, getAdminAuthHeaders: () => ({}) } }, fetch: async (url) => new Response(JSON.stringify(summaryFailure && String(url).includes('/summary') ? { ok: false, error: 'indisponível' } : { ok: true, data: String(url).includes('/summary') ? { anamnesis: { awaiting: 2, underReview: 0, readyToRelease: 0, queues: { onboarding: [], underReview: [], readyToRelease: [] }, items: [] }, checkins: { awaitingReview: 3, withoutRecentResponse: null, items: [] } } : { items: [], nextCursor: null } }), { status: summaryFailure && String(url).includes('/summary') ? 500 : 200 }), URL, console: { info() {} }, setTimeout: (fn) => { timers.push(fn); return timers.length; }, clearTimeout() {}, encodeURIComponent, Promise, Array, String, Boolean };
   sandbox.window.window = sandbox.window;
   vm.runInNewContext(source, sandbox);
   await new Promise((resolve) => setImmediate(resolve));
@@ -33,32 +33,32 @@ test('navigable cards scroll, focus and temporarily highlight their official ope
   assert.equal(anamnesis.disabled, false);
   assert.equal(checkins.disabled, false);
   anamnesis.onclick();
-  assert.equal(nodes.get('anamnesisOperationalPanel').scrollOptions.behavior, 'smooth'); assert.equal(nodes.get('anamnesisOperationalPanel').scrollOptions.block, 'start');
-  assert.equal(nodes.get('anamnesisOperationalHeading').focusOptions.preventScroll, true);
-  assert.equal(nodes.get('anamnesisOperationalPanel').classNames.has('operational-panel-highlight'), true);
+  assert.equal(nodes.get('onboardingQueue').scrollOptions.behavior, 'smooth'); assert.equal(nodes.get('onboardingQueue').scrollOptions.block, 'start');
+  assert.equal(nodes.get('onboardingQueueHeading').focusOptions.preventScroll, true);
+  assert.equal(nodes.get('onboardingQueue').classNames.has('operational-panel-highlight'), true);
   checkins.onclick();
   assert.equal(nodes.get('checkinsOperationalPanel').scrollOptions.behavior, 'smooth'); assert.equal(nodes.get('checkinsOperationalPanel').scrollOptions.block, 'start');
   assert.equal(nodes.get('checkinsOperationalHeading').focusOptions.preventScroll, true);
   timers.forEach((timer) => timer());
-  assert.equal(nodes.get('anamnesisOperationalPanel').classNames.has('operational-panel-highlight'), false);
+  assert.equal(nodes.get('onboardingQueue').classNames.has('operational-panel-highlight'), false);
   assert.equal(nodes.get('checkinsOperationalPanel').classNames.has('operational-panel-highlight'), false);
 });
 
 test('operational navigation respects reduced motion and tolerates missing matchMedia', async () => {
   const reduced = await boot({ reduceMotion: true });
   reduced.nodes.get('anamnesisPendingCard').onclick();
-  assert.equal(reduced.nodes.get('anamnesisOperationalPanel').scrollOptions.behavior, 'auto');
-  assert.equal(reduced.nodes.get('anamnesisOperationalPanel').scrollOptions.block, 'start');
-  assert.equal(reduced.nodes.get('anamnesisOperationalHeading').focusOptions.preventScroll, true);
-  assert.equal(reduced.nodes.get('anamnesisOperationalPanel').classNames.has('operational-panel-highlight'), true);
+  assert.equal(reduced.nodes.get('onboardingQueue').scrollOptions.behavior, 'auto');
+  assert.equal(reduced.nodes.get('onboardingQueue').scrollOptions.block, 'start');
+  assert.equal(reduced.nodes.get('onboardingQueueHeading').focusOptions.preventScroll, true);
+  assert.equal(reduced.nodes.get('onboardingQueue').classNames.has('operational-panel-highlight'), true);
 
   const defaultMotion = await boot();
   defaultMotion.nodes.get('anamnesisPendingCard').onclick();
-  assert.equal(defaultMotion.nodes.get('anamnesisOperationalPanel').scrollOptions.behavior, 'smooth');
+  assert.equal(defaultMotion.nodes.get('onboardingQueue').scrollOptions.behavior, 'smooth');
 
   const withoutMatchMedia = await boot({ hasMatchMedia: false });
   assert.doesNotThrow(() => withoutMatchMedia.nodes.get('anamnesisPendingCard').onclick());
-  assert.equal(withoutMatchMedia.nodes.get('anamnesisOperationalPanel').scrollOptions.behavior, 'smooth');
+  assert.equal(withoutMatchMedia.nodes.get('onboardingQueue').scrollOptions.behavior, 'smooth');
 });
 
 test('cards remain inert during loading or summary error, and tolerate a partial dashboard DOM', async () => {
@@ -74,7 +74,7 @@ test('cards remain inert during loading or summary error, and tolerate a partial
 
 test('markup keeps native button keyboard semantics and does not give check-ins open a false destination', async () => {
   const html = await readFile('public/admin-premium-workspace.html', 'utf8');
-  assert.match(html, /<button id="anamnesisPendingCard"[\s\S]*?type="button"[\s\S]*?aria-label="Ver anamneses pendentes no painel operacional"/);
+  assert.match(html, /<button id="anamnesisPendingCard"[\s\S]*?type="button"[\s\S]*?aria-label="Ver alunos aguardando anamnese"/);
   assert.match(html, /<button id="checkinsAnsweredCard"[\s\S]*?type="button"[\s\S]*?aria-label="Ver check-ins respondidos no painel operacional"/);
   assert.match(html, /data-dashboard-card="checkins-open" aria-disabled="true"[\s\S]*?id="checkinsOpenHint"[^>]*>Carregando/);
   assert.match(html, /id="anamnesisOperationalPanel"[\s\S]*?id="anamnesisOperationalHeading" tabindex="-1"/);

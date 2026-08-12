@@ -11,7 +11,7 @@ test('minimal Workspace exposes only validated operational surface', async () =>
     /<button id="openCreate">Cadastrar aluno<\/button>/,
     /<button id="refresh">Atualizar<\/button>/,
     /<section class="workspace-dashboard" aria-labelledby="workspaceDashboardHeading">/,
-    /<article class="workspace-dashboard-card" data-dashboard-card="anamnesis-pending">[\s\S]*?Anamneses pendentes/,
+    /<article class="workspace-dashboard-card" data-dashboard-card="anamnesis-pending">[\s\S]*?Aguardando anamnese/,
     /<article class="workspace-dashboard-card" data-dashboard-card="checkins-answered">[\s\S]*?Check-ins respondidos/,
     /<article(?=[^>]*class="[^"]*\bworkspace-dashboard-card\b[^"]*")(?=[^>]*data-dashboard-card="checkins-open")(?=[^>]*(?:aria-disabled="true"|class="[^"]*\bis-unavailable\b[^"]*"))[^>]*>[\s\S]*?Check-ins em aberto/,
     /<section id="students" class="panel">[\s\S]*?<h2>Alunos Premium<\/h2>/
