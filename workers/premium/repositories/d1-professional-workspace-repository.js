@@ -18,6 +18,8 @@ const IDENTITY_BRIDGE_CTE = `WITH identity_bridge AS (
 function logIdentity(row) { if (row) console.info(`IDENTITY_SOURCE=${row.source || 'premium'} IDENTITY_MODE=${row.identity_mode || 'student_id'}`); }
 function isSaturdayInSaoPaulo(now) { return new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short' }).format(now) === 'Sat'; }
 const ANALYZED = "upper(coalesce(coach_status,'')) IN ('REVIEWED','REPLIED','ANALYZED','ANALISADO','ANALISADA')";
+const OPEN_CHECKIN_BACKLOG = `ib.consultation_status NOT IN ('PAUSED','ENDED') AND sc.submitted_at IS NOT NULL AND NOT (${ANALYZED})`;
+const OPERATIONAL_STUDENT_ORDER = "CASE ib.consultation_status WHEN 'READY_TO_RELEASE' THEN 0 WHEN 'UNDER_REVIEW' THEN 1 WHEN 'AWAITING_ANAMNESIS' THEN 2 WHEN 'NEW' THEN 2 WHEN 'ACTIVE' THEN 3 ELSE 4 END";
 const NEXT_PENDING_ORDER = "ORDER BY CASE priority WHEN 'HIGH' THEN 0 WHEN 'NORMAL' THEN 1 ELSE 2 END, datetime(created_at) ASC, id ASC LIMIT 1";
 const ANAMNESIS_MATCH = "(pa.student_id=__SID__ OR lower(trim(pa.student_email))=ib.normalized_email)";
 const NEXT_PENDING_SELECT = `
@@ -55,16 +57,17 @@ export function createD1ProfessionalWorkspaceRepository(db, { scheduleService } 
     // policy is not established in the domain, so it intentionally remains null.
     async getOperationalDashboard() {
       const sid = "coalesce(ib.student_id,'__email_bridge__')";
-      const [awaiting, received, ready, awaitingCheckins, result] = await Promise.all([
+      const [awaiting, received, ready, awaitingCheckins, backlogCheckins, result] = await Promise.all([
         db.prepare(IDENTITY_BRIDGE_CTE + " SELECT COUNT(DISTINCT ib.id) total FROM identity_bridge ib WHERE ib.consultation_status IN ('NEW','AWAITING_ANAMNESIS')").first(),
         db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(DISTINCT ib.id) total FROM identity_bridge ib WHERE ib.consultation_status='UNDER_REVIEW' AND EXISTS (SELECT 1 FROM premium_anamnesis pa WHERE ${ANAMNESIS_MATCH.replaceAll('__SID__', sid)})`).first(),
         db.prepare(IDENTITY_BRIDGE_CTE + " SELECT COUNT(DISTINCT ib.id) total FROM identity_bridge ib WHERE ib.consultation_status='READY_TO_RELEASE'").first(),
-        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(DISTINCT sc.id) total FROM student_checkins sc JOIN identity_bridge ib ON (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) WHERE ib.consultation_status NOT IN ('PAUSED','ENDED') AND NOT (${ANALYZED})`).first(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(DISTINCT sc.id) total FROM student_checkins sc JOIN identity_bridge ib ON (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) WHERE ${OPEN_CHECKIN_BACKLOG}`).first(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT ib.id,ib.id student_id,ib.email,ib.name,ib.consultation_status,ib.access_status,ib.created_at,ib.whatsapp phone,ib.portal_access_status,ib.source,ib.identity_mode,sc.id checkin_id,sc.submitted_at,sc.created_at checkin_created_at,'AWAITING_ANALYSIS' weekly_feedback_status FROM student_checkins sc JOIN identity_bridge ib ON (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) WHERE ${OPEN_CHECKIN_BACKLOG} GROUP BY sc.id ORDER BY ${OPERATIONAL_STUDENT_ORDER}, datetime(coalesce(sc.submitted_at,sc.created_at)) ASC, lower(coalesce(ib.name,ib.email)) ASC, sc.id ASC LIMIT 12`).all(),
         this.listStudents({ limit: 12 }),
       ]);
       const priority = (s) => ({ READY_TO_RELEASE: 0, UNDER_REVIEW: 1, AWAITING_ANAMNESIS: 2, NEW: 2, ACTIVE: 3 }[s.consultation_status] ?? 4);
       const items = result.items.sort((a, b) => priority(a) - priority(b) || String(b.last_activity_at || '').localeCompare(String(a.last_activity_at || '')));
-      return { anamnesis: { awaiting: awaiting?.total || 0, underReview: received?.total || 0, readyToRelease: ready?.total || 0, items }, checkins: { awaitingReview: awaitingCheckins?.total || 0, withoutRecentResponse: null, items: items.filter((s) => s.weekly_feedback_status === 'AWAITING_ANALYSIS') } };
+      return { anamnesis: { awaiting: awaiting?.total || 0, underReview: received?.total || 0, readyToRelease: ready?.total || 0, items }, checkins: { awaitingReview: awaitingCheckins?.total || 0, withoutRecentResponse: null, items: rows(backlogCheckins) } };
     },
     async listStudents(filters = {}) {
       const limit = clampLimit(filters.limit, 25); const offsetValue = offset(filters.cursor); const { where, params } = mapFilters(filters); const weekRef = weekRefFor(filters.now ? new Date(filters.now) : new Date());
