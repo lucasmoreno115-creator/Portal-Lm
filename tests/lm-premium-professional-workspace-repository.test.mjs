@@ -89,6 +89,46 @@ test('check-in backlog filters and orders before its operational limit', async()
   assert.equal(dashboard.checkins.items.some((item)=>item.checkin_id==='checkin-release'),true);
 }));
 
+test('anamnesis lifecycle queues preserve predicates, ordering, limits, projection and Premium isolation', async()=>withDb(async(db,repo)=>{
+  await db.prepare(`DELETE FROM premium_students`).run();
+  await db.prepare(`DELETE FROM student_access`).run();
+  await db.prepare(`DELETE FROM premium_anamnesis`).run();
+  const states=['NEW','AWAITING_ANAMNESIS','UNDER_REVIEW','READY_TO_RELEASE','ACTIVE','PAUSED','ENDED'];
+  for(const [index,status] of states.entries()){
+    const id=`state-${status.toLowerCase()}`; const email=`${id}@example.com`;
+    await db.prepare(`INSERT INTO premium_students(student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES(?,?,?,?,?,'ACTIVE','TEST',?,?)`).bind(id,email,email,`State ${status}`,status,`2026-07-${String(index+2).padStart(2,'0')}`,`2026-07-${String(index+2).padStart(2,'0')}`).run();
+  }
+  await db.prepare(`INSERT INTO premium_students(student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES('review-without','review-without@example.com','review-without@example.com','Review without','UNDER_REVIEW','ACTIVE','TEST','2026-07-20','2026-07-20')`).run();
+  await db.prepare(`INSERT INTO premium_anamnesis(id,student_id,student_email,status,created_at,updated_at) VALUES('review-anam','state-under_review','state-under_review@example.com','RECEBIDA','2026-07-10','2026-07-10')`).run();
+  await db.prepare(`INSERT INTO student_access(id,name,email,status,plan_type,plan,student_id,created_at) VALUES('project-only','Projeto LM','project-only@example.com','ACTIVE','PROJECT_LM','projeto_lm','project-only','2026-07-01')`).run();
+
+  const dashboard=await repo.getOperationalDashboard(); const {anamnesis}=dashboard;
+  assert.deepEqual(anamnesis.queues.onboarding.map(x=>x.consultation_status),['NEW','AWAITING_ANAMNESIS']);
+  assert.deepEqual(anamnesis.queues.underReview.map(x=>x.student_id),['state-under_review']);
+  assert.deepEqual(anamnesis.queues.readyToRelease.map(x=>x.student_id),['state-ready_to_release']);
+  assert.equal(Object.values(anamnesis.queues).flat().some(x=>['ACTIVE','PAUSED','ENDED'].includes(x.consultation_status)||x.email==='project-only@example.com'),false);
+  assert.deepEqual(anamnesis.items.map(x=>x.consultation_status),['READY_TO_RELEASE','UNDER_REVIEW','NEW','AWAITING_ANAMNESIS']);
+  assert.equal(anamnesis.queues.onboarding.length<=anamnesis.awaiting,true);
+  assert.equal(anamnesis.queues.underReview.length<=anamnesis.underReview,true);
+  assert.equal(anamnesis.queues.readyToRelease.length<=anamnesis.readyToRelease,true);
+  for(const field of ['awaiting','underReview','readyToRelease','queues','items']) assert.equal(Object.hasOwn(anamnesis,field),true);
+  assert.equal(dashboard.checkins.withoutRecentResponse,null);
+}));
+
+test('anamnesis queues filter and order before their per-queue operational limit', async()=>withDb(async(db,repo)=>{
+  await db.prepare(`DELETE FROM premium_students`).run(); await db.prepare(`DELETE FROM student_access`).run();
+  for(let index=0;index<13;index++){
+    const id=`onboarding-${index}`; const email=`${id}@example.com`; const name=index===0?'Zulu relevant':`Alpha ${index}`;
+    await db.prepare(`INSERT INTO premium_students(student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES(?,?,?,?,'NEW','ACTIVE','TEST',?,?)`).bind(id,email,email,name,index===0?'2026-01-01':`2026-07-${String(index+1).padStart(2,'0')}`,index===0?'2026-01-01':'2026-07-01').run();
+  }
+  for(let index=0;index<20;index++) await db.prepare(`INSERT INTO premium_students(student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES(?,?,?,?,'ACTIVE','ACTIVE','TEST','2025-01-01','2025-01-01')`).bind(`active-noise-${index}`,`active-noise-${index}@example.com`,`active-noise-${index}@example.com`,`A noise ${index}`).run();
+  const dashboard=await repo.getOperationalDashboard();
+  assert.equal(dashboard.anamnesis.awaiting,13);
+  assert.equal(dashboard.anamnesis.queues.onboarding.length,12);
+  assert.equal(dashboard.anamnesis.queues.onboarding[0].student_id,'onboarding-0');
+  assert.equal(dashboard.anamnesis.queues.onboarding.some(x=>x.consultation_status==='ACTIVE'),false);
+}));
+
 test('historical backlog ignores week changes while weekly indicator remains week-scoped', async()=>withDb(async(_db,repo)=>{
   const dashboardBefore=await repo.getOperationalDashboard();
   const dashboardAfter=await repo.getOperationalDashboard();
