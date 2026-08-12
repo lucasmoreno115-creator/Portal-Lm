@@ -8,14 +8,14 @@ import { createD1ProfessionalWorkspaceRepository } from '../workers/premium/repo
 import { createWeeklyFeedbackScheduleService } from '../workers/premium/services/weekly-feedback-schedule-service.js';
 
 async function withDb(fn){const dir=await mkdtemp(join(tmpdir(),'workspace-repo-'));const db=new SqliteD1(join(dir,'test.db'));let testError;try{await schema(db);await seed(db);await fn(db,createD1ProfessionalWorkspaceRepository(db,{scheduleService:createWeeklyFeedbackScheduleService()}));}catch(error){testError=error;throw error;}finally{try{db.close();}catch(closeError){if(!testError)throw closeError;}await rm(dir,{recursive:true,force:true});}}
-async function schema(db){for(const sql of [`CREATE TABLE premium_students(student_id TEXT PRIMARY KEY,email TEXT,normalized_email TEXT,display_name TEXT,consultation_status TEXT,access_status TEXT,source TEXT,created_at TEXT,updated_at TEXT)`,`CREATE TABLE student_access(id TEXT PRIMARY KEY,name TEXT,email TEXT,whatsapp TEXT,status TEXT,plan_type TEXT,plan TEXT,student_id TEXT,created_at TEXT)`,`CREATE TABLE premium_pending_items(id TEXT PRIMARY KEY,student_id TEXT,type TEXT,title TEXT,description TEXT,status TEXT,priority TEXT,source TEXT,related_entity_type TEXT,related_entity_id TEXT,due_at TEXT,resolved_at TEXT,created_by TEXT,created_at TEXT,updated_at TEXT)`,`CREATE TABLE student_checkins(id TEXT PRIMARY KEY,student_id TEXT,student_email TEXT,week_ref TEXT,coach_status TEXT,decision_type TEXT,coach_reply TEXT,reviewed_at TEXT,created_at TEXT)`,`CREATE TABLE nutrition_plans(id TEXT PRIMARY KEY,student_id TEXT,student_email TEXT,title TEXT,goal TEXT,status TEXT,is_active INTEGER,version_number INTEGER,published_at TEXT,source_feedback_id TEXT,updated_at TEXT)`,`CREATE TABLE premium_anamnesis(id TEXT PRIMARY KEY,student_id TEXT,student_email TEXT,status TEXT,created_at TEXT,updated_at TEXT)`,`CREATE TABLE premium_followup_entries(id TEXT PRIMARY KEY,student_id TEXT,entry_type TEXT,title TEXT,content TEXT,source TEXT,related_entity_type TEXT,related_entity_id TEXT,created_by TEXT,created_at TEXT,updated_at TEXT)`]) await db.prepare(sql).run();}
+async function schema(db){for(const sql of [`CREATE TABLE premium_students(student_id TEXT PRIMARY KEY,email TEXT,normalized_email TEXT,display_name TEXT,consultation_status TEXT,access_status TEXT,source TEXT,created_at TEXT,updated_at TEXT)`,`CREATE TABLE student_access(id TEXT PRIMARY KEY,name TEXT,email TEXT,whatsapp TEXT,status TEXT,plan_type TEXT,plan TEXT,student_id TEXT,created_at TEXT)`,`CREATE TABLE premium_pending_items(id TEXT PRIMARY KEY,student_id TEXT,type TEXT,title TEXT,description TEXT,status TEXT,priority TEXT,source TEXT,related_entity_type TEXT,related_entity_id TEXT,due_at TEXT,resolved_at TEXT,created_by TEXT,created_at TEXT,updated_at TEXT)`,`CREATE TABLE student_checkins(id TEXT PRIMARY KEY,student_id TEXT,student_email TEXT,week_ref TEXT,coach_status TEXT,decision_type TEXT,coach_reply TEXT,reviewed_at TEXT,submitted_at TEXT,created_at TEXT)`,`CREATE TABLE nutrition_plans(id TEXT PRIMARY KEY,student_id TEXT,student_email TEXT,title TEXT,goal TEXT,status TEXT,is_active INTEGER,version_number INTEGER,published_at TEXT,source_feedback_id TEXT,updated_at TEXT)`,`CREATE TABLE premium_anamnesis(id TEXT PRIMARY KEY,student_id TEXT,student_email TEXT,status TEXT,created_at TEXT,updated_at TEXT)`,`CREATE TABLE premium_followup_entries(id TEXT PRIMARY KEY,student_id TEXT,entry_type TEXT,title TEXT,content TEXT,source TEXT,related_entity_type TEXT,related_entity_id TEXT,created_by TEXT,created_at TEXT,updated_at TEXT)`]) await db.prepare(sql).run();}
 async function seed(db){
   const students=[['s1','ana@example.com','Ana Maria','ACTIVE','5511999988888'],['s2','bruno_pipe@example.com','Bruno | Pipe','ACTIVE','5511888877777'],['s3','carla@example.com','Carla Percent % _','UNDER_REVIEW','5511777766666'],['s4','old@example.com','Histórico Antigo','ACTIVE','5511666655555'],['p1','projeto@example.com','Projeto LM','ACTIVE','5511555544444']];
   for(const [id,email,name,status,phone] of students){await db.prepare(`INSERT INTO premium_students(student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES(?,?,?,?,?,'ACTIVE','TEST','2026-07-01','2026-07-01')`).bind(id,email,email,name,status).run();await db.prepare(`INSERT INTO student_access(id,name,email,whatsapp,status,plan_type,plan,student_id,created_at) VALUES(?,?,?,?,?,?,?,?,?)`).bind(`a-${id}`,name,email,phone,'ACTIVE',id==='p1'?'PROJECT_LM':'PREMIUM',id==='p1'?'projeto_lm':'premium',id,'2026-07-01').run();}
   await db.prepare(`DELETE FROM premium_students WHERE student_id='p1'`).run();
-  await db.prepare(`INSERT INTO student_checkins(id,student_id,student_email,week_ref,coach_status,created_at) VALUES('old-fb','s4','old@example.com','2026-W28',NULL,'2026-07-10')`).run();
-  await db.prepare(`INSERT INTO student_checkins(id,student_id,student_email,week_ref,coach_status,created_at) VALUES('current-open','s1','ana@example.com','2026-W29',NULL,'2026-07-18')`).run();
-  await db.prepare(`INSERT INTO student_checkins(id,student_id,student_email,week_ref,coach_status,reviewed_at,created_at) VALUES('current-reviewed','s2','bruno_pipe@example.com','2026-W29','REVIEWED','2026-07-18T12:00:00Z','2026-07-18')`).run();
+  await db.prepare(`INSERT INTO student_checkins(id,student_id,student_email,week_ref,coach_status,submitted_at,created_at) VALUES('old-fb','s4','old@example.com','2026-W28',NULL,'2026-07-10','2026-07-10')`).run();
+  await db.prepare(`INSERT INTO student_checkins(id,student_id,student_email,week_ref,coach_status,submitted_at,created_at) VALUES('current-open','s1','ana@example.com','2026-W29',NULL,'2026-07-18','2026-07-18')`).run();
+  await db.prepare(`INSERT INTO student_checkins(id,student_id,student_email,week_ref,coach_status,reviewed_at,submitted_at,created_at) VALUES('current-reviewed','s2','bruno_pipe@example.com','2026-W29','REVIEWED','2026-07-18T12:00:00Z','2026-07-18','2026-07-18')`).run();
   await db.prepare(`INSERT INTO premium_pending_items(id,student_id,type,title,description,status,priority,source,related_entity_type,related_entity_id,created_at,updated_at) VALUES('pend-special','s2','MANUAL','Título com | barra "aspas"','Linha 1
 <script>alert(1)</script>','OPEN','HIGH','manual',NULL,NULL,'2026-07-14','2026-07-14')`).run();
   await db.prepare(`INSERT INTO premium_pending_items(id,student_id,type,title,description,status,priority,source,related_entity_type,related_entity_id,created_at,updated_at) VALUES('decision-plan','s1','CREATE_NUTRITION_PLAN','Atualizar plano','Criada por conduta','OPEN','NORMAL','professional_decision','student_checkins','current-open','2026-07-18','2026-07-18')`).run();
@@ -42,6 +42,60 @@ test('summary uses current operational week instead of all feedback history', as
   assert.equal(summary.weekRef,'2026-W29');
   assert.equal(summary.feedbacksAwaitingAnalysis,1);
   assert.equal(summary.studentsWithoutResponse,2);
+}));
+
+test('operational check-in queue is the same eligible submitted historical backlog for count and items', async()=>withDb(async(db,repo)=>{
+  await db.prepare(`UPDATE premium_students SET consultation_status='PAUSED' WHERE student_id='s3'`).run();
+  await db.prepare(`UPDATE premium_students SET consultation_status='ENDED' WHERE student_id='s4'`).run();
+  await db.prepare(`INSERT INTO student_checkins(id,student_id,student_email,week_ref,coach_status,submitted_at,created_at) VALUES
+    ('previous-open','s2','bruno_pipe@example.com','2026-W28','pending','2026-07-11','2026-07-11'),
+    ('paused-open','s3','carla@example.com','2026-W29','pending','2026-07-18','2026-07-18'),
+    ('ended-open','s4','old@example.com','2026-W29','pending','2026-07-18','2026-07-18'),
+    ('project-open','p1','projeto@example.com','2026-W29','pending','2026-07-18','2026-07-18'),
+    ('not-submitted','s1','ana@example.com','2026-W27','pending',NULL,'2026-07-04')`).run();
+  const dashboard=await repo.getOperationalDashboard();
+  assert.equal(dashboard.checkins.awaitingReview,2);
+  assert.deepEqual(new Set(dashboard.checkins.items.map((item)=>item.checkin_id)),new Set(['current-open','previous-open']));
+  assert.equal(dashboard.checkins.items.length<=dashboard.checkins.awaitingReview,true);
+  assert.equal(dashboard.checkins.items.every((item)=>item.submitted_at&&item.weekly_feedback_status==='AWAITING_ANALYSIS'&&!['PAUSED','ENDED'].includes(item.consultation_status)),true);
+  assert.equal(dashboard.checkins.items.some((item)=>item.email==='projeto@example.com'),false);
+  assert.equal(dashboard.checkins.withoutRecentResponse,null);
+}));
+
+test('all recognized analyzed statuses stay out of the historical check-in backlog', async()=>withDb(async(db,repo)=>{
+  await db.prepare(`DELETE FROM student_checkins`).run();
+  for(const [index,status] of ['REVIEWED','REPLIED','ANALYZED','ANALISADO','ANALISADA'].entries()) await db.prepare(`INSERT INTO student_checkins(id,student_id,student_email,week_ref,coach_status,submitted_at,created_at) VALUES(?,?,?,?,?,'2026-07-18','2026-07-18')`).bind(`analyzed-${index}`,'s1','ana@example.com','2026-W29',status).run();
+  await db.prepare(`INSERT INTO student_checkins(id,student_id,student_email,week_ref,coach_status,submitted_at,created_at) VALUES('still-open','s2','bruno_pipe@example.com','2026-W20','responded','2026-05-15','2026-05-15')`).run();
+  const dashboard=await repo.getOperationalDashboard();
+  assert.equal(dashboard.checkins.awaitingReview,1);
+  assert.deepEqual(dashboard.checkins.items.map((item)=>item.checkin_id),['still-open']);
+}));
+
+test('check-in backlog filters and orders before its operational limit', async()=>withDb(async(db,repo)=>{
+  await db.prepare(`DELETE FROM student_checkins`).run();
+  await db.prepare(`DELETE FROM premium_students`).run();
+  await db.prepare(`DELETE FROM student_access`).run();
+  for(let index=0;index<12;index++){
+    const id=`active-${index}`; const email=`${id}@example.com`; const name=String.fromCharCode(65+index);
+    await db.prepare(`INSERT INTO premium_students(student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES(?,?,?,?,'ACTIVE','ACTIVE','TEST','2026-07-01','2026-07-01')`).bind(id,email,email,name).run();
+    await db.prepare(`INSERT INTO student_checkins(id,student_id,student_email,week_ref,coach_status,submitted_at,created_at) VALUES(?,?,?,'2026-W20','pending','2026-05-15','2026-05-15')`).bind(`checkin-${id}`,id,email).run();
+  }
+  await db.prepare(`INSERT INTO premium_students(student_id,email,normalized_email,display_name,consultation_status,access_status,source,created_at,updated_at) VALUES('release','z@example.com','z@example.com','Z','READY_TO_RELEASE','ACTIVE','TEST','2026-07-01','2026-07-01')`).run();
+  await db.prepare(`INSERT INTO student_checkins(id,student_id,student_email,week_ref,coach_status,submitted_at,created_at) VALUES('checkin-release','release','z@example.com','2026-W20','pending','2026-05-15','2026-05-15')`).run();
+  const dashboard=await repo.getOperationalDashboard();
+  assert.equal(dashboard.checkins.awaitingReview,13);
+  assert.equal(dashboard.checkins.items.length,12);
+  assert.equal(dashboard.checkins.items[0].checkin_id,'checkin-release');
+  assert.equal(dashboard.checkins.items.some((item)=>item.checkin_id==='checkin-release'),true);
+}));
+
+test('historical backlog ignores week changes while weekly indicator remains week-scoped', async()=>withDb(async(_db,repo)=>{
+  const dashboardBefore=await repo.getOperationalDashboard();
+  const dashboardAfter=await repo.getOperationalDashboard();
+  assert.deepEqual(dashboardAfter.checkins,dashboardBefore.checkins);
+  assert.equal(dashboardBefore.checkins.items.some((item)=>item.checkin_id==='old-fb'),true);
+  assert.equal((await repo.getSummary({now:new Date('2026-07-18T15:00:00Z')})).feedbacksAwaitingAnalysis,1);
+  assert.equal((await repo.getSummary({now:new Date('2026-07-25T15:00:00Z')})).feedbacksAwaitingAnalysis,0);
 }));
 
 test('saturday review returns real current-week lists and excludes Projeto LM', async()=>withDb(async(_db,repo)=>{
