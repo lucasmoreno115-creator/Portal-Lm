@@ -2052,7 +2052,7 @@ export default {
           const body = await safeJson(request);
           const premiumApp = createPremiumApplication(env, request);
           const result = await premiumApp.recordProfessionalDecision({ feedback_id: id, decision_type: body?.decision_type, note: nullableTrimmed(body?.note), coach_reply: nullableTrimmed(body?.coach_reply), followup_at: nullableTrimmed(body?.followup_at), created_by: request.headers.get('x-admin-user') || 'admin' });
-          return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
+          return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error, code: result.code }, result.status || 200);
         }
 
         if (url.pathname === '/api/admin/command-center' && method === 'GET') {

@@ -126,8 +126,8 @@ test('RC1 E2E aplica migrations reais e exercita repositories/use cases dos Buil
   assert.equal(scalar(d.sqlite, "SELECT COUNT(*) total FROM premium_pending_items WHERE type='ANALYZE_WEEKLY_FEEDBACK' AND status='OPEN'").total, 1);
 
   const recordDecision = createRecordProfessionalDecisionUseCase({ weeklyFeedbackRepository: d.weeklyFeedbackRepository, followupEntryRepository: d.followupEntryRepository, pendingItemRepository: d.pendingItemRepository, db: d.db, randomUUID: d.randomUUID });
-  assert.equal((await recordDecision({ feedback_id: 'feedback-1', decision_type: 'UPDATE_PLAN', note: 'Atualizar plano', created_by: 'admin' })).ok, true);
-  assert.equal((await recordDecision({ feedback_id: 'feedback-1', decision_type: 'UPDATE_PLAN', note: 'Retry decisão', created_by: 'admin' })).data.unchanged, true);
+  assert.equal((await recordDecision({ feedback_id: 'feedback-1', decision_type: 'UPDATE_PLAN', note: 'Atualizar plano', coach_reply: 'Vamos atualizar sua estratégia.', created_by: 'admin' })).ok, true);
+  assert.equal((await recordDecision({ feedback_id: 'feedback-1', decision_type: 'UPDATE_PLAN', note: 'Atualizar plano', coach_reply: 'Vamos atualizar sua estratégia.', created_by: 'admin' })).data.unchanged, true);
   assert.equal(scalar(d.sqlite, "SELECT COUNT(*) total FROM premium_followup_entries WHERE entry_type='PROFESSIONAL_DECISION' AND related_entity_id='feedback-1'").total, 1);
   assert.equal(scalar(d.sqlite, "SELECT COUNT(*) total FROM premium_pending_items WHERE type='ANALYZE_WEEKLY_FEEDBACK' AND status='OPEN'").total, 0);
   assert.equal(scalar(d.sqlite, "SELECT COUNT(*) total FROM premium_pending_items WHERE type='CREATE_NUTRITION_PLAN' AND status='OPEN'").total, 1);
