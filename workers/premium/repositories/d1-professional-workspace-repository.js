@@ -59,7 +59,7 @@ export function createD1ProfessionalWorkspaceRepository(db, { scheduleService } 
     // policy is not established in the domain, so it intentionally remains null.
     async getOperationalDashboard() {
       const sid = "coalesce(ib.student_id,'__email_bridge__')";
-      const [awaiting, received, ready, onboarding, underReview, readyToRelease, awaitingCheckins, backlogCheckins] = await Promise.all([
+      const [awaiting, received, ready, onboarding, underReview, readyToRelease, awaitingCheckins, backlogCheckins, pendingItems] = await Promise.all([
         db.prepare(IDENTITY_BRIDGE_CTE + " SELECT COUNT(DISTINCT ib.id) total FROM identity_bridge ib WHERE ib.consultation_status IN ('NEW','AWAITING_ANAMNESIS')").first(),
         db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(DISTINCT ib.id) total FROM identity_bridge ib WHERE ib.consultation_status='UNDER_REVIEW' AND EXISTS (SELECT 1 FROM premium_anamnesis pa WHERE ${ANAMNESIS_MATCH.replaceAll('__SID__', sid)})`).first(),
         db.prepare(IDENTITY_BRIDGE_CTE + " SELECT COUNT(DISTINCT ib.id) total FROM identity_bridge ib WHERE ib.consultation_status='READY_TO_RELEASE'").first(),
@@ -68,10 +68,11 @@ export function createD1ProfessionalWorkspaceRepository(db, { scheduleService } 
         db.prepare(IDENTITY_BRIDGE_CTE + ` ${OPERATIONAL_QUEUE_SELECT} FROM identity_bridge ib WHERE ib.consultation_status='READY_TO_RELEASE' ORDER BY datetime(ib.created_at) ASC, lower(coalesce(ib.name,ib.email)) ASC, ib.id ASC LIMIT ?`).bind(OPERATIONAL_QUEUE_LIMIT).all(),
         db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(DISTINCT sc.id) total FROM student_checkins sc JOIN identity_bridge ib ON (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) WHERE ${OPEN_CHECKIN_BACKLOG}`).first(),
         db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT ib.id,ib.id student_id,ib.email,ib.name,ib.consultation_status,ib.access_status,ib.created_at,ib.whatsapp phone,ib.portal_access_status,ib.source,ib.identity_mode,sc.id checkin_id,sc.submitted_at,sc.created_at checkin_created_at,'AWAITING_ANALYSIS' weekly_feedback_status FROM student_checkins sc JOIN identity_bridge ib ON (sc.student_id=${sid} OR lower(trim(sc.student_email))=ib.normalized_email) WHERE ${OPEN_CHECKIN_BACKLOG} GROUP BY sc.id ORDER BY ${OPERATIONAL_STUDENT_ORDER}, datetime(coalesce(sc.submitted_at,sc.created_at)) ASC, lower(coalesce(ib.name,ib.email)) ASC, sc.id ASC LIMIT 12`).all(),
+        this.listPendingItems({ limit: OPERATIONAL_QUEUE_LIMIT }),
       ]);
       const queues = { onboarding: rows(onboarding), underReview: rows(underReview), readyToRelease: rows(readyToRelease) };
       const items = [...queues.readyToRelease, ...queues.underReview, ...queues.onboarding].slice(0, OPERATIONAL_QUEUE_LIMIT);
-      return { anamnesis: { awaiting: awaiting?.total || 0, underReview: received?.total || 0, readyToRelease: ready?.total || 0, queues, items }, checkins: { awaitingReview: awaitingCheckins?.total || 0, withoutRecentResponse: null, items: rows(backlogCheckins) } };
+      return { anamnesis: { awaiting: awaiting?.total || 0, underReview: received?.total || 0, readyToRelease: ready?.total || 0, queues, items }, checkins: { awaitingReview: awaitingCheckins?.total || 0, withoutRecentResponse: null, items: rows(backlogCheckins) }, pendingItems: { open: pendingItems.total, high: pendingItems.high, items: pendingItems.items } };
     },
     async listStudents(filters = {}) {
       const limit = clampLimit(filters.limit, 25); const offsetValue = offset(filters.cursor); const { where, params } = mapFilters(filters); const weekRef = weekRefFor(filters.now ? new Date(filters.now) : new Date());
@@ -96,8 +97,12 @@ export function createD1ProfessionalWorkspaceRepository(db, { scheduleService } 
       const limit = clampLimit(filters.limit, 25); const offsetValue = offset(filters.cursor); const where = ['1=1']; const params = []; const sid = "coalesce(ib.student_id,'__email_bridge__')";
       if (filters.status !== 'RESOLVED') where.push("pi.status='OPEN'"); else where.push("pi.status='RESOLVED'");
       if (filters.type) { where.push('pi.type=?'); params.push(filters.type); } if (filters.priority) { where.push('pi.priority=?'); params.push(filters.priority); } if (filters.student_id) { where.push(`pi.student_id=${sid} AND (ib.id=? OR ib.student_id=?) AND ib.identity_mode='student_id'`); params.push(filters.student_id, filters.student_id); }
-      const result = await db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT pi.*,ib.name student_name,ib.email FROM premium_pending_items pi JOIN identity_bridge ib ON pi.student_id=${sid} WHERE ${where.join(' AND ')} ORDER BY CASE pi.priority WHEN 'HIGH' THEN 0 WHEN 'NORMAL' THEN 1 ELSE 2 END, datetime(pi.created_at) ASC LIMIT ? OFFSET ?`).bind(...params, limit + 1, offsetValue).all();
-      const resultRows = rows(result); return { items: resultRows.slice(0, limit), nextCursor: resultRows.length > limit ? String(offsetValue + limit) : null, limit };
+      const pendingFrom = `FROM premium_pending_items pi JOIN identity_bridge ib ON pi.student_id=${sid} WHERE ${where.join(' AND ')}`;
+      const [result, counts] = await Promise.all([
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT pi.*,ib.name student_name,ib.email ${pendingFrom} ORDER BY CASE pi.priority WHEN 'HIGH' THEN 0 WHEN 'NORMAL' THEN 1 ELSE 2 END, datetime(pi.created_at) ASC, pi.id ASC LIMIT ? OFFSET ?`).bind(...params, limit + 1, offsetValue).all(),
+        db.prepare(IDENTITY_BRIDGE_CTE + ` SELECT COUNT(*) total,SUM(CASE WHEN pi.priority='HIGH' THEN 1 ELSE 0 END) high ${pendingFrom}`).bind(...params).first(),
+      ]);
+      const resultRows = rows(result); return { items: resultRows.slice(0, limit), nextCursor: resultRows.length > limit ? String(offsetValue + limit) : null, limit, total: counts?.total || 0, high: counts?.high || 0 };
     },
     async getStudentContext(studentId) {
       const summary = (await this.listStudents({ limit: 1, student_id: studentId })).items[0]; if (!summary) return null;
