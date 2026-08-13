@@ -5,7 +5,8 @@ export function createAnalyzeAnamnesisUseCase(depsOrHandler) {
   const deps = depsOrHandler;
   return createPremiumUseCase('analyze-anamnesis', async ({ id, status, updated_at }) => {
     const changed = await deps.anamnesisRepository.markAnalyzed(id, { status, updated_at });
-    if (!changed) return { ok: false, error: 'ANAMNESIS_NOT_FOUND' };
-    return { ok: true, data: { id, status, updated_at } };
+    const record = await deps.anamnesisRepository.findById(id);
+    if (!record) return { ok: false, error: 'ANAMNESIS_NOT_FOUND' };
+    return { ok: true, data: { id, status: record.status, analyzed_at: record.updated_at, changed: Boolean(changed), unchanged: !changed } };
   });
 }
