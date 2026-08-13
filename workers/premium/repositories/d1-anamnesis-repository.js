@@ -46,7 +46,8 @@ export function createD1AnamnesisRepository(db) {
       return { created: false, record: existing };
     },
     async markAnalyzed(id, { status = 'ANALISADA', updated_at } = {}) {
-      const result = await db.prepare("UPDATE premium_anamnesis SET status = ?, updated_at = ? WHERE id = ? AND upper(coalesce(status,'')) NOT IN ('ANALYZED','ANALISADA')").bind(status, updated_at ?? new Date().toISOString(), id).run();
+      const analyzedAt = updated_at ?? new Date().toISOString();
+      const result = await db.prepare("UPDATE premium_anamnesis SET status = ?, analyzed_at = ?, updated_at = ? WHERE id = ? AND analyzed_at IS NULL").bind(status, analyzedAt, analyzedAt, id).run();
       return changes(result);
     },
   });

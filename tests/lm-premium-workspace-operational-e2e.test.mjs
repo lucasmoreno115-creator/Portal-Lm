@@ -54,9 +54,8 @@ test('F3.3.7 moves a real Premium student through every public anamnesis lifecyc
     assert.equal(underReview.anamnesis.underReview, 1);
     assert.equal(underReview.anamnesis.queues.onboarding.some((item) => item.studentId === student.id), false);
     assert.ok(underReview.anamnesis.queues.underReview.some((item) => item.studentId === student.id));
-    // The submission currently changes the lifecycle and writes ANAMNESIS_SENT, but does
-    // not materialize ANALYZE_ANAMNESIS (documented as NOT_IMPLEMENTED_DOMAIN_CONTRACT).
-    assert.equal((await one(db, `SELECT COUNT(*) total FROM premium_pending_items WHERE student_id=? AND type='ANALYZE_ANAMNESIS'`, student.id)).total, 0);
+    // F3.4.1 materializes the canonical professional review work item exactly once.
+    assert.equal((await one(db, `SELECT COUNT(*) total FROM premium_pending_items WHERE student_id=? AND type='ANALYZE_ANAMNESIS'`, student.id)).total, 1);
 
     assert.equal((await http(db, 'POST', `/api/admin/premium/workspace/students/${student.id}/mark-ready`, {})).status, 200);
     const ready = await summary(db);

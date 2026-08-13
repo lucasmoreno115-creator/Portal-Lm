@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+test('professional anamnesis view exposes durable and historical review states',()=>{const ui=readFileSync(new URL('../admin-anamneses.html',import.meta.url),'utf8');for(const label of ['Análise pendente','Marcar como analisada','Anamnese analisada em','Data da análise não registrada'])assert.match(ui,new RegExp(label));});

@@ -120,7 +120,7 @@ export function createD1ProfessionalWorkspaceRepository(db, { scheduleService } 
         pendingPromise,
         db.prepare(`SELECT id,week_ref,created_at submittedAt,reviewed_at reviewedAt,coach_status coachStatus,decision_type decisionType,coach_reply coachReply${checkinDetail ? ',' + checkinDetail : ''} FROM student_checkins WHERE student_id=? OR lower(trim(student_email))=? ORDER BY datetime(created_at) DESC LIMIT 5`).bind(identityId, email).all(),
         db.prepare(`SELECT id,title,goal,status,version_number,published_at,source_feedback_id,updated_at FROM nutrition_plans WHERE student_id=? OR lower(trim(student_email))=? ORDER BY CASE status WHEN 'PUBLISHED' THEN 0 WHEN 'DRAFT' THEN 1 ELSE 2 END, datetime(updated_at) DESC LIMIT 5`).bind(identityId, email).all(),
-        db.prepare(`SELECT id,status${anamnesisDetail},created_at respondedAt,CASE WHEN upper(coalesce(status,'')) IN ('ANALYZED','ANALISADA') THEN updated_at END analyzedAt FROM premium_anamnesis WHERE student_id=? OR lower(trim(student_email))=? ORDER BY datetime(created_at) DESC LIMIT 1`).bind(identityId, email).first(),
+        db.prepare(`SELECT id,status${anamnesisDetail},created_at respondedAt,analyzed_at analyzedAt FROM premium_anamnesis WHERE student_id=? OR lower(trim(student_email))=? ORDER BY datetime(created_at) DESC LIMIT 1`).bind(identityId, email).first(),
         db.prepare(`SELECT id,entry_type,title,content,created_by,created_at FROM premium_followup_entries WHERE student_id=? ORDER BY datetime(created_at) DESC LIMIT 10`).bind(identityId).all(),
         accessPromise,
       ]);

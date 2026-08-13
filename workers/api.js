@@ -1109,12 +1109,12 @@ export default {
           const identity = decodeURIComponent(analyzeAnamnesisMatch[1]);
           const student = await env.DB.prepare(`SELECT student_id,email,consultation_status FROM premium_students WHERE student_id=? OR normalized_email=? LIMIT 1`).bind(identity,identity.toLowerCase()).first();
           if (!student) return json({ok:false,error:'Aluno Premium não encontrado.'},404);
-          const anamnesis = await env.DB.prepare(`SELECT id,status,updated_at FROM premium_anamnesis WHERE student_id=? OR lower(trim(student_email))=lower(trim(?)) ORDER BY datetime(created_at) DESC,id DESC LIMIT 1`).bind(student.student_id,student.email).first();
+          const anamnesis = await env.DB.prepare(`SELECT id,status,analyzed_at FROM premium_anamnesis WHERE student_id=? OR lower(trim(student_email))=lower(trim(?)) ORDER BY datetime(created_at) DESC,id DESC LIMIT 1`).bind(student.student_id,student.email).first();
           if (!anamnesis) return json({ok:false,error:'Anamnese não encontrada.'},404);
-          if (['ANALYZED','ANALISADA'].includes(String(anamnesis.status||'').toUpperCase())) return json({ok:true,data:{studentId:student.student_id,anamnesisId:anamnesis.id,analyzed_at:anamnesis.updated_at,changed:false,unchanged:true}});
+          if (anamnesis.analyzed_at) return json({ok:true,data:{studentId:student.student_id,anamnesisId:anamnesis.id,analyzed_at:anamnesis.analyzed_at,changed:false,unchanged:true}});
           const now = new Date().toISOString();
           await env.DB.batch([
-            env.DB.prepare(`UPDATE premium_anamnesis SET status='ANALISADA',updated_at=? WHERE id=? AND upper(coalesce(status,'')) NOT IN ('ANALYZED','ANALISADA')`).bind(now,anamnesis.id),
+            env.DB.prepare(`UPDATE premium_anamnesis SET status='ANALISADA',analyzed_at=?,updated_at=? WHERE id=? AND analyzed_at IS NULL`).bind(now,now,anamnesis.id),
             env.DB.prepare(`INSERT OR IGNORE INTO activity_timeline (id,student_id,student_email,event_type,source,title,metadata_json,created_at) VALUES (?,?,?,'ANAMNESIS_ANALYZED','admin','Anamnese analisada',?,?)`).bind(`anamnesis-analyzed:${anamnesis.id}`,student.student_id,student.email,JSON.stringify({student_id:student.student_id,anamnesis_id:anamnesis.id,timestamp:now}),now),
             env.DB.prepare(`UPDATE premium_pending_items SET status='RESOLVED',resolved_at=coalesce(resolved_at,?),updated_at=? WHERE student_id=? AND type='ANALYZE_ANAMNESIS' AND related_entity_type='premium_anamnesis' AND related_entity_id=? AND status='OPEN'`).bind(now,now,student.student_id,anamnesis.id),
           ]);
@@ -2794,7 +2794,7 @@ Me responde aqui para ajustarmos o próximo passo e evitar que sua semana fique 
 
         if (url.pathname === '/api/admin/anamneses' && method === 'GET') {
           const { results } = await env.DB.prepare(
-            `SELECT id, student_id, student_name, student_email, student_phone, status, created_at, updated_at, CASE WHEN upper(coalesce(status,'')) IN ('ANALYZED','ANALISADA') THEN updated_at END analyzed_at
+            `SELECT id, student_id, student_name, student_email, student_phone, status, created_at, updated_at, analyzed_at
              FROM premium_anamnesis
              ORDER BY created_at DESC`
           ).all();
@@ -2816,7 +2816,7 @@ Me responde aqui para ajustarmos o próximo passo e evitar que sua semana fique 
             ok: true,
             data: {
               ...row,
-              analyzed_at: ['ANALYZED','ANALISADA'].includes(String(row.status||'').toUpperCase()) ? row.updated_at : null,
+              analyzed_at: row.analyzed_at || null,
               answers: safeJsonParseObject(row.answers_json),
               internal_scores: safeJsonParseObject(row.internal_scores_json)
             }
@@ -3477,6 +3477,7 @@ async function ensureSchemaUncached(db) {
   )`).run();
 
   await ensureColumn(db, 'premium_anamnesis', 'student_id', 'TEXT');
+  await ensureColumn(db, 'premium_anamnesis', 'analyzed_at', 'TEXT');
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_premium_anamnesis_created_at ON premium_anamnesis(created_at)`
   ).run();
