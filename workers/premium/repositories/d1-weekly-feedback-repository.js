@@ -62,10 +62,6 @@ export function createD1WeeklyFeedbackRepository(db) {
     async markAnalyzed(id, { reviewed_at, reviewed_by, coach_status = 'reviewed' } = {}) {
       return changes(await db.prepare('UPDATE student_checkins SET coach_status = ?, reviewed_at = ?, reviewed_by = ?, analyzed_at = ? WHERE id = ?').bind(coach_status, reviewed_at ?? new Date().toISOString(), reviewed_by ?? null, reviewed_at ?? new Date().toISOString(), id).run());
     },
-    async saveProfessionalDecision(id, decision) {
-      return changes(await db.prepare(`UPDATE student_checkins SET coach_reply = ?, coach_reply_at = ?, coach_status = ?, reviewed_at = ?, reviewed_by = ?, analyzed_at=?, decision_type=?, decision_note=?, decision_by=?, decision_at=? WHERE id = ?`).bind(
-        decision.coach_reply, decision.coach_reply_at, decision.coach_status ?? 'replied', decision.reviewed_at ?? decision.coach_reply_at, decision.reviewed_by ?? null, decision.reviewed_at ?? decision.coach_reply_at, decision.decision_type ?? null, decision.decision_note ?? decision.coach_reply ?? null, decision.reviewed_by ?? null, decision.coach_reply_at, id
-      ).run());
-    },
+
   });
 }
