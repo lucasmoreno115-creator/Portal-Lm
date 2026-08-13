@@ -4,6 +4,7 @@ export const mimeType=f=>MIME[path.extname(f).toLowerCase()]||'application/octet
 export function resolvePublicPath(root,urlPath){let decoded;try{decoded=decodeURIComponent(urlPath.split('?')[0])}catch{throw Object.assign(Error('bad path'),{status:400})}if(decoded.includes('..')||decoded.includes('\\')||decoded.includes('\0'))throw Object.assign(Error('path traversal'),{status:403});const target=path.resolve(root,'.'+decoded);if(target!==root&&!target.startsWith(root+path.sep))throw Object.assign(Error('path traversal'),{status:403});return target;}
 const stubs={
  '/api/portal/premium/access-state':{ok:true,data:{experience:'PREMIUM_PORTAL',consultationStatus:'ACTIVE',name:'Aluno Fictício'}},
+ '/api/portal/premium/weekly-feedback/current':{ok:true,data:{status:'AVAILABLE',weekRef:'2026-W33',availableAt:null,recommendedDeadline:null,submittedAt:null,isLate:false,questions:{},professionalResponse:null}},
  '/api/portal/weekly-plan':{ok:true,data:{}},'/api/portal/checkins':{ok:true,data:[]},'/api/portal/progression':{ok:true,data:[]},
  '/api/portal/nutrition-plan':{ok:true,data:null},
  '/api/portal/notifications/unread-count':{ok:true,data:{count:0}}
