@@ -10,6 +10,8 @@ const outputDirectory = path.join(root, 'artifacts/performance/s0.6');
 const SHA = /^[0-9a-f]{40}$/;
 const SCENARIOS = ['COLD', 'WARM'];
 export const REQUIRED_METRICS = ['cls', 'lcp', 'fcp', 'transferBytes', 'requestCount', 'failedRequestCount'];
+// Approved F2.3.2 architecture: the state-aware Home adds one canonical current request.
+export const HOME_COLD_REQUEST_CONTRACT = Object.freeze({ baseline: 15, maximum: 16 });
 
 export function metricDelta(before, after) {
   if (!Number.isFinite(before) || !Number.isFinite(after)) throw new Error('DELTA_OPERAND_INVALID: operandos obrigatórios devem ser números finitos');
@@ -85,14 +87,15 @@ export function compareReports(beforeInput, afterInput, provenance) {
   const beforePages = new Map(before.pages.map(page => [page.page, page])), afterPages = new Map(after.pages.map(page => [page.page, page]));
   const pages = [...EXPECTED_PAGES].sort().map(pageName => ({ page: pageName, scenarios: SCENARIOS.map(scenarioName => {
     const b = beforePages.get(pageName).scenarios.find(x => x.scenario === scenarioName), a = afterPages.get(pageName).scenarios.find(x => x.scenario === scenarioName);
-    const comparisons = REQUIRED_METRICS.map(metric => comparisonEntry(metric, b.aggregate[metric].p75, a.aggregate[metric].p75, metric === 'cls' ? 'p75 <= 0.10' : 'observação operacional'));
+    const comparisons = REQUIRED_METRICS.map(metric => comparisonEntry(metric, b.aggregate[metric].p75, a.aggregate[metric].p75, metric === 'cls' ? 'p75 <= 0.10' : pageName === '/portal-premium-home.html' && scenarioName === 'COLD' && metric === 'requestCount' ? 'baseline 15; maximum 16 (Weekly Feedback state)' : 'observação operacional'));
     if (a.aggregate.cls.p75 > 0.10) errors.push(`${pageName}:${scenarioName}:CLS_P75_LIMIT`);
     if (pageName === '/portal-premium-home.html' && scenarioName === 'COLD') {
       const values = Object.fromEntries(comparisons.map(item => [item.metric, item]));
       if (values.cls.actualAfter >= values.cls.actualBefore || values.cls.delta.absolute >= 0) errors.push('HOME_COLD_CLS_NOT_REDUCED');
       if (values.lcp.delta.percentage !== null && values.lcp.delta.percentage > 10) errors.push('HOME_COLD_LCP_REGRESSION');
       if (values.transferBytes.delta.percentage !== null && values.transferBytes.delta.percentage > 5) errors.push('HOME_COLD_TRANSFER_REGRESSION');
-      if (values.requestCount.delta.percentage !== null && values.requestCount.delta.percentage > 5) errors.push('HOME_COLD_REQUEST_REGRESSION');
+      if (values.requestCount.actualBefore !== HOME_COLD_REQUEST_CONTRACT.baseline) errors.push('HOME_COLD_REQUEST_BASELINE_MISMATCH');
+      if (values.requestCount.actualAfter > HOME_COLD_REQUEST_CONTRACT.maximum) errors.push('HOME_COLD_REQUEST_REGRESSION');
     }
     return { scenario: scenarioName, rawCls: { before: b.runs.map(run => run.metrics.cls), after: a.runs.map(run => run.metrics.cls) }, events: { before: counts(b.runs), after: counts(a.runs) }, comparisons };
   }) }));

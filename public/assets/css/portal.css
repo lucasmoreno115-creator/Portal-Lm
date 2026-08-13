@@ -1634,3 +1634,8 @@ a.secondary-link:hover{border-color:rgba(212,175,55,.55)}
 .portal-home-v7 .hero-app .hero-content{min-height:auto;padding:26px 32px;max-width:760px}
 .portal-home-v7 .hero-app .hero-logo-wrap{top:18px;right:20px}
 @media (max-width:720px){.portal-home-v7 .hero-app{min-height:auto;height:auto;width:calc(100% - 20px);margin-top:10px;border-radius:16px}.portal-home-v7 .hero-app .hero-content{min-height:auto;padding:20px}.portal-home-v7 .hero-app .hero-logo-wrap{top:13px;right:14px}.portal-home-v7 .hero-app .hero-subtext{max-width:32ch;font-size:.86rem}}
+
+.weekly-feedback-home-link>span:nth-child(2){display:grid;gap:2px;flex:1;min-width:0}
+.weekly-feedback-home-link small{color:var(--muted);font-weight:500;line-height:1.35}
+.weekly-feedback-home-link .action-label{color:var(--gold-soft);font-size:.86rem;white-space:nowrap}
+@media(max-width:520px){.weekly-feedback-home-link{align-items:flex-start;flex-wrap:wrap}.weekly-feedback-home-link .action-label{width:100%;padding-left:34px}}

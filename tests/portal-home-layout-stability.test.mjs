@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { compareReports, comparisonMarkdown, exitCodeForComparison, metricDelta, REQUIRED_METRICS } from '../scripts/compare-portal-performance.mjs';
+import { compareReports, comparisonMarkdown, exitCodeForComparison, metricDelta, HOME_COLD_REQUEST_CONTRACT, REQUIRED_METRICS } from '../scripts/compare-portal-performance.mjs';
 import { aggregateRuns } from '../scripts/lib/portal-performance-core.mjs';
 import { EXPECTED_PAGES } from '../scripts/lib/portal-performance-analysis.mjs';
 import { buildPerformanceSource } from '../scripts/lib/portal-performance-analysis.mjs';
@@ -24,7 +24,8 @@ function report(sha, homeCls, source = {}) {
   }) }));
   return { status: 'MEASURED', source: { checkoutSha: sha, headSha: source.headSha ?? sha, workflowSha: source.workflowSha ?? (sha === CHECKOUT ? WORKFLOW : null), eventName: source.eventName ?? (sha === CHECKOUT ? 'pull_request' : 'local'), ref: source.ref ?? (sha === CHECKOUT ? 'refs/pull/401/merge' : 'local'), nodeVersion: 'v22.22.2', chromeVersion: 'Chrome/150', ...source }, profile: { runs: 5, viewport: { width: 390, height: 844 }, scenarios: ['COLD', 'WARM'], pages: EXPECTED_PAGES }, pages };
 }
-const valid = () => [report(BASE, .33), report(CHECKOUT, .05, { headSha: HEAD })];
+function setHomeColdRequests(reportValue, count) { const scenario = reportValue.pages.find(page => page.page === '/portal-premium-home.html').scenarios.find(item => item.scenario === 'COLD'); for (const run of scenario.runs) run.metrics.requestCount = count; scenario.aggregate = aggregateRuns(scenario.runs); }
+const valid = () => { const before = report(BASE, .33), after = report(CHECKOUT, .05, { headSha: HEAD }); setHomeColdRequests(before, 15); setHomeColdRequests(after, 16); return [before, after]; };
 
 test('Home usa loading real e remove definitivamente o slot enabled antes do paint quando persistido', async () => {
   const [html, css, js] = await Promise.all([read('public/portal-premium-home.html'), read('public/portal.css'), read('public/assets/js/pwa-push-subscription.js')]);
@@ -69,6 +70,17 @@ test('comparação aprovada é determinística, distingue merge-ref/head e aceit
   assert.equal(first.status, 'PASSED'); assert.equal(first.after.sha, HEAD); assert.equal(first.after.source.checkoutSha, CHECKOUT); assert.notEqual(first.headSha, first.checkoutSha);
   assert.equal(comparisonMarkdown(first), comparisonMarkdown(second)); assert.equal(exitCodeForComparison(first.status), 0);
   assert.deepEqual(metricDelta(0, 0), { absolute: 0, percentage: null });
+});
+
+test('Home COLD closes the approved Weekly Feedback request contract at exactly 16', () => {
+  assert.deepEqual(HOME_COLD_REQUEST_CONTRACT, { baseline: 15, maximum: 16 });
+  const [before, after] = valid(), comparison = compareReports(before, after, provenance());
+  const requests = comparison.pages.find(page => page.page === '/portal-premium-home.html').scenarios.find(item => item.scenario === 'COLD').comparisons.find(item => item.metric === 'requestCount');
+  assert.deepEqual({ before: requests.actualBefore, after: requests.actualAfter, criterion: requests.criterion }, { before: 15, after: 16, criterion: 'baseline 15; maximum 16 (Weekly Feedback state)' });
+  setHomeColdRequests(after, 17);
+  assert.ok(compareReports(before, after, provenance()).errors.includes('HOME_COLD_REQUEST_REGRESSION'));
+  setHomeColdRequests(before, 14); setHomeColdRequests(after, 15);
+  assert.ok(compareReports(before, after, provenance()).errors.includes('HOME_COLD_REQUEST_BASELINE_MISMATCH'));
 });
 
 test('bloqueia baseline/head inválidos e SHAs iguais', () => { const reports = valid(); for (const p of [provenance({ baselineSha: 'abc' }), provenance({ headSha: 'NOT_EXECUTED' }), provenance({ headSha: BASE })]) assert.throws(() => compareReports(...reports, p), /INVALID|SAME_SHA/); });
