@@ -7,10 +7,18 @@ const html = fs.readFileSync('public/portal-premium-weekly-feedback.html', 'utf8
 const runtime = fs.readFileSync('public/assets/js/portal-premium-weekly-feedback.js', 'utf8');
 const css = fs.readFileSync('public/assets/css/portal-premium-weekly-feedback.css', 'utf8');
 const home = fs.readFileSync('public/portal-premium-home.html', 'utf8');
+const sharedNavigation = fs.readFileSync('portal-shared.js', 'utf8');
+const publicSharedNavigation = fs.readFileSync('public/portal-shared.js', 'utf8');
+const accessNavigation = fs.readFileSync('public/assets/js/lm-access.js', 'utf8');
+const SUPPORT_URL = 'https://wa.me/5514991174500?text=Olá%20Lucas,%20preciso%20de%20ajuda.';
 
 function loadHelpers() {
   const window = { addEventListener() {} };
-  vm.runInNewContext(runtime, { window, Intl, Date, console, Object, String, Number });
+  const context = { window, Intl, Date, console, Object, String, Number };
+  const config = html.match(/<script id="weeklyFeedbackConfig">([\s\S]*?)<\/script>/)?.[1];
+  assert.ok(config, 'Expected the canonical page runtime configuration.');
+  vm.runInNewContext(config, context);
+  vm.runInNewContext(runtime, context);
   return window.WeeklyFeedbackUI;
 }
 
@@ -20,6 +28,17 @@ test('Premium Home uses the canonical route and a fail-safe state-aware summary'
   assert.match(home, /api\('\/portal\/premium\/weekly-feedback\/current'\)/);
   for (const copy of ['Responder check-in', 'Aguardando análise', 'Acompanhar check-in', 'Resposta disponível', 'Ver resposta']) assert.match(home, new RegExp(copy));
   assert.match(home, /catch \(_\)[\s\S]*Check-in semanal[\s\S]*Acompanhe seu check-in semanal/);
+});
+
+test('fallback and plan-aware navigation keep check-in and support as distinct destinations', () => {
+  for (const source of [sharedNavigation, publicSharedNavigation, accessNavigation]) {
+    assert.match(source, /portal-premium-weekly-feedback\.html/);
+    assert.match(source, new RegExp(SUPPORT_URL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+  for (const source of [sharedNavigation, publicSharedNavigation]) {
+    assert.doesNotMatch(source, /portal-premium-weekly-feedback\.html'>Preciso de ajuda/);
+    assert.doesNotMatch(source, /portal-checkin\.html#supportNeeded/);
+  }
 });
 
 test('canonical page exposes independent current and history loading, retry, and accessibility regions', () => {
@@ -48,8 +67,8 @@ test('dates are fixed to pt-BR and America/Sao_Paulo', () => {
   const formatted = formatPortalDate('2026-08-12T20:30:00.000Z');
   assert.match(formatted, /12 de agosto de 2026/);
   assert.match(formatted, /17:30/);
-  assert.match(runtime, /PORTAL_LOCALE\s*=\s*'pt-BR'/);
-  assert.match(runtime, /PORTAL_TIME_ZONE\s*=\s*'America\/Sao_Paulo'/);
+  assert.match(html, /PORTAL_LOCALE\s*=\s*'pt-BR'/);
+  assert.match(html, /PORTAL_TIME_ZONE\s*=\s*'America\/Sao_Paulo'/);
 });
 
 test('current states are concrete-field driven, read-only after submit, and safely render professional copy', () => {
@@ -59,7 +78,7 @@ test('current states are concrete-field driven, read-only after submit, and safe
   for (const copy of ['Check-in enviado', 'Suas respostas foram recebidas', 'Resposta do seu acompanhamento', 'Seu check-in foi analisado. A resposta ainda não está disponível.', 'Enviar check-in']) assert.match(runtime, new RegExp(copy));
   assert.match(runtime, /professional-response-message',\s*response\.message/);
   assert.doesNotMatch(runtime, /professional[^\n]*innerHTML|response\.message[^\n]*innerHTML/);
-  assert.match(css, /\.professional-response-message\{white-space:pre-wrap;overflow-wrap:anywhere\}/);
+  assert.match(css, /\.professional-response-message[^{}]*\{white-space:pre-wrap;overflow-wrap:anywhere\}/);
 });
 
 test('temporary history adapter creates weekly details for replies, pending, and empty history', () => {
