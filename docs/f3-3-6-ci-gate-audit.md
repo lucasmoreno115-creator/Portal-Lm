@@ -26,10 +26,31 @@ surface`: a suite ainda exigia `data-dashboard-card="checkins-open"` e o texto
 somente essa expectativa para o contrato aprovado de `pending-items-open`; nenhuma
 asserção de segurança ou de carregamento foi removida.
 
-## Portal performance baseline e S0.7
+## Portal performance baseline S0.6
 
-Ambos os workflows executam `npm test` antes de medir a Home. Portanto, o primeiro
-erro era a mesma expectativa obsoleta do Workspace, não uma medição de performance
-ou coverage. F3.3.6 não altera a Home pública, o contrato
-`HOME_COLD_REQUEST_CONTRACT`, thresholds de performance, detecção de requests com
-falha ou thresholds de coverage.
+O resultado do workflow separa a falha de performance da falha operacional:
+`Measure S0.6 after` e `Compare S0.6` concluíram, enquanto a validação parou em
+`BEFORE_MEASUREMENT_FAILED`. Logo, não há comparação before/after válida nem
+evidência de regressão causada pela F3.3.6.
+
+O primeiro defeito operacional no step `Measure immutable S0.6 before` estava no
+harness: o worktree fixado em `9fcbc86` executava o coletor histórico S0.5 daquele
+commit, enquanto o after executava o coletor S0.6 atual. Assim, as duas metades
+usavam implementações diferentes de fixture, instrumentação e lifecycle
+Chrome/CDP. Isso deixava o before sujeito ao comportamento obsoleto do coletor — e
+não media somente a diferença entre os assets imutáveis.
+
+O worktree continua fixado em `9fcbc86` e conserva seu diretório `public/`, mas
+agora recebe os `scripts/` e o profile de performance do checkout atual. Before e
+after passam, portanto, pelo mesmo harness S0.6 e pela mesma versão de Chrome; só
+os assets comparados diferem. O teste do workflow proíbe copiar `public/` do head
+para o before.
+
+Nenhum threshold de performance, regression budget,
+`HOME_COLD_REQUEST_CONTRACT`, métrica ou critério de comparação foi alterado.
+
+## Portal Home resource coverage S0.7
+
+O S0.7 executa `npm test` antes da coleta e compartilhava a expectativa obsoleta
+do Workspace descrita acima. F3.3.6 não altera a Home pública nem thresholds de
+coverage.

@@ -114,6 +114,15 @@ test('before isola GITHUB_SHA do pai e nasce com proveniência local válida', (
   assert.deepEqual(isolated, { baseSha: null, headSha: baselineSha, checkoutSha: baselineSha, workflowSha: null, canonicalMainSha: null, ref: 'local', eventName: 'local', nodeVersion: 'v22.22.2', chromeVersion: 'Chrome/150' });
 });
 
+test('before usa assets imutáveis com o mesmo harness S0.6 do after', async () => {
+  const workflow = await read('.github/workflows/portal-performance-baseline.yml');
+  const before = workflow.slice(workflow.indexOf('- name: Measure immutable S0.6 before'), workflow.indexOf('- name: Verify worktree cleanup'));
+  assert.match(before, /git worktree add --detach "\$before"/);
+  assert.match(before, /rm -rf "\$before\/scripts"[\s\S]*cp -a "\$GITHUB_WORKSPACE\/scripts" "\$before\/scripts"/);
+  assert.match(before, /cp "\$GITHUB_WORKSPACE\/config\/portal-performance-profile\.json" "\$before\/config\/portal-performance-profile\.json"/);
+  assert.doesNotMatch(before, /cp -a "\$GITHUB_WORKSPACE\/public"/);
+});
+
 test('after mantém todas as variáveis de proveniência pull_request', async () => {
   const workflow = await read('.github/workflows/portal-performance-baseline.yml');
   const after = workflow.slice(workflow.indexOf('- name: Measure S0.6 after'), workflow.indexOf('- name: Analyze measured after'));

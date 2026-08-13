@@ -96,6 +96,12 @@ jobs:
           git cat-file -e "${{ steps.provenance.outputs.baseline_sha }}^{commit}"
           git worktree add --detach "$before" "${{ steps.provenance.outputs.baseline_sha }}"
           test "$(git -C "$before" rev-parse HEAD)" = "${{ steps.provenance.outputs.baseline_sha }}"
+          # Compare immutable assets with one measurement implementation. The
+          # historical S0.5 collector is not the S0.6 harness and has obsolete
+          # Chrome/CDP lifecycle and fixture behavior.
+          rm -rf "$before/scripts"
+          cp -a "$GITHUB_WORKSPACE/scripts" "$before/scripts"
+          cp "$GITHUB_WORKSPACE/config/portal-performance-profile.json" "$before/config/portal-performance-profile.json"
           ln -s "$GITHUB_WORKSPACE/node_modules" "$before/node_modules"
           mkdir -p artifacts/performance/s0.6/before
           (cd "$before" && env \
