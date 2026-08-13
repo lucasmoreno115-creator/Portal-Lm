@@ -60,18 +60,28 @@
           </button>
         </article>
 
-        <article class="workspace-dashboard-card is-unavailable" data-dashboard-card="checkins-open" aria-disabled="true">
-          <span class="workspace-dashboard-label">Check-ins em aberto</span>
-          <strong id="checkinsOpenValue" class="workspace-dashboard-value skeleton" aria-label="Carregando contagem">—</strong>
-          <span id="checkinsOpenHint" class="workspace-dashboard-hint">Carregando...</span>
+        <article class="workspace-dashboard-card" data-dashboard-card="pending-items-open">
+          <button id="pendingItemsCard" class="workspace-dashboard-card-button" type="button" aria-label="Ver pendências operacionais abertas" aria-describedby="pendingItemsHint" disabled>
+            <span class="workspace-dashboard-label">Pendências abertas</span>
+            <strong id="pendingItemsValue" class="workspace-dashboard-value skeleton" aria-label="Carregando contagem">—</strong>
+            <span id="pendingItemsHint" class="workspace-dashboard-hint">Carregando...</span>
+          </button>
         </article>
       </div>
     </section>
 
     <div class="operational-panels">
+    <section id="pendingItemsOperationalPanel" class="panel dashboard dashboard-current" aria-labelledby="pendingItemsOperationalHeading">
+      <p class="panel-kicker">Operação</p>
+      <h2 id="pendingItemsOperationalHeading" tabindex="-1">Pendências operacionais</h2>
+      <p class="panel-description">Ações materializadas pelo acompanhamento que ainda precisam ser concluídas.</p>
+      <p id="pendingItemsSummary" class="pending-items-summary" aria-live="polite">Carregando pendências...</p>
+      <div id="pendingItemsList" class="pending-items-list list" aria-live="polite" aria-busy="true">Carregando pendências...</div>
+    </section>
+
     <section id="anamnesisOperationalPanel" class="panel dashboard dashboard-current">
       <p class="panel-kicker">Fluxo de entrada</p>
-      <h2 id="anamnesisOperationalHeading" tabindex="-1">Pendências prioritárias</h2>
+      <h2 id="anamnesisOperationalHeading" tabindex="-1">Fluxo de anamnese</h2>
       <p class="panel-description">Anamneses que exigem acompanhamento na etapa atual.</p>
       <div id="anamnesisDashboard" class="dashboard-blocks">Carregando...</div>
       <div id="anamnesisQueues" class="operational-queues" aria-live="polite">
