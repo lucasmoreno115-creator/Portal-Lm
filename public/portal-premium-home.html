@@ -113,7 +113,7 @@
     <section class='secondary-actions' aria-labelledby='secondary-actions-title'>
       <h2 id='secondary-actions-title'>Outras ações</h2>
       <div class='action-links'>
-        <a class='secondary-link' href='portal-checkin.html' data-feature='checkin'><span class='quick-icon'>✅</span><span>Check-in</span></a>
+        <a id='weeklyFeedbackHomeLink' class='secondary-link weekly-feedback-home-link' href='portal-premium-weekly-feedback.html' data-feature='checkin' data-state='loading'><span class='quick-icon'>✅</span><span><strong id='weeklyFeedbackHomeLabel'>Check-in semanal</strong><small id='weeklyFeedbackHomeDescription'>Acompanhe seu check-in semanal.</small></span><span id='weeklyFeedbackHomeCta' class='action-label'>Abrir</span></a>
         <a class='secondary-link' href='portal-biblioteca.html' data-feature='biblioteca'><span class='quick-icon'>📚</span><span>Biblioteca</span></a>
         <a class='secondary-link' href='https://wa.me/5514991174500?text=Olá%20Lucas,%20preciso%20de%20ajuda.' target='_blank' rel='noopener noreferrer' data-feature='suporte'><span class='quick-icon'>💬</span><span>Preciso de ajuda</span></a>
       </div>
@@ -151,6 +151,34 @@
       return `${parts[0]} ${parts.at(-1)}`;
     }
     document.getElementById('hello').textContent = `Olá, ${shortGreetingName(localStorage.getItem('lm_student_name'))}`;
+
+    // Fail-safe summary: the canonical page remains reachable if current cannot load.
+    (async () => {
+      const link = document.getElementById('weeklyFeedbackHomeLink');
+      const label = document.getElementById('weeklyFeedbackHomeLabel');
+      const description = document.getElementById('weeklyFeedbackHomeDescription');
+      const cta = document.getElementById('weeklyFeedbackHomeCta');
+      try {
+        const response = await api('/portal/premium/weekly-feedback/current');
+        const current = response?.data || {};
+        if (current.professionalResponse?.message) {
+          link.dataset.state = 'answered'; label.textContent = 'Resposta disponível';
+          description.textContent = 'Seu acompanhamento respondeu ao check-in desta semana.'; cta.textContent = 'Ver resposta';
+        } else if (current.submittedAt) {
+          link.dataset.state = 'submitted'; label.textContent = 'Aguardando análise';
+          description.textContent = 'Seu check-in foi enviado e está sendo analisado.'; cta.textContent = 'Acompanhar check-in';
+        } else if (current.status === 'AVAILABLE') {
+          link.dataset.state = 'available'; label.textContent = 'Responder check-in';
+          description.textContent = 'Seu check-in desta semana já está disponível.'; cta.textContent = 'Responder check-in';
+        } else {
+          link.dataset.state = 'unavailable'; label.textContent = 'Check-in semanal';
+          description.textContent = 'Seu check-in ainda não está disponível.'; cta.textContent = 'Abrir';
+        }
+      } catch (_) {
+        link.dataset.state = 'unavailable';
+        label.textContent = 'Check-in semanal'; description.textContent = 'Acompanhe seu check-in semanal.'; cta.textContent = 'Abrir';
+      }
+    })();
 
     (async () => {
       const weeklyPlanTrainingEl = document.querySelector('#weeklyPlanTraining');
