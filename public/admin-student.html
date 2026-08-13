@@ -115,6 +115,15 @@
         <div id='latestCheckin'></div>
         <div class='student-action-row'>
           <textarea id='coachReplyInput' rows='3' placeholder='Escreva a resposta ao check-in'></textarea>
+          <label>Conduta
+            <select id='checkinDecisionType'>
+              <option value=''>Selecione uma decisão</option>
+              <option value='KEEP_STRATEGY'>Manter estratégia</option>
+              <option value='UPDATE_PLAN'>Atualizar plano</option>
+              <option value='CONTACT_STUDENT'>Entrar em contato</option>
+              <option value='REQUEST_MORE_INFORMATION'>Solicitar mais informações</option>
+            </select>
+          </label>
           <button id='replyCheckinBtn' type='button'>Responder check-in</button>
           <a class='secondary-link' id='openCheckins' href='/admin-checkins.html'>Abrir tela auxiliar de check-ins</a>
         </div>
@@ -1166,13 +1175,15 @@
     replyBtn.addEventListener('click', async () => {
       const token = tokenInput.value.trim();
       const reply = byId('coachReplyInput').value.trim();
-      if (!token || !latestCheckinId || !reply) return;
+      const decisionType = byId('checkinDecisionType').value;
+      if (!token || !latestCheckinId || !reply || !decisionType) return;
       replyBtn.disabled = true;
       try {
-        const res = await fetch(`/api/admin/checkins/${encodeURIComponent(latestCheckinId)}/reply`, { method: 'PATCH', headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ coach_reply: reply, coach_status: 'replied' }) });
+        const res = await fetch(`/api/admin/premium/weekly-feedbacks/${encodeURIComponent(latestCheckinId)}/decision`, { method: 'POST', headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ coach_reply: reply, decision_type: decisionType }) });
         const payload = await res.json();
         if (!res.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao responder check-in');
         byId('coachReplyInput').value = '';
+        byId('checkinDecisionType').value = '';
         await loadStudent360();
         showToast('✅ Check-in respondido');
       } finally { replyBtn.disabled = false; }

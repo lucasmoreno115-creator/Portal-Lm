@@ -22,6 +22,7 @@ function persistedDecision(feedback) {
 function decisionsEqual(left, right) { return Object.keys(left).every((key) => left[key] === right[key]); }
 function conflict() { return { ok: false, status: 409, code: 'WEEKLY_FEEDBACK_ALREADY_REVIEWED', error: 'Este check-in já foi analisado. Recarregue o estado atual.' }; }
 
+// All professional weekly-feedback decisions must use recordProfessionalDecision.
 export function createRecordProfessionalDecisionUseCase({ weeklyFeedbackRepository, followupEntryRepository, db, randomUUID = crypto.randomUUID }) {
   return async function recordProfessionalDecision({ feedback_id, decision_type, note = null, coach_reply = null, followup_at = null, created_by = null }) {
     assertProfessionalDecisionType(decision_type);

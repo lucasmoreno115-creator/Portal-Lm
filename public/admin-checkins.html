@@ -75,7 +75,7 @@ async function loadCheckins(){
     if(!items.length){ setStatus('Nenhum check-in encontrado para os filtros aplicados.', 'muted'); return; }
 
     list.innerHTML = items.map((c) => {
-      const statusClass = (c.coach_status || 'pending') === 'replied' ? 'ok' : 'badge-warning';
+      const statusClass = ['reviewed','replied','analyzed','analisado','analisada'].includes(String(c.coach_status || '').toLowerCase()) ? 'ok' : 'badge-warning';
       const replied = c.coach_reply ? `<div class='coach-reply-card'><strong>Resposta salva</strong><p>${esc(c.coach_reply)}</p><small>${esc(fmtDate(c.coach_reply_at))}</small></div>` : '';
 
       return `<article class='checkin-admin-card' data-id='${esc(c.id)}'>
@@ -103,6 +103,15 @@ async function loadCheckins(){
         </details>
         <div class='checkin-reply-box'>
           <textarea placeholder='Digite a orientação semanal...' rows='3'>${esc(c.coach_reply || '')}</textarea>
+          <label>Conduta
+            <select data-decision>
+              <option value=''>Selecione uma decisão</option>
+              <option value='KEEP_STRATEGY'>Manter estratégia</option>
+              <option value='UPDATE_PLAN'>Atualizar plano</option>
+              <option value='CONTACT_STUDENT'>Entrar em contato</option>
+              <option value='REQUEST_MORE_INFORMATION'>Solicitar mais informações</option>
+            </select>
+          </label>
           <button type='button' data-save='${esc(c.id)}'>Salvar resposta</button>
         </div>
         ${replied}
@@ -124,16 +133,18 @@ list.addEventListener('click', async (event) => {
   const card = btn.closest('.checkin-admin-card');
   const textarea = card.querySelector('textarea');
   const id = btn.getAttribute('data-save');
+  const decisionType = card.querySelector('[data-decision]').value;
   const coachReply = textarea.value.trim();
   if(!coachReply){ setStatus('Preencha a orientação antes de salvar.', 'error'); return; }
+  if(!decisionType){ setStatus('Selecione a conduta profissional.', 'error'); return; }
 
   btn.disabled = true;
   btn.textContent = 'Salvando...';
   try {
-    const response = await fetch(`/api/admin/checkins/${encodeURIComponent(id)}/reply`, {
-      method:'PATCH',
+    const response = await fetch(`/api/admin/premium/weekly-feedbacks/${encodeURIComponent(id)}/decision`, {
+      method:'POST',
       headers: window.LMAdminAuth.getAdminAuthHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ coach_reply: coachReply, coach_status: 'replied' })
+      body: JSON.stringify({ coach_reply: coachReply, decision_type: decisionType })
     });
     const payload = await response.json();
     if(!response.ok || !payload?.ok) throw new Error(payload?.error || 'Falha ao salvar');

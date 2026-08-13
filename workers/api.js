@@ -15,7 +15,6 @@ import { createSaveNutritionPlanUseCase } from './premium/application/save-nutri
 import { createGetNutritionPlanUseCase } from './premium/application/get-nutrition-plan.js';
 import { createSubmitWeeklyFeedbackUseCase } from './premium/application/submit-weekly-feedback.js';
 import { createListWeeklyFeedbacksUseCase } from './premium/application/list-weekly-feedbacks.js';
-import { createAnalyzeWeeklyFeedbackUseCase } from './premium/application/analyze-weekly-feedback.js';
 import { createAnalyzeAnamnesisUseCase } from './premium/application/analyze-anamnesis.js';
 import { createD1StudentRecordRepository } from './premium/repositories/d1-student-record-repository.js';
 import { createD1FollowupEntryRepository } from './premium/repositories/d1-followup-entry-repository.js';
@@ -100,7 +99,6 @@ function createPremiumApplication(env, request) {
     saveNutritionPlan: createSaveNutritionPlanUseCase({ identityService, nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), eventRepository, log, randomUUID: () => crypto.randomUUID() }),
     submitWeeklyFeedback: createSubmitWeeklyFeedbackUseCase({ identityService, weeklyFeedbackRepository, pendingItemRepository, eventRepository, db: env.DB, log, randomUUID: () => crypto.randomUUID() }),
     listWeeklyFeedbacks: createListWeeklyFeedbacksUseCase({ identityService, weeklyFeedbackRepository, log }),
-    analyzeWeeklyFeedback: createAnalyzeWeeklyFeedbackUseCase({ weeklyFeedbackRepository }),
     analyzeAnamnesis: createAnalyzeAnamnesisUseCase({ anamnesisRepository: createD1AnamnesisRepository(env.DB) }),
     getStudentRecord: createGetStudentRecordUseCase({ studentRepository, studentRecordRepository, pendingItemRepository, identityService, randomUUID: () => crypto.randomUUID() }),
     addFollowupEntry: createAddFollowupEntryUseCase({ studentRepository, followupEntryRepository, randomUUID: () => crypto.randomUUID() }),
@@ -1985,46 +1983,6 @@ export default {
           const { results } = await env.DB.prepare(query).bind(...params, limit).all();
           return json({ ok: true, data: results || [] });
         }
-
-        if (/^\/api\/admin\/checkins\/[^/]+\/reply$/.test(url.pathname) && method === 'PATCH') {
-          const id = decodeURIComponent(url.pathname.split('/')[4] || '').trim();
-          if (!id) {
-            return json({ ok: false, error: 'id é obrigatório.' }, 400);
-          }
-
-          const body = await safeJson(request);
-          const coachReply = nullableTrimmed(body?.coach_reply);
-          const coachStatus = nullableTrimmed(body?.coach_status) || 'replied';
-
-          if (!coachReply) {
-            return json({ ok: false, error: 'coach_reply é obrigatório.' }, 400);
-          }
-
-          const now = new Date().toISOString();
-          const reviewedBy = request.headers.get('x-admin-user') || 'admin';
-
-          const existing = await env.DB.prepare(
-            `SELECT id FROM student_checkins WHERE id=? LIMIT 1`
-          ).bind(id).first();
-
-          if (!existing) {
-            return json({ ok: false, error: 'Check-in não encontrado.' }, 404);
-          }
-
-          const premiumApp = createPremiumApplication(env, request);
-          await premiumApp.analyzeWeeklyFeedback.execute({ id, decision: { coach_reply: coachReply, coach_reply_at: now, coach_status: coachStatus, reviewed_at: now, reviewed_by: reviewedBy } });
-          const studentEmailForActivity = await env.DB.prepare(`SELECT student_email, student_id FROM student_checkins WHERE id=? LIMIT 1`).bind(id).first();
-          await premiumApp.eventRepository.append({ id: crypto.randomUUID(), student_id: studentEmailForActivity?.student_id ?? null, student_email: String(studentEmailForActivity?.student_email || '').toLowerCase(), event_type: 'FEEDBACK_ANALYZED', source: 'admin', title: 'Resposta do coach enviada', metadata: { checkin_id: id, coach_status: coachStatus }, created_at: now });
-
-          const updated = await env.DB.prepare(
-            `SELECT id, coach_status, coach_reply, coach_reply_at, reviewed_at, reviewed_by
-             FROM student_checkins
-             WHERE id=?`
-          ).bind(id).first();
-
-          return json({ ok: true, data: updated });
-        }
-
 
 
         if (url.pathname === '/api/admin/premium/weekly-feedbacks/pending' && method === 'GET') {

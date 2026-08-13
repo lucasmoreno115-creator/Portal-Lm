@@ -23,7 +23,7 @@ test('Student 360 reutiliza endpoints e telas auxiliares existentes', async () =
   const html = await readStudent360();
   for (const endpoint of [
     '/api/admin/student-360?email=',
-    '/api/admin/checkins/${encodeURIComponent(latestCheckinId)}/reply',
+    '/api/admin/premium/weekly-feedbacks/${encodeURIComponent(latestCheckinId)}/decision',
     '/api/admin/weekly-plan',
     '/admin-checkins.html?email=',
     '/admin-weekly-plan.html?email=',
