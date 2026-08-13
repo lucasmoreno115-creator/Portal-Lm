@@ -46,6 +46,7 @@ import { createPublishNutritionPlanUseCase } from './premium/application/publish
 import { createArchiveNutritionPlanUseCase } from './premium/application/archive-nutrition-plan.js';
 import { createDraftFromPublishedPlanUseCase } from './premium/application/create-draft-from-published-plan.js';
 import { presentPublicNutritionPlan } from './premium/presenters/nutrition-plan-public-presenter.js';
+import { presentPublicWeeklyFeedback } from './premium/presenters/public-weekly-feedback-presenter.js';
 import { presentAdminNutritionPlan, presentAdminNutritionPlanSummary } from './premium/presenters/nutrition-plan-admin-presenter.js';
 import { createD1ProfessionalWorkspaceRepository } from './premium/repositories/d1-professional-workspace-repository.js';
 import { createGetProfessionalWorkspaceSummaryUseCase } from './premium/application/get-professional-workspace-summary.js';
@@ -909,7 +910,7 @@ export default {
           const result = await premiumApp.getCurrentWeeklyFeedback({ email: studentEmail });
           if (result.blocked) return json({ ok: false, error: 'Não foi possível acessar dados Premium com segurança.' }, 403);
           const feedback = result.data.feedback;
-          return json({ ok: true, data: { weekRef: result.data.weekRef, status: result.data.status, availableAt: result.data.availableAt, recommendedDeadline: result.data.recommendedDeadline, submittedAt: result.data.submittedAt, isLate: result.data.isLate, questions: feedback ? publicWeeklyFeedback(feedback) : {}, professionalResponse: feedback?.coach_reply ? { message: feedback.coach_reply, respondedAt: feedback.coach_reply_at } : null } });
+          return json({ ok: true, data: presentPublicWeeklyFeedback(feedback, { weekRef: result.data.weekRef, status: result.data.status, availableAt: result.data.availableAt, recommendedDeadline: result.data.recommendedDeadline, isLate: result.data.isLate }) });
         }
 
         if (url.pathname === '/api/portal/premium/weekly-feedback/current' && method === 'POST') {
@@ -939,7 +940,7 @@ export default {
           const premiumApp = createPremiumApplication(env, request);
           const result = await premiumApp.listWeeklyFeedbacks.execute({ email: studentEmail, limit: 12, route: url.pathname, method });
           if (result.blocked) return json({ ok: false, error: 'Não foi possível acessar dados Premium com segurança.' }, 403);
-          return json({ ok: true, data: (result.records || []).map(publicWeeklyFeedback) });
+          return json({ ok: true, data: (result.records || []).map((feedback) => presentPublicWeeklyFeedback(feedback)) });
         }
 
         if (url.pathname === '/api/portal/progression' && method === 'POST') {

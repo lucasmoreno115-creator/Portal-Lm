@@ -81,14 +81,12 @@ test('current states are concrete-field driven, read-only after submit, and safe
   assert.match(css, /\.professional-response-message[^{}]*\{white-space:pre-wrap;overflow-wrap:anywhere\}/);
 });
 
-test('temporary history adapter creates weekly details for replies, pending, and empty history', () => {
-  const { adaptHistoricalFeedback } = loadHelpers();
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(adaptHistoricalFeedback({ coach_reply: 'Ótima semana.', coach_reply_at: '2026-08-12T20:30:00.000Z' }).professionalResponse)),
-    { message: 'Ótima semana.', respondedAt: '2026-08-12T20:30:00.000Z' },
-  );
-  assert.equal(adaptHistoricalFeedback({ coach_reply: null }).professionalResponse, null);
-  assert.match(runtime, /Temporary adapter until F2\.3\.3 normalizes the public history contract/);
+test('history consumes the normalized public response directly and keeps weekly details', () => {
+  assert.match(runtime, /record\.professionalResponse/);
+  assert.match(runtime, /record\.weekRef/);
+  assert.match(runtime, /record\.submittedAt/);
+  assert.match(runtime, /renderAnswers\(record\.questions\)/);
+  assert.doesNotMatch(runtime, /adaptHistoricalFeedback|coach_reply|coach_reply_at|coach_status/);
   assert.match(runtime, /element\('details',\s*'weekly-feedback-history-item'\)/);
   for (const copy of ['Suas respostas', 'Resposta do seu acompanhamento', 'Aguardando resposta do seu acompanhamento.', 'Você ainda não enviou check-ins.']) assert.match(runtime, new RegExp(copy));
 });

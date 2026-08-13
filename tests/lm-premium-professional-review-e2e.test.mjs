@@ -130,9 +130,9 @@ test('F2.2.5 completes the Premium weekly-feedback professional review through r
     for (const privateField of ['decision_note', 'followup_at', 'created_by', 'decision_by']) assert.equal(JSON.stringify(portalCurrent.body).includes(`"${privateField}"`), false);
     const history = await request(db, 'GET', '/api/portal/premium/weekly-feedback/history', undefined, 'student');
     const currentHistory = history.body.data.find((item) => item.id === checkinId);
-    assert.deepEqual({ week: currentHistory.week_ref, reply: currentHistory.coach_reply, status: currentHistory.coach_status }, { week: weekRef, reply: DECISION.coach_reply, status: 'reviewed' });
+    assert.deepEqual({ week: currentHistory.weekRef, submittedAt: currentHistory.submittedAt, response: currentHistory.professionalResponse, status: currentHistory.status }, { week: weekRef, submittedAt: reviewed.submitted_at, response: { message: DECISION.coach_reply, respondedAt: reviewed.coach_reply_at }, status: 'ANALYZED' });
     const previousHistory = history.body.data.find((item) => item.id === previous.id);
-    assert.deepEqual({ week: previousHistory.week_ref, reply: previousHistory.coach_reply }, { week: previous.week, reply: previous.reply });
+    assert.deepEqual({ week: previousHistory.weekRef, response: previousHistory.professionalResponse }, { week: previous.week, response: { message: previous.reply, respondedAt: previous.repliedAt } });
     assert.deepEqual(await one(db, 'SELECT coach_reply,coach_reply_at,reviewed_at,analyzed_at,decision_at FROM student_checkins WHERE id=?', previous.id), { coach_reply: previous.reply, coach_reply_at: previous.repliedAt, reviewed_at: previous.reviewedAt, analyzed_at: previous.analyzedAt, decision_at: previous.decisionAt });
 
     const timestamps = { coach_reply_at: reviewed.coach_reply_at, reviewed_at: reviewed.reviewed_at, analyzed_at: reviewed.analyzed_at, decision_at: reviewed.decision_at, resolved_at: analyze.resolved_at };
