@@ -140,7 +140,7 @@ test('F3.3.7 preserves pending ordering, real totals/window, decision presenter 
       const type = fixtureTypes[index % fixtureTypes.length];
       const priority = index === 1 ? 'HIGH' : index === 13 ? 'LOW' : 'NORMAL';
       // READ_MODEL_FIXTURE: these types have no generic public creation command.
-      await db.prepare(`INSERT INTO premium_pending_items(id,student_id,type,title,status,priority,source,created_at,updated_at) VALUES(?,?,?,?,'OPEN',?,'manual',?,?)`).bind(`fixture-${index}`, student.id, type, `Fixture ${index}`, priority, `2026-08-14T12:${String(index).padStart(2, '0')}:00.000Z`, NOW).run();
+      await db.prepare(`INSERT INTO premium_pending_items(id,student_id,type,title,status,priority,source,related_entity_type,related_entity_id,created_at,updated_at) VALUES(?,?,?,?,'OPEN',?,'manual','read_model_fixture',?,?,?)`).bind(`fixture-${index}`, student.id, type, `Fixture ${index}`, priority, `fixture-${index}`, `2026-08-14T12:${String(index).padStart(2, '0')}:00.000Z`, NOW).run();
     }
     const data = await summary(db);
     assert.equal(data.pendingItems.open, 14);
