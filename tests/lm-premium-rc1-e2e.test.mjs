@@ -51,6 +51,7 @@ test('RC1 fixture aplica a migration de auditoria do backfill legado e o reposit
   assert.ok(RC1_PREMIUM_MIGRATIONS.includes('migrations/0035_add_ready_to_release_consultation_status.sql'));
   assert.ok(RC1_PREMIUM_MIGRATIONS.includes('migrations/0036_scope_legacy_active_nutrition_plan_email_unique.sql'));
   assert.ok(RC1_PREMIUM_MIGRATIONS.includes('migrations/0041_add_premium_anamnesis_analyzed_at.sql'));
+  assert.ok(RC1_PREMIUM_MIGRATIONS.includes('migrations/0043_add_premium_student_reactivated_at.sql'));
   assert.ok(RC1_PREMIUM_MIGRATIONS.indexOf('migrations/0035_add_ready_to_release_consultation_status.sql') < RC1_PREMIUM_MIGRATIONS.indexOf('migrations/0036_scope_legacy_active_nutrition_plan_email_unique.sql'));
   assert(RC1_PREMIUM_MIGRATIONS.indexOf('migrations/0035_add_ready_to_release_consultation_status.sql') > RC1_PREMIUM_MIGRATIONS.indexOf('migrations/0025_create_premium_students.sql'));
   const fixture = createRc1D1Fixture();

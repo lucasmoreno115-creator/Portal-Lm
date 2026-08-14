@@ -64,6 +64,7 @@ import { createPortalNotification, createPortalNotificationResult, PortalNotific
 import { deliverPortalPush } from './services/portal-push-delivery-service.js';
 import { runWeeklyCheckinReminder } from './services/weekly-checkin-reminder-service.js';
 import { createDeactivatePremiumStudentUseCase } from './premium/application/deactivate-premium-student.js';
+import { createReactivatePremiumStudentUseCase } from './premium/application/reactivate-premium-student.js';
 
 
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
@@ -130,6 +131,7 @@ function createPremiumApplication(env, request) {
     getSaturdayReviewSummary: createGetSaturdayReviewSummaryUseCase({ workspaceRepository }),
     createDraftFromPublishedPlan: createDraftFromPublishedPlanUseCase({ nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), randomUUID: () => crypto.randomUUID() }),
     deactivatePremiumStudent: createDeactivatePremiumStudentUseCase({ db: env.DB }),
+    reactivatePremiumStudent: createReactivatePremiumStudentUseCase({ db: env.DB }),
   };
 }
 
@@ -1098,6 +1100,12 @@ export default {
           const premiumApp = createPremiumApplication(env, request);
           const result = await premiumApp.deactivatePremiumStudent({ student_id: decodeURIComponent(deactivateStudentMatch[1]), created_by: request.headers.get('x-admin-user') || 'admin' });
           return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
+        }
+        const reactivateStudentMatch = url.pathname.match(/^\/api\/admin\/premium\/workspace\/students\/([^/]+)\/reactivate$/);
+        if (reactivateStudentMatch && method === 'POST') {
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.reactivatePremiumStudent({ student_id: decodeURIComponent(reactivateStudentMatch[1]), created_by: request.headers.get('x-admin-user') || 'admin' });
+          return json(result.ok ? { ok: true, data: result.data } : { ok: false, code: result.code, error: result.error }, result.status || 200);
         }
         const workspaceActionMatch = url.pathname.match(/^\/api\/admin\/premium\/workspace\/students\/([^/]+)\/(mark-ready|release|pause)$/);
         if (workspaceActionMatch && method === 'POST') {
@@ -2988,11 +2996,13 @@ async function ensureSchemaUncached(db) {
     source TEXT NOT NULL DEFAULT 'MIGRATION',
     legacy_backfill_batch_id TEXT,
     deactivated_at TEXT,
+    reactivated_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`).run();
   await ensureColumn(db, 'premium_students', 'legacy_backfill_batch_id', 'TEXT');
   await ensureColumn(db, 'premium_students', 'deactivated_at', 'TEXT');
+  await ensureColumn(db, 'premium_students', 'reactivated_at', 'TEXT');
   await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_students_normalized_email ON premium_students(normalized_email)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_students_legacy_backfill_batch ON premium_students(legacy_backfill_batch_id)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_students_access_status ON premium_students(access_status)`).run();

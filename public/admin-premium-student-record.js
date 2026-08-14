@@ -11,6 +11,7 @@ let activeFeedbackId = null;
 let reviewSubmitting = false;
 let temporaryAccessCredentials = null;
 let deactivationSubmitting = false;
+let reactivationSubmitting = false;
 const statusLabels = { NEW:'Novo', AWAITING_ANAMNESIS:'Aguardando anamnese', UNDER_REVIEW:'Em análise', READY_TO_RELEASE:'Pronto para liberação', ACTIVE:'Ativo', PAUSED:'Pausado', ENDED:'Encerrado' };
 const byId = (id) => document.getElementById(id);
 const fmt = (value) => value ? new Date(value).toLocaleString('pt-BR') : '—';
@@ -55,7 +56,7 @@ field('Pendências', `${summary.open_pending_items_count || 0} abertas`),
 field('Próxima ação', summary.next_operational_action)
 );
 }
-function renderCareStatus(data) { const student=data.student||{}, summary=data.summary||{}, root=byId('careStatusContent'); if (!root) return; const status=student.consultation_status; const action=status==='UNDER_REVIEW'?{label:'Marcar planejamento como pronto',to:'READY_TO_RELEASE',confirmation:'O planejamento deste aluno está concluído e pronto para liberação?'}:null; const description=status==='ACTIVE'?'Acompanhamento ativo. Acesso ao Portal liberado.':status==='READY_TO_RELEASE'?'O planejamento está pronto para liberação.':status==='ENDED'?'Acompanhamento encerrado. O histórico permanece preservado.':'Acompanhe as pendências e o próximo passo permitido.'; const last=(data.followup_entries||[]).find(x=>['STUDENT_DEACTIVATED','CONSULTATION_STATUS_CHANGE'].includes(x.entry_type)); root.replaceChildren(field('Status atual',statusLabels[status]||status),field('Descrição',description),field('Próxima ação permitida',action?.label||(status==='ACTIVE'?'Acompanhamento ativo':summary.next_operational_action)),field('Pendências',`${summary.open_pending_items_count||0} abertas`),field(status==='ENDED'?'Desativado em':'Última mudança',status==='ENDED'?fmt(student.deactivated_at):(last?`${fmt(last.created_at)} — ${text(last.content)}`:'Sem mudança registrada'))); if(action)root.append(el('button',{textContent:action.label,dataset:{transition:action.to,confirmation:action.confirmation}})); if(status!=='ENDED')root.append(el('button',{textContent:'Desativar aluno',dataset:{deactivateStudent:'true'}})); }
+function renderCareStatus(data) { const student=data.student||{}, summary=data.summary||{}, root=byId('careStatusContent'); if (!root) return; const status=student.consultation_status; const action=status==='UNDER_REVIEW'?{label:'Marcar planejamento como pronto',to:'READY_TO_RELEASE',confirmation:'O planejamento deste aluno está concluído e pronto para liberação?'}:null; const description=status==='ACTIVE'?'Acompanhamento ativo. Acesso ao Portal liberado.':status==='READY_TO_RELEASE'?'O planejamento está pronto para liberação.':status==='ENDED'?'Acompanhamento encerrado. O histórico permanece preservado.':'Acompanhe as pendências e o próximo passo permitido.'; const last=(data.followup_entries||[]).find(x=>['STUDENT_DEACTIVATED','CONSULTATION_STATUS_CHANGE'].includes(x.entry_type)); root.replaceChildren(field('Status atual',statusLabels[status]||status),field('Descrição',description),field('Próxima ação permitida',action?.label||(status==='ACTIVE'?'Acompanhamento ativo':summary.next_operational_action)),field('Pendências',`${summary.open_pending_items_count||0} abertas`),field(status==='ENDED'?'Desativado em':'Última mudança',status==='ENDED'?fmt(student.deactivated_at):(last?`${fmt(last.created_at)} — ${text(last.content)}`:'Sem mudança registrada'))); if(student.deactivated_at&&status!=='ENDED')root.append(field('Última desativação',fmt(student.deactivated_at))); if(student.reactivated_at)root.append(field('Reativado em',fmt(student.reactivated_at))); if(action)root.append(el('button',{textContent:action.label,dataset:{transition:action.to,confirmation:action.confirmation}})); if(status==='ENDED')root.append(el('button',{textContent:'Reativar aluno',dataset:{reactivateStudent:'true'}})); else root.append(el('button',{textContent:'Desativar aluno',dataset:{deactivateStudent:'true'}})); }
 function renderPending(items) {
 const list = byId('pendingList');
 if (!items.length) {
@@ -171,9 +172,11 @@ nodes.push(el('p', { className: 'muted', textContent: 'A senha anterior não fic
 } else if (status === 'PAUSED') {
 nodes.push(el('p', { className: 'muted', textContent: 'Acesso pausado.' }));
 } else if (status === 'ENDED') {
-nodes.push(el('p', { className: 'muted', textContent: 'Acesso encerrado. Todo o histórico permanece preservado.' }),field('Desativado em',fmt(student.deactivated_at)));
+nodes.push(el('p', { className: 'muted', textContent: 'Acesso encerrado. Todo o histórico permanece preservado.' }),field('Desativado em',fmt(student.deactivated_at)),el('button',{textContent:'Reativar aluno',dataset:{reactivateStudent:'true'}}));
 }
 if(status!=='ENDED')nodes.push(el('button',{textContent:'Desativar aluno',dataset:{deactivateStudent:'true'}}));
+if(student.deactivated_at&&status!=='ENDED')nodes.push(field('Última desativação',fmt(student.deactivated_at)));
+if(student.reactivated_at)nodes.push(field('Reativado em',fmt(student.reactivated_at)));
 nodes.push(feedback);
 target.replaceChildren(...nodes);
 }
@@ -404,6 +407,18 @@ if (event.target?.dataset?.copyAccess) {
 const feedback = byId('studentAccess')?.querySelector?.('[role="status"]');
 event.target.disabled = true;
 try { await copyAccessMessage(accessMessage(lastStudent)); if (feedback) feedback.textContent = '✓ Acesso copiado'; } catch (error) { if (feedback) feedback.textContent = error.message === 'ACCESS_PASSWORD_UNAVAILABLE' ? 'A senha não está mais disponível para cópia. Gere uma nova senha de acesso.' : 'Não foi possível copiar o acesso.'; } finally { event.target.disabled = false; }
+return;
+}
+if (event.target?.dataset?.reactivateStudent) {
+if (reactivationSubmitting) return;
+if (!confirm('Reativar aluno?\n\nO acesso à Consultoria Premium será restaurado e pendências operacionais ainda abertas poderão voltar a aparecer no Workspace.')) return;
+reactivationSubmitting = true;
+event.target.disabled = true;
+event.target.setAttribute('aria-busy', 'true');
+event.target.textContent = 'Reativando...';
+try { await api(`/api/admin/premium/workspace/students/${encodeURIComponent(studentId)}/reactivate`, { method:'POST', body:'{}' }); await load(); }
+catch(error) { alert(error.message); await load(); }
+finally { reactivationSubmitting = false; }
 return;
 }
 if (event.target?.dataset?.deactivateStudent) {

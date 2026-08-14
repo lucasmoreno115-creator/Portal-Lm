@@ -21,6 +21,7 @@ export const RC1_PREMIUM_MIGRATIONS = Object.freeze([
   'migrations/0037_add_weekly_feedback_followup_at.sql',
   'migrations/0041_add_premium_anamnesis_analyzed_at.sql',
   'migrations/0042_add_premium_student_deactivated_at.sql',
+  'migrations/0043_add_premium_student_reactivated_at.sql',
 ]);
 
 function resultFromRun(result = {}) { return { success: true, changes: Number(result.changes ?? 0), meta: { changes: Number(result.changes ?? 0) } }; }
