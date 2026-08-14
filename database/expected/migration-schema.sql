@@ -68,6 +68,22 @@ CREATE INDEX idx_operational_logs_level_created_at
 CREATE INDEX idx_operational_logs_student_email_created_at
   ON operational_logs(student_email, created_at);
 
+CREATE INDEX idx_portal_notifications_student_created
+  ON portal_notifications(student_id, created_at DESC);
+
+CREATE INDEX idx_portal_notifications_student_status_created
+  ON portal_notifications(student_id, status, created_at DESC);
+
+CREATE UNIQUE INDEX idx_portal_notifications_student_type_reference
+  ON portal_notifications(student_id, type, reference_key)
+  WHERE reference_key IS NOT NULL;
+
+CREATE INDEX idx_portal_push_deliveries_notification
+  ON portal_push_deliveries(notification_id, status);
+
+CREATE INDEX idx_portal_push_subscriptions_student_status
+  ON portal_push_subscriptions(student_id, status);
+
 CREATE INDEX idx_premium_anamnesis_created_at
   ON premium_anamnesis(created_at);
 
@@ -365,6 +381,52 @@ CREATE TABLE operational_logs (
   metadata TEXT
 );
 
+CREATE TABLE portal_notifications (
+  id TEXT PRIMARY KEY,
+  student_id TEXT NOT NULL,
+  student_email TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN (
+    'WEEKLY_CHECKIN_REMINDER', 'ANAMNESIS_REQUIRED', 'PLANNING_PUBLISHED',
+    'WORKOUT_UPDATED', 'COACH_REPLY', 'ACCOUNT_RELEASED', 'CUSTOM'
+  )),
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  action_url TEXT,
+  reference_key TEXT,
+  status TEXT NOT NULL DEFAULT 'UNREAD' CHECK (status IN ('UNREAD', 'READ')),
+  created_at TEXT NOT NULL,
+  read_at TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE portal_push_deliveries (
+  id TEXT PRIMARY KEY,
+  notification_id TEXT NOT NULL,
+  subscription_id TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('PENDING', 'SENT', 'FAILED', 'EXPIRED')),
+  provider_status INTEGER,
+  error_code TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(notification_id, subscription_id)
+);
+
+CREATE TABLE portal_push_subscriptions (
+  id TEXT PRIMARY KEY,
+  student_id TEXT NOT NULL,
+  student_email TEXT NOT NULL,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  user_agent TEXT,
+  status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'REVOKED')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  last_success_at TEXT,
+  failure_count INTEGER NOT NULL DEFAULT 0,
+  revoked_at TEXT
+);
+
 CREATE TABLE premium_anamnesis (
   id TEXT PRIMARY KEY,
   student_name TEXT NOT NULL,
@@ -375,7 +437,7 @@ CREATE TABLE premium_anamnesis (
   internal_scores_json TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
-, student_id TEXT);
+, student_id TEXT, analyzed_at TEXT);
 
 CREATE TABLE premium_feedback_reminders (
   id TEXT PRIMARY KEY,
@@ -445,7 +507,7 @@ CREATE TABLE premium_students (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   legacy_backfill_batch_id TEXT
-);
+, deactivated_at TEXT NULL);
 
 CREATE TABLE progression_logs (
   id TEXT PRIMARY KEY,

@@ -11,6 +11,7 @@
   let activeFeedbackId = null;
   let reviewSubmitting = false;
   let temporaryAccessCredentials = null;
+  let deactivationSubmitting = false;
   const statusLabels = { NEW:'Novo', AWAITING_ANAMNESIS:'Aguardando anamnese', UNDER_REVIEW:'Em análise', READY_TO_RELEASE:'Pronto para liberação', ACTIVE:'Ativo', PAUSED:'Pausado', ENDED:'Encerrado' };
 
   const byId = (id) => document.getElementById(id);
@@ -63,7 +64,7 @@
     );
   }
 
-  function renderCareStatus(data) { const student=data.student||{}, summary=data.summary||{}, root=byId('careStatusContent'); if (!root) return; const status=student.consultation_status; const action=status==='UNDER_REVIEW'?{label:'Marcar planejamento como pronto',to:'READY_TO_RELEASE',confirmation:'O planejamento deste aluno está concluído e pronto para liberação?'}:null; const description=status==='ACTIVE'?'Acompanhamento ativo. Acesso ao Portal liberado.':status==='READY_TO_RELEASE'?'O planejamento está pronto para liberação.':'Acompanhe as pendências e o próximo passo permitido.'; const last=(data.followup_entries||[]).find(x=>x.entry_type==='CONSULTATION_STATUS_CHANGE'); root.replaceChildren(field('Status atual',statusLabels[status]||status),field('Descrição',description),field('Próxima ação permitida',action?.label||(status==='ACTIVE'?'Acompanhamento ativo':summary.next_operational_action)),field('Pendências',`${summary.open_pending_items_count||0} abertas`),field('Última mudança',last?`${fmt(last.created_at)} — ${text(last.content)}`:'Sem mudança registrada')); if(action)root.append(el('button',{textContent:action.label,dataset:{transition:action.to,confirmation:action.confirmation}})); }
+  function renderCareStatus(data) { const student=data.student||{}, summary=data.summary||{}, root=byId('careStatusContent'); if (!root) return; const status=student.consultation_status; const action=status==='UNDER_REVIEW'?{label:'Marcar planejamento como pronto',to:'READY_TO_RELEASE',confirmation:'O planejamento deste aluno está concluído e pronto para liberação?'}:null; const description=status==='ACTIVE'?'Acompanhamento ativo. Acesso ao Portal liberado.':status==='READY_TO_RELEASE'?'O planejamento está pronto para liberação.':status==='ENDED'?'Acompanhamento encerrado. O histórico permanece preservado.':'Acompanhe as pendências e o próximo passo permitido.'; const last=(data.followup_entries||[]).find(x=>['STUDENT_DEACTIVATED','CONSULTATION_STATUS_CHANGE'].includes(x.entry_type)); root.replaceChildren(field('Status atual',statusLabels[status]||status),field('Descrição',description),field('Próxima ação permitida',action?.label||(status==='ACTIVE'?'Acompanhamento ativo':summary.next_operational_action)),field('Pendências',`${summary.open_pending_items_count||0} abertas`),field(status==='ENDED'?'Desativado em':'Última mudança',status==='ENDED'?fmt(student.deactivated_at):(last?`${fmt(last.created_at)} — ${text(last.content)}`:'Sem mudança registrada'))); if(action)root.append(el('button',{textContent:action.label,dataset:{transition:action.to,confirmation:action.confirmation}})); if(status!=='ENDED')root.append(el('button',{textContent:'Desativar aluno',dataset:{deactivateStudent:'true'}})); }
 
   function renderPending(items) {
     const list = byId('pendingList');
@@ -432,6 +433,18 @@
       const feedback = byId('studentAccess')?.querySelector?.('[role="status"]');
       event.target.disabled = true;
       try { await copyAccessMessage(accessMessage(lastStudent)); if (feedback) feedback.textContent = '✓ Acesso copiado'; } catch (error) { if (feedback) feedback.textContent = error.message === 'ACCESS_PASSWORD_UNAVAILABLE' ? 'A senha não está mais disponível para cópia. Gere uma nova senha de acesso.' : 'Não foi possível copiar o acesso.'; } finally { event.target.disabled = false; }
+      return;
+    }
+    if (event.target?.dataset?.deactivateStudent) {
+      if (deactivationSubmitting) return;
+      if (!confirm('Desativar aluno?\n\nO aluno perderá acesso à Consultoria Premium, mas todo o histórico será preservado.')) return;
+      deactivationSubmitting = true;
+      event.target.disabled = true;
+      event.target.setAttribute('aria-busy', 'true');
+      event.target.textContent = 'Desativando...';
+      try { await api(`/api/admin/premium/workspace/students/${encodeURIComponent(studentId)}/deactivate`, { method:'POST', body:'{}' }); await load(); }
+      catch(error) { alert(error.message); event.target.disabled=false; event.target.removeAttribute('aria-busy'); event.target.textContent='Desativar aluno'; }
+      finally { deactivationSubmitting = false; }
       return;
     }
     const transition = event.target?.dataset?.transition;

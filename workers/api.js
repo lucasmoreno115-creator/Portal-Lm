@@ -63,6 +63,7 @@ import { presentPortalNotification } from './premium/presenters/portal-notificat
 import { createPortalNotification, createPortalNotificationResult, PortalNotificationValidationError } from './services/portal-notification-service.js';
 import { deliverPortalPush } from './services/portal-push-delivery-service.js';
 import { runWeeklyCheckinReminder } from './services/weekly-checkin-reminder-service.js';
+import { createDeactivatePremiumStudentUseCase } from './premium/application/deactivate-premium-student.js';
 
 
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
@@ -128,6 +129,7 @@ function createPremiumApplication(env, request) {
     listProfessionalWorkspacePendingItems: createListProfessionalWorkspacePendingItemsUseCase({ workspaceRepository }),
     getSaturdayReviewSummary: createGetSaturdayReviewSummaryUseCase({ workspaceRepository }),
     createDraftFromPublishedPlan: createDraftFromPublishedPlanUseCase({ nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), randomUUID: () => crypto.randomUUID() }),
+    deactivatePremiumStudent: createDeactivatePremiumStudentUseCase({ db: env.DB }),
   };
 }
 
@@ -140,7 +142,7 @@ async function getPremiumGate(db, email) {
   return { studentId: row?.student_id || null, status: row ? status : 'LEGACY_COMPATIBLE', released: row ? status === 'ACTIVE' : true, legacyCompatible: !row };
 }
 function premiumLockedResponse() {
-  return { ok: false, error: 'Seu planejamento está em preparação. Assim que o acompanhamento for liberado, os módulos publicados aparecerão aqui.' };
+  return { ok: false, error: 'Seu acesso à Consultoria Premium não está ativo no momento. Entre em contato com seu acompanhamento se precisar de ajuda.' };
 }
 
 const PREMIUM_CONSULTATION_STATUS_LABELS = {
@@ -1083,6 +1085,12 @@ export default {
           }
           await logActivityEvent(env.DB,{student_email:student.email,event_type:EVENT_TYPES.STUDENT_TOKEN_UPDATED,source:'admin',title:'Acesso Premium emitido',payload:{reason:'Emissão/rotação antes da anamnese',student_id:studentId}});
           return json({ok:true,data:{name:student.display_name||'Aluno',accessLink:`${url.origin}/portal-login.html`,token}});
+        }
+        const deactivateStudentMatch = url.pathname.match(/^\/api\/admin\/premium\/workspace\/students\/([^/]+)\/deactivate$/);
+        if (deactivateStudentMatch && method === 'POST') {
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.deactivatePremiumStudent({ student_id: decodeURIComponent(deactivateStudentMatch[1]), created_by: request.headers.get('x-admin-user') || 'admin' });
+          return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
         }
         const workspaceActionMatch = url.pathname.match(/^\/api\/admin\/premium\/workspace\/students\/([^/]+)\/(mark-ready|release|pause)$/);
         if (workspaceActionMatch && method === 'POST') {
@@ -2972,10 +2980,12 @@ async function ensureSchemaUncached(db) {
     access_status TEXT NOT NULL DEFAULT 'ACTIVE',
     source TEXT NOT NULL DEFAULT 'MIGRATION',
     legacy_backfill_batch_id TEXT,
+    deactivated_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`).run();
   await ensureColumn(db, 'premium_students', 'legacy_backfill_batch_id', 'TEXT');
+  await ensureColumn(db, 'premium_students', 'deactivated_at', 'TEXT');
   await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_students_normalized_email ON premium_students(normalized_email)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_students_legacy_backfill_batch ON premium_students(legacy_backfill_batch_id)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_students_access_status ON premium_students(access_status)`).run();
