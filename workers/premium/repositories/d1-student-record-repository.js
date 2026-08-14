@@ -5,7 +5,7 @@ function parseJson(value, fallback) { try { return value ? JSON.parse(value) : f
 export function createD1StudentRecordRepository(db) {
   return Object.freeze({
     async getStudentHeader(studentId) {
-      const student = await db.prepare(`SELECT ps.student_id, ps.email, ps.display_name, ps.consultation_status, ps.access_status, ps.created_at, ps.updated_at, sa.name, sa.whatsapp, sa.status AS portal_access_status FROM premium_students ps LEFT JOIN student_access sa ON sa.student_id=ps.student_id WHERE ps.student_id=? LIMIT 1`).bind(studentId).first();
+      const student = await db.prepare(`SELECT ps.student_id, ps.email, ps.display_name, ps.consultation_status, ps.access_status, ps.deactivated_at, ps.created_at, ps.updated_at, sa.name, sa.whatsapp, sa.status AS portal_access_status FROM premium_students ps LEFT JOIN student_access sa ON sa.student_id=ps.student_id WHERE ps.student_id=? LIMIT 1`).bind(studentId).first();
       if (!student) return null;
       const last = await db.prepare(`SELECT MAX(created_at) AS last_activity_at FROM (SELECT created_at FROM premium_anamnesis WHERE student_id=? UNION ALL SELECT created_at FROM student_checkins WHERE student_id=? UNION ALL SELECT updated_at AS created_at FROM nutrition_plans WHERE student_id=? UNION ALL SELECT created_at FROM premium_followup_entries WHERE student_id=?)`).bind(studentId, studentId, studentId, studentId).first();
       return { ...student, name: student.display_name || student.name || '', phone: student.whatsapp || null, last_activity_at: last?.last_activity_at || null };

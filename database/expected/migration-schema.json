@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-22T01:26:39.598Z",
+  "generatedAt": "2026-08-14T00:48:53.135Z",
   "source": "database/bootstrap/legacy-base-schema.sql + versioned migrations + registered replay overrides",
   "bootstrap": "database/bootstrap/legacy-base-schema.sql",
   "migrations": [
@@ -36,7 +36,12 @@
     "0034_premium_legacy_identity_backfill_audit.sql",
     "0035_add_ready_to_release_consultation_status.sql",
     "0036_scope_legacy_active_nutrition_plan_email_unique.sql",
-    "0037_add_weekly_feedback_followup_at.sql"
+    "0037_add_weekly_feedback_followup_at.sql",
+    "0038_create_portal_push_subscriptions.sql",
+    "0039_create_portal_notifications.sql",
+    "0040_create_portal_push_deliveries.sql",
+    "0041_add_premium_anamnesis_analyzed_at.sql",
+    "0042_add_premium_student_deactivated_at.sql"
   ],
   "overridesUsed": [
     {
@@ -89,9 +94,14 @@
     "0034_premium_legacy_identity_backfill_audit.sql",
     "0035_add_ready_to_release_consultation_status.sql",
     "0036_scope_legacy_active_nutrition_plan_email_unique.sql",
-    "0037_add_weekly_feedback_followup_at.sql"
+    "0037_add_weekly_feedback_followup_at.sql",
+    "0038_create_portal_push_subscriptions.sql",
+    "0039_create_portal_notifications.sql",
+    "0040_create_portal_push_deliveries.sql",
+    "0041_add_premium_anamnesis_analyzed_at.sql",
+    "0042_add_premium_student_deactivated_at.sql"
   ],
-  "schemaHash": "ca269d947728d33b4c56c888dba40ee0778f33e5abedfbfb0bd4b0dccaaeb46f",
+  "schemaHash": "ea28ea379607e4bfb48f06e70874fac86d994f02c147e63e0de10d7d25f4dab3",
   "tables": {
     "activity_timeline": {
       "columns": [
@@ -1314,6 +1324,353 @@
         }
       ]
     },
+    "portal_notifications": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "type",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "title",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "body",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "action_url",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "reference_key",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'UNREAD'",
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "read_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_portal_notifications_student_created",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id",
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_portal_notifications_student_status_created",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id",
+            "status",
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_portal_notifications_student_type_reference",
+          "unique": true,
+          "origin": "c",
+          "partial": true,
+          "columns": [
+            "student_id",
+            "type",
+            "reference_key"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_portal_notifications_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "portal_push_deliveries": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "notification_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "subscription_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "provider_status",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "error_code",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_portal_push_deliveries_notification",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "notification_id",
+            "status"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_portal_push_deliveries_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_portal_push_deliveries_2",
+          "unique": true,
+          "origin": "u",
+          "partial": false,
+          "columns": [
+            "notification_id",
+            "subscription_id"
+          ]
+        }
+      ]
+    },
+    "portal_push_subscriptions": {
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "name": "student_id",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "student_email",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "endpoint",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "p256dh",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "auth",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "user_agent",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": "'ACTIVE'",
+          "pk": 0
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "last_success_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "failure_count",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt_value": "0",
+          "pk": 0
+        },
+        {
+          "name": "revoked_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_portal_push_subscriptions_student_status",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            "student_id",
+            "status"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_portal_push_subscriptions_1",
+          "unique": true,
+          "origin": "pk",
+          "partial": false,
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_portal_push_subscriptions_2",
+          "unique": true,
+          "origin": "u",
+          "partial": false,
+          "columns": [
+            "endpoint"
+          ]
+        }
+      ]
+    },
     "premium_anamnesis": {
       "columns": [
         {
@@ -1381,6 +1738,13 @@
         },
         {
           "name": "student_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "analyzed_at",
           "type": "TEXT",
           "notnull": false,
           "dflt_value": null,
@@ -2017,6 +2381,13 @@
         },
         {
           "name": "legacy_backfill_batch_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "deactivated_at",
           "type": "TEXT",
           "notnull": false,
           "dflt_value": null,

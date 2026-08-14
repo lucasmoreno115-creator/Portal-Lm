@@ -63,6 +63,7 @@ import { presentPortalNotification } from './premium/presenters/portal-notificat
 import { createPortalNotification, createPortalNotificationResult, PortalNotificationValidationError } from './services/portal-notification-service.js';
 import { deliverPortalPush } from './services/portal-push-delivery-service.js';
 import { runWeeklyCheckinReminder } from './services/weekly-checkin-reminder-service.js';
+import { createDeactivatePremiumStudentUseCase } from './premium/application/deactivate-premium-student.js';
 
 
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
@@ -128,6 +129,7 @@ function createPremiumApplication(env, request) {
     listProfessionalWorkspacePendingItems: createListProfessionalWorkspacePendingItemsUseCase({ workspaceRepository }),
     getSaturdayReviewSummary: createGetSaturdayReviewSummaryUseCase({ workspaceRepository }),
     createDraftFromPublishedPlan: createDraftFromPublishedPlanUseCase({ nutritionPlanRepository: createD1NutritionPlanRepository(env.DB), randomUUID: () => crypto.randomUUID() }),
+    deactivatePremiumStudent: createDeactivatePremiumStudentUseCase({ db: env.DB }),
   };
 }
 
@@ -135,12 +137,13 @@ function createPremiumApplication(env, request) {
 
 async function getPremiumGate(db, email) {
   const normalized = String(email || '').trim().toLowerCase();
-  const row = await db.prepare(`SELECT student_id, consultation_status FROM premium_students WHERE normalized_email=? OR lower(trim(email))=? ORDER BY updated_at DESC LIMIT 1`).bind(normalized, normalized).first();
+  const row = await db.prepare(`SELECT student_id, consultation_status, access_status FROM premium_students WHERE normalized_email=? OR lower(trim(email))=? ORDER BY updated_at DESC LIMIT 1`).bind(normalized, normalized).first();
   const status = String(row?.consultation_status || '').toUpperCase();
-  return { studentId: row?.student_id || null, status: row ? status : 'LEGACY_COMPATIBLE', released: row ? status === 'ACTIVE' : true, legacyCompatible: !row };
+  const accessStatus = String(row?.access_status || '').toUpperCase();
+  return { studentId: row?.student_id || null, status: row ? status : 'LEGACY_COMPATIBLE', accessStatus: row ? accessStatus : 'LEGACY_COMPATIBLE', released: row ? status === 'ACTIVE' && accessStatus === 'ACTIVE' : true, legacyCompatible: !row };
 }
 function premiumLockedResponse() {
-  return { ok: false, error: 'Seu planejamento está em preparação. Assim que o acompanhamento for liberado, os módulos publicados aparecerão aqui.' };
+  return { ok: false, error: 'Seu acesso à Consultoria Premium não está ativo no momento. Entre em contato com seu acompanhamento se precisar de ajuda.' };
 }
 
 const PREMIUM_CONSULTATION_STATUS_LABELS = {
@@ -159,6 +162,7 @@ function premiumAccessState(student, gate) {
     experience: consultationStatus === 'ACTIVE' ? 'PREMIUM_PORTAL' : 'ONBOARDING',
     consultationStatus,
     consultationStatusLabel: PREMIUM_CONSULTATION_STATUS_LABELS[consultationStatus],
+    accessState: gate.released ? 'ACTIVE' : 'INACTIVE',
     name: String(student.name || 'Aluno').trim() || 'Aluno',
     phone: student.whatsapp || null,
     anamnesisCompleted: ['UNDER_REVIEW', 'READY_TO_RELEASE', 'ACTIVE', 'PAUSED', 'ENDED'].includes(consultationStatus),
@@ -389,7 +393,9 @@ export default {
         const studentEmail = auth.student.email;
 
         if (url.pathname === '/api/portal/notifications' || url.pathname.startsWith('/api/portal/notifications/')) {
-          if (!isPremiumPortalStudent(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
+          const notificationGate = await getPremiumGate(env.DB, studentEmail);
+          if (!isPremiumPortalStudent(auth.student) && notificationGate.legacyCompatible) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
+          if (!notificationGate.released) return json(premiumLockedResponse(), 403);
           const identity = await resolvePushStudentIdentity(env.DB, auth.student);
           if (!identity.studentId) return json({ ok: false, error: 'Identidade Premium indisponível.' }, 409);
 
@@ -431,7 +437,9 @@ export default {
         }
 
         if (url.pathname.startsWith('/api/portal/push/')) {
-          if (!isPremiumPortalStudent(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
+          const pushGate = await getPremiumGate(env.DB, studentEmail);
+          if (!isPremiumPortalStudent(auth.student) && pushGate.legacyCompatible) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
+          if (!pushGate.released) return json(premiumLockedResponse(), 403);
           const identity = await resolvePushStudentIdentity(env.DB, auth.student);
           if (!identity.studentId) return json({ ok: false, error: 'Identidade Premium indisponível.' }, 409);
 
@@ -478,13 +486,14 @@ export default {
           }
         }
         if (url.pathname === '/api/portal/premium/access-state' && method === 'GET') {
-          if (!isPremiumPortalStudent(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
           const gate = await getPremiumGate(env.DB, studentEmail);
+          if (!isPremiumPortalStudent(auth.student) && gate.legacyCompatible) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
           return json({ ok: true, data: premiumAccessState(auth.student, gate) }, 200, '/api/portal/premium/access-state');
         }
 
-        const blockProjectLmOnPremiumCore = () => {
-          if (!isPremiumPortalStudent(auth.student)) {
+        const blockProjectLmOnPremiumCore = async () => {
+          const gate = await getPremiumGate(env.DB, studentEmail);
+          if (!isPremiumPortalStudent(auth.student) && gate.legacyCompatible) {
             return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
           }
           return null;
@@ -812,7 +821,7 @@ export default {
         }
 
         if (url.pathname === '/api/portal/weekly-plan' && method === 'GET') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -829,7 +838,7 @@ export default {
 
 
         if ((url.pathname === '/api/portal/nutrition-plan' || url.pathname === '/api/portal/premium/nutrition-plan/current') && method === 'GET') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -848,7 +857,7 @@ export default {
         }
 
         if (url.pathname === '/api/portal/checkin' && method === 'POST') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -891,7 +900,7 @@ export default {
         }
 
         if (url.pathname === '/api/portal/checkins' && method === 'GET') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -903,7 +912,7 @@ export default {
 
 
         if (url.pathname === '/api/portal/premium/weekly-feedback/current' && method === 'GET') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -915,7 +924,7 @@ export default {
         }
 
         if (url.pathname === '/api/portal/premium/weekly-feedback/current' && method === 'POST') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -934,7 +943,7 @@ export default {
         }
 
         if (url.pathname === '/api/portal/premium/weekly-feedback/history' && method === 'GET') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -945,7 +954,7 @@ export default {
         }
 
         if (url.pathname === '/api/portal/progression' && method === 'POST') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -974,7 +983,7 @@ export default {
         }
 
         if (url.pathname === '/api/portal/progression' && method === 'GET') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -1083,6 +1092,12 @@ export default {
           }
           await logActivityEvent(env.DB,{student_email:student.email,event_type:EVENT_TYPES.STUDENT_TOKEN_UPDATED,source:'admin',title:'Acesso Premium emitido',payload:{reason:'Emissão/rotação antes da anamnese',student_id:studentId}});
           return json({ok:true,data:{name:student.display_name||'Aluno',accessLink:`${url.origin}/portal-login.html`,token}});
+        }
+        const deactivateStudentMatch = url.pathname.match(/^\/api\/admin\/premium\/workspace\/students\/([^/]+)\/deactivate$/);
+        if (deactivateStudentMatch && method === 'POST') {
+          const premiumApp = createPremiumApplication(env, request);
+          const result = await premiumApp.deactivatePremiumStudent({ student_id: decodeURIComponent(deactivateStudentMatch[1]), created_by: request.headers.get('x-admin-user') || 'admin' });
+          return json(result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error }, result.status || 200);
         }
         const workspaceActionMatch = url.pathname.match(/^\/api\/admin\/premium\/workspace\/students\/([^/]+)\/(mark-ready|release|pause)$/);
         if (workspaceActionMatch && method === 'POST') {
@@ -2972,10 +2987,12 @@ async function ensureSchemaUncached(db) {
     access_status TEXT NOT NULL DEFAULT 'ACTIVE',
     source TEXT NOT NULL DEFAULT 'MIGRATION',
     legacy_backfill_batch_id TEXT,
+    deactivated_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`).run();
   await ensureColumn(db, 'premium_students', 'legacy_backfill_batch_id', 'TEXT');
+  await ensureColumn(db, 'premium_students', 'deactivated_at', 'TEXT');
   await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_students_normalized_email ON premium_students(normalized_email)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_students_legacy_backfill_batch ON premium_students(legacy_backfill_batch_id)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_premium_students_access_status ON premium_students(access_status)`).run();
