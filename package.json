@@ -26,6 +26,7 @@
     "qa:lm:stability-closure": "node scripts/qa-premium-stability-regression-closure.mjs",
     "qa:lm:security-audit": "node --test tests/lm-premium-security-audit.test.mjs",
     "qa:lm:security-closure": "node scripts/qa-premium-security-regression-closure.mjs",
+    "qa:lm:student-ux-audit": "node scripts/qa-premium-student-ux-audit.mjs",
     "qa:lm:premium-entry": "node scripts/qa-premium-entry-staging-e2e.mjs",
     "qa:lm:premium-anamnesis": "node scripts/qa-premium-anamnesis-staging-e2e.mjs",
     "qa:lm:premium-objectives": "node scripts/qa-premium-objectives-staging-e2e.mjs",
