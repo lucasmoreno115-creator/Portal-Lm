@@ -116,16 +116,40 @@
 
     async function load() {
       const r = await api('/portal/checkins');
-      hist.innerHTML = (r.data || []).map(c => {
-        const replyBlock = c.coach_reply
-          ? `<div class='coach-reply-card'><strong>Resposta do Lucas</strong><p>${c.coach_reply}</p><small>${formatDate(c.coach_reply_at)}</small></div>`
-          : `<p class='muted'>Seu check-in foi recebido. A orientação aparecerá aqui quando for registrada.</p>`;
+      const entries = r.data || [];
+      hist.replaceChildren();
+      if (!entries.length) {
+        hist.textContent = 'Sem histórico';
+        return;
+      }
+      entries.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'status';
+        const summary = document.createElement('p');
+        const date = document.createElement('strong');
+        date.textContent = formatDate(c.created_at);
+        summary.append(date, document.createTextNode(` · Treino: ${c.training_adherence || '-'} · Dificuldade: ${c.main_difficulty || '-'}`));
+        item.append(summary);
 
-        return `<div class='status'>
-          <p><strong>${formatDate(c.created_at)}</strong> · Treino: ${c.training_adherence || '-'} · Dificuldade: ${c.main_difficulty || '-'}</p>
-          ${replyBlock}
-        </div>`;
-      }).join('') || 'Sem histórico';
+        if (c.coach_reply) {
+          const reply = document.createElement('div');
+          reply.className = 'coach-reply-card';
+          const title = document.createElement('strong');
+          title.textContent = 'Resposta do Lucas';
+          const message = document.createElement('p');
+          message.textContent = c.coach_reply;
+          const repliedAt = document.createElement('small');
+          repliedAt.textContent = formatDate(c.coach_reply_at);
+          reply.append(title, message, repliedAt);
+          item.append(reply);
+        } else {
+          const pending = document.createElement('p');
+          pending.className = 'muted';
+          pending.textContent = 'Seu check-in foi recebido. A orientação aparecerá aqui quando for registrada.';
+          item.append(pending);
+        }
+        hist.append(item);
+      });
     }
 
     load();

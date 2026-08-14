@@ -136,12 +136,21 @@
 
     async function loadHist() {
       const r = await api('/portal/progression');
-      hist.innerHTML = (r.data || []).map(i => {
+      const entries = r.data || [];
+      hist.replaceChildren();
+      if (!entries.length) {
+        hist.textContent = 'Sem histórico';
+        return;
+      }
+      entries.forEach(i => {
         const rec = i.recommendation || i.decision || 'Sem recomendação';
         const quality = i.executionQuality ? ` · Execução: ${i.executionQuality}` : '';
         const legacyRir = i.rir ? ` · RIR legado: ${i.rir}` : '';
-        return `<div class='status'>${i.created_at} · ${i.exercise} · ${i.targetZone || '-'} · ${i.loadUsed || '-'}kg · ${i.repsDone || '-'} reps${quality} · ${rec}${legacyRir}</div>`;
-      }).join('') || 'Sem histórico';
+        const item = document.createElement('div');
+        item.className = 'status';
+        item.textContent = `${i.created_at || '-'} · ${i.exercise || '-'} · ${i.targetZone || '-'} · ${i.loadUsed || '-'}kg · ${i.repsDone || '-'} reps${quality} · ${rec}${legacyRir}`;
+        hist.append(item);
+      });
     }
 
     loadHist();
