@@ -7,13 +7,14 @@ test('public presenter exposes the complete published plan contract without admi
   assert.equal(presentPublicNutritionPlan({ status:'ARCHIVED', is_active:1 }), null);
   assert.equal(presentPublicNutritionPlan({ status:'PUBLISHED', is_active:0 }), null);
   const p=presentPublicNutritionPlan({
-    status:'PUBLISHED', is_active:1, student_id:'s', id:'id', published_by:'admin', source_feedback_id:'feedback', title:'T', goal:'Definição', strategy:'Déficit leve',
+    status:'PUBLISHED', is_active:1, student_id:'s', id:'id', published_by:'admin', source_feedback_id:'feedback', version_number:2, published_at:'2026-08-14T12:00:00.000Z', title:'T', goal:'Definição', strategy:'Déficit leve',
     meals_json:JSON.stringify([{ name:'Café', time:'07:00', primary_text:'2 ovos e fruta', guidance:'Prepare sem fritura', items:[{ food:'Ovos', quantity:'2' }], substitutions:[{ text:'Iogurte natural' }] }]),
     substitutions_json:JSON.stringify([{ text:'Arroz por batata' }]), adherence_rules_json:JSON.stringify(['Planeje a semana']), notes:'Evite álcool', hydration:'2,5 L/dia', supplements_json:JSON.stringify([{ name:'Creatina', dosage:'3 g' }]),
   });
   assert.deepEqual(p.meals,[{ name:'Café', time:'07:00', primary_text:'2 ovos e fruta', guidance:'Prepare sem fritura', items:[{ food:'Ovos', quantity:'2' }], substitutions:[{ text:'Iogurte natural' }] }]);
   assert.deepEqual(p.substitutions,[{ text:'Arroz por batata' }]);
   assert.equal(p.observations,'Evite álcool'); assert.equal(p.hydration,'2,5 L/dia'); assert.deepEqual(p.supplements,[{ name:'Creatina', dosage:'3 g' }]); assert.deepEqual(p.adherence_rules,['Planeje a semana']);
+  assert.equal(p.version_number,2); assert.equal(p.published_at,'2026-08-14T12:00:00.000Z'); assert.equal(p.updated_at,p.published_at);
   for (const field of ['student_id','id','published_by','source_feedback_id']) assert.equal(field in p,false);
 });
 

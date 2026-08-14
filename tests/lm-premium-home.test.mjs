@@ -16,7 +16,7 @@ test('Premium home presents direction, guidance, and execution in DOM order', ()
   const sections = [
     ['Objetivos do planejamento', indexOfLabel('Objetivos do planejamento')],
     ['Meu conselho para você', indexOfLabel('Meu conselho para você')],
-    ['Plano Alimentar', home.indexOf("<a class='primary-action-link' href='portal-plano-alimentar.html'")],
+    ['Plano Alimentar', home.indexOf("<a class='primary-action-link' href='portal-premium-nutrition-plan.html'")],
     ['Treino', home.indexOf("<a class='primary-action-link' href='https://www.mfitpersonal.com.br/app.jsp'")],
     ['Check-in', home.indexOf("href='portal-premium-weekly-feedback.html'")],
     ['Biblioteca', home.indexOf("<a class='secondary-link' href='portal-biblioteca.html'")],
@@ -36,10 +36,10 @@ test('Premium home presents direction, guidance, and execution in DOM order', ()
 });
 
 test('Premium home keeps primary and secondary actions unique and visually aligned with their DOM order', () => {
-  assert.match(home, /<section class='primary-actions[\s\S]*?portal-plano-alimentar\.html[\s\S]*?Plano Alimentar[\s\S]*?mfitpersonal[\s\S]*?Treino[\s\S]*?<\/section>/s);
+  assert.match(home, /<section class='primary-actions[\s\S]*?portal-premium-nutrition-plan\.html[\s\S]*?Plano Alimentar[\s\S]*?mfitpersonal[\s\S]*?Treino[\s\S]*?<\/section>/s);
   assert.match(home, /<section class='secondary-actions[\s\S]*?portal-premium-weekly-feedback\.html[\s\S]*?Check-in[\s\S]*?portal-biblioteca\.html[\s\S]*?Biblioteca[\s\S]*?wa\.me[\s\S]*?Preciso de ajuda[\s\S]*?<\/section>/s);
 
-  for (const href of ['portal-plano-alimentar.html', 'portal-premium-weekly-feedback.html', 'portal-biblioteca.html', 'https://www.mfitpersonal.com.br/app.jsp']) {
+  for (const href of ['portal-premium-nutrition-plan.html', 'portal-premium-weekly-feedback.html', 'portal-biblioteca.html', 'https://www.mfitpersonal.com.br/app.jsp']) {
     assert.equal((home.match(new RegExp(href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length, 1, `${href} must not be duplicated.`);
   }
 
