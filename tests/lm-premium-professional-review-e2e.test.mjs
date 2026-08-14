@@ -51,9 +51,9 @@ test('F2.2.5 completes the Premium weekly-feedback professional review through r
       id: 'premium-e2e-previous', week: '2026-W32', reply: 'Resposta preservada da semana anterior.',
       repliedAt: '2026-08-08T14:00:00.000Z', reviewedAt: '2026-08-08T14:01:00.000Z', analyzedAt: '2026-08-08T14:02:00.000Z', decisionAt: '2026-08-08T14:03:00.000Z',
     };
-    await db.prepare(`INSERT INTO student_checkins (id,student_id,student_email,week_ref,training_adherence,coach_status,coach_reply,coach_reply_at,reviewed_at,analyzed_at,decision_type,decision_note,decision_at,submitted_at,created_at,updated_at)
-      VALUES (?,?,?,?,?,'reviewed',?,?,?,?, 'KEEP_STRATEGY','Manter estratégia anterior',?,?,?,?)`)
-      .bind(previous.id, STUDENT.id, STUDENT.email, previous.week, 'Boa', previous.reply, previous.repliedAt, previous.reviewedAt, previous.analyzedAt, previous.decisionAt, '2026-08-08T12:00:00.000Z', '2026-08-08T12:00:00.000Z', previous.decisionAt).run();
+    await db.prepare(`INSERT INTO student_checkins (id,student_id,student_email,week_ref,training_adherence,waist,coach_status,coach_reply,coach_reply_at,reviewed_at,analyzed_at,decision_type,decision_note,decision_at,submitted_at,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,'reviewed',?,?,?,?, 'KEEP_STRATEGY','Manter estratégia anterior',?,?,?,?)`)
+      .bind(previous.id, STUDENT.id, STUDENT.email, previous.week, 'Boa', '82.5', previous.reply, previous.repliedAt, previous.reviewedAt, previous.analyzedAt, previous.decisionAt, '2026-08-08T12:00:00.000Z', '2026-08-08T12:00:00.000Z', previous.decisionAt).run();
 
     const currentBefore = await request(db, 'GET', '/api/portal/premium/weekly-feedback/current', undefined, 'student');
     assert.equal(currentBefore.status, 200);
@@ -73,6 +73,8 @@ test('F2.2.5 completes the Premium weekly-feedback professional review through r
     assert.equal(stored.coach_status, 'pending');
     assert.equal(stored.coach_reply, null);
     assert.equal(stored.main_difficulty, answers.mainDifficulty);
+    assert.equal(stored.waist, null);
+    assert.equal(Object.hasOwn(answers, 'waist'), false);
     assert.equal((await one(db, 'SELECT COUNT(*) total FROM student_checkins WHERE student_id=? AND week_ref=?', STUDENT.id, weekRef)).total, 1);
 
     let analyze = await one(db, `SELECT * FROM premium_pending_items WHERE student_id=? AND type='ANALYZE_WEEKLY_FEEDBACK' AND related_entity_id=?`, STUDENT.id, checkinId);
@@ -132,7 +134,7 @@ test('F2.2.5 completes the Premium weekly-feedback professional review through r
     const currentHistory = history.body.data.find((item) => item.id === checkinId);
     assert.deepEqual({ week: currentHistory.weekRef, submittedAt: currentHistory.submittedAt, response: currentHistory.professionalResponse, status: currentHistory.status }, { week: weekRef, submittedAt: reviewed.submitted_at, response: { message: DECISION.coach_reply, respondedAt: reviewed.coach_reply_at }, status: 'ANALYZED' });
     const previousHistory = history.body.data.find((item) => item.id === previous.id);
-    assert.deepEqual({ week: previousHistory.weekRef, response: previousHistory.professionalResponse }, { week: previous.week, response: { message: previous.reply, respondedAt: previous.repliedAt } });
+    assert.deepEqual({ week: previousHistory.weekRef, waist: previousHistory.questions.waist, response: previousHistory.professionalResponse }, { week: previous.week, waist: '82.5', response: { message: previous.reply, respondedAt: previous.repliedAt } });
     assert.deepEqual(await one(db, 'SELECT coach_reply,coach_reply_at,reviewed_at,analyzed_at,decision_at FROM student_checkins WHERE id=?', previous.id), { coach_reply: previous.reply, coach_reply_at: previous.repliedAt, reviewed_at: previous.reviewedAt, analyzed_at: previous.analyzedAt, decision_at: previous.decisionAt });
 
     const timestamps = { coach_reply_at: reviewed.coach_reply_at, reviewed_at: reviewed.reviewed_at, analyzed_at: reviewed.analyzed_at, decision_at: reviewed.decision_at, resolved_at: analyze.resolved_at };

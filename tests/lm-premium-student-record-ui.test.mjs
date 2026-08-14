@@ -200,8 +200,9 @@ test('check-ins oferecem detalhe canônico completo, validam o aluno e distingue
   await dom.listeners.click({ target: button });
   assert.equal(requests.at(-1), '/api/admin/premium/weekly-feedbacks/feedback%2F1');
   const detail = dom.document.getElementById('checkinDetail').textContent;
-  for (const label of ['Adesão ao treino','Adesão alimentar','Cardio','Refeições livres','Fome','Compulsão/beliscos','Sono','Energia','Estresse','Peso semanal','Cintura','Evolução de força','Principal dificuldade','Contexto da rotina','Nota da semana','Suporte solicitado','Resposta do profissional','Datas relevantes']) assert.match(detail, new RegExp(label));
+  for (const label of ['Adesão ao treino','Adesão alimentar','Cardio','Refeições livres','Fome','Compulsão/beliscos','Sono','Energia','Estresse','Peso semanal','Evolução de força','Principal dificuldade','Contexto da rotina','Nota da semana','Suporte solicitado','Resposta do profissional','Datas relevantes']) assert.match(detail, new RegExp(label));
   assert.match(detail, /Boa/);
+  assert.doesNotMatch(detail, /Cintura/);
   assert.match(detail, /Não informado/);
   assert.match(html, /Carregando check-in…/);
   assert.match(source, /Nenhum check-in enviado\./);

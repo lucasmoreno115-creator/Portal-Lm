@@ -253,7 +253,7 @@
     ['Adesão ao treino', 'training_adherence'], ['Adesão alimentar', 'nutrition_adherence'],
     ['Cardio', 'cardio_adherence'], ['Refeições livres', 'free_meals'], ['Fome', 'hunger_level'],
     ['Compulsão/beliscos', 'binge_or_snacking'], ['Sono', 'sleep_quality'], ['Energia', 'energy_level'],
-    ['Estresse', 'stress_level'], ['Peso semanal', 'weekly_weight'], ['Cintura', 'waist'],
+    ['Estresse', 'stress_level'], ['Peso semanal', 'weekly_weight'],
     ['Evolução de força', 'strength_status'], ['Principal dificuldade', 'main_difficulty'],
     ['Contexto da rotina', 'routine_context'], ['Nota da semana', 'weekly_score'],
     ['Suporte solicitado', 'support_needed'], ['Resposta do profissional', 'coach_reply']
