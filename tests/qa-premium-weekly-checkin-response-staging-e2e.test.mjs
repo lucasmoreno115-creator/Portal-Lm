@@ -79,9 +79,10 @@ test('duplicate open pending item makes the before-analysis exact-once gate fail
 });
 
 test('student current contract correlates check-in and exposes only the public response object',()=>{
-  const result=response({ok:true,data:{questions:checkin,professionalResponse:{message:'QA-F2.1-RESPONSE-run-1',respondedAt:'2026-08-11T11:00:00Z'}}});
+  const result=response({ok:true,data:{id:checkin.id,questions:{},professionalResponse:{message:'QA-F2.1-RESPONSE-run-1',respondedAt:'2026-08-11T11:00:00Z'}}});
   assert.equal(validateStudentResponse(result,{checkinId:'checkin-1',responseMarker:'QA-F2.1-RESPONSE'}).ok,true);
-  assert.equal(validateStudentResponse(response({ok:true,data:{questions:checkin,professionalResponse:null}}),{checkinId:'checkin-1',responseMarker:'QA-F2.1-RESPONSE'}).ok,false);
+  assert.equal(validateStudentResponse(response({ok:true,data:{id:checkin.id,questions:{},professionalResponse:null}}),{checkinId:'checkin-1',responseMarker:'QA-F2.1-RESPONSE'}).ok,false);
+  assert.equal(validateStudentResponse(response({ok:true,data:{id:'different-checkin',questions:{},professionalResponse:{message:'QA-F2.1-RESPONSE-run-1',respondedAt:'2026-08-11T11:00:00Z'}}}),{checkinId:'checkin-1',responseMarker:'QA-F2.1-RESPONSE'}).ok,false);
 });
 
 test('allowlist rejects every Projeto LM route',()=>{

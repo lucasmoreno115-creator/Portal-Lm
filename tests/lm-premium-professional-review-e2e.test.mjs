@@ -66,6 +66,10 @@ test('F2.2.5 completes the Premium weekly-feedback professional review through r
     assert.equal(submitted.body.data.weekRef, weekRef);
     const checkinId = submitted.body.data.id;
 
+    const currentAfterSubmission = await request(db, 'GET', '/api/portal/premium/weekly-feedback/current', undefined, 'student');
+    assert.equal(currentAfterSubmission.body.data.id, checkinId);
+    assert.equal(currentAfterSubmission.body.data.professionalResponse, null);
+
     const stored = await one(db, 'SELECT * FROM student_checkins WHERE id=?', checkinId);
     assert.equal(stored.student_id, STUDENT.id);
     assert.equal(stored.week_ref, weekRef);
@@ -128,6 +132,7 @@ test('F2.2.5 completes the Premium weekly-feedback professional review through r
     assert.ok(pendingQueue.body.data.items.some((item) => item.type === 'CREATE_NUTRITION_PLAN' && item.relatedEntity?.id === checkinId));
 
     const portalCurrent = await request(db, 'GET', '/api/portal/premium/weekly-feedback/current', undefined, 'student');
+    assert.equal(portalCurrent.body.data.id, checkinId);
     assert.deepEqual(portalCurrent.body.data.professionalResponse, { message: DECISION.coach_reply, respondedAt: reviewed.coach_reply_at });
     for (const privateField of ['decision_note', 'followup_at', 'created_by', 'decision_by']) assert.equal(JSON.stringify(portalCurrent.body).includes(`"${privateField}"`), false);
     const history = await request(db, 'GET', '/api/portal/premium/weekly-feedback/history', undefined, 'student');
