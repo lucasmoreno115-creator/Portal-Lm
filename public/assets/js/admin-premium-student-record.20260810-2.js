@@ -56,6 +56,7 @@ field('Pendências', `${summary.open_pending_items_count || 0} abertas`),
 field('Próxima ação', summary.next_operational_action)
 );
 }
+function renderCareStatus(data) { const student=data.student||{}, summary=data.summary||{}, root=byId('careStatusContent'); if (!root) return; const status=student.consultation_status, action=status==='UNDER_REVIEW'?{label:'Marcar planejamento como pronto',to:'READY_TO_RELEASE',confirmation:'O planejamento deste aluno está concluído e pronto para liberação?'}:null; root.replaceChildren(field('Status atual',statusLabels[status]||status),field('Pendências',`${summary.open_pending_items_count||0} abertas`),field('Próxima ação',action?.label||summary.next_operational_action)); if(action)root.append(el('button',{textContent:action.label,dataset:{transition:action.to,confirmation:action.confirmation}})); }
 function renderPending(items) {
 const list = byId('pendingList');
 if (!items.length) {
@@ -353,6 +354,7 @@ byId('studentName').textContent = student.name || student.display_name || 'Aluno
 byId('contact').textContent = [student.email, student.phone].filter(Boolean).join(' • ');
 byId('status').textContent = statusLabels[student.consultation_status] || student.consultation_status || '—';
 renderSummary(student, summary);
+renderCareStatus(data);
 renderPending(data.pending_items || []);
 renderAnamnesis(data.anamnesis || null);
 renderStudentAccess(student);
