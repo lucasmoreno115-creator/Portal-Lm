@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-14T00:48:53.135Z",
+  "generatedAt": "2026-08-14T21:50:12.780Z",
   "source": "database/bootstrap/legacy-base-schema.sql + versioned migrations + registered replay overrides",
   "bootstrap": "database/bootstrap/legacy-base-schema.sql",
   "migrations": [
@@ -41,7 +41,9 @@
     "0039_create_portal_notifications.sql",
     "0040_create_portal_push_deliveries.sql",
     "0041_add_premium_anamnesis_analyzed_at.sql",
-    "0042_add_premium_student_deactivated_at.sql"
+    "0042_add_premium_student_deactivated_at.sql",
+    "0043_add_premium_student_reactivated_at.sql",
+    "0044_add_progression_execution_quality.sql"
   ],
   "overridesUsed": [
     {
@@ -99,9 +101,11 @@
     "0039_create_portal_notifications.sql",
     "0040_create_portal_push_deliveries.sql",
     "0041_add_premium_anamnesis_analyzed_at.sql",
-    "0042_add_premium_student_deactivated_at.sql"
+    "0042_add_premium_student_deactivated_at.sql",
+    "0043_add_premium_student_reactivated_at.sql",
+    "0044_add_progression_execution_quality.sql"
   ],
-  "schemaHash": "ea28ea379607e4bfb48f06e70874fac86d994f02c147e63e0de10d7d25f4dab3",
+  "schemaHash": "2004e498568e449370c37755c2a63a909f6b2eed1cc1818ebff69df827d4be89",
   "tables": {
     "activity_timeline": {
       "columns": [
@@ -2388,6 +2392,13 @@
         },
         {
           "name": "deactivated_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "name": "reactivated_at",
           "type": "TEXT",
           "notnull": false,
           "dflt_value": null,

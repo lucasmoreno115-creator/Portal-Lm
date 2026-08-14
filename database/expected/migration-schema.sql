@@ -507,7 +507,7 @@ CREATE TABLE premium_students (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   legacy_backfill_batch_id TEXT
-, deactivated_at TEXT NULL);
+, deactivated_at TEXT NULL, reactivated_at TEXT NULL);
 
 CREATE TABLE progression_logs (
   id TEXT PRIMARY KEY,
@@ -519,7 +519,7 @@ CREATE TABLE progression_logs (
   rir TEXT,
   decision TEXT,
   created_at TEXT NOT NULL
-, student_id TEXT, execution_quality TEXT);
+, student_id TEXT, execution_quality TEXT NULL);
 
 CREATE TABLE project_lm_daily_actions (
   id TEXT PRIMARY KEY,
