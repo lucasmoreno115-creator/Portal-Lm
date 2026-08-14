@@ -27,7 +27,7 @@ export function normalizeProgressionInput(body) {
 
 export function presentProgression(row) {
   return {
-    ...row,
+    id: row.id,
     exercise: row.exercise,
     targetZone: row.target_zone,
     loadUsed: row.load_used == null ? null : Number(row.load_used),
@@ -35,5 +35,6 @@ export function presentProgression(row) {
     executionQuality: row.execution_quality ?? null,
     recommendation: row.decision ?? null,
     created_at: row.created_at,
+    rir: row.rir ?? null,
   };
 }
