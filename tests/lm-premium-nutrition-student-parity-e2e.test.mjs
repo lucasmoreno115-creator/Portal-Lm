@@ -20,7 +20,7 @@ function assertVersion(plan,version){assert.equal(plan.title,`Plano V${version} 
 
 test('professional draft → published current → student preserves the complete public V1/V2 contract',async()=>withDb(async db=>{const student=await createStudent(db,'canary');const other=await createStudent(db,'other');assert.deepEqual((await current(db,student)).body.data,null);
  const v1=await createDraft(db,student,payload(1));await publish(db,student,v1);assertVersion((await current(db,student)).body.data,1);assert.equal((await current(db,other)).body.data,null,'identity-derived current never leaks another student plan');
- const v2=await createDraft(db,student,payload(2));const whileDraft=await current(db,student);assertVersion(whileDraft.body.data,1);assert.doesNotMatch(JSON.stringify(whileDraft.body),'V2');
+ const v2=await createDraft(db,student,payload(2));const whileDraft=await current(db,student);assertVersion(whileDraft.body.data,1);assert.doesNotMatch(JSON.stringify(whileDraft.body),/V2/);
  await publish(db,student,v2);assertVersion((await current(db,student)).body.data,2);const history=await http(db,'GET',`/api/admin/premium/students/${student.id}/nutrition-plan/history`);assert.equal(history.status,200);assert.deepEqual(history.body.data.map(row=>[row.version_number,row.status]),[[2,'PUBLISHED'],[1,'ARCHIVED']]);
  await http(db,'POST',`/api/admin/premium/workspace/students/${student.id}/deactivate`,{});assert.equal((await current(db,student)).status,403);await http(db,'POST',`/api/admin/premium/workspace/students/${student.id}/reactivate`,{});assertVersion((await current(db,student)).body.data,2);
 }));
