@@ -44,6 +44,8 @@ test('current and history share canonical submission, answers, and professional 
   assert.deepEqual(current.professionalResponse, {
     message: 'Boa evolução nesta semana.', respondedAt: '2026-08-13T12:10:00.000Z',
   });
+  assert.equal(current.id, row.id);
+  assert.equal(Object.hasOwn(current.professionalResponse, 'checkinId'), false);
   assert.deepEqual(Object.keys(current.questions), [...PUBLIC_WEEKLY_FEEDBACK_ANSWER_FIELDS]);
   assertPrivateFieldsAbsent(current);
   assertPrivateFieldsAbsent(history);
