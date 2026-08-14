@@ -8,7 +8,7 @@ export function createDeactivatePremiumStudentUseCase({ db, now = () => new Date
     }
 
     const timestamp = now();
-    const eventId = `student-deactivated:${student.student_id}`;
+    const eventId = `student-deactivated:${student.student_id}:${timestamp}`;
     const metadata = { student_id: student.student_id, previous_consultation_status: student.consultation_status, new_consultation_status: 'ENDED', timestamp };
     const results = await db.batch([
       db.prepare("UPDATE premium_students SET consultation_status='ENDED',access_status='INACTIVE',deactivated_at=?,updated_at=? WHERE student_id=? AND consultation_status=?")
