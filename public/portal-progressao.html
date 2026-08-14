@@ -112,8 +112,8 @@
       current = {
         exercise: exercise.value,
         targetZone: zone.value,
-        loadUsed: load.value,
-        repsDone: reps.value,
+        loadUsed: Number(load.value),
+        repsDone: Number(reps.value),
         executionQuality: executionQuality.value,
         recommendation
       };
@@ -122,11 +122,15 @@
     calc.onclick = decide;
 
     save.onclick = async () => {
+      if (!current || save.disabled) return;
+      save.disabled = true;
       try {
         await api('/portal/progression', { method: 'POST', body: JSON.stringify(current) });
-        loadHist();
+        await loadHist();
       } catch (e) {
         alert(e.message);
+      } finally {
+        save.disabled = false;
       }
     };
 

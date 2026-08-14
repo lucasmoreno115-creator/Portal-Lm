@@ -519,7 +519,7 @@ CREATE TABLE progression_logs (
   rir TEXT,
   decision TEXT,
   created_at TEXT NOT NULL
-, student_id TEXT);
+, student_id TEXT, execution_quality TEXT);
 
 CREATE TABLE project_lm_daily_actions (
   id TEXT PRIMARY KEY,

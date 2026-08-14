@@ -2524,6 +2524,13 @@
           "notnull": false,
           "dflt_value": null,
           "pk": 0
+        },
+        {
+          "name": "execution_quality",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt_value": null,
+          "pk": 0
         }
       ],
       "indexes": [

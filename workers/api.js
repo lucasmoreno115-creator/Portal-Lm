@@ -65,6 +65,7 @@ import { deliverPortalPush } from './services/portal-push-delivery-service.js';
 import { runWeeklyCheckinReminder } from './services/weekly-checkin-reminder-service.js';
 import { createDeactivatePremiumStudentUseCase } from './premium/application/deactivate-premium-student.js';
 import { createReactivatePremiumStudentUseCase } from './premium/application/reactivate-premium-student.js';
+import { normalizeProgressionInput, presentProgression } from './premium/progression-contract.js';
 
 
 export { sanitizeOperationalMetadata } from './services/operational-log-service.js';
@@ -956,44 +957,28 @@ export default {
         }
 
         if (url.pathname === '/api/portal/progression' && method === 'POST') {
-          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
-          if (premiumOnlyResponse) return premiumOnlyResponse;
-          const gate = await getPremiumGate(env.DB, studentEmail);
-          if (!gate.released) return json(premiumLockedResponse(), 403);
+          const blocked = await blockProjectLmOnPremiumCore();
+          if (blocked) return blocked;
+          if (!(await getPremiumGate(env.DB, studentEmail)).released) return json(premiumLockedResponse(), 403);
           const body = await safeJson(request);
+          const input = normalizeProgressionInput(body);
+          if (!input.ok) return json({ ok: false, error: input.error }, 400);
+          const progression = input.data;
           const id = crypto.randomUUID();
           const now = new Date().toISOString();
-
-          await env.DB.prepare(
-            `INSERT INTO progression_logs (
-              id, student_email, exercise, target_zone, load_used, reps_done, rir, decision, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          ).bind(
-            id,
-            studentEmail,
-            body?.exercise || 'Exercício',
-            body?.targetZone || '8–10',
-            Number(body?.loadUsed || 0),
-            Number(body?.repsDone || 0),
-            body?.rir || 'Não sei',
-            body?.decision || 'Manter carga',
-            now
-          ).run();
+          await env.DB.prepare(`INSERT INTO progression_logs (id,student_email,exercise,target_zone,load_used,reps_done,rir,decision,execution_quality,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)`)
+            .bind(id, studentEmail, progression.exercise, progression.targetZone, progression.loadUsed, progression.repsDone, body?.rir ?? null, progression.recommendation, progression.executionQuality, now).run();
           await logActivityEvent(env.DB, { student_email: studentEmail, event_type: EVENT_TYPES.PROGRESSION_LOG_SUBMITTED, source: 'portal', title: 'Progresso registrado', payload: { progression_id: id } });
 
           return json({ ok: true, data: { id, createdAt: now } });
         }
 
         if (url.pathname === '/api/portal/progression' && method === 'GET') {
-          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
-          if (premiumOnlyResponse) return premiumOnlyResponse;
-          const gate = await getPremiumGate(env.DB, studentEmail);
-          if (!gate.released) return json(premiumLockedResponse(), 403);
-          const { results } = await env.DB.prepare(
-            `SELECT * FROM progression_logs WHERE student_email=? ORDER BY created_at DESC LIMIT 30`
-          ).bind(studentEmail).all();
-
-          return json({ ok: true, data: results || [] });
+          const blocked = await blockProjectLmOnPremiumCore();
+          if (blocked) return blocked;
+          if (!(await getPremiumGate(env.DB, studentEmail)).released) return json(premiumLockedResponse(), 403);
+          const { results } = await env.DB.prepare(`SELECT * FROM progression_logs WHERE student_email=? ORDER BY created_at DESC LIMIT 30`).bind(studentEmail).all();
+          return json({ ok: true, data: (results || []).map(presentProgression) });
         }
       }
 
@@ -3334,6 +3319,7 @@ async function ensureSchemaUncached(db) {
   )`).run();
 
   await ensureColumn(db, 'progression_logs', 'student_id', 'TEXT');
+  await ensureColumn(db, 'progression_logs', 'execution_quality', 'TEXT');
 
   await db.prepare(`CREATE TABLE IF NOT EXISTS weekly_plans (
     id TEXT PRIMARY KEY,
