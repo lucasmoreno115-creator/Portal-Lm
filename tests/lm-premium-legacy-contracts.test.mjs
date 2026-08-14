@@ -150,7 +150,11 @@ test('admin endpoints migrados preservam shape público sem campos internos', as
   await db.prepare(`INSERT INTO premium_anamnesis (id, student_id, student_name, student_email, student_phone, status, answers_json, created_at, updated_at) VALUES ('anam-1', 'student-1', 'Student', 'student@example.com', '11999999999', 'RECEBIDA', '{}', '2026-07-14T00:00:00.000Z', '2026-07-14T00:00:00.000Z')`).run();
   const anamnesis = await api(db, 'PATCH', '/api/admin/anamneses/anam-1', { admin: true, body: { status: 'ANALISADA' } });
   assert.equal(anamnesis.status, 200);
-  assert.deepEqual(Object.keys(anamnesis.body.data), ['id', 'status', 'updated_at']);
+  assert.deepEqual(Object.keys(anamnesis.body.data), ['id', 'status', 'analyzed_at', 'changed', 'unchanged']);
+  assert.equal(anamnesis.body.data.changed, true);
+  assert.equal(anamnesis.body.data.unchanged, false);
+  assert.match(anamnesis.body.data.analyzed_at, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal((await db.prepare(`SELECT analyzed_at FROM premium_anamnesis WHERE id='anam-1'`).first()).analyzed_at, anamnesis.body.data.analyzed_at);
   assertNoInternalFields(anamnesis.body);
 }));
 
