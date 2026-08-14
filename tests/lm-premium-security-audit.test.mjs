@@ -88,20 +88,33 @@ test('F5.0 nutrition current exposes only A published data and omits draft/priva
   for (const forbidden of ['DRAFT_MARKER_A', 'PRIVATE_PLAN_B', 'student_email', 'student_id', 'source_feedback_id', 'published_by', 'private-admin']) assert.equal(serialized.includes(forbidden), false);
 }));
 
-test('F5.0 records observable XSS findings without executing a payload', async () => {
+test('F5.1 stored XSS markers remain original API text and legacy renderers use safe DOM sinks', async () => {
   const marker = '<svg data-security-test="xss">';
   const progression = await readFile(new URL('../public/portal-progressao.html', import.meta.url), 'utf8');
   const legacyCheckin = await readFile(new URL('../public/portal-checkin.html', import.meta.url), 'utf8');
   const canonicalFeedback = await readFile(new URL('../public/assets/js/portal-premium-weekly-feedback.js', import.meta.url), 'utf8');
-  assert.match(progression, /hist\.innerHTML[\s\S]*\$\{i\.exercise\}/);
-  assert.match(legacyCheckin, /hist\.innerHTML[\s\S]*\$\{c\.main_difficulty/);
+  for (const renderer of [progression, legacyCheckin]) {
+    assert.doesNotMatch(renderer, /hist\.innerHTML/);
+    assert.match(renderer, /document\.createElement/);
+    assert.match(renderer, /\.textContent\s*=/);
+  }
+  assert.match(progression, /item\.textContent\s*=\s*`\$\{i\.created_at/);
+  assert.match(legacyCheckin, /document\.createTextNode\(` · Treino: \$\{c\.training_adherence/);
+  assert.match(legacyCheckin, /message\.textContent\s*=\s*c\.coach_reply/);
   assert.match(canonicalFeedback, /\.textContent=text/);
   await withAuditDb(async (db) => {
-    const response = await http(db, 'POST', '/api/portal/progression', { student: STUDENT_A, body: {
+    const progressionResponse = await http(db, 'POST', '/api/portal/progression', { student: STUDENT_A, body: {
       exercise: marker, targetZone: '8–10', loadUsed: 10, repsDone: 8, recommendation: 'Keep',
     } });
-    assert.equal(response.status, 200);
-    const history = await http(db, 'GET', '/api/portal/progression', { student: STUDENT_A });
-    assert.equal(history.body.data[0].exercise, marker, 'AUDIT FINDING SEC-PREM-002: marker reaches an unsafe legacy HTML sink');
+    assert.equal(progressionResponse.status, 200);
+    const progressionHistory = await http(db, 'GET', '/api/portal/progression', { student: STUDENT_A });
+    assert.equal(progressionHistory.body.data[0].exercise, marker, 'SEC-PREM-002 keeps the original stored text while the renderer treats it as text');
+
+    const checkinResponse = await http(db, 'POST', '/api/portal/checkin', { student: STUDENT_A, body: {
+      trainingAdherence: 'Completo', mainDifficulty: marker,
+    } });
+    assert.equal(checkinResponse.status, 200);
+    const checkinHistory = await http(db, 'GET', '/api/portal/checkins', { student: STUDENT_A });
+    assert.equal(checkinHistory.body.data[0].main_difficulty, marker, 'SEC-PREM-001 keeps the original stored text while the renderer treats it as text');
   });
 });
