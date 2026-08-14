@@ -56,7 +56,6 @@ field('Pendências', `${summary.open_pending_items_count || 0} abertas`),
 field('Próxima ação', summary.next_operational_action)
 );
 }
-function renderCareStatus(data) { const student=data.student||{}, summary=data.summary||{}, root=byId('careStatusContent'); if (!root) return; const status=student.consultation_status; const action=status==='UNDER_REVIEW'?{label:'Marcar planejamento como pronto',to:'READY_TO_RELEASE',confirmation:'O planejamento deste aluno está concluído e pronto para liberação?'}:null; const description=status==='ACTIVE'?'Acompanhamento ativo. Acesso ao Portal liberado.':status==='READY_TO_RELEASE'?'O planejamento está pronto para liberação.':status==='ENDED'?'Acompanhamento encerrado. O histórico permanece preservado.':'Acompanhe as pendências e o próximo passo permitido.'; const last=(data.followup_entries||[]).find(x=>['STUDENT_DEACTIVATED','CONSULTATION_STATUS_CHANGE'].includes(x.entry_type)); root.replaceChildren(field('Status atual',statusLabels[status]||status),field('Descrição',description),field('Próxima ação permitida',action?.label||(status==='ACTIVE'?'Acompanhamento ativo':summary.next_operational_action)),field('Pendências',`${summary.open_pending_items_count||0} abertas`),field(status==='ENDED'?'Desativado em':'Última mudança',status==='ENDED'?fmt(student.deactivated_at):(last?`${fmt(last.created_at)} — ${text(last.content)}`:'Sem mudança registrada'))); if(student.deactivated_at&&status!=='ENDED')root.append(field('Última desativação',fmt(student.deactivated_at))); if(student.reactivated_at)root.append(field('Reativado em',fmt(student.reactivated_at))); if(action)root.append(el('button',{textContent:action.label,dataset:{transition:action.to,confirmation:action.confirmation}})); if(status==='ENDED')root.append(el('button',{textContent:'Reativar aluno',dataset:{reactivateStudent:'true'}})); else root.append(el('button',{textContent:'Desativar aluno',dataset:{deactivateStudent:'true'}})); }
 function renderPending(items) {
 const list = byId('pendingList');
 if (!items.length) {
@@ -354,7 +353,6 @@ byId('studentName').textContent = student.name || student.display_name || 'Aluno
 byId('contact').textContent = [student.email, student.phone].filter(Boolean).join(' • ');
 byId('status').textContent = statusLabels[student.consultation_status] || student.consultation_status || '—';
 renderSummary(student, summary);
-renderCareStatus(data);
 renderPending(data.pending_items || []);
 renderAnamnesis(data.anamnesis || null);
 renderStudentAccess(student);
