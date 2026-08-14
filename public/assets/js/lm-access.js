@@ -35,7 +35,7 @@ const LM_MENU_ITEMS = [
   { feature: 'modo-dia-dificil', label: '🧭 Plano B', href: projectLm2Route('daily-checkin') },
   { feature: 'marcos', label: '🏅 Vitórias', href: projectLm2Route('home') },
   { feature: 'biblioteca', label: '🔁 Recuperação', href: projectLm2Route('premium-bridge') },
-  { feature: 'plano-alimentar', label: 'Plano alimentar', href: 'portal-plano-alimentar.html' },
+  { feature: 'plano-alimentar', label: 'Plano alimentar', href: 'portal-premium-nutrition-plan.html' },
   { feature: 'progressao', label: 'Progressão de carga', href: 'portal-progressao.html' },
   { feature: 'plano-da-semana', label: 'Objetivo do planejamento', href: 'portal.html#weekly-plan-section' },
   { feature: 'checkin', label: 'Check-in semanal', href: 'portal-premium-weekly-feedback.html' },

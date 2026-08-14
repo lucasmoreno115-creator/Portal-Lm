@@ -34,6 +34,8 @@ export function presentPublicNutritionPlan(plan) {
     goal: text(plan.goal),
     strategy: text(plan.strategy),
     status: isPublished ? 'PUBLISHED' : null,
+    version_number: plan.version_number ?? null,
+    published_at: plan.published_at ?? null,
     meals: safeJsonArray(plan.meals ?? plan.meals_json).map(presentMeal),
     substitutions: safeJsonArray(plan.substitutions ?? plan.substitutions_json),
     observations: text(plan.observations ?? plan.notes),
