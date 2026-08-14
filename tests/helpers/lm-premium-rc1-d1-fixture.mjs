@@ -19,6 +19,7 @@ export const RC1_PREMIUM_MIGRATIONS = Object.freeze([
   'migrations/0035_add_ready_to_release_consultation_status.sql',
   'migrations/0036_scope_legacy_active_nutrition_plan_email_unique.sql',
   'migrations/0037_add_weekly_feedback_followup_at.sql',
+  'migrations/0041_add_premium_anamnesis_analyzed_at.sql',
 ]);
 
 function resultFromRun(result = {}) { return { success: true, changes: Number(result.changes ?? 0), meta: { changes: Number(result.changes ?? 0) } }; }
