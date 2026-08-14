@@ -137,9 +137,10 @@ function createPremiumApplication(env, request) {
 
 async function getPremiumGate(db, email) {
   const normalized = String(email || '').trim().toLowerCase();
-  const row = await db.prepare(`SELECT student_id, consultation_status FROM premium_students WHERE normalized_email=? OR lower(trim(email))=? ORDER BY updated_at DESC LIMIT 1`).bind(normalized, normalized).first();
+  const row = await db.prepare(`SELECT student_id, consultation_status, access_status FROM premium_students WHERE normalized_email=? OR lower(trim(email))=? ORDER BY updated_at DESC LIMIT 1`).bind(normalized, normalized).first();
   const status = String(row?.consultation_status || '').toUpperCase();
-  return { studentId: row?.student_id || null, status: row ? status : 'LEGACY_COMPATIBLE', released: row ? status === 'ACTIVE' : true, legacyCompatible: !row };
+  const accessStatus = String(row?.access_status || '').toUpperCase();
+  return { studentId: row?.student_id || null, status: row ? status : 'LEGACY_COMPATIBLE', accessStatus: row ? accessStatus : 'LEGACY_COMPATIBLE', released: row ? status === 'ACTIVE' && accessStatus === 'ACTIVE' : true, legacyCompatible: !row };
 }
 function premiumLockedResponse() {
   return { ok: false, error: 'Seu acesso à Consultoria Premium não está ativo no momento. Entre em contato com seu acompanhamento se precisar de ajuda.' };
@@ -161,6 +162,7 @@ function premiumAccessState(student, gate) {
     experience: consultationStatus === 'ACTIVE' ? 'PREMIUM_PORTAL' : 'ONBOARDING',
     consultationStatus,
     consultationStatusLabel: PREMIUM_CONSULTATION_STATUS_LABELS[consultationStatus],
+    accessState: gate.released ? 'ACTIVE' : 'INACTIVE',
     name: String(student.name || 'Aluno').trim() || 'Aluno',
     phone: student.whatsapp || null,
     anamnesisCompleted: ['UNDER_REVIEW', 'READY_TO_RELEASE', 'ACTIVE', 'PAUSED', 'ENDED'].includes(consultationStatus),
@@ -391,7 +393,9 @@ export default {
         const studentEmail = auth.student.email;
 
         if (url.pathname === '/api/portal/notifications' || url.pathname.startsWith('/api/portal/notifications/')) {
-          if (!isPremiumPortalStudent(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
+          const notificationGate = await getPremiumGate(env.DB, studentEmail);
+          if (!isPremiumPortalStudent(auth.student) && notificationGate.legacyCompatible) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
+          if (!notificationGate.released) return json(premiumLockedResponse(), 403);
           const identity = await resolvePushStudentIdentity(env.DB, auth.student);
           if (!identity.studentId) return json({ ok: false, error: 'Identidade Premium indisponível.' }, 409);
 
@@ -433,7 +437,9 @@ export default {
         }
 
         if (url.pathname.startsWith('/api/portal/push/')) {
-          if (!isPremiumPortalStudent(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
+          const pushGate = await getPremiumGate(env.DB, studentEmail);
+          if (!isPremiumPortalStudent(auth.student) && pushGate.legacyCompatible) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
+          if (!pushGate.released) return json(premiumLockedResponse(), 403);
           const identity = await resolvePushStudentIdentity(env.DB, auth.student);
           if (!identity.studentId) return json({ ok: false, error: 'Identidade Premium indisponível.' }, 409);
 
@@ -480,13 +486,14 @@ export default {
           }
         }
         if (url.pathname === '/api/portal/premium/access-state' && method === 'GET') {
-          if (!isPremiumPortalStudent(auth.student)) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
           const gate = await getPremiumGate(env.DB, studentEmail);
+          if (!isPremiumPortalStudent(auth.student) && gate.legacyCompatible) return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
           return json({ ok: true, data: premiumAccessState(auth.student, gate) }, 200, '/api/portal/premium/access-state');
         }
 
-        const blockProjectLmOnPremiumCore = () => {
-          if (!isPremiumPortalStudent(auth.student)) {
+        const blockProjectLmOnPremiumCore = async () => {
+          const gate = await getPremiumGate(env.DB, studentEmail);
+          if (!isPremiumPortalStudent(auth.student) && gate.legacyCompatible) {
             return json({ ok: false, error: 'Recurso disponível apenas para alunos Premium.' }, 403);
           }
           return null;
@@ -814,7 +821,7 @@ export default {
         }
 
         if (url.pathname === '/api/portal/weekly-plan' && method === 'GET') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -831,7 +838,7 @@ export default {
 
 
         if ((url.pathname === '/api/portal/nutrition-plan' || url.pathname === '/api/portal/premium/nutrition-plan/current') && method === 'GET') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -850,7 +857,7 @@ export default {
         }
 
         if (url.pathname === '/api/portal/checkin' && method === 'POST') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -893,7 +900,7 @@ export default {
         }
 
         if (url.pathname === '/api/portal/checkins' && method === 'GET') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -905,7 +912,7 @@ export default {
 
 
         if (url.pathname === '/api/portal/premium/weekly-feedback/current' && method === 'GET') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -917,7 +924,7 @@ export default {
         }
 
         if (url.pathname === '/api/portal/premium/weekly-feedback/current' && method === 'POST') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -936,7 +943,7 @@ export default {
         }
 
         if (url.pathname === '/api/portal/premium/weekly-feedback/history' && method === 'GET') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -947,7 +954,7 @@ export default {
         }
 
         if (url.pathname === '/api/portal/progression' && method === 'POST') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
@@ -976,7 +983,7 @@ export default {
         }
 
         if (url.pathname === '/api/portal/progression' && method === 'GET') {
-          const premiumOnlyResponse = blockProjectLmOnPremiumCore();
+          const premiumOnlyResponse = await blockProjectLmOnPremiumCore();
           if (premiumOnlyResponse) return premiumOnlyResponse;
           const gate = await getPremiumGate(env.DB, studentEmail);
           if (!gate.released) return json(premiumLockedResponse(), 403);
