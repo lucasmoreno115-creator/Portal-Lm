@@ -1,8 +1,8 @@
 {
-  "schemaVersion": "1.2.0",
+  "schemaVersion": "1.3.0",
   "validationPhase": "FINAL VALIDATION",
   "productReleaseSha": "100bdbaf3aa8ebcfd47ec153a29434f88dede93f",
-  "evidencePrHeadSha": "592a927223d77f6f3a38b5e5a212fe9153c66f66",
+  "evidencePrHeadSha": "55fc456061685ba2fdb7680536ea4c902dad960f",
   "runtimeAffectingDiff": [],
   "deployCommit": null,
   "deployWorkflow": ".github/workflows/cloudflare-deploy.yml",
@@ -158,5 +158,17 @@
     "stagingCredentialsAvailable": false,
     "chromeExecutableAvailable": false
   },
-  "f72Fix2": "BLOCKED"
+  "f72Fix2": "BLOCKED",
+  "fix3": {
+    "workflow": ".github/workflows/f7-final-release-evidence.yml",
+    "status": "NOT_EXECUTED",
+    "runId": null,
+    "artifact": null,
+    "purpose": "Collect external release evidence inside GitHub Actions at the exact product release SHA."
+  },
+  "f72Fix3": "BLOCKED_NOT_EXECUTED",
+  "evidenceInfrastructureDiff": [
+    ".github/workflows/f7-final-release-evidence.yml",
+    "scripts/f7-final-release-evidence.mjs"
+  ]
 }
