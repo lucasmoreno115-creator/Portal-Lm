@@ -19,7 +19,7 @@ async function runGateway(plan = 'premium', accessState = { experience: 'PREMIUM
 
 async function runHome(experience) {
   const calls = [], redirects = [], body = { style: { visibility: 'hidden' } };
-  const context = { requireAuth() {}, getUserPlan: () => 'premium', api: async (path) => { calls.push(path); return { data: { experience } }; }, document: { body }, window: { location: { replace: (target) => redirects.push(target) } }, Promise };
+  const context = { requireAuth() {}, getUserPlan: () => 'premium', api: async (path) => { calls.push(path); return { data: { experience, consultationStatus: experience === 'PREMIUM_PORTAL' ? 'ACTIVE' : 'UNDER_REVIEW' } }; }, document: { body }, window: { location: { replace: (target) => redirects.push(target) } }, Promise };
   vm.runInNewContext(inlineScripts(home)[0], context);
   await tick();
   return { calls, redirects, body };
