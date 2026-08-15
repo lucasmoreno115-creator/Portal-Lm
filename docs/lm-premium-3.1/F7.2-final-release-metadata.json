@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0.0",
+  "validationPhase": "FINAL VALIDATION",
+  "releaseSha": "100bdbaf3aa8ebcfd47ec153a29434f88dede93f",
+  "auditedCommit": "100bdbaf3aa8ebcfd47ec153a29434f88dede93f",
+  "deployCommit": null,
+  "deployWorkflow": ".github/workflows/cloudflare-deploy.yml",
+  "deployRunId": null,
+  "workerName": "lm-system-api",
+  "versionId": null,
+  "environment": "production",
+  "targetHostname": "portal.lucasmorenopersonal.com.br",
+  "runtimeTestTarget": null,
+  "deployMetadataArtifact": null,
+  "testTimestampUtc": "2026-08-15T14:38:07Z",
+  "fidelity": {
+    "status": "BLOCKED",
+    "chain": "100bdbaf3aa8ebcfd47ec153a29434f88dede93f -> UNKNOWN_DEPLOY_RUN -> UNKNOWN_WORKER_VERSION -> UNVERIFIED_TARGET"
+  },
+  "localGates": {
+    "npmCi": "PASS",
+    "npmTest": "BLOCKED_UNSUPPORTED_LOCAL_NODE",
+    "projectLmRuntime": "PASS",
+    "databaseExpected": "BLOCKED_UNSUPPORTED_LOCAL_NODE",
+    "securityClosure": "BLOCKED_UNSUPPORTED_LOCAL_NODE",
+    "stabilityClosure": "BLOCKED_UNSUPPORTED_LOCAL_NODE",
+    "studentUxAudit": "PASS",
+    "baselineCheck": "FAIL",
+    "performanceContractTests": "PASS",
+    "browserPerformanceSmoke": "BLOCKED_CHROME_UNAVAILABLE",
+    "structuralRuntimeTests": "PASS"
+  },
+  "testCounts": {
+    "npmTest": { "executed": 1225, "passed": 1200, "failed": 25, "skipped": 0 },
+    "performanceContractTests": { "executed": 60, "passed": 60, "failed": 0, "skipped": 0 },
+    "structuralRuntimeTests": { "executed": 7, "passed": 7, "failed": 0, "skipped": 0 }
+  },
+  "budgets": {
+    "publicHtmlBytes": 281500,
+    "publicCssBytes": 254750,
+    "publicJavaScriptBytes": 461537,
+    "workerApiBytes": 292866,
+    "largestPublicAssetBytes": 775360,
+    "publicBytes": 16728795,
+    "errorBudgetResults": { "passed": 10, "errors": 1, "warnings": 3 },
+    "status": "FAIL_REQUIRED_COMMANDS"
+  },
+  "ci": "BLOCKED_UNAVAILABLE",
+  "e2e": "BLOCKED_TARGET_FIDELITY_NOT_PROVEN",
+  "databaseFidelity": "BLOCKED_REMOTE_AUDIT_UNAVAILABLE",
+  "apiHealth": "BLOCKED_TARGET_FIDELITY_NOT_PROVEN",
+  "unexpectedCalls": null,
+  "finalReleaseBlockers": 5,
+  "releaseStatus": "RELEASE_BLOCKED",
+  "f72": "BLOCKED",
+  "portalLmV1": "NOT_CLOSED"
+}
