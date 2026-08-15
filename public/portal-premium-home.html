@@ -11,7 +11,10 @@
   <title>LM Portal</title>
   <link rel='stylesheet' href='portal.css'>
   <link rel='stylesheet' href='/assets/css/portal-notifications.css'>
-  <style>body{visibility:hidden}</style>
+  <style>
+    .access-loading{min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box;text-align:center}
+    .access-loading[hidden],#premiumContent[hidden]{display:none}
+  </style>
   <script src='/assets/js/lm-access.js?v=20260623-1'></script>
   <script src='portal-shared.js'></script>
   <script>
@@ -21,7 +24,7 @@
       window.lmPremiumAccessReady = Promise.resolve(false);
     } else {
       window.lmPremiumAccessReady = api('/portal/premium/access-state').then((response) => {
-        if (response.data.experience !== 'PREMIUM_PORTAL') { window.location.replace('portal-premium-onboarding.html'); return false; }
+        if (response.data.experience !== 'PREMIUM_PORTAL' || response.data.consultationStatus !== 'ACTIVE') { window.location.replace('portal-premium-onboarding.html'); return false; }
         document.body.style.visibility = 'visible';
         return true;
       }).catch(() => { window.location.replace('portal-login.html'); return false; });
@@ -29,6 +32,10 @@
   </script>
 </head>
 <body class="portal-home-v7">
+  <div id='accessLoading' class='access-loading' role='status' aria-live='polite'>
+    <p>Carregando seu portal...</p>
+  </div>
+  <div id='premiumContent' hidden>
   <header class='hero hero-premium hero-app'>
       <div class='hero-glow' aria-hidden='true'></div>
       <div id='premiumHomeHeaderActions' class='premium-home-header-actions'></div>
@@ -133,8 +140,12 @@
 
   </main>
 
+  </div>
+
   <script>
     window.lmPremiumAccessReady.then((allowed) => { if (!allowed) return;
+    document.getElementById('accessLoading').hidden = true;
+    document.getElementById('premiumContent').hidden = false;
     redirectIfNoAccess('dashboard');
     const accessMessage = sessionStorage.getItem('lm_access_message');
     if (accessMessage) {
