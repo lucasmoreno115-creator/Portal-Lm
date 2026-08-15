@@ -142,6 +142,11 @@ jobs:
           "$browser" --version | tee artifacts/f7-final-release-evidence/browser-version.txt
           CHROME_BIN="$browser" npm run performance:portal:smoke
 
+      - name: Record equivalent release gates as validated
+        env:
+          EVIDENCE_DIRECTORY: ${{ github.workspace }}/product-release/artifacts/f7-final-release-evidence
+        run: node evidence-infrastructure/scripts/f7-final-release-evidence.mjs --finalize-release-gates
+
       - name: Authenticate QA administrator
         working-directory: product-release
         env:

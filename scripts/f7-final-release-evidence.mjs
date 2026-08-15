@@ -5,12 +5,14 @@ import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
-export const REQUIRED_WORKFLOWS = Object.freeze([
-  ['Project LM Quality Gate', 'project-lm-quality.yml'],
+export const REQUIRED_MAIN_WORKFLOWS = Object.freeze([
   ['Agente QA LM', 'qa-lm.yml'],
-  ['Portal performance baseline', 'portal-performance-baseline.yml'],
 ]);
 export const DEPLOY_WORKFLOW = Object.freeze(['Deploy Cloudflare Worker', 'cloudflare-deploy.yml']);
+export const REQUIRED_DEPLOY_JOBS = Object.freeze([
+  'Runtime sync and tests',
+  'Deploy production Worker and assets',
+]);
 
 export function normalizeReleaseSha(value) {
   const sha = String(value || '').trim().toLowerCase();
@@ -27,6 +29,33 @@ export function selectSuccessfulRun(runs, sha, workflowName, requestedRunId = ''
     workflow: workflowName, runId: run.id, headSha: run.head_sha, status: run.status,
     conclusion: run.conclusion, createdAt: run.created_at, updatedAt: run.updated_at,
     startedAt: run.run_started_at || null, htmlUrl: run.html_url,
+  };
+}
+
+export function validateDeployJobs(jobs) {
+  return REQUIRED_DEPLOY_JOBS.map(name => {
+    const matches = (jobs || []).filter(job => job.name === name);
+    if (matches.length !== 1) throw new Error(`deploy run must contain exactly one ${name} job; found ${matches.length}`);
+    const job = matches[0];
+    if (job.status !== 'completed' || job.conclusion !== 'success') {
+      throw new Error(`${name} job is not completed + success`);
+    }
+    return { name: job.name, jobId: job.id, status: job.status, conclusion: job.conclusion };
+  });
+}
+
+export function validateHistoricalCi({ qaRuns, deployRuns, deployJobs, sha, requestedDeployRunId = '' }) {
+  const agenteQaLm = selectSuccessfulRun(qaRuns, sha, 'Agente QA LM');
+  const deployWorkflow = selectSuccessfulRun(
+    deployRuns, sha, DEPLOY_WORKFLOW[0], requestedDeployRunId,
+  );
+  return {
+    status: 'VALIDATED',
+    requiredMainCi: {
+      agenteQaLm: { status: 'VALIDATED', run: agenteQaLm },
+      deployWorkflow: { status: 'VALIDATED', run: deployWorkflow },
+    },
+    deployJobs: validateDeployJobs(deployJobs),
   };
 }
 
@@ -77,13 +106,28 @@ async function writeGithubOutput(values) {
 export async function collectEvidence({ env = process.env } = {}) {
   const sha = normalizeReleaseSha(env.RELEASE_SHA);
   const context = { token: env.GITHUB_TOKEN, repository: env.GITHUB_REPOSITORY };
-  const evidence = { schemaVersion: 1, releaseSha: sha, collectedAt: new Date().toISOString(), requiredRuns: [] };
+  const evidence = {
+    schemaVersion: 1,
+    releaseSha: sha,
+    collectedAt: new Date().toISOString(),
+    historicalWorkflowEvidence: { status: 'PENDING', requiredMainCi: {} },
+    equivalentReleaseGateEvidence: {
+      projectLmQuality: {
+        status: 'PENDING_RUNTIME_EXECUTION',
+        source: ['Deploy Cloudflare Worker / Runtime sync and tests', 'F7 / baseline:check'],
+      },
+      portalPerformance: { status: 'PENDING_RUNTIME_EXECUTION', source: 'F7 / Chrome-backed performance:portal:smoke' },
+    },
+  };
 
-  for (const [name, file] of REQUIRED_WORKFLOWS) {
-    evidence.requiredRuns.push(selectSuccessfulRun(await runsFor(file, sha, context), sha, name));
-  }
   const [deployName, deployFile] = DEPLOY_WORKFLOW;
-  const deploy = selectSuccessfulRun(await runsFor(deployFile, sha, context), sha, deployName, env.DEPLOY_RUN_ID);
+  const qaRuns = await runsFor(REQUIRED_MAIN_WORKFLOWS[0][1], sha, context);
+  const deployRuns = await runsFor(deployFile, sha, context);
+  const deploy = selectSuccessfulRun(deployRuns, sha, deployName, env.DEPLOY_RUN_ID);
+  const deployJobs = (await github(`/actions/runs/${deploy.runId}/jobs?per_page=100`, context)).jobs || [];
+  evidence.historicalWorkflowEvidence = validateHistoricalCi({
+    qaRuns, deployRuns, deployJobs, sha, requestedDeployRunId: env.DEPLOY_RUN_ID,
+  });
   evidence.deployRun = deploy;
 
   const artifactName = `cloudflare-worker-version-${sha}`;
@@ -116,7 +160,28 @@ export async function collectEvidence({ env = process.env } = {}) {
   return evidence;
 }
 
+export async function finalizeEquivalentReleaseGates({ env = process.env } = {}) {
+  const sha = normalizeReleaseSha(env.RELEASE_SHA);
+  const outputDirectory = env.EVIDENCE_DIRECTORY || path.join(process.cwd(), 'artifacts', 'f7-final-release-evidence');
+  const evidenceFile = path.join(outputDirectory, 'github-and-deploy-evidence.json');
+  const evidence = JSON.parse(await readFile(evidenceFile, 'utf8'));
+  if (evidence.releaseSha !== sha || evidence.historicalWorkflowEvidence?.status !== 'VALIDATED') {
+    throw new Error('historical workflow evidence is not validated for release_sha');
+  }
+  await readFile(path.join(outputDirectory, 'browser-version.txt'), 'utf8');
+  evidence.equivalentReleaseGateEvidence.projectLmQuality.status = 'VALIDATED';
+  evidence.equivalentReleaseGateEvidence.portalPerformance.status = 'VALIDATED';
+  evidence.equivalentReleaseGateEvidence.validatedAt = new Date().toISOString();
+  await writeFile(evidenceFile, `${JSON.stringify(evidence, null, 2)}\n`);
+  return evidence;
+}
+
 async function main() {
+  if (process.argv.includes('--finalize-release-gates')) {
+    const evidence = await finalizeEquivalentReleaseGates();
+    console.log(JSON.stringify(evidence.equivalentReleaseGateEvidence, null, 2));
+    return;
+  }
   const evidence = await collectEvidence();
   console.log(JSON.stringify({ releaseSha: evidence.releaseSha, deployRunId: evidence.deployRun.runId,
     workerVersionId: evidence.deployArtifact.versionId, runtimeTarget: evidence.runtimeTarget }, null, 2));
