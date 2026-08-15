@@ -1,0 +1,182 @@
+name: F7 Final Release Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Full 40-character product release commit SHA
+        required: true
+        type: string
+      deploy_run_id:
+        description: Optional successful Deploy Cloudflare Worker run for release_sha
+        required: false
+        type: string
+      environment:
+        description: Protected GitHub environment containing staging configuration
+        required: true
+        default: staging
+        type: environment
+      allow_redeploy_same_sha:
+        description: Record authorization to redeploy the same SHA if an operator must do so (this evidence run never silently redeploys)
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  final-release-evidence:
+    name: Prove final release fidelity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: ${{ inputs.environment }}
+    env:
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      DEPLOY_RUN_ID: ${{ inputs.deploy_run_id }}
+      ALLOW_REDEPLOY_SAME_SHA: ${{ inputs.allow_redeploy_same_sha }}
+      CF_WORKER_NAME: ${{ vars.CF_WORKER_NAME || 'lm-system-api' }}
+      CF_WORKERS_SUBDOMAIN: ${{ vars.CF_WORKERS_SUBDOMAIN }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QA_ADMIN_TOKEN: ${{ secrets.QA_ADMIN_TOKEN }}
+      QA_STUDENT_EMAIL: ${{ secrets.QA_STUDENT_EMAIL }}
+      QA_STUDENT_TOKEN: ${{ secrets.QA_STUDENT_TOKEN }}
+      QA_TARGET_ENVIRONMENT: staging
+    steps:
+      - name: Require staging and validate non-secret configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ inputs.environment }}" == staging ]] || { echo 'FINAL_RELEASE_BLOCKER: environment must be staging' >&2; exit 1; }
+          [[ "$RELEASE_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'FINAL_RELEASE_BLOCKER: release_sha must be a full Git SHA' >&2; exit 1; }
+          for name in CF_WORKERS_SUBDOMAIN CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID QA_ADMIN_TOKEN QA_STUDENT_EMAIL QA_STUDENT_TOKEN; do
+            [[ -n "${!name:-}" ]] || { echo "FINAL_RELEASE_BLOCKER: missing configuration $name" >&2; exit 1; }
+          done
+
+      - name: Checkout evidence infrastructure from the default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: evidence-infrastructure
+          persist-credentials: false
+
+      - name: Checkout exact product release SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha }}
+          path: product-release
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prove product checkout fidelity
+        working-directory: product-release
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          expected="$(printf '%s' "$RELEASE_SHA" | tr '[:upper:]' '[:lower:]')"
+          [[ "$actual" == "$expected" ]] || { echo "FINAL_RELEASE_BLOCKER: checkout mismatch expected=$expected actual=$actual" >&2; exit 1; }
+          echo "release_sha=$actual"
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: product-release/package-lock.json
+
+      - name: Install exact release dependencies
+        working-directory: product-release
+        run: npm ci
+
+      - name: Resolve required CI, deploy artifact, Worker version, and versioned target
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          EVIDENCE_DIRECTORY: ${{ github.workspace }}/product-release/artifacts/f7-final-release-evidence
+        run: node evidence-infrastructure/scripts/f7-final-release-evidence.mjs
+
+      - name: Prove versioned target availability and static/API smoke
+        working-directory: product-release
+        env:
+          QA_BASE_URL: ${{ steps.release.outputs.runtime_target }}
+          QA_EXPECTED_SHA: ${{ inputs.release_sha }}
+          QA_DEPLOY_RUN_ID: ${{ steps.release.outputs.deploy_run_id }}
+          QA_WORKER_VERSION_ID: ${{ steps.release.outputs.worker_version_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_host="${QA_WORKER_VERSION_ID:0:8}-${CF_WORKER_NAME}.${CF_WORKERS_SUBDOMAIN}.workers.dev"
+          actual_host="$(node -e 'process.stdout.write(new URL(process.argv[1]).hostname)' "$QA_BASE_URL")"
+          [[ "$actual_host" == "$expected_host" ]] || { echo 'FINAL_RELEASE_BLOCKER: versioned target cannot be proved' >&2; exit 1; }
+          for attempt in $(seq 1 20); do
+            if scripts/check-qa-preview-health.sh "${QA_BASE_URL}/portal-login.html"; then break; fi
+            [[ "$attempt" -lt 20 ]] || { echo 'FINAL_RELEASE_BLOCKER: versioned target unavailable' >&2; exit 1; }
+            sleep 6
+          done
+          curl --fail --silent --show-error "${QA_BASE_URL}/api/health" > artifacts/f7-final-release-evidence/api-health.json
+          node -e 'const fs=require("node:fs");const x=JSON.parse(fs.readFileSync(process.argv[1]));if(x.ok!==true||x.service!=="lm-system-api")process.exit(1)' artifacts/f7-final-release-evidence/api-health.json
+
+      - name: Run mandatory local release gates
+        working-directory: product-release
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test
+          npm run check:project-lm-runtime
+          npm run db:expected
+          npm run qa:lm:security-closure
+          npm run qa:lm:stability-closure
+          npm run qa:lm:student-ux-audit
+          npm run baseline:check
+
+      - name: Record Chrome version and run official browser smoke
+        working-directory: product-release
+        shell: bash
+        run: |
+          set -euo pipefail
+          browser="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          [[ -n "$browser" ]] || { echo 'FINAL_RELEASE_BLOCKER: Chrome/Chromium missing' >&2; exit 1; }
+          "$browser" --version | tee artifacts/f7-final-release-evidence/browser-version.txt
+          CHROME_BIN="$browser" npm run performance:portal:smoke
+
+      - name: Authenticate QA administrator
+        working-directory: product-release
+        env:
+          QA_BASE_URL: ${{ steps.release.outputs.runtime_target }}
+        run: node scripts/authenticate-qa-admin.mjs
+
+      - name: Run required staging E2E and isolation harnesses
+        working-directory: product-release
+        env:
+          QA_BASE_URL: ${{ steps.release.outputs.runtime_target }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/f7-final-release-evidence
+          npm run qa:lm:sprint7 | tee artifacts/f7-final-release-evidence/staging-e2e.json
+          npm run qa:lm:premium-entry | tee artifacts/f7-final-release-evidence/premium-entry.json
+          npm run qa:lm:premium-anamnesis | tee artifacts/f7-final-release-evidence/premium-anamnesis.json
+          npm run qa:lm:premium-objectives | tee artifacts/f7-final-release-evidence/premium-objectives.json
+          npm run qa:lm:premium-nutrition-plan | tee artifacts/f7-final-release-evidence/premium-nutrition-plan.json
+          npm run qa:lm:premium-nutrition-versioning | tee artifacts/f7-final-release-evidence/premium-nutrition-versioning.json
+          npm run qa:lm:premium-weekly-checkin-response | tee artifacts/f7-final-release-evidence/premium-weekly-checkin-response.json
+
+      - name: Prove D1 staging fidelity
+        working-directory: product-release
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run db:audit:staging
+          cp artifacts/db-audit-staging.json artifacts/f7-final-release-evidence/db-audit-staging.json
+
+      - name: Upload final release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: f7-final-release-evidence-${{ inputs.release_sha }}
+          path: product-release/artifacts/f7-final-release-evidence/
+          if-no-files-found: error
+          retention-days: 30
