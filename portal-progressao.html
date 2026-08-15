@@ -30,7 +30,7 @@
       <p id='saveStatus' role='status' aria-live='polite' aria-atomic='true'></p>
     </div>
 
-    <div class='card'><h2>Histórico</h2><div id='hist'></div></div>
+    <div class='card'><h2>Histórico</h2><div id='hist' role='status' aria-live='polite'>Carregando histórico...</div></div>
   </div>
 
   <script src='public/assets/js/lm-access.js?v=20260623-1'></script>
@@ -128,11 +128,7 @@
       try {
         await api('/portal/progression', { method: 'POST', body: JSON.stringify(current) });
         saveStatus.textContent = 'Progressão salva com sucesso.';
-        try {
-          await loadHist();
-        } catch {
-          // O save já foi confirmado; o tratamento do GET inicial pertence ao UX-PREM-003.
-        }
+        await loadHist();
       } catch (e) {
         saveStatus.textContent = 'Não foi possível salvar a progressão. Tente novamente.';
       } finally {
@@ -143,22 +139,26 @@
     };
 
     async function loadHist() {
-      const r = await api('/portal/progression');
-      const entries = r.data || [];
-      hist.replaceChildren();
-      if (!entries.length) {
-        hist.textContent = 'Sem histórico';
-        return;
+      try {
+        const r = await api('/portal/progression');
+        const entries = r.data || [];
+        hist.replaceChildren();
+        if (!entries.length) {
+          hist.textContent = 'Sem histórico';
+          return;
+        }
+        entries.forEach(i => {
+          const rec = i.recommendation || i.decision || 'Sem recomendação';
+          const quality = i.executionQuality ? ` · Execução: ${i.executionQuality}` : '';
+          const legacyRir = i.rir ? ` · RIR legado: ${i.rir}` : '';
+          const item = document.createElement('div');
+          item.className = 'status';
+          item.textContent = `${i.created_at || '-'} · ${i.exercise || '-'} · ${i.targetZone || '-'} · ${i.loadUsed || '-'}kg · ${i.repsDone || '-'} reps${quality} · ${rec}${legacyRir}`;
+          hist.append(item);
+        });
+      } catch {
+        hist.textContent = 'Não foi possível carregar seu histórico agora. Tente novamente mais tarde.';
       }
-      entries.forEach(i => {
-        const rec = i.recommendation || i.decision || 'Sem recomendação';
-        const quality = i.executionQuality ? ` · Execução: ${i.executionQuality}` : '';
-        const legacyRir = i.rir ? ` · RIR legado: ${i.rir}` : '';
-        const item = document.createElement('div');
-        item.className = 'status';
-        item.textContent = `${i.created_at || '-'} · ${i.exercise || '-'} · ${i.targetZone || '-'} · ${i.loadUsed || '-'}kg · ${i.repsDone || '-'} reps${quality} · ${rec}${legacyRir}`;
-        hist.append(item);
-      });
     }
 
     loadHist();

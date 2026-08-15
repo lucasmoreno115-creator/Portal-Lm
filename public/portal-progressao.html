@@ -5,7 +5,6 @@
   <meta name="theme-color" content="#0d0d0d">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
   <meta charset='utf-8'>
   <meta name='viewport' content='width=device-width,initial-scale=1'>
   <title>Progressão</title>
@@ -14,7 +13,6 @@
 <body>
   <div class='container'>
     <div id='nav'></div>
-
     <div class='card'>
       <h1>Calculadora de Progressão LM</h1>
       <p class='muted'>Use esta calculadora após registrar a última série válida do exercício. Informe a carga usada, a faixa alvo e quantas repetições realizou com boa execução. O sistema indicará se você deve subir carga, manter a carga ou ajustar a execução na próxima sessão.</p>
@@ -34,10 +32,8 @@
       <button id='save' style='display:none'>Salvar progressão</button>
       <p id='saveStatus' role='status' aria-live='polite' aria-atomic='true'></p>
     </div>
-
-    <div class='card'><h2>Histórico</h2><div id='hist'></div></div>
+    <div class='card'><h2>Histórico</h2><div id='hist' role=status aria-live=polite>Carregando histórico...</div></div>
   </div>
-
   <script src='/assets/js/lm-access.js?v=20260623-1'></script>
   <script src='portal-shared.js'></script>
   <script>
@@ -52,29 +48,23 @@ const exercise = document.getElementById('exercise');
 const load = document.getElementById('load');
 const hist = document.getElementById('hist');
 const executionQuality = document.getElementById('executionQuality');
-
 requireAuth();
 redirectIfNoAccess('progressao');
 navEl.innerHTML = nav();
-
 let current = null;
 let isSaving = false;
-
 function decide() {
   if (!exercise.value || !load.value || !reps.value) {
     alert('Preencha exercício, carga e repetições.');
     return;
   }
-
   const [min, max] = zone.value.split('–').map(Number);
   const repsDone = Number(reps.value);
   const isGoodExecution = executionQuality.value === 'Sim';
-
   let recommendation = 'Manter carga e buscar mais repetições';
   let message = 'Você está dentro da faixa alvo. Mantenha a mesma carga na próxima sessão e tente fazer 1 repetição a mais com boa execução.';
   let suggestion = 'Mantenha a carga e busque progredir em repetições.';
   let status = 'status-warn';
-
   if (!isGoodExecution) {
     recommendation = 'Não subir carga ainda';
     message = 'A execução perdeu qualidade. Mantenha ou reduza levemente a carga e priorize amplitude, controle e técnica perfeita antes de progredir.';
@@ -105,12 +95,10 @@ function decide() {
     suggestion = 'Exercícios grandes: +5%. Isoladores: +2–5%.';
     status = 'status-ok';
   }
-
   out.style.display = 'block';
   save.style.display = 'block';
   out.className = `card ${status}`;
   out.innerHTML = `<h3>${recommendation}</h3><p>${message}</p><p><strong>Sugestão:</strong> ${suggestion}</p>`;
-
   current = {
     exercise: exercise.value,
     targetZone: zone.value,
@@ -120,50 +108,45 @@ function decide() {
     recommendation
   };
 }
-
 calc.onclick = decide;
-
 save.onclick = async () => {
-  if (!current || isSaving) return;
-  isSaving = true;
-  save.disabled = true;
-  save.textContent = 'Salvando...';
-  saveStatus.textContent = 'Salvando sua progressão...';
-  try {
-    await api('/portal/progression', { method: 'POST', body: JSON.stringify(current) });
-    saveStatus.textContent = 'Progressão salva com sucesso.';
-    try {
-      await loadHist();
-    } catch {
-    }
-  } catch (e) {
-    saveStatus.textContent = 'Não foi possível salvar a progressão. Tente novamente.';
-  } finally {
-    isSaving = false;
-    save.disabled = false;
-    save.textContent = 'Salvar progressão';
-  }
+if (!current || isSaving) return;
+isSaving = true;
+save.disabled = true;
+save.textContent = 'Salvando...';
+saveStatus.textContent = 'Salvando sua progressão...';
+try {
+  await api('/portal/progression', { method: 'POST', body: JSON.stringify(current) });
+  saveStatus.textContent = 'Progressão salva com sucesso.';
+  await loadHist();
+} catch (e) {
+  saveStatus.textContent = 'Não foi possível salvar a progressão. Tente novamente.';
+} finally {
+  isSaving = false;
+  save.disabled = false;
+  save.textContent = 'Salvar progressão';
+}
 };
-
 async function loadHist() {
+try {
   const r = await api('/portal/progression');
-  const entries = r.data || [];
+  const entries=r.data||[];
   hist.replaceChildren();
   if (!entries.length) {
     hist.textContent = 'Sem histórico';
     return;
   }
   entries.forEach(i => {
-    const rec = i.recommendation || i.decision || 'Sem recomendação';
-    const quality = i.executionQuality ? ` · Execução: ${i.executionQuality}` : '';
-    const legacyRir = i.rir ? ` · RIR legado: ${i.rir}` : '';
-    const item = document.createElement('div');
-    item.className = 'status';
-    item.textContent = `${i.created_at || '-'} · ${i.exercise || '-'} · ${i.targetZone || '-'} · ${i.loadUsed || '-'}kg · ${i.repsDone || '-'} reps${quality} · ${rec}${legacyRir}`;
+    const rec=i.recommendation||i.decision||'Sem recomendação';
+    const quality=i.executionQuality?` · Execução: ${i.executionQuality}`:'';
+    const legacyRir=i.rir?` · RIR legado: ${i.rir}`:'';
+    const item=document.createElement('div');
+    item.className='status';
+    item.textContent=`${i.created_at||'-'} · ${i.exercise||'-'} · ${i.targetZone||'-'} · ${i.loadUsed||'-'}kg · ${i.repsDone||'-'} reps${quality} · ${rec}${legacyRir}`;
     hist.append(item);
   });
+} catch{ hist.textContent='Não foi possível carregar seu histórico agora. Tente novamente mais tarde.' }
 }
-
 loadHist();
   </script>
   <script src="/assets/js/pwa-register.js" defer></script>

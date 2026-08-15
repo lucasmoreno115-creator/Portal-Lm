@@ -21,5 +21,6 @@ test('audit evidence preserves lifecycle, responsive, and mutation sanity covera
   assert.equal(evidence.checks.allSurfacesDeclareViewport, true);
   assert.equal(evidence.checks.lifecycleCopyPresent, true);
   assert.equal(evidence.checks.mutationDoubleSubmitGuards, true);
+  assert.equal(evidence.checks.progressionHasControlledHistoryError, true);
   assert.deepEqual(evidence.frozenFindingIds, ['UX-PREM-001', 'UX-PREM-002', 'UX-PREM-003', 'UX-PREM-004']);
 });

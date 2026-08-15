@@ -47,7 +47,7 @@ export async function collectPremiumStudentUxEvidence() {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const evidence = await collectPremiumStudentUxEvidence();
-  const requiredChecks = ['allCanonicalSurfacesExist', 'homeLocalDestinationsExist', 'allSurfacesDeclareViewport', 'lifecycleCopyPresent', 'weeklyFeedbackHasHomeReturn', 'weeklyFeedbackApprovedQuestionnaire', 'mutationDoubleSubmitGuards'];
+  const requiredChecks = ['allCanonicalSurfacesExist', 'homeLocalDestinationsExist', 'allSurfacesDeclareViewport', 'lifecycleCopyPresent', 'weeklyFeedbackHasHomeReturn', 'weeklyFeedbackApprovedQuestionnaire', 'mutationDoubleSubmitGuards', 'nutritionHasHomeReturn', 'progressionHasSubmitLock', 'progressionHasControlledHistoryError', 'homeHasVisibleAccessLoading'];
   const failed = requiredChecks.filter((key) => !evidence.checks[key]);
   console.log(JSON.stringify(evidence, null, 2));
   if (failed.length) {
