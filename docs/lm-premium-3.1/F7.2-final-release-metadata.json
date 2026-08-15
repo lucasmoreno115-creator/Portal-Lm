@@ -1,8 +1,8 @@
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "validationPhase": "FINAL VALIDATION",
   "productReleaseSha": "100bdbaf3aa8ebcfd47ec153a29434f88dede93f",
-  "evidencePrHeadSha": "80409fe2f09e1d7ff56871f5d6a2c9e8a1c90469",
+  "evidencePrHeadSha": "592a927223d77f6f3a38b5e5a212fe9153c66f66",
   "runtimeAffectingDiff": [],
   "deployCommit": null,
   "deployWorkflow": ".github/workflows/cloudflare-deploy.yml",
@@ -25,20 +25,75 @@
     "npm": "11.4.2"
   },
   "localGates": {
-    "npmCi": { "status": "PASS", "exitCode": 0 },
-    "npmTest": { "status": "PASS", "exitCode": 0, "executed": 1376, "passed": 1376, "failed": 0, "skipped": 0 },
-    "projectLmRuntime": { "status": "PASS", "exitCode": 0 },
-    "databaseExpected": { "status": "PASS", "exitCode": 0, "migrationCount": 41, "terminalMigration": "0044_add_progression_execution_quality.sql" },
-    "securityClosure": { "status": "VALIDATED", "exitCode": 0, "passed": 29, "failed": 0, "skipped": 0 },
-    "stabilityClosure": { "status": "VALIDATED", "exitCode": 0, "passed": 46, "failed": 0, "skipped": 0 },
-    "studentUxAudit": { "status": "PASS", "exitCode": 0 },
-    "baselineCheck": { "status": "PASS", "exitCode": 0 },
-    "performanceContractTests": { "status": "PASS", "exitCode": 0, "executed": 60, "passed": 60, "failed": 0, "skipped": 0 },
-    "structuralRuntimeTests": { "status": "PASS", "exitCode": 0, "executed": 7, "passed": 7, "failed": 0, "skipped": 0 }
+    "npmCi": {
+      "status": "PASS",
+      "exitCode": 0
+    },
+    "npmTest": {
+      "status": "PASS",
+      "exitCode": 0,
+      "executed": 1376,
+      "passed": 1376,
+      "failed": 0,
+      "skipped": 0
+    },
+    "projectLmRuntime": {
+      "status": "PASS",
+      "exitCode": 0
+    },
+    "databaseExpected": {
+      "status": "PASS",
+      "exitCode": 0,
+      "migrationCount": 41,
+      "terminalMigration": "0044_add_progression_execution_quality.sql"
+    },
+    "securityClosure": {
+      "status": "VALIDATED",
+      "exitCode": 0,
+      "passed": 29,
+      "failed": 0,
+      "skipped": 0
+    },
+    "stabilityClosure": {
+      "status": "VALIDATED",
+      "exitCode": 0,
+      "passed": 46,
+      "failed": 0,
+      "skipped": 0
+    },
+    "studentUxAudit": {
+      "status": "PASS",
+      "exitCode": 0
+    },
+    "baselineCheck": {
+      "status": "PASS",
+      "exitCode": 0
+    },
+    "performanceContractTests": {
+      "status": "PASS",
+      "exitCode": 0,
+      "executed": 60,
+      "passed": 60,
+      "failed": 0,
+      "skipped": 0
+    },
+    "structuralRuntimeTests": {
+      "status": "PASS",
+      "exitCode": 0,
+      "executed": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    }
   },
   "invalidRuntimeAttempt": {
     "node": "v20.20.2",
-    "npmTest": { "executed": 1225, "passed": 1200, "failed": 25, "skipped": 0 },
+    "npmTest": {
+      "executed": 1225,
+      "passed": 1200,
+      "failed": 25,
+      "skipped": 0
+    },
     "classification": "INVALID_FOR_SUPPORTED_RUNTIME"
   },
   "budgets": {
@@ -48,7 +103,11 @@
     "workerApiBytes": 292866,
     "largestPublicAssetBytes": 775360,
     "publicBytes": 16728795,
-    "errorBudgetResults": { "passed": 10, "errors": 0, "warnings": 3 },
+    "errorBudgetResults": {
+      "passed": 10,
+      "errors": 0,
+      "warnings": 3
+    },
     "status": "PASS"
   },
   "ciRuns": [],
@@ -58,7 +117,7 @@
     "workflowRunId": null,
     "sha": null,
     "browser": null,
-    "reason": "No authenticated GitHub Actions evidence and no local Chrome/Chromium executable."
+    "reason": "GitHub Actions evidence is inaccessible and no local Chrome/Chromium executable is available."
   },
   "e2e": {
     "staticApiSmoke": "BLOCKED_TARGET_FIDELITY_NOT_PROVEN",
@@ -76,7 +135,9 @@
   "stability": "BLOCKED_FINAL_TARGET_AND_CI_EVIDENCE_UNAVAILABLE",
   "isolation": {
     "status": "BLOCKED_TARGET_E2E_NOT_EXECUTED",
-    "unexpectedCalls": null
+    "unexpectedCalls": null,
+    "premiumToProjectLmUnexpectedCalls": null,
+    "projectLmToPremiumUnexpectedCalls": null
   },
   "blockerClosure": {
     "RELEASE_TARGET_FIDELITY": "OPEN",
@@ -88,5 +149,14 @@
   "finalReleaseBlockers": 4,
   "releaseStatus": "RELEASE_BLOCKED",
   "f72Fix1": "BLOCKED",
-  "portalLmV1": "NOT_CLOSED"
+  "portalLmV1": "NOT_CLOSED",
+  "fix2ValidationTimestampUtc": "2026-08-15T18:21:21Z",
+  "externalEvidenceAccess": {
+    "githubCli": "UNAUTHENTICATED",
+    "githubApi": "NETWORK_BLOCKED_CONNECT_TUNNEL_403",
+    "cloudflareCredentialsAvailable": false,
+    "stagingCredentialsAvailable": false,
+    "chromeExecutableAvailable": false
+  },
+  "f72Fix2": "BLOCKED"
 }
