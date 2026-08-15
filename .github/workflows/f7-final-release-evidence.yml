@@ -91,11 +91,28 @@ jobs:
         working-directory: product-release
         run: npm ci
 
-      - name: Resolve required CI, deploy artifact, Worker version, and versioned target
+      - name: Discover required CI and deploy artifact
+        id: deploy-artifact
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node evidence-infrastructure/scripts/f7-final-release-evidence.mjs --discover-deploy-artifact
+
+      - name: Download exact deploy artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.deploy-artifact.outputs.artifact_name }}
+          path: ${{ runner.temp }}/f7-worker-metadata
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.deploy-artifact.outputs.deploy_run_id }}
+
+      - name: Resolve required CI, deploy metadata, Worker version, and versioned target
         id: release
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          DEPLOY_RUN_ID: ${{ steps.deploy-artifact.outputs.deploy_run_id }}
           EVIDENCE_DIRECTORY: ${{ github.workspace }}/product-release/artifacts/f7-final-release-evidence
+          DEPLOY_METADATA_FILE: ${{ runner.temp }}/f7-worker-metadata/worker-deploy-metadata.json
         run: node evidence-infrastructure/scripts/f7-final-release-evidence.mjs
 
       - name: Prove versioned target availability and static/API smoke

@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
@@ -59,20 +58,19 @@ export function validateHistoricalCi({ qaRuns, deployRuns, deployJobs, sha, requ
   };
 }
 
-async function github(pathname, { token, repository, binary = false } = {}) {
+async function github(pathname, { token, repository } = {}) {
   if (!token) throw new Error('GITHUB_TOKEN is required');
   if (!repository) throw new Error('GITHUB_REPOSITORY is required');
   const response = await fetch(`https://api.github.com/repos/${repository}${pathname}`, {
     headers: {
       authorization: `Bearer ${token}`,
-      accept: binary ? 'application/octet-stream' : 'application/vnd.github+json',
+      accept: 'application/vnd.github+json',
       'x-github-api-version': '2022-11-28',
       'user-agent': 'portal-lm-final-release-evidence',
     },
-    redirect: 'follow',
   });
   if (!response.ok) throw new Error(`GitHub API ${pathname} failed with HTTP ${response.status}`);
-  return binary ? Buffer.from(await response.arrayBuffer()) : response.json();
+  return response.json();
 }
 
 async function runsFor(workflowFile, sha, context) {
@@ -87,6 +85,30 @@ export function validateDeployMetadata(metadata, { sha, workerName }) {
   if (workerName && metadata.workerName !== workerName) throw new Error('deploy artifact workerName does not match CF_WORKER_NAME');
   if (!String(metadata.versionId || '').trim()) throw new Error('deploy artifact versionId is missing');
   return metadata;
+}
+
+export function selectDeployArtifact(artifacts, artifactName) {
+  const matches = (artifacts || []).filter(item => item.name === artifactName);
+  if (matches.length !== 1) throw new Error(`expected exactly one artifact ${artifactName}; found ${matches.length}`);
+  if (matches[0].expired) throw new Error(`artifact ${artifactName} is expired`);
+  return matches[0];
+}
+
+export async function loadDeployMetadata(metadataFile, validation) {
+  if (!String(metadataFile || '').trim()) throw new Error('DEPLOY_METADATA_FILE is required');
+  let contents;
+  try {
+    contents = await readFile(metadataFile, 'utf8');
+  } catch (error) {
+    throw new Error(`worker-deploy-metadata.json is missing: ${error.message}`);
+  }
+  let metadata;
+  try {
+    metadata = JSON.parse(contents);
+  } catch (error) {
+    throw new Error(`worker-deploy-metadata.json is invalid JSON: ${error.message}`);
+  }
+  return validateDeployMetadata(metadata, validation);
 }
 
 export function buildVersionedTarget({ versionId, workerName, workersSubdomain }) {
@@ -132,19 +154,12 @@ export async function collectEvidence({ env = process.env } = {}) {
 
   const artifactName = `cloudflare-worker-version-${sha}`;
   const artifacts = (await github(`/actions/runs/${deploy.runId}/artifacts?per_page=100`, context)).artifacts || [];
-  const matches = artifacts.filter(item => item.name === artifactName && !item.expired);
-  if (matches.length !== 1) throw new Error(`expected exactly one non-expired artifact ${artifactName}; found ${matches.length}`);
-
-  const temp = process.env.RUNNER_TEMP || process.cwd();
-  const artifactDirectory = path.join(temp, `f7-worker-metadata-${process.pid}`);
-  const archive = path.join(temp, `f7-worker-metadata-${process.pid}.zip`);
-  await mkdir(artifactDirectory, { recursive: true });
-  await writeFile(archive, await github(`/actions/artifacts/${matches[0].id}/zip`, { ...context, binary: true }));
-  execFileSync('unzip', ['-q', '-o', archive, '-d', artifactDirectory], { stdio: 'inherit' });
-  const metadata = validateDeployMetadata(JSON.parse(await readFile(path.join(artifactDirectory, 'worker-deploy-metadata.json'), 'utf8')), {
+  const artifact = selectDeployArtifact(artifacts, artifactName);
+  const metadata = await loadDeployMetadata(env.DEPLOY_METADATA_FILE, {
     sha, workerName: env.CF_WORKER_NAME,
   });
-  evidence.deployArtifact = { name: artifactName, artifactId: matches[0].id, ...metadata };
+  evidence.deployMetadata = 'VALIDATED';
+  evidence.deployArtifact = { name: artifactName, artifactId: artifact.id, ...metadata };
   evidence.runtimeTarget = buildVersionedTarget({
     versionId: metadata.versionId, workerName: metadata.workerName, workersSubdomain: env.CF_WORKERS_SUBDOMAIN,
   });
@@ -158,6 +173,21 @@ export async function collectEvidence({ env = process.env } = {}) {
     runtime_target: evidence.runtimeTarget, evidence_file: path.join(outputDirectory, 'github-and-deploy-evidence.json'),
   });
   return evidence;
+}
+
+export async function discoverDeployArtifact({ env = process.env } = {}) {
+  const sha = normalizeReleaseSha(env.RELEASE_SHA);
+  const context = { token: env.GITHUB_TOKEN, repository: env.GITHUB_REPOSITORY };
+  const qaRuns = await runsFor(REQUIRED_MAIN_WORKFLOWS[0][1], sha, context);
+  const deployRuns = await runsFor(DEPLOY_WORKFLOW[1], sha, context);
+  const deploy = selectSuccessfulRun(deployRuns, sha, DEPLOY_WORKFLOW[0], env.DEPLOY_RUN_ID);
+  const deployJobs = (await github(`/actions/runs/${deploy.runId}/jobs?per_page=100`, context)).jobs || [];
+  validateHistoricalCi({ qaRuns, deployRuns, deployJobs, sha, requestedDeployRunId: env.DEPLOY_RUN_ID });
+  const artifactName = `cloudflare-worker-version-${sha}`;
+  const artifacts = (await github(`/actions/runs/${deploy.runId}/artifacts?per_page=100`, context)).artifacts || [];
+  const artifact = selectDeployArtifact(artifacts, artifactName);
+  await writeGithubOutput({ deploy_run_id: deploy.runId, artifact_name: artifactName, artifact_id: artifact.id });
+  return { deployRunId: deploy.runId, artifactName, artifactId: artifact.id };
 }
 
 export async function finalizeEquivalentReleaseGates({ env = process.env } = {}) {
@@ -177,6 +207,10 @@ export async function finalizeEquivalentReleaseGates({ env = process.env } = {})
 }
 
 async function main() {
+  if (process.argv.includes('--discover-deploy-artifact')) {
+    console.log(JSON.stringify(await discoverDeployArtifact(), null, 2));
+    return;
+  }
   if (process.argv.includes('--finalize-release-gates')) {
     const evidence = await finalizeEquivalentReleaseGates();
     console.log(JSON.stringify(evidence.equivalentReleaseGateEvidence, null, 2));
