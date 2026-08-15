@@ -1,0 +1,291 @@
+name: F7 Final Release Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact product release commit to validate
+        required: true
+        type: string
+      deploy_run_id:
+        description: Optional successful Deploy Cloudflare Worker run for the same SHA
+        required: false
+        type: string
+      environment:
+        description: Protected GitHub environment containing staging evidence secrets
+        required: true
+        default: staging
+        type: choice
+        options: [staging]
+      allow_redeploy_same_sha:
+        description: Permit a same-SHA redeploy when the official deploy workflow supports dispatch
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  evidence:
+    name: Exact-SHA final release evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: ${{ inputs.environment }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      CF_WORKER_NAME: ${{ vars.CF_WORKER_NAME || 'lm-system-api' }}
+      CF_WORKERS_SUBDOMAIN: ${{ vars.CF_WORKERS_SUBDOMAIN }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QA_ADMIN_TOKEN: ${{ secrets.QA_ADMIN_TOKEN }}
+      QA_STUDENT_EMAIL: ${{ secrets.QA_STUDENT_EMAIL }}
+      QA_STUDENT_TOKEN: ${{ secrets.QA_STUDENT_TOKEN }}
+      QA_TARGET_ENVIRONMENT: staging
+    steps:
+      - name: Checkout evidence tooling from this workflow revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: evidence-tooling
+
+      - name: Validate release SHA syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'release_sha must be a full lowercase commit SHA.' >&2; exit 1; }
+
+      - name: Checkout exact product release SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+          path: product
+
+      - name: Prove exact product checkout and evidence-only delta
+        working-directory: product
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$RELEASE_SHA"
+          git cat-file -e "${RELEASE_SHA}^{commit}"
+          echo "PRODUCT_RELEASE_SHA_VALIDATED=${actual}"
+          diff_names="$(git --no-pager diff --name-only "$RELEASE_SHA" "${GITHUB_SHA}" || true)"
+          if printf '%s\n' "$diff_names" | grep -Ev '^(|\.github/workflows/f7-final-release-evidence\.yml|scripts/f7-final-release-evidence\.mjs|docs/lm-premium-3\.1/F7\.2-)'; then
+            echo 'Evidence revision contains an unapproved runtime-affecting diff.' >&2
+            exit 1
+          fi
+          printf 'RUNTIME_AFFECTING_DIFF=none\n'
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: product/package-lock.json
+
+      - name: Preflight protected inputs without revealing values
+        working-directory: product
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/f7
+          missing=0
+          printf '{\n  "status": "PREFLIGHT",\n  "secrets": {\n' > artifacts/f7/preflight.json
+          separator=''
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID QA_ADMIN_TOKEN QA_STUDENT_EMAIL QA_STUDENT_TOKEN CF_WORKERS_SUBDOMAIN; do
+            present=false
+            if [[ -n "${!name:-}" ]]; then present=true; else missing=1; fi
+            echo "${name}_PRESENT=${present}"
+            printf '%s    "%s": %s' "$separator" "$name" "$present" >> artifacts/f7/preflight.json
+            separator=$',\n'
+          done
+          printf '\n  }\n}\n' >> artifacts/f7/preflight.json
+          if (( missing )); then echo 'Configure the false entries in the selected protected environment.' >&2; exit 1; fi
+
+      - name: Install exact-SHA dependencies and record runtime
+        working-directory: product
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --version
+          npm --version
+          npm ci
+          mkdir -p artifacts/f7/logs
+
+      - name: Collect and validate required GitHub Actions runs
+        working-directory: product
+        run: node ../evidence-tooling/scripts/f7-final-release-evidence.mjs ci
+
+      - name: Resolve faithful deploy run
+        id: deploy
+        working-directory: product
+        shell: bash
+        env:
+          REQUESTED_DEPLOY_RUN_ID: ${{ inputs.deploy_run_id }}
+          ALLOW_REDEPLOY: ${{ inputs.allow_redeploy_same_sha }}
+        run: |
+          set -euo pipefail
+          run_id="${REQUESTED_DEPLOY_RUN_ID:-}"
+          if [[ -z "$run_id" ]]; then
+            run_id="$(gh api --paginate "/repos/${GITHUB_REPOSITORY}/actions/workflows/cloudflare-deploy.yml/runs?head_sha=${RELEASE_SHA}&event=push&per_page=100" \
+              --jq '[.workflow_runs[] | select(.head_sha==env.RELEASE_SHA and .status=="completed" and .conclusion=="success")] | sort_by(.updated_at) | last | .id // empty')"
+          fi
+          if [[ -z "$run_id" ]]; then
+            if [[ "$ALLOW_REDEPLOY" == true ]]; then
+              echo 'TEMPORAL_WINDOW_CLOSED: same-SHA redeploy requested, but cloudflare-deploy.yml has no workflow_dispatch trigger.' >&2
+            fi
+            echo 'RELEASE_TARGET_FIDELITY = BLOCKED: no successful same-SHA deploy.' >&2
+            exit 1
+          fi
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" > artifacts/f7/deploy-run.json
+          node -e '
+            const r=require("./artifacts/f7/deploy-run.json"), sha=process.env.RELEASE_SHA;
+            if(r.name!=="Deploy Cloudflare Worker"||r.head_sha!==sha||r.status!=="completed"||r.conclusion!=="success") process.exit(1);
+          '
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: Download and validate deploy metadata artifact
+        id: fidelity
+        working-directory: product
+        shell: bash
+        env:
+          DEPLOY_RUN_ID: ${{ steps.deploy.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          artifact_name="cloudflare-worker-version-${RELEASE_SHA}"
+          mkdir -p artifacts/f7/deploy-artifact
+          gh run download "$DEPLOY_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact_name" --dir artifacts/f7/deploy-artifact
+          metadata=artifacts/f7/deploy-artifact/worker-deploy-metadata.json
+          test -f "$metadata"
+          node - "$metadata" "$DEPLOY_RUN_ID" <<'NODE'
+          const fs=require('node:fs');
+          const [file,runId]=process.argv.slice(2), m=JSON.parse(fs.readFileSync(file,'utf8'));
+          const sha=process.env.RELEASE_SHA, worker=process.env.CF_WORKER_NAME, subdomain=process.env.CF_WORKERS_SUBDOMAIN;
+          if(m.gitSha!==sha||m.workerName!==worker||typeof m.versionId!=='string'||!m.versionId.trim()) process.exit(1);
+          const runtimeTarget=`https://${m.versionId.slice(0,8)}-${worker}.${subdomain}.workers.dev`;
+          fs.writeFileSync('artifacts/f7/deploy-fidelity.json',JSON.stringify({status:'VALIDATED',gitSha:m.gitSha,deployRunId:Number(runId),workerName:m.workerName,versionId:m.versionId,environment:'staging',runtimeTarget,deployMetadataArtifact:file,validatedAt:new Date().toISOString()},null,2)+'\n');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,`version_id=${m.versionId}\nruntime_target=${runtimeTarget}\n`);
+          console.log(`${m.gitSha} -> ${runId} -> ${m.workerName} -> ${m.versionId} -> ${runtimeTarget}`);
+          NODE
+
+      - name: Verify version preview temporal window
+        shell: bash
+        env:
+          RUNTIME_TARGET: ${{ steps.fidelity.outputs.runtime_target }}
+        run: |
+          set -euo pipefail
+          for attempt in {1..10}; do
+            if curl --fail --silent --show-error --max-time 15 "$RUNTIME_TARGET/api/health" >/dev/null; then exit 0; fi
+            sleep 6
+          done
+          echo 'TEMPORAL_WINDOW_CLOSED' >&2
+          echo 'A same-SHA redeploy requires workflow_dispatch support in the official deploy workflow.' >&2
+          exit 1
+
+      - name: Run exact-SHA local gates
+        working-directory: product
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test 2>&1 | tee artifacts/f7/logs/npm-test.log
+          npm run check:project-lm-runtime 2>&1 | tee artifacts/f7/logs/runtime-sync.log
+          npm run db:expected 2>&1 | tee artifacts/f7/logs/db-expected.log
+          git checkout -- database/expected/migration-schema.json
+          npm run qa:lm:security-closure 2>&1 | tee artifacts/f7/logs/security-closure.log
+          npm run qa:lm:stability-closure 2>&1 | tee artifacts/f7/logs/stability-closure.log
+          npm run qa:lm:student-ux-audit 2>&1 | tee artifacts/f7/logs/student-ux.log
+          npm run baseline:check 2>&1 | tee artifacts/f7/logs/baseline.log
+          node -e "require('fs').writeFileSync('artifacts/f7/local-gates.json',JSON.stringify({status:'VALIDATED',node:process.version,sha:process.env.RELEASE_SHA},null,2)+'\n')"
+
+      - name: Resolve Chrome and execute official browser smoke
+        id: chrome
+        working-directory: product
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome-stable || command -v google-chrome || command -v chromium || true)"
+          test -n "$chrome"
+          version="$($chrome --version)"
+          CHROME_BIN="$chrome" npm run performance:portal:smoke 2>&1 | tee artifacts/f7/logs/browser-smoke.log
+          node -e "const fs=require('fs'),ci=require('./artifacts/f7/release-ci-evidence.json'),workflow=ci.workflows.find(x=>x.workflow==='Portal performance baseline');fs.writeFileSync('artifacts/f7/browser-evidence.json',JSON.stringify({status:'VALIDATED',sha:process.env.RELEASE_SHA,browser:process.argv[1],command:'npm run performance:portal:smoke',officialWorkflow:workflow},null,2)+'\n')" "$version"
+
+      - name: Execute static and API smoke against faithful target
+        working-directory: product
+        env:
+          RUNTIME_TARGET: ${{ steps.fidelity.outputs.runtime_target }}
+        run: node ../evidence-tooling/scripts/f7-final-release-evidence.mjs static
+
+      - name: Authenticate staging administrator
+        working-directory: product
+        env:
+          QA_BASE_URL: ${{ steps.fidelity.outputs.runtime_target }}
+        run: node scripts/authenticate-qa-admin.mjs
+
+      - name: Execute official staging harnesses
+        working-directory: product
+        shell: bash
+        env:
+          QA_BASE_URL: ${{ steps.fidelity.outputs.runtime_target }}
+        run: |
+          set -euo pipefail
+          npm run qa:lm:premium-entry | tee artifacts/f7/premium-lifecycle-e2e.json
+          npm run qa:lm:premium-anamnesis | tee artifacts/f7/anamnesis-e2e.json
+          npm run qa:lm:premium-nutrition-plan | tee artifacts/f7/nutrition-e2e.json
+          npm run qa:lm:premium-weekly-checkin-response | tee artifacts/f7/weekly-response-raw.json
+          npm run qa:lm:sprint7 | tee artifacts/f7/workspace-e2e.json
+          cp artifacts/f7/workspace-e2e.json artifacts/f7/project-lm-e2e.json
+
+      - name: Normalize and enforce full weekly response evidence
+        working-directory: product
+        run: node ../evidence-tooling/scripts/f7-final-release-evidence.mjs weekly-normalize
+
+      - name: Capture Projeto LM to Premium unexpected calls
+        working-directory: product
+        env:
+          RUNTIME_TARGET: ${{ steps.fidelity.outputs.runtime_target }}
+        run: node ../evidence-tooling/scripts/f7-final-release-evidence.mjs project-isolation
+
+      - name: Execute progression persistence and reload against faithful target
+        working-directory: product
+        env:
+          RUNTIME_TARGET: ${{ steps.fidelity.outputs.runtime_target }}
+        run: node ../evidence-tooling/scripts/f7-final-release-evidence.mjs progression
+
+      - name: Audit staging D1 read-only
+        working-directory: product
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run db:audit:staging 2>&1 | tee artifacts/f7/logs/database-fidelity.log
+          cp artifacts/db-audit-staging.json artifacts/f7/database-fidelity.json
+          node -e "const r=require('./artifacts/f7/database-fidelity.json');if(r.status!=='PASS')process.exit(1)"
+
+      - name: Consolidate and enforce final release evidence
+        working-directory: product
+        run: node ../evidence-tooling/scripts/f7-final-release-evidence.mjs final
+
+      - name: Publish final evidence matrix
+        if: always()
+        working-directory: product
+        shell: bash
+        run: |
+          node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs=require('node:fs'), p='artifacts/f7/final-release-evidence.json';
+          const r=fs.existsSync(p)?JSON.parse(fs.readFileSync(p,'utf8')):{};
+          const rows=[['Release target fidelity',r.versionId?'VALIDATED':'BLOCKED'],['Required CI',r.requiredCi||'BLOCKED'],['Local gates',r.releaseSha?'VALIDATED':'BLOCKED'],['Browser performance',r.browserPerformance||'BLOCKED'],['Static/API smoke',r.staticApiSmoke||'BLOCKED'],['Premium lifecycle',r.premiumLifecycle||'BLOCKED'],['Weekly Response',r.weeklyResponse||'BLOCKED'],['Progression',r.progression||'BLOCKED'],['Anamnese',r.anamnesis||'BLOCKED'],['Nutrition',r.nutrition||'BLOCKED'],['Workspace',r.workspace||'BLOCKED'],['Projeto LM',r.projectLm||'BLOCKED'],['Isolation',r.crossProductIsolation||'BLOCKED'],['Database fidelity',r.databaseFidelity||'BLOCKED'],['Security',r.security||'BLOCKED'],['Stability',r.stability||'BLOCKED']];
+          console.log('## F7 Final Release Evidence\n\n| Gate | Status |\n| --- | --- |'); for(const row of rows)console.log(`| ${row[0]} | ${row[1]} |`);
+          console.log(`\nFINAL_RELEASE_BLOCKERS = ${r.finalReleaseBlockers ?? 'UNKNOWN'}\n\nreleaseStatus = ${r.releaseStatus || 'RELEASE_BLOCKED'}`);
+          NODE
+
+      - name: Upload retained final release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: f7-final-release-evidence-${{ inputs.release_sha }}
+          path: product/artifacts/f7/
+          retention-days: 90
+          if-no-files-found: error

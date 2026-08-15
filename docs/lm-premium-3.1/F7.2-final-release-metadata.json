@@ -1,0 +1,174 @@
+{
+  "schemaVersion": "1.3.0",
+  "validationPhase": "FINAL VALIDATION",
+  "productReleaseSha": "100bdbaf3aa8ebcfd47ec153a29434f88dede93f",
+  "evidencePrHeadSha": "55fc456061685ba2fdb7680536ea4c902dad960f",
+  "runtimeAffectingDiff": [],
+  "deployCommit": null,
+  "deployWorkflow": ".github/workflows/cloudflare-deploy.yml",
+  "deployRunId": null,
+  "deployConclusion": null,
+  "workerName": "lm-system-api",
+  "versionId": null,
+  "environment": "production",
+  "declaredHostname": "portal.lucasmorenopersonal.com.br",
+  "runtimeTestTarget": null,
+  "deployMetadataArtifact": null,
+  "initialValidationTimestampUtc": "2026-08-15T14:38:07Z",
+  "fix1ValidationTimestampUtc": "2026-08-15T16:17:55Z",
+  "fidelity": {
+    "status": "BLOCKED",
+    "chain": "100bdbaf3aa8ebcfd47ec153a29434f88dede93f -> UNKNOWN_DEPLOY_RUN -> UNKNOWN_WORKER_VERSION -> UNVERIFIED_TARGET"
+  },
+  "runtime": {
+    "node": "v22.22.2",
+    "npm": "11.4.2"
+  },
+  "localGates": {
+    "npmCi": {
+      "status": "PASS",
+      "exitCode": 0
+    },
+    "npmTest": {
+      "status": "PASS",
+      "exitCode": 0,
+      "executed": 1376,
+      "passed": 1376,
+      "failed": 0,
+      "skipped": 0
+    },
+    "projectLmRuntime": {
+      "status": "PASS",
+      "exitCode": 0
+    },
+    "databaseExpected": {
+      "status": "PASS",
+      "exitCode": 0,
+      "migrationCount": 41,
+      "terminalMigration": "0044_add_progression_execution_quality.sql"
+    },
+    "securityClosure": {
+      "status": "VALIDATED",
+      "exitCode": 0,
+      "passed": 29,
+      "failed": 0,
+      "skipped": 0
+    },
+    "stabilityClosure": {
+      "status": "VALIDATED",
+      "exitCode": 0,
+      "passed": 46,
+      "failed": 0,
+      "skipped": 0
+    },
+    "studentUxAudit": {
+      "status": "PASS",
+      "exitCode": 0
+    },
+    "baselineCheck": {
+      "status": "PASS",
+      "exitCode": 0
+    },
+    "performanceContractTests": {
+      "status": "PASS",
+      "exitCode": 0,
+      "executed": 60,
+      "passed": 60,
+      "failed": 0,
+      "skipped": 0
+    },
+    "structuralRuntimeTests": {
+      "status": "PASS",
+      "exitCode": 0,
+      "executed": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "invalidRuntimeAttempt": {
+    "node": "v20.20.2",
+    "npmTest": {
+      "executed": 1225,
+      "passed": 1200,
+      "failed": 25,
+      "skipped": 0
+    },
+    "classification": "INVALID_FOR_SUPPORTED_RUNTIME"
+  },
+  "budgets": {
+    "publicHtmlBytes": 281500,
+    "publicCssBytes": 254750,
+    "publicJavaScriptBytes": 461537,
+    "workerApiBytes": 292866,
+    "largestPublicAssetBytes": 775360,
+    "publicBytes": 16728795,
+    "errorBudgetResults": {
+      "passed": 10,
+      "errors": 0,
+      "warnings": 3
+    },
+    "status": "PASS"
+  },
+  "ciRuns": [],
+  "requiredCi": "BLOCKED_UNAVAILABLE",
+  "browserPerformance": {
+    "status": "BLOCKED",
+    "workflowRunId": null,
+    "sha": null,
+    "browser": null,
+    "reason": "GitHub Actions evidence is inaccessible and no local Chrome/Chromium executable is available."
+  },
+  "e2e": {
+    "staticApiSmoke": "BLOCKED_TARGET_FIDELITY_NOT_PROVEN",
+    "premiumLifecycle": "BLOCKED_TARGET_FIDELITY_NOT_PROVEN",
+    "anamnesis": "BLOCKED_TARGET_FIDELITY_NOT_PROVEN",
+    "nutrition": "BLOCKED_TARGET_FIDELITY_NOT_PROVEN",
+    "weeklyCheckin": "BLOCKED_TARGET_FIDELITY_NOT_PROVEN",
+    "professionalResponse": "BLOCKED_TARGET_FIDELITY_NOT_PROVEN",
+    "progression": "BLOCKED_TARGET_FIDELITY_NOT_PROVEN",
+    "workspace": "BLOCKED_TARGET_FIDELITY_NOT_PROVEN",
+    "projectLm": "BLOCKED_TARGET_FIDELITY_NOT_PROVEN"
+  },
+  "databaseFidelity": "BLOCKED_REMOTE_AUDIT_UNAVAILABLE",
+  "security": "BLOCKED_FINAL_TARGET_AND_CI_EVIDENCE_UNAVAILABLE",
+  "stability": "BLOCKED_FINAL_TARGET_AND_CI_EVIDENCE_UNAVAILABLE",
+  "isolation": {
+    "status": "BLOCKED_TARGET_E2E_NOT_EXECUTED",
+    "unexpectedCalls": null,
+    "premiumToProjectLmUnexpectedCalls": null,
+    "projectLmToPremiumUnexpectedCalls": null
+  },
+  "blockerClosure": {
+    "RELEASE_TARGET_FIDELITY": "OPEN",
+    "REQUIRED_CI_UNVERIFIED": "OPEN",
+    "REQUIRED_LOCAL_GATES_NOT_GREEN": "CLOSED",
+    "BROWSER_PERFORMANCE_UNVALIDATED": "OPEN",
+    "TARGET_E2E_AND_DATABASE_UNVALIDATED": "OPEN"
+  },
+  "finalReleaseBlockers": 4,
+  "releaseStatus": "RELEASE_BLOCKED",
+  "f72Fix1": "BLOCKED",
+  "portalLmV1": "NOT_CLOSED",
+  "fix2ValidationTimestampUtc": "2026-08-15T18:21:21Z",
+  "externalEvidenceAccess": {
+    "githubCli": "UNAUTHENTICATED",
+    "githubApi": "NETWORK_BLOCKED_CONNECT_TUNNEL_403",
+    "cloudflareCredentialsAvailable": false,
+    "stagingCredentialsAvailable": false,
+    "chromeExecutableAvailable": false
+  },
+  "f72Fix2": "BLOCKED",
+  "fix3": {
+    "workflow": ".github/workflows/f7-final-release-evidence.yml",
+    "status": "NOT_EXECUTED",
+    "runId": null,
+    "artifact": null,
+    "purpose": "Collect external release evidence inside GitHub Actions at the exact product release SHA."
+  },
+  "f72Fix3": "BLOCKED_NOT_EXECUTED",
+  "evidenceInfrastructureDiff": [
+    ".github/workflows/f7-final-release-evidence.yml",
+    "scripts/f7-final-release-evidence.mjs"
+  ]
+}
