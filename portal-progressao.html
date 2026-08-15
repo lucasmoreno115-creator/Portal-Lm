@@ -27,6 +27,7 @@
       <button id='calc'>Calcular</button>
       <div id='out' class='card' style='display:none'></div>
       <button id='save' style='display:none'>Salvar progressão</button>
+      <p id='saveStatus' role='status' aria-live='polite' aria-atomic='true'></p>
     </div>
 
     <div class='card'><h2>Histórico</h2><div id='hist'></div></div>
@@ -41,6 +42,7 @@
     const calc = document.getElementById('calc');
     const out = document.getElementById('out');
     const save = document.getElementById('save');
+    const saveStatus = document.getElementById('saveStatus');
     const exercise = document.getElementById('exercise');
     const load = document.getElementById('load');
     const hist = document.getElementById('hist');
@@ -51,6 +53,7 @@
     navEl.innerHTML = nav();
 
     let current = null;
+    let isSaving = false;
 
     function decide() {
       if (!exercise.value || !load.value || !reps.value) {
@@ -117,11 +120,25 @@
     calc.onclick = decide;
 
     save.onclick = async () => {
+      if (!current || isSaving) return;
+      isSaving = true;
+      save.disabled = true;
+      save.textContent = 'Salvando...';
+      saveStatus.textContent = 'Salvando sua progressão...';
       try {
         await api('/portal/progression', { method: 'POST', body: JSON.stringify(current) });
-        loadHist();
+        saveStatus.textContent = 'Progressão salva com sucesso.';
+        try {
+          await loadHist();
+        } catch {
+          // O save já foi confirmado; o tratamento do GET inicial pertence ao UX-PREM-003.
+        }
       } catch (e) {
-        alert(e.message);
+        saveStatus.textContent = 'Não foi possível salvar a progressão. Tente novamente.';
+      } finally {
+        isSaving = false;
+        save.disabled = false;
+        save.textContent = 'Salvar progressão';
       }
     };
 
