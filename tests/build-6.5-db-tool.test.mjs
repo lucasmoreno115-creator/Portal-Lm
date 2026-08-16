@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { execFileSync } from 'node:child_process';
-import { classifyWranglerBin, compareSchemas, isDirectExecution, main, normalizeExecutablePath, parseArgs, replayMigrations, resolveWranglerInvocation, wrangler, PRODUCTION_DB, PRODUCTION_DB_ID, WRANGLER_BIN_TYPES } from '../scripts/db-tool.mjs';
+import { classifyWranglerBin, compareSchemas, isDirectExecution, main, normalizeExecutablePath, parseArgs, replayMigrations, resolveWranglerInvocation, writeExpectedSchemaSnapshot, wrangler, PRODUCTION_DB, PRODUCTION_DB_ID, WRANGLER_BIN_TYPES } from '../scripts/db-tool.mjs';
 
 function tempDir() { return mkdtempSync(path.join(os.tmpdir(), 'build65-test-')); }
 function writeMigration(dir, name, sql) { writeFileSync(path.join(dir, name), sql); }
@@ -28,6 +28,33 @@ test('Build 6.5 expected schema: migration replay succeeds deterministically for
     const result = replayMigrations({ dir });
     assert.equal(result.ok, true);
     assert.deepEqual(result.applied, ['0001_create.sql', '0002_index.sql']);
+  } finally { rmSync(dir, { recursive:true, force:true }); }
+});
+
+test('Build 6.5 expected schema: unchanged material preserves the snapshot byte for byte', () => {
+  const dir = tempDir();
+  const file = path.join(dir, 'migration-schema.json');
+  const material = { source: 'fixture', tables: ['students'] };
+  try {
+    assert.equal(writeExpectedSchemaSnapshot(file, material, { now: () => '2026-01-01T00:00:00.000Z' }), true);
+    const original = readFileSync(file, 'utf8');
+    assert.equal(writeExpectedSchemaSnapshot(file, material, { now: () => '2026-02-01T00:00:00.000Z' }), false);
+    assert.equal(readFileSync(file, 'utf8'), original);
+    assert.equal(JSON.parse(original).generatedAt, '2026-01-01T00:00:00.000Z');
+  } finally { rmSync(dir, { recursive:true, force:true }); }
+});
+
+test('Build 6.5 expected schema: material changes update the snapshot and generation time', () => {
+  const dir = tempDir();
+  const file = path.join(dir, 'migration-schema.json');
+  try {
+    writeExpectedSchemaSnapshot(file, { source: 'fixture', tables: ['students'] }, { now: () => '2026-01-01T00:00:00.000Z' });
+    const original = readFileSync(file, 'utf8');
+    assert.equal(writeExpectedSchemaSnapshot(file, { source: 'fixture', tables: ['students', 'plans'] }, { now: () => '2026-02-01T00:00:00.000Z' }), true);
+    const updated = readFileSync(file, 'utf8');
+    assert.notEqual(updated, original);
+    assert.deepEqual(JSON.parse(updated).tables, ['students', 'plans']);
+    assert.equal(JSON.parse(updated).generatedAt, '2026-02-01T00:00:00.000Z');
   } finally { rmSync(dir, { recursive:true, force:true }); }
 });
 

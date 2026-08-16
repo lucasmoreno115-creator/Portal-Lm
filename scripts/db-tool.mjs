@@ -134,6 +134,16 @@ function shouldUseReplayOverride(db, file, override, environment = 'local') { if
 const writeJsonAtomic = (file, data) => { mkdirSync(path.dirname(file), { recursive: true }); const tmp = `${file}.tmp-${process.pid}`; writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`); renameSync(tmp, file); };
 const writeAtomic = (file, data) => { mkdirSync(path.dirname(file), { recursive: true }); const tmp = `${file}.tmp-${process.pid}`; writeFileSync(tmp, data); renameSync(tmp, file); };
 
+export function writeExpectedSchemaSnapshot(file, materialSnapshot, { now = () => new Date().toISOString() } = {}) {
+  if (existsSync(file)) {
+    const existing = JSON.parse(readFileSync(file, 'utf8'));
+    const { generatedAt: _generatedAt, ...existingMaterial } = existing;
+    if (JSON.stringify(existingMaterial) === JSON.stringify(materialSnapshot)) return false;
+  }
+  writeJsonAtomic(file, { generatedAt: now(), ...materialSnapshot });
+  return true;
+}
+
 function readVersion() {
   if (process.env.RELEASE_VERSION && /^\d+\.\d+\.\d+/.test(process.env.RELEASE_VERSION)) return process.env.RELEASE_VERSION;
   if (existsSync(path.join(root, 'VERSION.md'))) {
@@ -246,7 +256,8 @@ function emitExpected() {
   const sql = schema.objects.map(o => `${o.sql};`).join('\n\n') + '\n';
   const canonical = canonicalSchema(schema);
   writeAtomic(path.join(expectedDir, 'migration-schema.sql'), sql);
-  writeJsonAtomic(path.join(expectedDir, 'migration-schema.json'), { generatedAt: new Date().toISOString(), source: 'database/bootstrap/legacy-base-schema.sql + versioned migrations + registered replay overrides', bootstrap: 'database/bootstrap/legacy-base-schema.sql', migrations: replay.applied, overridesUsed: replay.overridesUsed, replayOrder: ['database/bootstrap/legacy-base-schema.sql', ...replay.applied], schemaHash: sha256(JSON.stringify(canonical)), ...canonical });
+  const materialSnapshot = { source: 'database/bootstrap/legacy-base-schema.sql + versioned migrations + registered replay overrides', bootstrap: 'database/bootstrap/legacy-base-schema.sql', migrations: replay.applied, overridesUsed: replay.overridesUsed, replayOrder: ['database/bootstrap/legacy-base-schema.sql', ...replay.applied], schemaHash: sha256(JSON.stringify(canonical)), ...canonical };
+  writeExpectedSchemaSnapshot(path.join(expectedDir, 'migration-schema.json'), materialSnapshot);
 }
 
 function catalog() {
