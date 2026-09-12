@@ -66,19 +66,19 @@ export async function runWeeklyCheckinReminder(env, options = {}) {
   const deliverPush = options.deliverPush || deliverPortalPush;
   summary.operational_week = scheduleService.getWeekRef(scheduledAt);
 
-  // This repository contract is the canonical Premium consultation rule. Access
-  // and weekly eligibility retain the same statuses used by listMissingResponses.
-  const activeStudents = await studentRepository.list({ status: 'ACTIVE', limit: 10_000 });
+  // Keep the population count and the reminder candidate selection set-based.
+  // The previous implementation issued one findByStudentAndWeek query per
+  // eligible student, amplifying D1 reads every Saturday.
+  const [activeStudents, reminderCandidates] = await Promise.all([
+    studentRepository.list({ status: 'ACTIVE', limit: 10_000 }),
+    feedbackRepository.listReminderCandidates({ weekRef: summary.operational_week, limit: 10_000 }),
+  ]);
   const eligibleStudents = activeStudents.filter((student) => student.access_status === 'ACTIVE');
   summary.eligible = eligibleStudents.length;
+  summary.already_answered = Math.max(0, summary.eligible - reminderCandidates.length);
 
-  for (const student of eligibleStudents) {
+  for (const student of reminderCandidates) {
     try {
-      const checkin = await feedbackRepository.findByStudentAndWeek(student.student_id, summary.operational_week);
-      if (checkin?.submitted_at) {
-        summary.already_answered += 1;
-        continue;
-      }
       const result = await createNotification(env, {
         ...NOTIFICATION,
         student_id: student.student_id,
