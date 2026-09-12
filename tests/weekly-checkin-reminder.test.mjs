@@ -14,11 +14,12 @@ const students = [
 function harness(overrides = {}) {
   const notifications = new Map();
   let pushes = 0;
+  const defaultCandidates = students.filter((student) => student.student_id === 'active');
   const options = {
     scheduledTime: saturday,
     scheduleService: { getWeekRef: () => '2026-W31' },
     studentRepository: { list: async ({ status }) => students.filter((student) => student.consultation_status === status) },
-    feedbackRepository: { findByStudentAndWeek: async (id) => id === 'answered' ? { submitted_at: '2026-08-01T10:00:00Z' } : null },
+    feedbackRepository: { listReminderCandidates: async () => defaultCandidates },
     createNotification: async (_env, input) => {
       const key = `${input.student_id}:${input.type}:${input.reference_key}`;
       if (notifications.has(key)) return { notification: notifications.get(key), created: false };
@@ -75,10 +76,23 @@ test('notification survives absent subscription or push failure', async () => {
   assert.equal(failure.notifications.size, 1);
 });
 
-test('isolates students and accepts an empty eligible set', async () => {
-  const isolated = harness({ feedbackRepository: { findByStudentAndWeek: async (id) => { if (id === 'active') throw new Error('row error'); return { submitted_at: 'now' }; } } });
-  assert.equal((await runWeeklyCheckinReminder({ DB: {} }, isolated.options)).failed_students, 1);
-  const empty = harness({ studentRepository: { list: async () => [] } });
+test('isolates candidate failures and accepts an empty candidate set', async () => {
+  const candidateSet = students.filter((student) => ['active', 'answered'].includes(student.student_id));
+  const isolated = harness({
+    feedbackRepository: { listReminderCandidates: async () => candidateSet },
+    createNotification: async (_env, input) => {
+      if (input.student_id === 'active') throw new Error('row error');
+      return { created: true, notification: { id: 'n-answered', ...input } };
+    },
+  });
+  const isolatedResult = await runWeeklyCheckinReminder({ DB: {} }, isolated.options);
+  assert.equal(isolatedResult.failed_students, 1);
+  assert.equal(isolatedResult.created, 1);
+
+  const empty = harness({
+    studentRepository: { list: async () => [] },
+    feedbackRepository: { listReminderCandidates: async () => [] },
+  });
   const result = await runWeeklyCheckinReminder({ DB: {} }, empty.options);
   assert.equal(result.eligible, 0);
   assert.equal(result.created, 0);

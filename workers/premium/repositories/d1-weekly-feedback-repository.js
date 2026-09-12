@@ -59,6 +59,21 @@ export function createD1WeeklyFeedbackRepository(db) {
     },
     async listPendingAnalysis({ limit = 50 } = {}) { return rows(await db.prepare(`SELECT * FROM student_checkins WHERE (coach_status IS NULL OR lower(coach_status) IN ('pending','responded')) AND submitted_at IS NOT NULL ORDER BY datetime(submitted_at) ASC LIMIT ?`).bind(limit).all()); },
     async listMissingResponses({ weekRef, deadline, limit = 50 } = {}) { return rows(await db.prepare(`SELECT ps.* FROM premium_students ps LEFT JOIN student_checkins sc ON sc.student_id=ps.student_id AND sc.week_ref=? WHERE ps.consultation_status='ACTIVE' AND ps.access_status='ACTIVE' AND (sc.id IS NULL OR sc.submitted_at IS NULL) ORDER BY ps.display_name ASC, ps.email ASC LIMIT ?`).bind(weekRef, limit).all()); },
+    async listReminderCandidates({ weekRef, limit = 10_000 } = {}) {
+      return rows(await db.prepare(`SELECT ps.*
+        FROM premium_students ps
+        WHERE ps.consultation_status='ACTIVE'
+          AND ps.access_status='ACTIVE'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM student_checkins sc
+            WHERE sc.student_id=ps.student_id
+              AND sc.week_ref=?
+              AND sc.submitted_at IS NOT NULL
+          )
+        ORDER BY ps.display_name ASC, ps.email ASC
+        LIMIT ?`).bind(weekRef, limit).all());
+    },
     async markAnalyzed(id, { reviewed_at, reviewed_by, coach_status = 'reviewed' } = {}) {
       return changes(await db.prepare('UPDATE student_checkins SET coach_status = ?, reviewed_at = ?, reviewed_by = ?, analyzed_at = ? WHERE id = ?').bind(coach_status, reviewed_at ?? new Date().toISOString(), reviewed_by ?? null, reviewed_at ?? new Date().toISOString(), id).run());
     },
